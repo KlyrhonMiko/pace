@@ -38,16 +38,9 @@ app.include_router(events.router)
 
 @app.on_event("startup")
 async def startup_event():
-    """Load all jobs into Redis cache on startup"""
-    from sqlmodel import Session
-    from core.database import engine
-    from services.jooble import load_all_jobs_to_cache
-    
+    """Startup event"""
     try:
-        session = Session(engine)
-        job_count = load_all_jobs_to_cache(session)
-        session.close()
-        print(f"[STARTUP] ✓ Cached {job_count} jobs on startup")
+        print(f"[STARTUP] ✓ Application started - lazy caching enabled")
     except Exception as e:
         print(f"[STARTUP] ⚠ Failed to load jobs into cache: {e}")
 

@@ -75,7 +75,7 @@ function convertApiJob(job: JoobleJob, index: number): UnifiedJob {
 export default function JobListingsPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
-    const [locationSearch, setLocationSearch] = useState("Pasig");
+    const [locationSearch, setLocationSearch] = useState("");
     const [selectedExperience, setSelectedExperience] = useState<string[]>([]);
     const [selectedWorkTypes, setSelectedWorkTypes] = useState<string[]>([]);
     const [salaryRange, setSalaryRange] = useState<[number, number]>([0, 500]);
@@ -99,6 +99,61 @@ export default function JobListingsPage() {
         workTypes: Record<string, number>;
         experienceLevels: Record<string, number>;
     }>({ jobTypes: {}, workTypes: {}, experienceLevels: {} });
+
+    // Fetch filter counts for display
+    const fetchFilterCounts = useCallback(async () => {
+        try {
+            // Fetch counts for all job types
+            const jobTypePromises = jobTypes.map(type =>
+                searchJobs({
+                    location: debouncedLocationSearch || "Philippines",
+                    job_type: type,
+                    page: 1,
+                    limit: 1,
+                }).then(res => ({ type, count: res.totalCount }))
+            );
+
+            // Fetch counts for all work types
+            const workTypePromises = workTypes.map(wt =>
+                searchJobs({
+                    location: debouncedLocationSearch || "Philippines",
+                    work_type: wt,
+                    page: 1,
+                    limit: 1,
+                }).then(res => ({ type: wt, count: res.totalCount }))
+            );
+
+            // Fetch counts for all experience levels
+            const expPromises = experienceLevels.map(exp =>
+                searchJobs({
+                    location: debouncedLocationSearch || "Philippines",
+                    experience_level: exp,
+                    page: 1,
+                    limit: 1,
+                }).then(res => ({ type: exp, count: res.totalCount }))
+            );
+
+            const [jobTypeResults, workTypeResults, expResults] = await Promise.all([
+                Promise.all(jobTypePromises),
+                Promise.all(workTypePromises),
+                Promise.all(expPromises),
+            ]);
+
+            const newFacets = {
+                jobTypes: {} as Record<string, number>,
+                workTypes: {} as Record<string, number>,
+                experienceLevels: {} as Record<string, number>,
+            };
+
+            jobTypeResults.forEach(r => newFacets.jobTypes[r.type] = r.count);
+            workTypeResults.forEach(r => newFacets.workTypes[r.type] = r.count);
+            expResults.forEach(r => newFacets.experienceLevels[r.type] = r.count);
+
+            setFacets(newFacets);
+        } catch (error) {
+            console.error("Failed to fetch filter counts:", error);
+        }
+    }, [debouncedLocationSearch]);
 
     // Fetch jobs from API
     const fetchJobs = useCallback(async () => {
@@ -140,10 +195,15 @@ export default function JobListingsPage() {
         }
     }, [debouncedSearchQuery, debouncedLocationSearch, selectedTypes, selectedWorkTypes, selectedExperience, currentPage, JOBS_PER_PAGE, hasSalary]);
 
-    // Fetch on mount and when search/location/page changes
+    // Fetch jobs on mount and when search/location/page changes
     useEffect(() => {
         fetchJobs();
     }, [fetchJobs]);
+
+    // Fetch filter counts only on mount
+    useEffect(() => {
+        fetchFilterCounts();
+    }, []);
 
     // Debounce salary range updates to prevent layout shift while dragging
     useEffect(() => {

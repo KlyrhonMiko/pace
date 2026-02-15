@@ -118,10 +118,9 @@ async def fetch_jobs(
     if not settings.JOOBLE_API_KEY or settings.JOOBLE_API_KEY == "your_api_key_here":
         return {"jobs": [], "totalCount": 0, "error": "Jooble API key not configured."}
     
-    # Build API payl load
+    # Build API payload
     api_keywords = keywords or ""
-    if job_type:
-        api_keywords = f"{api_keywords} {job_type}".strip()
+    # Don't add job_type to keywords - filter it in Python instead
     
     payload = {
         "keywords": api_keywords,
@@ -166,10 +165,6 @@ async def fetch_jobs(
                     
                     job_data = _normalize_job_dict(job)
                     
-                    # Override generic Philippines location
-                    if job_data["location"] == "Philippines" and search_location and search_location != "Philippines":
-                        job_data["location"] = search_location
-                    
                     # Skip jobs without salary if requested
                     if has_salary and not any(char.isdigit() for char in job_data.get("salary", "")):
                         continue
@@ -198,7 +193,21 @@ async def fetch_jobs(
                     has_salary=has_salary
                 )
             
-            # Filter by work_type and experience_level
+            # Filter by location (case-insensitive contains check)
+            if location and location != "Philippines":
+                location_lower = location.lower().strip()
+                normalized_jobs = [j for j in normalized_jobs 
+                                  if location_lower in j.get('location', '').lower()]
+                print(f"[FETCH_JOBS] Filtered by location={location}: {len(normalized_jobs)} jobs remain")
+            
+            # Filter by job_type, work_type and experience_level
+            if job_type:
+                # Exact match for job type
+                job_type_lower = job_type.lower().strip()
+                normalized_jobs = [j for j in normalized_jobs 
+                                  if j.get('type', '').lower() == job_type_lower]
+                print(f"[FETCH_JOBS] Filtered by job_type={job_type}: {len(normalized_jobs)} jobs remain")
+            
             if work_type:
                 # Exact matches for work type
                 work_type_lower = work_type.lower().strip()
@@ -269,10 +278,8 @@ async def fetch_all_remaining_jobs(
                 # Small delay to be nice to API
                 await asyncio.sleep(1.0)
                 
-                # Construct keywords with job type if passed
+                # Construct keywords (don't add job_type here - filtered in main function)
                 api_keywords = keywords or ""
-                if job_type:
-                    api_keywords = f"{api_keywords} {job_type}".strip()
 
                 payload = {
                     "keywords": api_keywords,

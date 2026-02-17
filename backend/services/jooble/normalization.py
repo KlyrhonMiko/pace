@@ -26,23 +26,23 @@ def _normalize_job_dict(job: dict) -> dict:
     clean_snippet = re.sub(r'<[^>]+>', '', snippet) # Remove tags
     clean_snippet = clean_snippet.replace("&nbsp;", " ").replace("\r\n", " ").strip()
     
-    # 2. Infer or Correct Job Type
+    # 2. Normalize Job Type
     j_type = job.get("type", "").strip() or "Full-time"
     
-    # Heuristic: Check title/snippet for more specific types if default is generic or missing
-    # or if we want to override "Full-time" with more specific info found in title.
+    # Try to infer more specific types from title and snippet if type is generic
     title_lower = job.get("title", "").lower()
+    snippet_lower = clean_snippet.lower()
+    combined_text = f"{title_lower} {snippet_lower}"
     
-    # Use regex with word boundaries to avoid false positives (e.g. "International" -> "Intern")
-    # We prioritize Internship > Contract > Part-time > Full-time
-    
-    if re.search(r'\bintern(ship|s)?\b', title_lower):
+    # Prioritize: Internship > Contract > Part-time > Temporary > Full-time
+    if re.search(r'\bintern(ship|s)?\b', combined_text):
          j_type = "Internship"
-    elif re.search(r'\bcontract(ual)?\b', title_lower) or re.search(r'\bfreelance\b', title_lower):
+    elif re.search(r'\bcontract(ual)?\b', combined_text) or re.search(r'\bfreelance\b', combined_text):
          j_type = "Contract"
-    elif re.search(r'\bpart[\s-]?time\b', title_lower):
+    elif re.search(r'\bpart[\s-]?time\b', combined_text):
          j_type = "Part-time"
-    elif re.search(r'\btemporary\b', title_lower) or re.search(r'\btemp\b', title_lower):
+    elif re.search(r'\btemporary\b', combined_text) or re.search(r'\btemp\b', combined_text):
+         j_type = "Temporary"
          j_type = "Temporary"
     
     

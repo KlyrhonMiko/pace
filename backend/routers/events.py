@@ -8,7 +8,8 @@ from core.database import get_session
 from models.events import Event, EventCreate, EventUpdate, EventPublic, EventType
 from models.response_codes import StandardResponse, ErrorCode, SuccessCode
 from models.pagination import PaginationMetadata
-from utils.timezone import get_current_time_gmt8, GMT8
+from utils.timezone import get_current_time_gmt8, GMT8, convert_to_gmt8
+from utils.events import get_event_or_404
 from services.supabase.supabase_storage import SupabaseStorageService
 
 logger = logging.getLogger(__name__)
@@ -17,32 +18,6 @@ router = APIRouter(prefix="/events", tags=["events"])
 storage_service = SupabaseStorageService()
 
 
-def convert_to_gmt8(dt: datetime) -> datetime:
-    """Convert any datetime to GMT+8 timezone"""
-    if dt is None:
-        return None
-    
-    # If naive datetime, assume it's UTC and localize it
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    
-    # Convert to GMT+8
-    return dt.astimezone(GMT8)
-
-
-def get_event_or_404(session: Session, event_id: str) -> Event:
-    """Get event by event_id or raise 404"""
-    event = session.exec(select(Event).where(Event.event_id == event_id)).first()
-    if not event:
-        raise HTTPException(
-            status_code=404,
-            detail=StandardResponse(
-                success=False,
-                code=ErrorCode.EVENT_NOT_FOUND,
-                message=f"Event with ID '{event_id}' not found"
-            ).model_dump()
-        )
-    return event
 
 
 # ==================== Single CRUD Endpoints ====================
@@ -560,7 +535,7 @@ async def delete_event_image(
                 status_code=400,
                 detail=StandardResponse(
                     success=False,
-                    code=ErrorCode.IMAGE_UPLOAD_FAILED,
+                    code=ErrorCode.IMAGE_DELETE_FAILED,
                     message=error
                 ).model_dump()
             )
@@ -617,7 +592,7 @@ def get_event_image_url(event_id: str, session: Session = Depends(get_session)):
                 status_code=400,
                 detail=StandardResponse(
                     success=False,
-                    code=ErrorCode.IMAGE_UPLOAD_FAILED,
+                    code=ErrorCode.IMAGE_URL_FAILED,
                     message="Failed to generate image URL"
                 ).model_dump()
             )

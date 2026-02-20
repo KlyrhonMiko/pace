@@ -43,16 +43,8 @@ class Event(EventBase, table=True):
     registrants: List["EventRegistration"] = Relationship(back_populates="event")
 
 
-class EventCreate(SQLModel):
-    event_id: str = Field(max_length=20, unique=True, index=True)
-    name: str = Field(max_length=255)
-    description: str = Field(max_length=1000)
-    event_type: EventType
-    date: datetime
-    time_start: time
-    time_end: time
-    location: str = Field(max_length=255)
-    capacity: int = Field(gt=0)
+class EventCreate(EventBase):
+    pass
 
 
 class EventPublic(EventBase):
@@ -89,7 +81,6 @@ class EventUpdate(SQLModel):
     time_end: Optional[time] = None
     location: Optional[str] = Field(default=None, max_length=255)
     capacity: Optional[int] = Field(default=None, gt=0)
-    attendees: Optional[int] = Field(default=None, ge=0)
 
 
 # Event Registration (for tracking which users registered for which events)

@@ -7,6 +7,7 @@ from core.database import get_session
 from models.events import Event, EventRegistration, EventRegistrationResponse, EventRegistrationRequest
 from models.response_codes import StandardResponse, ErrorCode, SuccessCode
 from models.pagination import PaginationMetadata
+from utils.events import get_event_or_404
 from utils.timezone import get_current_time_gmt8
 
 logger = logging.getLogger(__name__)
@@ -14,19 +15,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/events", tags=["event-registration"])
 
 
-def get_event_or_404(session: Session, event_id: str) -> Event:
-    """Get event by event_id or raise 404"""
-    event = session.exec(select(Event).where(Event.event_id == event_id)).first()
-    if not event:
-        raise HTTPException(
-            status_code=404,
-            detail=StandardResponse(
-                success=False,
-                code=ErrorCode.EVENT_NOT_FOUND,
-                message=f"Event with ID '{event_id}' not found"
-            ).model_dump()
-        )
-    return event
+
 
 
 # ==================== Event Registration Endpoints ====================

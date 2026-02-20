@@ -45,31 +45,32 @@ def bulk_create_college_depts(
     
     for index, college_dept_item in enumerate(bulk_data.items):
         try:
-            # Generate college_dept_id
-            college_dept_id = generate_college_dept_id(session)
-            
-            # Create college dept
-            college_dept_dict = college_dept_item.model_dump()
-            college_dept_dict["college_dept_id"] = college_dept_id
-            
-            new_college_dept = CollegeDept.model_validate(college_dept_dict)
-            session.add(new_college_dept)
-            session.flush()  # Flush to get the ID but don't commit yet
-            session.refresh(new_college_dept)
-            
-            # Record successful creation
-            results.append(CollegeDeptBulkCreateItem(
-                index=index,
-                item=college_dept_item,
-                success=True,
-                code=SuccessCode.COLLEGE_DEPT_CREATED.value,
-                message="College department created successfully",
-                data=CollegeDeptPublic.model_validate(new_college_dept)
-            ))
-            successful_count += 1
+            with session.begin_nested():
+                # Generate college_dept_id
+                college_dept_id = generate_college_dept_id(session)
+                
+                # Create college dept
+                college_dept_dict = college_dept_item.model_dump()
+                college_dept_dict["college_dept_id"] = college_dept_id
+                
+                new_college_dept = CollegeDept.model_validate(college_dept_dict)
+                session.add(new_college_dept)
+                session.flush()  # Flush to get the ID but don't commit yet
+                session.refresh(new_college_dept)
+                
+                # Record successful creation
+                results.append(CollegeDeptBulkCreateItem(
+                    index=index,
+                    item=college_dept_item,
+                    success=True,
+                    code=SuccessCode.COLLEGE_DEPT_CREATED.value,
+                    message="College department created successfully",
+                    data=CollegeDeptPublic.model_validate(new_college_dept)
+                ))
+                successful_count += 1
         
         except IntegrityError as e:
-            session.rollback()
+            # session.rollback() is handled automatically by the context manager on error
             error_str = str(e).lower()
             
             if "ix_college_depts_college_dept_abbv" in error_str or "college_depts_college_dept_abbv_key" in error_str:
@@ -147,52 +148,53 @@ def bulk_update_college_depts(
     
     for index, update_item in enumerate(bulk_data.items):
         try:
-            # Find college department
-            college_dept = session.exec(
-                select(CollegeDept).where(CollegeDept.college_dept_id == update_item.college_dept_id.upper())
-            ).first()
-            
-            if not college_dept:
+            with session.begin_nested():
+                # Find college department
+                college_dept = session.exec(
+                    select(CollegeDept).where(CollegeDept.college_dept_id == update_item.college_dept_id.upper())
+                ).first()
+                
+                if not college_dept:
+                    results.append(CollegeDeptBulkUpdateResult(
+                        index=index,
+                        college_dept_id=update_item.college_dept_id,
+                        success=False,
+                        code=ErrorCode.COLLEGE_DEPT_NOT_FOUND.value,
+                        message=f"College department '{update_item.college_dept_id}' not found",
+                        data=None
+                    ))
+                    failed_count += 1
+                    continue
+                
+                # Update only provided fields
+                if update_item.college_dept_abbv is not None:
+                    college_dept.college_dept_abbv = update_item.college_dept_abbv
+                if update_item.college_dept_name is not None:
+                    college_dept.college_dept_name = update_item.college_dept_name
+                if update_item.college_dept_desc is not None:
+                    college_dept.college_dept_desc = update_item.college_dept_desc
+                
+                # Update timestamp
+                from datetime import datetime, timezone
+                college_dept.updated_at = datetime.now(timezone.utc)
+                
+                session.add(college_dept)
+                session.flush()
+                session.refresh(college_dept)
+                
+                # Record successful update
                 results.append(CollegeDeptBulkUpdateResult(
                     index=index,
                     college_dept_id=update_item.college_dept_id,
-                    success=False,
-                    code=ErrorCode.COLLEGE_DEPT_NOT_FOUND.value,
-                    message=f"College department '{update_item.college_dept_id}' not found",
-                    data=None
+                    success=True,
+                    code=SuccessCode.COLLEGE_DEPT_UPDATED.value,
+                    message="College department updated successfully",
+                    data=CollegeDeptPublic.model_validate(college_dept)
                 ))
-                failed_count += 1
-                continue
-            
-            # Update only provided fields
-            if update_item.college_dept_abbv is not None:
-                college_dept.college_dept_abbv = update_item.college_dept_abbv
-            if update_item.college_dept_name is not None:
-                college_dept.college_dept_name = update_item.college_dept_name
-            if update_item.college_dept_desc is not None:
-                college_dept.college_dept_desc = update_item.college_dept_desc
-            
-            # Update timestamp
-            from datetime import datetime, timezone
-            college_dept.updated_at = datetime.now(timezone.utc)
-            
-            session.add(college_dept)
-            session.flush()
-            session.refresh(college_dept)
-            
-            # Record successful update
-            results.append(CollegeDeptBulkUpdateResult(
-                index=index,
-                college_dept_id=update_item.college_dept_id,
-                success=True,
-                code=SuccessCode.COLLEGE_DEPT_UPDATED.value,
-                message="College department updated successfully",
-                data=CollegeDeptPublic.model_validate(college_dept)
-            ))
-            successful_count += 1
+                successful_count += 1
         
         except IntegrityError as e:
-            session.rollback()
+            # session.rollback() is handled automatically by the context manager on error
             error_str = str(e).lower()
             
             if "ix_college_depts_college_dept_abbv" in error_str or "college_depts_college_dept_abbv_key" in error_str:

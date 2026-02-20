@@ -117,35 +117,36 @@ def bulk_create_users(
     
     for index, user_item in enumerate(bulk_data.items):
         try:
-            # Generate user_id based on user_type
-            user_id = generate_user_id(user_item.user_type, session)
-            
-            # Create user
-            user_dict = user_item.model_dump()
-            user_dict["user_id"] = user_id
-            
-            new_user = User.model_validate(user_dict)
-            session.add(new_user)
-            session.flush()  # Flush to get the ID but don't commit yet
-            session.refresh(new_user)
-            
-            # Record successful creation
-            results.append(UserBulkCreateItem(
-                index=index,
-                item=UserCreateSafeDisplay(
-                    username=user_item.username,
-                    email=user_item.email,
-                    user_type=user_item.user_type
-                ),
-                success=True,
-                code=SuccessCode.USER_CREATED.value,
-                message="User created successfully",
-                data=UserPublic.model_validate(new_user)
-            ))
-            successful_count += 1
+            with session.begin_nested():
+                # Generate user_id based on user_type
+                user_id = generate_user_id(user_item.user_type, session)
+                
+                # Create user
+                user_dict = user_item.model_dump()
+                user_dict["user_id"] = user_id
+                
+                new_user = User.model_validate(user_dict)
+                session.add(new_user)
+                session.flush()  # Flush to get the ID but don't commit yet
+                session.refresh(new_user)
+                
+                # Record successful creation
+                results.append(UserBulkCreateItem(
+                    index=index,
+                    item=UserCreateSafeDisplay(
+                        username=user_item.username,
+                        email=user_item.email,
+                        user_type=user_item.user_type
+                    ),
+                    success=True,
+                    code=SuccessCode.USER_CREATED.value,
+                    message="User created successfully",
+                    data=UserPublic.model_validate(new_user)
+                ))
+                successful_count += 1
         
         except IntegrityError as e:
-            session.rollback()
+            # session.rollback() is handled automatically by the context manager on error
             error_str = str(e).lower()
             
             if "ix_users_email" in error_str or "users_email_key" in error_str:
@@ -326,12 +327,77 @@ def bulk_update_users(
     
     for index, update_item in enumerate(bulk_data.items):
         try:
-            # Find the user
-            user = session.exec(
-                select(User).where(User.user_id == update_item.user_id.upper())
-            ).first()
-            
-            if not user:
+            with session.begin_nested():
+                # Find the user
+                user = session.exec(
+                    select(User).where(User.user_id == update_item.user_id.upper())
+                ).first()
+                
+                if not user:
+                    results.append(UserBulkUpdateResult(
+                        index=index,
+                        item=UserUpdateSafeDisplay(
+                            user_id=update_item.user_id,
+                            username=update_item.username,
+                            email=update_item.email
+                        ),
+                        success=False,
+                        code=ErrorCode.USER_NOT_FOUND.value,
+                        message=f"User {update_item.user_id} not found",
+                        data=None
+                    ))
+                    failed_count += 1
+                    continue
+                
+                # If password change is requested, verify current password
+                if update_item.password is not None:
+                    if update_item.current_password is None:
+                        results.append(UserBulkUpdateResult(
+                            index=index,
+                            item=UserUpdateSafeDisplay(
+                                user_id=update_item.user_id,
+                                username=update_item.username,
+                                email=update_item.email
+                            ),
+                            success=False,
+                            code=ErrorCode.MISSING_CURRENT_PASSWORD.value,
+                            message="Current password required to change password",
+                            data=None
+                        ))
+                        failed_count += 1
+                        continue
+                    
+                    # Verify the current password
+                    if not verify_password(update_item.current_password, user.password):
+                        results.append(UserBulkUpdateResult(
+                            index=index,
+                            item=UserUpdateSafeDisplay(
+                                user_id=update_item.user_id,
+                                username=update_item.username,
+                                email=update_item.email
+                            ),
+                            success=False,
+                            code=ErrorCode.INVALID_CREDENTIALS.value,
+                            message="Current password is incorrect",
+                            data=None
+                        ))
+                        failed_count += 1
+                        continue
+                
+                # Update only provided fields
+                if update_item.username is not None:
+                    user.username = update_item.username
+                if update_item.email is not None:
+                    user.email = update_item.email
+                if update_item.password is not None:
+                    # Password is already hashed by validator in UserBulkUpdateItem
+                    user.password = update_item.password
+                
+                session.add(user)
+                session.flush()
+                session.refresh(user)
+                
+                # Record successful update
                 results.append(UserBulkUpdateResult(
                     index=index,
                     item=UserUpdateSafeDisplay(
@@ -339,79 +405,15 @@ def bulk_update_users(
                         username=update_item.username,
                         email=update_item.email
                     ),
-                    success=False,
-                    code=ErrorCode.USER_NOT_FOUND.value,
-                    message=f"User {update_item.user_id} not found",
-                    data=None
+                    success=True,
+                    code=SuccessCode.USER_UPDATED.value,
+                    message="User updated successfully",
+                    data=UserPublic.model_validate(user)
                 ))
-                failed_count += 1
-                continue
-            
-            # If password change is requested, verify current password
-            if update_item.password is not None:
-                if update_item.current_password is None:
-                    results.append(UserBulkUpdateResult(
-                        index=index,
-                        item=UserUpdateSafeDisplay(
-                            user_id=update_item.user_id,
-                            username=update_item.username,
-                            email=update_item.email
-                        ),
-                        success=False,
-                        code=ErrorCode.MISSING_CURRENT_PASSWORD.value,
-                        message="Current password required to change password",
-                        data=None
-                    ))
-                    failed_count += 1
-                    continue
-                
-                # Verify the current password
-                if not verify_password(update_item.current_password, user.password):
-                    results.append(UserBulkUpdateResult(
-                        index=index,
-                        item=UserUpdateSafeDisplay(
-                            user_id=update_item.user_id,
-                            username=update_item.username,
-                            email=update_item.email
-                        ),
-                        success=False,
-                        code=ErrorCode.INVALID_CREDENTIALS.value,
-                        message="Current password is incorrect",
-                        data=None
-                    ))
-                    failed_count += 1
-                    continue
-            
-            # Update only provided fields
-            if update_item.username is not None:
-                user.username = update_item.username
-            if update_item.email is not None:
-                user.email = update_item.email
-            if update_item.password is not None:
-                # Password is already hashed by validator in UserBulkUpdateItem
-                user.password = update_item.password
-            
-            session.add(user)
-            session.flush()
-            session.refresh(user)
-            
-            # Record successful update
-            results.append(UserBulkUpdateResult(
-                index=index,
-                item=UserUpdateSafeDisplay(
-                    user_id=update_item.user_id,
-                    username=update_item.username,
-                    email=update_item.email
-                ),
-                success=True,
-                code=SuccessCode.USER_UPDATED.value,
-                message="User updated successfully",
-                data=UserPublic.model_validate(user)
-            ))
-            successful_count += 1
+                successful_count += 1
         
         except IntegrityError as e:
-            session.rollback()
+            # session.rollback() is handled automatically by the context manager on error
             error_str = str(e).lower()
             
             if "ix_users_email" in error_str or "users_email_key" in error_str:

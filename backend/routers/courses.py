@@ -46,56 +46,57 @@ def bulk_create_courses(
     
     for index, course_item in enumerate(bulk_data.items):
         try:
-            # Verify college department exists and get its code
-            college_dept = session.exec(
-                select(CollegeDept).where(CollegeDept.college_dept_abbv == course_item.college_dept_abbv.upper())
-            ).first()
-            
-            if not college_dept:
-                error_code = ErrorCode.COLLEGE_DEPT_NOT_FOUND.value
-                error_msg = f"College department '{course_item.college_dept_abbv}' not found"
+            with session.begin_nested():
+                # Verify college department exists and get its code
+                college_dept = session.exec(
+                    select(CollegeDept).where(CollegeDept.college_dept_abbv == course_item.college_dept_abbv.upper())
+                ).first()
                 
+                if not college_dept:
+                    error_code = ErrorCode.COLLEGE_DEPT_NOT_FOUND.value
+                    error_msg = f"College department '{course_item.college_dept_abbv}' not found"
+                    
+                    results.append(CourseBulkCreateItem(
+                        index=index,
+                        item=course_item,
+                        success=False,
+                        code=error_code,
+                        message=error_msg,
+                        data=None
+                    ))
+                    failed_count += 1
+                    continue
+                
+                # Generate course_id
+                course_id = generate_course_id(session)
+                
+                # Create course
+                course_dict = course_item.model_dump(exclude={"college_dept_abbv"})
+                course_dict["course_id"] = course_id
+                course_dict["college_dept_code"] = college_dept.college_dept_code
+                
+                new_course = Course.model_validate(course_dict)
+                session.add(new_course)
+                session.flush()  # Flush to get the ID but don't commit yet
+                session.refresh(new_course)
+                
+                # Record successful creation
                 results.append(CourseBulkCreateItem(
                     index=index,
                     item=course_item,
-                    success=False,
-                    code=error_code,
-                    message=error_msg,
-                    data=None
+                    success=True,
+                    code=SuccessCode.COURSE_CREATED.value,
+                    message="Course created successfully",
+                    data=CoursePublic(
+                        **new_course.model_dump(exclude={"college_dept_code"}),
+                        college_dept_id=college_dept.college_dept_id,
+                        college_dept_name=college_dept.college_dept_name
+                    )
                 ))
-                failed_count += 1
-                continue
-            
-            # Generate course_id
-            course_id = generate_course_id(session)
-            
-            # Create course
-            course_dict = course_item.model_dump(exclude={"college_dept_abbv"})
-            course_dict["course_id"] = course_id
-            course_dict["college_dept_code"] = college_dept.college_dept_code
-            
-            new_course = Course.model_validate(course_dict)
-            session.add(new_course)
-            session.flush()  # Flush to get the ID but don't commit yet
-            session.refresh(new_course)
-            
-            # Record successful creation
-            results.append(CourseBulkCreateItem(
-                index=index,
-                item=course_item,
-                success=True,
-                code=SuccessCode.COURSE_CREATED.value,
-                message="Course created successfully",
-                data=CoursePublic(
-                    **new_course.model_dump(exclude={"college_dept_code"}),
-                    college_dept_id=college_dept.college_dept_id,
-                    college_dept_name=college_dept.college_dept_name
-                )
-            ))
-            successful_count += 1
+                successful_count += 1
         
         except IntegrityError as e:
-            session.rollback()
+            # session.rollback() is handled automatically by the context manager on error
             error_str = str(e).lower()
             
             if "ix_courses_course_abbv" in error_str or "courses_course_abbv_key" in error_str:
@@ -173,81 +174,82 @@ def bulk_update_courses(
     
     for index, update_item in enumerate(bulk_data.items):
         try:
-            # Find course
-            course = session.exec(
-                select(Course).where(Course.course_id == update_item.course_id.upper())
-            ).first()
-            
-            if not course:
-                results.append(CourseBulkUpdateResult(
-                    index=index,
-                    course_id=update_item.course_id,
-                    success=False,
-                    code=ErrorCode.COURSE_NOT_FOUND.value,
-                    message=f"Course '{update_item.course_id}' not found",
-                    data=None
-                ))
-                failed_count += 1
-                continue
-            
-            # If college_dept_abbv is provided, verify it exists and update
-            if update_item.college_dept_abbv is not None:
-                college_dept = session.exec(
-                    select(CollegeDept).where(CollegeDept.college_dept_abbv == update_item.college_dept_abbv.upper())
+            with session.begin_nested():
+                # Find course
+                course = session.exec(
+                    select(Course).where(Course.course_id == update_item.course_id.upper())
                 ).first()
                 
-                if not college_dept:
+                if not course:
                     results.append(CourseBulkUpdateResult(
                         index=index,
                         course_id=update_item.course_id,
                         success=False,
-                        code=ErrorCode.COLLEGE_DEPT_NOT_FOUND.value,
-                        message=f"College department '{update_item.college_dept_abbv}' not found",
+                        code=ErrorCode.COURSE_NOT_FOUND.value,
+                        message=f"Course '{update_item.course_id}' not found",
                         data=None
                     ))
                     failed_count += 1
                     continue
                 
-                course.college_dept_code = college_dept.college_dept_code
-            else:
-                # Get current college dept for response
-                college_dept = session.exec(
-                    select(CollegeDept).where(CollegeDept.college_dept_code == course.college_dept_code)
-                ).first()
-            
-            # Update only provided fields
-            if update_item.course_abbv is not None:
-                course.course_abbv = update_item.course_abbv
-            if update_item.course_name is not None:
-                course.course_name = update_item.course_name
-            if update_item.course_desc is not None:
-                course.course_desc = update_item.course_desc
-            
-            # Update timestamp
-            from datetime import datetime, timezone
-            course.updated_at = datetime.now(timezone.utc)
-            
-            session.add(course)
-            session.flush()
-            session.refresh(course)
-            
-            # Record successful update
-            results.append(CourseBulkUpdateResult(
-                index=index,
-                course_id=update_item.course_id,
-                success=True,
-                code=SuccessCode.COURSE_UPDATED.value,
-                message="Course updated successfully",
-                data=CoursePublic(
-                    **course.model_dump(exclude={"college_dept_code"}),
-                    college_dept_id=college_dept.college_dept_id if college_dept else "UNKNOWN",
-                    college_dept_name=college_dept.college_dept_name if college_dept else "Unknown Department"
-                )
-            ))
-            successful_count += 1
+                # If college_dept_abbv is provided, verify it exists and update
+                if update_item.college_dept_abbv is not None:
+                    college_dept = session.exec(
+                        select(CollegeDept).where(CollegeDept.college_dept_abbv == update_item.college_dept_abbv.upper())
+                    ).first()
+                    
+                    if not college_dept:
+                        results.append(CourseBulkUpdateResult(
+                            index=index,
+                            course_id=update_item.course_id,
+                            success=False,
+                            code=ErrorCode.COLLEGE_DEPT_NOT_FOUND.value,
+                            message=f"College department '{update_item.college_dept_abbv}' not found",
+                            data=None
+                        ))
+                        failed_count += 1
+                        continue
+                    
+                    course.college_dept_code = college_dept.college_dept_code
+                else:
+                    # Get current college dept for response
+                    college_dept = session.exec(
+                        select(CollegeDept).where(CollegeDept.college_dept_code == course.college_dept_code)
+                    ).first()
+                
+                # Update only provided fields
+                if update_item.course_abbv is not None:
+                    course.course_abbv = update_item.course_abbv
+                if update_item.course_name is not None:
+                    course.course_name = update_item.course_name
+                if update_item.course_desc is not None:
+                    course.course_desc = update_item.course_desc
+                
+                # Update timestamp
+                from datetime import datetime, timezone
+                course.updated_at = datetime.now(timezone.utc)
+                
+                session.add(course)
+                session.flush()
+                session.refresh(course)
+                
+                # Record successful update
+                results.append(CourseBulkUpdateResult(
+                    index=index,
+                    course_id=update_item.course_id,
+                    success=True,
+                    code=SuccessCode.COURSE_UPDATED.value,
+                    message="Course updated successfully",
+                    data=CoursePublic(
+                        **course.model_dump(exclude={"college_dept_code"}),
+                        college_dept_id=college_dept.college_dept_id if college_dept else "UNKNOWN",
+                        college_dept_name=college_dept.college_dept_name if college_dept else "Unknown Department"
+                    )
+                ))
+                successful_count += 1
         
         except IntegrityError as e:
-            session.rollback()
+            # session.rollback() is handled automatically by the context manager on error
             error_str = str(e).lower()
             
             if "ix_courses_course_abbv" in error_str or "courses_course_abbv_key" in error_str:

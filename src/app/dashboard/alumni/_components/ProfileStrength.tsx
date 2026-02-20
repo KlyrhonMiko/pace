@@ -6,7 +6,7 @@ export default function ProfileStrength() {
     const filled = (percentage / 100) * circumference;
 
     return (
-        <div className="rounded-2xl bg-gradient-to-br from-emerald-500 via-emerald-500 to-teal-500 p-5 text-white relative overflow-hidden">
+        <div className="rounded-2xl bg-gradient-to-br from-emerald-700 via-emerald-700 to-teal-500 p-5 text-white relative overflow-hidden">
             {/* Decorative */}
             <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-white/5 blur-2xl" />
             <div className="absolute -bottom-8 -left-8 w-24 h-24 rounded-full bg-teal-400/20 blur-xl" />

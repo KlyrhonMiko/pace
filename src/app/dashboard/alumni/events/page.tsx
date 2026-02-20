@@ -214,7 +214,7 @@ export default function EventsPage() {
                             </p>
                         </div>
                         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-emerald-200">
-                            <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                            <div className="h-2 w-2 rounded-full bg-emerald-700 animate-pulse" />
                             <span className="text-xs font-semibold text-emerald-700">{totalEvents} Events</span>
                         </div>
                     </div>

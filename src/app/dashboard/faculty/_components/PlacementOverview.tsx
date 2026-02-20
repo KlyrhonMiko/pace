@@ -156,7 +156,7 @@ export default function PlacementOverview() {
                             <p className="text-[9px] text-gray-400 font-medium uppercase tracking-wide mb-0.5">{stat.label}</p>
                             <p className="text-sm font-bold text-gray-900 tabular-nums">{stat.value}</p>
                             {stat.up !== null ? (
-                                <div className={`flex items-center justify-center gap-0.5 mt-0.5 ${stat.up ? "text-emerald-500" : "text-red-500"}`}>
+                                <div className={`flex items-center justify-center gap-0.5 mt-0.5 ${stat.up ? "text-emerald-700" : "text-red-500"}`}>
                                     <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
                                         {stat.up ? (
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />

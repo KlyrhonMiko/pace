@@ -15,7 +15,7 @@ export default function FilterChip({ label, value, onRemove }: FilterChipProps) 
                 aria-label={`Remove ${label} filter`}
             >
                 <svg
-                    className="h-3.5 w-3.5 text-emerald-600 hover:text-emerald-700"
+                    className="h-3.5 w-3.5 text-emerald-800 hover:text-emerald-700"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"

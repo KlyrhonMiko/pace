@@ -29,7 +29,7 @@ export default function RecentActivity() {
                         title="Application Submitted"
                         description="Junior Developer at Accenture Philippines"
                         time="2h ago"
-                        iconBg="bg-emerald-500"
+                        iconBg="bg-emerald-700"
                         icon={
                             <svg className="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />

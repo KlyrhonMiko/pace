@@ -55,7 +55,7 @@ export default function EventList({
                     <label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2.5 block">Search Events</label>
                     <div className="relative group">
                         <svg
-                            className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors"
+                            className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-700 transition-colors"
                             fill="none"
                             viewBox="0 0 24 24"
                             stroke="currentColor"
@@ -72,7 +72,7 @@ export default function EventList({
                             placeholder="Search by title, description..."
                             value={searchQuery}
                             onChange={(e) => onSearchChange(e.target.value)}
-                            className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all bg-white hover:border-slate-300"
+                            className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-700/30 focus:border-emerald-700 transition-all bg-white hover:border-slate-300"
                         />
                     </div>
                 </div>
@@ -83,7 +83,7 @@ export default function EventList({
                         <div className="flex flex-col items-center gap-4">
                             <div className="relative h-10 w-10">
                                 <div className="absolute inset-0 rounded-full border-2 border-slate-200"></div>
-                                <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-emerald-500 animate-spin"></div>
+                                <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-emerald-700 animate-spin"></div>
                             </div>
                             <p className="text-sm font-medium text-slate-600">Loading events...</p>
                         </div>
@@ -115,7 +115,7 @@ export default function EventList({
                         </p>
                         <button
                             onClick={clearFilters}
-                            className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-600 hover:text-emerald-700 transition-colors px-4 py-2 rounded-lg hover:bg-emerald-50"
+                            className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-800 hover:text-emerald-700 transition-colors px-4 py-2 rounded-lg hover:bg-emerald-50"
                         >
                             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -180,7 +180,7 @@ export default function EventList({
                                                 key={pageNum}
                                                 onClick={() => setCurrentPage(pageNum)}
                                                 className={`h-10 min-w-10 rounded-lg text-sm font-bold transition-all ${currentPage === pageNum
-                                                    ? 'bg-gradient-to-br from-emerald-600 to-emerald-700 text-white shadow-lg shadow-emerald-600/30'
+                                                    ? 'bg-gradient-to-br from-emerald-800 to-emerald-700 text-white shadow-lg shadow-emerald-800/30'
                                                     : 'border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
                                                     }`}
                                             >

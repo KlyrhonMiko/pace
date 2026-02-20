@@ -1,10 +1,10 @@
 const students = [
-    { name: "Maria Santos", course: "BSIT", status: "Employed", company: "Accenture PH", initials: "MS", color: "from-emerald-500 to-emerald-600", statusColor: "bg-emerald-500", statusBg: "bg-emerald-50/80 text-emerald-700 ring-emerald-100/60" },
+    { name: "Maria Santos", course: "BSIT", status: "Employed", company: "Accenture PH", initials: "MS", color: "from-emerald-700 to-emerald-800", statusColor: "bg-emerald-700", statusBg: "bg-emerald-50/80 text-emerald-700 ring-emerald-100/60" },
     { name: "Carlos Reyes", course: "BSCS", status: "Interviewing", company: "Globe Telecom", initials: "CR", color: "from-blue-500 to-blue-600", statusColor: "bg-blue-500", statusBg: "bg-blue-50/80 text-blue-700 ring-blue-100/60" },
     { name: "Ana Dela Cruz", course: "BSIT", status: "Searching", company: "", initials: "AD", color: "from-violet-500 to-violet-600", statusColor: "bg-amber-500", statusBg: "bg-amber-50/80 text-amber-700 ring-amber-100/60" },
-    { name: "Jose Rizal Jr.", course: "BSCE", status: "Employed", company: "DITO Telecom", initials: "JR", color: "from-rose-500 to-rose-600", statusColor: "bg-emerald-500", statusBg: "bg-emerald-50/80 text-emerald-700 ring-emerald-100/60" },
+    { name: "Jose Rizal Jr.", course: "BSCE", status: "Employed", company: "DITO Telecom", initials: "JR", color: "from-rose-500 to-rose-600", statusColor: "bg-emerald-700", statusBg: "bg-emerald-50/80 text-emerald-700 ring-emerald-100/60" },
     { name: "Lea Garcia", course: "BSIT", status: "Applied", company: "3 applications", initials: "LG", color: "from-amber-500 to-amber-600", statusColor: "bg-violet-500", statusBg: "bg-violet-50/80 text-violet-700 ring-violet-100/60" },
-    { name: "Rico Pascual", course: "BSCS", status: "Employed", company: "Samsung PH", initials: "RP", color: "from-cyan-500 to-cyan-600", statusColor: "bg-emerald-500", statusBg: "bg-emerald-50/80 text-emerald-700 ring-emerald-100/60" },
+    { name: "Rico Pascual", course: "BSCS", status: "Employed", company: "Samsung PH", initials: "RP", color: "from-cyan-500 to-cyan-600", statusColor: "bg-emerald-700", statusBg: "bg-emerald-50/80 text-emerald-700 ring-emerald-100/60" },
 ];
 
 export default function StudentProgress() {
@@ -16,7 +16,7 @@ export default function StudentProgress() {
             {/* Header */}
             <div className="px-6 pt-5 pb-4 flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/25">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-700 to-emerald-800 text-white shadow-lg shadow-emerald-700/25">
                         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
                         </svg>

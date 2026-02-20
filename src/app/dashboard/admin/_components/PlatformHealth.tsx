@@ -9,7 +9,7 @@ const metrics = [
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
         ),
-        gradient: "from-emerald-400 to-emerald-500",
+        gradient: "from-emerald-600 to-emerald-700",
         barColor: "#10b981",
     },
     {
@@ -104,7 +104,7 @@ export default function PlatformHealth() {
                                     {m.value}
                                 </span>
                                 {m.status === "healthy" ? (
-                                    <span className="text-[9px] font-semibold text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                                    <span className="text-[9px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full uppercase tracking-wider">
                                         Good
                                     </span>
                                 ) : (

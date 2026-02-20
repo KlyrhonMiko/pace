@@ -44,7 +44,7 @@ export default function UserGrowthChart() {
             {/* Header */}
             <div className="px-6 pt-5 pb-1 flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/25">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-700 to-emerald-800 text-white shadow-lg shadow-emerald-700/25">
                         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
                         </svg>
@@ -55,7 +55,7 @@ export default function UserGrowthChart() {
                     </div>
                 </div>
                 <div className="text-right flex flex-col items-end">
-                    <div className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full ring-1 ring-emerald-100">
+                    <div className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 px-2.5 py-1 rounded-full ring-1 ring-emerald-100">
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
                         </svg>
@@ -169,7 +169,7 @@ export default function UserGrowthChart() {
                         <span
                             key={m}
                             className={`text-[10px] font-medium transition-colors duration-300 ${i === months.length - 1
-                                ? "text-emerald-600 font-semibold"
+                                ? "text-emerald-800 font-semibold"
                                 : "text-gray-300 group-hover:text-gray-400"
                                 }`}
                         >

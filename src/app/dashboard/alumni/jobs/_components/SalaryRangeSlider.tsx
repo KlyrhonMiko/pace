@@ -128,7 +128,7 @@ export default function SalaryRangeSlider({
                 >
                     {/* Active Range */}
                     <div
-                        className="absolute top-0 h-full bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full transition-all duration-150"
+                        className="absolute top-0 h-full bg-gradient-to-r from-emerald-700 to-emerald-800 rounded-full transition-all duration-150"
                         style={{
                             left: `${minPercentage}%`,
                             right: `${100 - maxPercentage}%`,
@@ -137,22 +137,22 @@ export default function SalaryRangeSlider({
 
                     {/* Min Thumb */}
                     <div
-                        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-5 h-5 bg-white border-2 border-emerald-500 rounded-full shadow-lg cursor-grab active:cursor-grabbing hover:scale-110 transition-transform duration-150 z-10"
+                        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-5 h-5 bg-white border-2 border-emerald-700 rounded-full shadow-lg cursor-grab active:cursor-grabbing hover:scale-110 transition-transform duration-150 z-10"
                         style={{ left: `${minPercentage}%` }}
                         onMouseDown={() => handleMouseDown("min")}
                         onTouchStart={() => handleMouseDown("min")}
                     >
-                        <div className="absolute inset-0 rounded-full bg-emerald-500/20" />
+                        <div className="absolute inset-0 rounded-full bg-emerald-700/20" />
                     </div>
 
                     {/* Max Thumb */}
                     <div
-                        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-5 h-5 bg-white border-2 border-emerald-500 rounded-full shadow-lg cursor-grab active:cursor-grabbing hover:scale-110 transition-transform duration-150 z-10"
+                        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-5 h-5 bg-white border-2 border-emerald-700 rounded-full shadow-lg cursor-grab active:cursor-grabbing hover:scale-110 transition-transform duration-150 z-10"
                         style={{ left: `${maxPercentage}%` }}
                         onMouseDown={() => handleMouseDown("max")}
                         onTouchStart={() => handleMouseDown("max")}
                     >
-                        <div className="absolute inset-0 rounded-full bg-emerald-500/20" />
+                        <div className="absolute inset-0 rounded-full bg-emerald-700/20" />
                     </div>
                 </div>
 

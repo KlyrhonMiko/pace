@@ -36,7 +36,7 @@ const events = [
 ];
 
 const typeStyles = {
-    emerald: "bg-emerald-50 text-emerald-600 border border-emerald-200/60",
+    emerald: "bg-emerald-50 text-emerald-800 border border-emerald-200/60",
     violet: "bg-violet-50 text-violet-600 border border-violet-200/60",
     blue: "bg-blue-50 text-blue-600 border border-blue-200/60",
 } as const;

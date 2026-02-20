@@ -58,7 +58,7 @@ const sessions = [
 ];
 
 const colorMap: Record<string, { gradient: string; hex: string; bg: string; text: string; ring: string }> = {
-    emerald: { gradient: "from-emerald-400 to-emerald-500", hex: "#10b981", bg: "bg-emerald-50", text: "text-emerald-600", ring: "ring-emerald-100/60" },
+    emerald: { gradient: "from-emerald-600 to-emerald-700", hex: "#10b981", bg: "bg-emerald-50", text: "text-emerald-800", ring: "ring-emerald-100/60" },
     blue: { gradient: "from-blue-400 to-blue-500", hex: "#3b82f6", bg: "bg-blue-50", text: "text-blue-600", ring: "ring-blue-100/60" },
     violet: { gradient: "from-violet-400 to-violet-500", hex: "#8b5cf6", bg: "bg-violet-50", text: "text-violet-600", ring: "ring-violet-100/60" },
     amber: { gradient: "from-amber-400 to-amber-500", hex: "#f59e0b", bg: "bg-amber-50", text: "text-amber-600", ring: "ring-amber-100/60" },
@@ -122,7 +122,7 @@ export default function UpcomingSessions() {
                                                 {s.title}
                                             </p>
                                             {s.isLive && (
-                                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500 text-[8px] font-bold text-white uppercase tracking-wider">
+                                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-700 text-[8px] font-bold text-white uppercase tracking-wider">
                                                     <div className="w-1 h-1 rounded-full bg-white animate-pulse" />
                                                     Soon
                                                 </span>

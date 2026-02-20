@@ -26,7 +26,7 @@ export default function FilterSection({
                 className="flex items-center justify-between w-full py-4 text-left hover:bg-slate-50/50 transition-colors rounded-lg px-1"
             >
                 <div className="flex items-center gap-2">
-                    {icon && <span className="text-emerald-600">{icon}</span>}
+                    {icon && <span className="text-emerald-800">{icon}</span>}
                     <span className="text-sm font-semibold text-slate-800">{title}</span>
                     {count !== undefined && (
                         <span className="ml-1 px-2 py-0.5 text-xs font-medium bg-slate-100 text-slate-600 rounded-full">

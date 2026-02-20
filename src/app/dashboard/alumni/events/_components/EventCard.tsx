@@ -71,7 +71,7 @@ export default function EventCard({
     return (
         <div className="group relative rounded-xl border border-slate-200/80 bg-gradient-to-br from-white to-slate-50/30 transition-all duration-300 hover:shadow-lg hover:border-slate-300 overflow-hidden hover:-translate-y-0.5">
             {/* Top accent bar */}
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500/80 via-emerald-400/60 to-emerald-500/40 opacity-60 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-700/80 via-emerald-600/60 to-emerald-700/40 opacity-60 group-hover:opacity-100 transition-opacity duration-300" />
 
             <div className="p-5">
                 {/* Header with Type and Status */}
@@ -128,7 +128,7 @@ export default function EventCard({
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                         </svg>
                         <span>
-                            <span className="font-semibold text-emerald-600">{attendees}</span>
+                            <span className="font-semibold text-emerald-800">{attendees}</span>
                             {capacity && <span className="text-slate-400"> / {capacity} attending</span>}
                         </span>
                     </div>
@@ -141,7 +141,7 @@ export default function EventCard({
                             <span className="font-bold text-slate-700">Capacity</span>
                             <span className="text-slate-600 font-semibold">
                                 {spotsRemaining > 0 ? (
-                                    <span className="text-emerald-600">{spotsRemaining} spots left</span>
+                                    <span className="text-emerald-800">{spotsRemaining} spots left</span>
                                 ) : (
                                     <span className="text-red-600">Event Full</span>
                                 )}
@@ -154,7 +154,7 @@ export default function EventCard({
                                         ? 'bg-gradient-to-r from-red-500 to-red-600'
                                         : capacityPercentage > 70
                                         ? 'bg-gradient-to-r from-amber-500 to-amber-600'
-                                        : 'bg-gradient-to-r from-emerald-500 to-emerald-600'
+                                        : 'bg-gradient-to-r from-emerald-700 to-emerald-800'
                                 }`}
                                 style={{ width: `${Math.min(capacityPercentage, 100)}%` }}
                             />
@@ -169,7 +169,7 @@ export default function EventCard({
                             ? 'bg-emerald-50/80 text-emerald-700 border border-emerald-200/60 hover:bg-emerald-100/60'
                             : spotsRemaining <= 0
                             ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
-                            : 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white hover:shadow-lg hover:shadow-emerald-500/30 hover:-translate-y-0.5 border border-emerald-600'
+                            : 'bg-gradient-to-r from-emerald-800 to-emerald-700 text-white hover:shadow-lg hover:shadow-emerald-700/30 hover:-translate-y-0.5 border border-emerald-800'
                     }`}
                     disabled={spotsRemaining <= 0 && !isRegistered}
                 >

@@ -4,8 +4,9 @@ from typing import Optional
 import logging
 
 from core.database import get_session
-from models.events import Event, EventRegistration, EventRegistrationResponse
+from models.events import Event, EventRegistration, EventRegistrationResponse, EventRegistrationRequest
 from models.response_codes import StandardResponse, ErrorCode, SuccessCode
+from models.pagination import PaginationMetadata
 from utils.timezone import get_current_time_gmt8
 
 logger = logging.getLogger(__name__)
@@ -40,14 +41,13 @@ def get_event_or_404(session: Session, event_id: str) -> Event:
 )
 async def register_for_event(
     event_id: str,
-    user_code: str = Query(..., description="User code (from auth context)"),
+    request: EventRegistrationRequest,
     session: Session = Depends(get_session)
 ):
     """
     Register a user for an event
     
     - **event_id**: Event ID to register for
-    - **user_code**: User code (will come from auth context in production)
     """
     try:
         event = get_event_or_404(session, event_id)
@@ -66,7 +66,8 @@ async def register_for_event(
         existing = session.exec(
             select(EventRegistration)
             .where(EventRegistration.event_code == event.event_code)
-            .where(EventRegistration.user_code == user_code)
+            .where(EventRegistration.user_code == request.user_code)
+            .where(EventRegistration.is_deleted == False)
         ).first()
         
         if existing:
@@ -93,7 +94,7 @@ async def register_for_event(
         # Create registration
         registration = EventRegistration(
             event_code=event.event_code,
-            user_code=user_code
+            user_code=request.user_code
         )
         event.attendees += 1
         
@@ -145,6 +146,7 @@ async def unregister_from_event(
             select(EventRegistration)
             .where(EventRegistration.event_code == event.event_code)
             .where(EventRegistration.user_code == user_code)
+            .where(EventRegistration.is_deleted == False)
         ).first()
         
         if not registration:
@@ -157,8 +159,11 @@ async def unregister_from_event(
                 ).model_dump()
             )
         
-        # Remove registration and decrement attendees
-        session.delete(registration)
+        # Soft delete registration and decrement attendees
+        registration.is_deleted = True
+        registration.deleted_at = get_current_time_gmt8()
+        session.add(registration)
+        
         event.attendees = max(0, event.attendees - 1)
         session.add(event)
         session.commit()
@@ -205,31 +210,46 @@ def get_event_registrants(
         event = get_event_or_404(session, event_id)
         
         # Get registrations
-        registrations = session.exec(
+        registrations_query = (
             select(EventRegistration)
             .where(EventRegistration.event_code == event.event_code)
-            .offset(offset)
-            .limit(limit)
-        ).all()
+            .where(EventRegistration.is_deleted == False)
+        )
+        
+        if limit > 0:
+            registrations_query = registrations_query.offset(offset).limit(limit)
+            
+        registrations = session.exec(registrations_query).all()
         
         # Get total count
         total = session.exec(
-            select(func.count()).select_from(EventRegistration)
+            select(func.count(EventRegistration.registration_code))
             .where(EventRegistration.event_code == event.event_code)
+            .where(EventRegistration.is_deleted == False)
         ).one()
+        
+        # Calculate pagination metadata
+        returned = len(registrations)
+        has_next = (offset + returned) < total if limit > 0 else False
+        
+        pagination = PaginationMetadata(
+            total=total,
+            limit=limit,
+            offset=offset,
+            returned=returned,
+            has_next=has_next
+        )
         
         return StandardResponse(
             success=True,
             code=SuccessCode.EVENTS_RETRIEVED,
-            message=f"Retrieved {len(registrations)} registrants",
+            message=f"Retrieved {returned} registrants",
             data={
                 "registrants": [
                     EventRegistrationResponse.model_validate(r).model_dump()
                     for r in registrations
                 ],
-                "total": total,
-                "limit": limit,
-                "offset": offset
+                "pagination": pagination
             }
         )
     except HTTPException:

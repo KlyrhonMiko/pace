@@ -7,6 +7,7 @@ import logging
 from core.database import get_session
 from models.events import Event, EventCreate, EventUpdate, EventPublic, EventType
 from models.response_codes import StandardResponse, ErrorCode, SuccessCode
+from models.pagination import PaginationMetadata
 from utils.timezone import get_current_time_gmt8, GMT8
 from services.supabase.supabase_storage import SupabaseStorageService
 
@@ -116,173 +117,104 @@ def create_event(
 
 
 @router.get(
-    "/deleted/list",
-    response_model=StandardResponse,
-    summary="List soft-deleted events (Admin)",
-    description="List all soft-deleted events with pagination. Admin access required."
-)
-def list_deleted_events(
-    limit: int = Query(10, ge=1, le=100),
-    offset: int = Query(0, ge=0),
-    session: Session = Depends(get_session)
-):
-    """
-    List all soft-deleted events with pagination
-    
-    - **limit**: Number of events to return (1-100, default 10)
-    - **offset**: Number of events to skip (default 0)
-    """
-    try:
-        # Get total count
-        total = session.exec(
-            select(func.count()).select_from(Event).where(Event.is_deleted == True)
-        ).one()
-        
-        # Get paginated results
-        events = session.exec(
-            select(Event)
-            .where(Event.is_deleted == True)
-            .order_by(Event.deleted_at.desc())
-            .offset(offset)
-            .limit(limit)
-        ).all()
-        
-        return StandardResponse(
-            success=True,
-            code=SuccessCode.EVENTS_RETRIEVED,
-            message=f"Retrieved {len(events)} deleted events",
-            data={
-                "events": [EventPublic.model_validate(e) for e in events],
-                "total": total,
-                "limit": limit,
-                "offset": offset
-            }
-        )
-    except Exception as e:
-        logger.error(f"Error listing deleted events: {str(e)}")
-        raise HTTPException(
-            status_code=400,
-            detail=StandardResponse(
-                success=False,
-                code=ErrorCode.INVALID_INPUT,
-                message=f"Failed to list events: {str(e)}"
-            ).model_dump()
-        )
-
-
-@router.get(
-    "/all/list",
-    response_model=StandardResponse,
-    summary="List all events including deleted (Admin)",
-    description="List all events (active and deleted) with pagination. Admin access required."
-)
-def list_all_events(
-    limit: int = Query(10, ge=1, le=100),
-    offset: int = Query(0, ge=0),
-    session: Session = Depends(get_session)
-):
-    """
-    List all events (active and soft-deleted) with pagination
-    
-    - **limit**: Number of events to return (1-100, default 10)
-    - **offset**: Number of events to skip (default 0)
-    """
-    try:
-        # Get total count
-        total = session.exec(select(func.count()).select_from(Event)).one()
-        
-        # Get paginated results
-        events = session.exec(
-            select(Event)
-            .order_by(Event.date.desc())
-            .offset(offset)
-            .limit(limit)
-        ).all()
-        
-        return StandardResponse(
-            success=True,
-            code=SuccessCode.EVENTS_RETRIEVED,
-            message=f"Retrieved {len(events)} events",
-            data={
-                "events": [EventPublic.model_validate(e) for e in events],
-                "total": total,
-                "limit": limit,
-                "offset": offset
-            }
-        )
-    except Exception as e:
-        logger.error(f"Error listing all events: {str(e)}")
-        raise HTTPException(
-            status_code=400,
-            detail=StandardResponse(
-                success=False,
-                code=ErrorCode.INVALID_INPUT,
-                message=f"Failed to list events: {str(e)}"
-            ).model_dump()
-        )
-
-
-@router.get(
     "/",
     response_model=StandardResponse,
-    summary="List all active events",
-    description="Get all non-deleted events with pagination, sorting, and filtering"
+    summary="List all events",
+    description="Get events with pagination, sorting, search, and filtering"
 )
 def list_events(
-    limit: int = Query(10, ge=1, le=100),
-    offset: int = Query(0, ge=0),
-    event_type: Optional[EventType] = Query(None),
-    status: str = Query("active", pattern="^(active|upcoming|past)$"),
-    sort_by: str = Query("date", pattern="^(date|attendees)$"),
+    limit: int = Query(10, ge=0, description="Records per page (0 = all records)"),
+    offset: int = Query(0, ge=0, description="Number of records to skip"),
+    search: str = Query(None, description="Search by event name or location"),
+    event_type: Optional[EventType] = Query(None, description="Filter by event type"),
+    status: str = Query("active", pattern="^(active|upcoming|past)$", description="Filter by status (default active)"),
+    include_deleted: bool = Query(False, description="Include soft-deleted records"),
+    sort_by: str = Query("date", pattern="^(date|attendees|name)$", description="Sort by field"),
+    sort_order: str = Query("asc", description="Sort order (asc, desc)"),
     session: Session = Depends(get_session)
 ):
     """
-    List events with pagination, sorting, and filtering
-    
-    - **limit**: Number of events to return (1-100, default 10)
-    - **offset**: Number of events to skip (default 0)
-    - **event_type**: Filter by event type (optional) - CAREER_FAIR, WORKSHOP, SEMINAR, NETWORKING, OTHER
-    - **status**: Filter by status - 'active' (default, all non-deleted), 'upcoming' (future), 'past' (completed)
-    - **sort_by**: Sort by 'date' (default) or 'attendees'
+    List events with pagination, sorting, search, and filtering
     """
     try:
         now = get_current_time_gmt8()
-        query = select(Event).where(Event.is_deleted == False)
+        
+        # Build query
+        query = select(Event) if include_deleted else select(Event).where(Event.is_deleted == False)
+        
+        # Apply search filter
+        if search:
+            search_like = f"%{search}%"
+            query = query.where(
+                (Event.name.ilike(search_like)) | 
+                (Event.location.ilike(search_like)) |
+                (Event.description.ilike(search_like))
+            )
         
         # Apply status filter
         if status == "upcoming":
             query = query.where(Event.date > now)
         elif status == "past":
             query = query.where(Event.date < now)
-        # "active" includes all non-deleted (no date filter)
+        # "active" doesn't filter by date, just relies on is_deleted == False (handled above)
         
-        # Apply type filter if specified
+        # Apply type filter
         if event_type:
             query = query.where(Event.event_type == event_type)
+            
+        # Get total count after filters
+        count_query = select(func.count(Event.event_code)) if include_deleted else select(func.count(Event.event_code)).where(Event.is_deleted == False)
+        
+        # Apply the same filters to the count query to get the correct total
+        if search:
+            count_query = count_query.where(
+                (Event.name.ilike(search_like)) | 
+                (Event.location.ilike(search_like)) |
+                (Event.description.ilike(search_like))
+            )
+        if status == "upcoming":
+            count_query = count_query.where(Event.date > now)
+        elif status == "past":
+            count_query = count_query.where(Event.date < now)
+        if event_type:
+            count_query = count_query.where(Event.event_type == event_type)
+            
+        total = session.exec(count_query).one()
         
         # Apply sorting
+        sort_order_desc = sort_order.lower() == "desc"
         if sort_by == "attendees":
-            query = query.order_by(Event.attendees.desc())
-        else:
-            query = query.order_by(Event.date.asc())
+            query = query.order_by(Event.attendees.desc() if sort_order_desc else Event.attendees.asc())
+        elif sort_by == "name":
+            query = query.order_by(Event.name.desc() if sort_order_desc else Event.name.asc())
+        else: # date
+            query = query.order_by(Event.date.desc() if sort_order_desc else Event.date.asc())
         
-        # Get total count
-        total = session.exec(
-            select(func.count()).select_from(Event).where(Event.is_deleted == False)
-        ).one()
+        # Apply pagination
+        if limit > 0:
+            query = query.offset(offset).limit(limit)
+            
+        events = session.exec(query).all()
         
-        # Get paginated results
-        events = session.exec(query.offset(offset).limit(limit)).all()
+        # Calculate pagination metadata
+        returned = len(events)
+        has_next = (offset + returned) < total if limit > 0 else False
+        
+        pagination = PaginationMetadata(
+            total=total,
+            limit=limit,
+            offset=offset,
+            returned=returned,
+            has_next=has_next
+        )
         
         return StandardResponse(
             success=True,
             code=SuccessCode.EVENTS_RETRIEVED,
-            message=f"Retrieved {len(events)} events",
+            message=f"Retrieved {returned} events",
             data={
                 "events": [EventPublic.model_validate(e) for e in events],
-                "total": total,
-                "limit": limit,
-                "offset": offset
+                "pagination": pagination
             }
         )
     except Exception as e:

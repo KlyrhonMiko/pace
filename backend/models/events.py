@@ -100,6 +100,8 @@ class EventRegistration(SQLModel, table=True):
     event_code: uuid.UUID = Field(foreign_key="events.event_code")
     user_code: uuid.UUID = Field(foreign_key="users.user_code")
     registered_at: datetime = Field(default_factory=get_current_time_gmt8)
+    is_deleted: bool = Field(default=False)
+    deleted_at: Optional[datetime] = Field(default=None)
     
     # Relationships
     event: "Event" = Relationship(back_populates="registrants")
@@ -118,3 +120,6 @@ class EventRegistrationResponse(SQLModel):
             value = value.replace(tzinfo=timezone.utc)
         gmt8_time = value.astimezone(GMT8)
         return gmt8_time.strftime('%Y-%m-%d %H:%M:%S')
+
+class EventRegistrationRequest(SQLModel):
+    user_code: str

@@ -162,7 +162,7 @@ def batch_create_courses(
     )
 
 
-@router.put("/batch")
+@router.patch("/batch")
 def batch_update_courses(
     batch_data: CourseBatchUpdate,
     session: Session = Depends(get_session)
@@ -656,7 +656,7 @@ def get_course(course_id: str, session: Session = Depends(get_session)):
     )
 
 
-@router.put("/{course_id}")
+@router.patch("/{course_id}")
 def update_course(
     course_id: str,
     course_data: CourseUpdate,

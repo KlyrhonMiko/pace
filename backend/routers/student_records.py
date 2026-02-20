@@ -401,7 +401,7 @@ def get_student_record(student_id: str, session: Session = Depends(get_session))
     )
 
 
-@router.put("/batch")
+@router.patch("/batch")
 def batch_update_student_records(
     batch_data: StudentRecordBatchUpdate,
     session: Session = Depends(get_session)
@@ -572,7 +572,7 @@ def batch_update_student_records(
     )
 
 
-@router.put("/{student_id}")
+@router.patch("/{student_id}")
 def update_student_record(
     student_id: str,
     student_data: StudentRecordUpdate,

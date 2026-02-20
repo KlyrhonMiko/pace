@@ -136,7 +136,7 @@ def batch_create_college_depts(
     )
 
 
-@router.put("/batch")
+@router.patch("/batch")
 def batch_update_college_depts(
     batch_data: CollegeDeptBatchUpdate,
     session: Session = Depends(get_session)
@@ -545,7 +545,7 @@ def get_college_dept(college_dept_id: str, session: Session = Depends(get_sessio
     )
 
 
-@router.put("/{college_dept_id}")
+@router.patch("/{college_dept_id}")
 def update_college_dept(
     college_dept_id: str,
     college_dept_data: CollegeDeptUpdate,

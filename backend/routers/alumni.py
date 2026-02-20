@@ -524,7 +524,7 @@ def get_alumni(alumni_id: str, session: Session = Depends(get_session)):
     )
 
 
-@router.put("/batch")
+@router.patch("/batch")
 def batch_update_alumni(
     batch_data: BatchAlumniUpdate,
     session: Session = Depends(get_session)
@@ -677,7 +677,7 @@ def batch_update_alumni(
     )
 
 
-@router.put("/{alumni_id}")
+@router.patch("/{alumni_id}")
 def update_alumni(
     alumni_id: str,
     alumni_data: AlumniUpdate,

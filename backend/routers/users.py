@@ -315,7 +315,7 @@ def get_user(user_id: str, session: Session = Depends(get_session)):
     )
 
 
-@router.put("/batch")
+@router.patch("/batch")
 def batch_update_users(
     batch_data: UserBatchUpdate,
     session: Session = Depends(get_session)
@@ -487,7 +487,7 @@ def batch_update_users(
     )
 
 
-@router.put("/{user_id}")
+@router.patch("/{user_id}")
 def update_user(
     user_id: str,
     user_data: UserUpdate,

@@ -339,7 +339,7 @@ def get_event(event_id: str, session: Session = Depends(get_session)):
         )
 
 
-@router.put(
+@router.patch(
     "/{event_id}",
     response_model=StandardResponse,
     summary="Update event",

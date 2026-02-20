@@ -100,7 +100,7 @@ class StudentRecordPublic(StudentRecordBase):
         return gmt8_time.strftime('%Y-%m-%d %H:%M:%S')
 
 
-# Bulk operation models
+# Batch operation models
 
 # Safe display models (exclude sensitive fields from responses)
 class StudentRecordCreateSafeDisplay(BaseModel):
@@ -117,8 +117,8 @@ class StudentRecordUpdateSafeDisplay(BaseModel):
     gwa: Optional[float] = None
 
 
-class StudentRecordBulkCreateItem(BaseModel):
-    """Individual item result from bulk create operation"""
+class StudentRecordBatchCreateItem(BaseModel):
+    """Individual item result from batch create operation"""
     index: int = Field(..., description="Index in the request list (0-based)")
     item: StudentRecordCreateSafeDisplay = Field(..., description="The student record data submitted")
     success: bool = Field(..., description="Whether this item was created successfully")
@@ -127,22 +127,22 @@ class StudentRecordBulkCreateItem(BaseModel):
     data: Optional[StudentRecordPublic] = Field(default=None, description="Created student record (if successful)")
 
 
-class StudentRecordBulkCreate(BaseModel):
-    """Bulk create request for student records"""
+class StudentRecordBatchCreate(BaseModel):
+    """Batch create request for student records"""
     items: List[StudentRecordCreate] = Field(..., min_items=1, max_items=100, description="List of student records to create (1-100 items)")
 
 
-class StudentRecordBulkCreateResponse(BaseModel):
-    """Bulk create response for student records"""
+class StudentRecordBatchCreateResponse(BaseModel):
+    """Batch create response for student records"""
     total_items: int = Field(..., description="Total items in request")
     successful: int = Field(..., description="Number of items successfully created")
     failed: int = Field(..., description="Number of items that failed")
-    results: List[StudentRecordBulkCreateItem] = Field(..., description="Detailed results for each item")
+    results: List[StudentRecordBatchCreateItem] = Field(..., description="Detailed results for each item")
 
 
-# Bulk update models
-class StudentRecordBulkUpdateItem(BaseModel):
-    """Student record update item in bulk request"""
+# Batch update models
+class StudentRecordBatchUpdateItem(BaseModel):
+    """Student record update item in batch request"""
     student_id: str = Field(..., description="Student ID to update")
     year_graduated: Optional[int] = Field(default=None, description="Updated year graduated")
     gwa: Optional[float] = Field(default=None, description="Updated GWA")
@@ -174,8 +174,8 @@ class StudentRecordBulkUpdateItem(BaseModel):
         return v
 
 
-class StudentRecordBulkUpdateResult(BaseModel):
-    """Individual item result from bulk update operation"""
+class StudentRecordBatchUpdateResult(BaseModel):
+    """Individual item result from batch update operation"""
     index: int = Field(..., description="Index in the request list (0-based)")
     item: StudentRecordUpdateSafeDisplay = Field(..., description="The student record data submitted")
     success: bool = Field(..., description="Whether this item was updated successfully")
@@ -184,22 +184,22 @@ class StudentRecordBulkUpdateResult(BaseModel):
     data: Optional[StudentRecordPublic] = Field(default=None, description="Updated student record (if successful)")
 
 
-class StudentRecordBulkUpdate(BaseModel):
-    """Bulk update request for student records"""
-    items: List[StudentRecordBulkUpdateItem] = Field(..., min_items=1, max_items=100, description="List of student records to update (1-100 items)")
+class StudentRecordBatchUpdate(BaseModel):
+    """Batch update request for student records"""
+    items: List[StudentRecordBatchUpdateItem] = Field(..., min_items=1, max_items=100, description="List of student records to update (1-100 items)")
 
 
-class StudentRecordBulkUpdateResponse(BaseModel):
-    """Bulk update response for student records"""
+class StudentRecordBatchUpdateResponse(BaseModel):
+    """Batch update response for student records"""
     total_items: int = Field(..., description="Total items in request")
     successful: int = Field(..., description="Number of items successfully updated")
     failed: int = Field(..., description="Number of items that failed")
-    results: List[StudentRecordBulkUpdateResult] = Field(..., description="Detailed results for each item")
+    results: List[StudentRecordBatchUpdateResult] = Field(..., description="Detailed results for each item")
 
 
-# Bulk delete models
-class StudentRecordBulkDeleteResult(BaseModel):
-    """Individual item result from bulk delete operation"""
+# Batch delete models
+class StudentRecordBatchDeleteResult(BaseModel):
+    """Individual item result from batch delete operation"""
     index: int = Field(..., description="Index in the request list (0-based)")
     student_id: str = Field(..., description="Student ID that was deleted")
     success: bool = Field(..., description="Whether this item was deleted successfully")
@@ -207,22 +207,22 @@ class StudentRecordBulkDeleteResult(BaseModel):
     message: str = Field(..., description="Detailed message about the result")
 
 
-class StudentRecordBulkDelete(BaseModel):
-    """Bulk delete request for student records"""
+class StudentRecordBatchDelete(BaseModel):
+    """Batch delete request for student records"""
     ids: List[str] = Field(..., min_items=1, max_items=100, description="List of student IDs to delete (1-100 items)")
 
 
-class StudentRecordBulkDeleteResponse(BaseModel):
-    """Bulk delete response for student records"""
+class StudentRecordBatchDeleteResponse(BaseModel):
+    """Batch delete response for student records"""
     total_items: int = Field(..., description="Total items in request")
     successful: int = Field(..., description="Number of items successfully deleted")
     failed: int = Field(..., description="Number of items that failed")
-    results: List[StudentRecordBulkDeleteResult] = Field(..., description="Detailed results for each item")
+    results: List[StudentRecordBatchDeleteResult] = Field(..., description="Detailed results for each item")
 
 
-# Bulk student record restore models
-class StudentRecordBulkRestoreResult(BaseModel):
-    """Individual item result from bulk student record restore operation"""
+# Batch student record restore models
+class StudentRecordBatchRestoreResult(BaseModel):
+    """Individual item result from batch student record restore operation"""
     index: int = Field(..., description="Index in the request list (0-based)")
     student_id: str = Field(..., description="Student record ID that was restored")
     success: bool = Field(..., description="Whether this item was restored successfully")
@@ -230,14 +230,14 @@ class StudentRecordBulkRestoreResult(BaseModel):
     message: str = Field(..., description="Detailed message about the result")
 
 
-class StudentRecordBulkRestore(BaseModel):
-    """Bulk restore request for student records"""
+class StudentRecordBatchRestore(BaseModel):
+    """Batch restore request for student records"""
     ids: List[str] = Field(..., min_items=1, max_items=100, description="List of student record IDs to restore (1-100 items)")
 
 
-class StudentRecordBulkRestoreResponse(BaseModel):
-    """Bulk restore response for student records"""
+class StudentRecordBatchRestoreResponse(BaseModel):
+    """Batch restore response for student records"""
     total_items: int = Field(..., description="Total items in request")
     successful: int = Field(..., description="Number of items successfully restored")
     failed: int = Field(..., description="Number of items that failed")
-    results: List[StudentRecordBulkRestoreResult] = Field(..., description="Detailed results for each item")
+    results: List[StudentRecordBatchRestoreResult] = Field(..., description="Detailed results for each item")

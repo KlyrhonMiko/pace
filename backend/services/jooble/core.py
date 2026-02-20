@@ -24,7 +24,7 @@ from .mappers import _map_db_job_to_dict
 def load_all_jobs_to_cache(session: Session) -> int:
     """
     Load all active jobs from database into Redis cache.
-    Called on app startup and periodically to refresh the bulk cache.
+    Called on app startup and periodically to refresh the batch cache.
     
     Returns:
         Number of jobs cached

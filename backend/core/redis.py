@@ -164,7 +164,7 @@ def cache_invalidate_recommended() -> int:
 
 def cache_get_all_jobs() -> Optional[list]:
     """
-    Get all cached jobs (bulk cache)
+    Get all cached jobs (batch cache)
     
     Returns:
         List of jobs or None if not cached
@@ -176,10 +176,10 @@ def cache_get_all_jobs() -> Optional[list]:
     try:
         data = redis_client.get("all_jobs")
         if data:
-            print(f"[CACHE HIT] all_jobs (bulk cache)")
+            print(f"[CACHE HIT] all_jobs (batch cache)")
             return json.loads(data)
         else:
-            print(f"[CACHE MISS] all_jobs (bulk cache)")
+            print(f"[CACHE MISS] all_jobs (batch cache)")
     except Exception as e:
         print(f"[CACHE ERROR] Error retrieving all_jobs: {e}")
     
@@ -188,7 +188,7 @@ def cache_get_all_jobs() -> Optional[list]:
 
 def cache_set_all_jobs(data: list, ttl: int = 21600) -> bool:
     """
-    Set all jobs in Redis cache (bulk cache)
+    Set all jobs in Redis cache (batch cache)
     
     Args:
         data: List of all jobs to cache

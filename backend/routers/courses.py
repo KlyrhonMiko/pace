@@ -4,10 +4,10 @@ from sqlalchemy.exc import IntegrityError
 from core.database import get_session
 from models.courses import (
     Course, CourseCreate, CourseUpdate, CoursePublic,
-    CourseBulkCreate, CourseBulkCreateResponse, CourseBulkCreateItem,
-    CourseBulkUpdate, CourseBulkUpdateResponse, CourseBulkUpdateResult,
-    CourseBulkDelete, CourseBulkDeleteResponse, CourseBulkDeleteResult,
-    CourseBulkRestore, CourseBulkRestoreResponse, CourseBulkRestoreResult
+    CourseBatchCreate, CourseBatchCreateResponse, CourseBatchCreateItem,
+    CourseBatchUpdate, CourseBatchUpdateResponse, CourseBatchUpdateResult,
+    CourseBatchDelete, CourseBatchDeleteResponse, CourseBatchDeleteResult,
+    CourseBatchRestore, CourseBatchRestoreResponse, CourseBatchRestoreResult
 )
 from models.college_dept import CollegeDept
 from models.student_records import StudentRecord
@@ -34,68 +34,69 @@ def generate_course_id(session: Session) -> str:
     return f"CRS-{new_num:06d}"  # Format: CRS-000001
 
 
-@router.post("/bulk")
-def bulk_create_courses(
-    bulk_data: CourseBulkCreate,
+@router.post("/batch")
+def batch_create_courses(
+    batch_data: CourseBatchCreate,
     session: Session = Depends(get_session)
 ):
-    """Bulk create courses"""
+    """Batch create courses"""
     results = []
     successful_count = 0
     failed_count = 0
     
-    for index, course_item in enumerate(bulk_data.items):
+    for index, course_item in enumerate(batch_data.items):
         try:
-            # Verify college department exists and get its code
-            college_dept = session.exec(
-                select(CollegeDept).where(CollegeDept.college_dept_abbv == course_item.college_dept_abbv.upper())
-            ).first()
-            
-            if not college_dept:
-                error_code = ErrorCode.COLLEGE_DEPT_NOT_FOUND.value
-                error_msg = f"College department '{course_item.college_dept_abbv}' not found"
+            with session.begin_nested():
+                # Verify college department exists and get its code
+                college_dept = session.exec(
+                    select(CollegeDept).where(CollegeDept.college_dept_abbv == course_item.college_dept_abbv.upper())
+                ).first()
                 
-                results.append(CourseBulkCreateItem(
+                if not college_dept:
+                    error_code = ErrorCode.COLLEGE_DEPT_NOT_FOUND.value
+                    error_msg = f"College department '{course_item.college_dept_abbv}' not found"
+                    
+                    results.append(CourseBatchCreateItem(
+                        index=index,
+                        item=course_item,
+                        success=False,
+                        code=error_code,
+                        message=error_msg,
+                        data=None
+                    ))
+                    failed_count += 1
+                    continue
+                
+                # Generate course_id
+                course_id = generate_course_id(session)
+                
+                # Create course
+                course_dict = course_item.model_dump(exclude={"college_dept_abbv"})
+                course_dict["course_id"] = course_id
+                course_dict["college_dept_code"] = college_dept.college_dept_code
+                
+                new_course = Course.model_validate(course_dict)
+                session.add(new_course)
+                session.flush()  # Flush to get the ID but don't commit yet
+                session.refresh(new_course)
+                
+                # Record successful creation
+                results.append(CourseBatchCreateItem(
                     index=index,
                     item=course_item,
-                    success=False,
-                    code=error_code,
-                    message=error_msg,
-                    data=None
+                    success=True,
+                    code=SuccessCode.COURSE_CREATED.value,
+                    message="Course created successfully",
+                    data=CoursePublic(
+                        **new_course.model_dump(exclude={"college_dept_code"}),
+                        college_dept_id=college_dept.college_dept_id,
+                        college_dept_name=college_dept.college_dept_name
+                    )
                 ))
-                failed_count += 1
-                continue
-            
-            # Generate course_id
-            course_id = generate_course_id(session)
-            
-            # Create course
-            course_dict = course_item.model_dump(exclude={"college_dept_abbv"})
-            course_dict["course_id"] = course_id
-            course_dict["college_dept_code"] = college_dept.college_dept_code
-            
-            new_course = Course.model_validate(course_dict)
-            session.add(new_course)
-            session.flush()  # Flush to get the ID but don't commit yet
-            session.refresh(new_course)
-            
-            # Record successful creation
-            results.append(CourseBulkCreateItem(
-                index=index,
-                item=course_item,
-                success=True,
-                code=SuccessCode.COURSE_CREATED.value,
-                message="Course created successfully",
-                data=CoursePublic(
-                    **new_course.model_dump(exclude={"college_dept_code"}),
-                    college_dept_id=college_dept.college_dept_id,
-                    college_dept_name=college_dept.college_dept_name
-                )
-            ))
-            successful_count += 1
+                successful_count += 1
         
         except IntegrityError as e:
-            session.rollback()
+            # session.rollback() is handled automatically by the context manager on error
             error_str = str(e).lower()
             
             if "ix_courses_course_abbv" in error_str or "courses_course_abbv_key" in error_str:
@@ -108,7 +109,7 @@ def bulk_create_courses(
                 error_code = ErrorCode.INVALID_INPUT.value
                 error_msg = "Course creation failed due to constraint violation"
             
-            results.append(CourseBulkCreateItem(
+            results.append(CourseBatchCreateItem(
                 index=index,
                 item=course_item,
                 success=False,
@@ -122,7 +123,7 @@ def bulk_create_courses(
             error_msg = str(e)
             error_code = ErrorCode.INVALID_INPUT.value
             
-            results.append(CourseBulkCreateItem(
+            results.append(CourseBatchCreateItem(
                 index=index,
                 item=course_item,
                 success=False,
@@ -142,12 +143,12 @@ def bulk_create_courses(
             detail=StandardResponse(
                 success=False,
                 code=ErrorCode.INVALID_INPUT.value,
-                message="Bulk create operation failed during commit"
+                message="Batch create operation failed during commit"
             ).model_dump(mode='json')
         )
     
-    bulk_response = CourseBulkCreateResponse(
-        total_items=len(bulk_data.items),
+    batch_response = CourseBatchCreateResponse(
+        total_items=len(batch_data.items),
         successful=successful_count,
         failed=failed_count,
         results=results
@@ -155,99 +156,100 @@ def bulk_create_courses(
     
     return StandardResponse(
         success=failed_count == 0,  # True only if all succeeded
-        code=SuccessCode.COURSES_BULK_CREATED.value,
-        message=f"Bulk create completed: {successful_count} successful, {failed_count} failed",
-        data=bulk_response
+        code=SuccessCode.COURSES_BATCH_CREATED.value,
+        message=f"Batch create completed: {successful_count} successful, {failed_count} failed",
+        data=batch_response
     )
 
 
-@router.put("/bulk")
-def bulk_update_courses(
-    bulk_data: CourseBulkUpdate,
+@router.patch("/batch")
+def batch_update_courses(
+    batch_data: CourseBatchUpdate,
     session: Session = Depends(get_session)
 ):
-    """Bulk update courses"""
+    """Batch update courses"""
     results = []
     successful_count = 0
     failed_count = 0
     
-    for index, update_item in enumerate(bulk_data.items):
+    for index, update_item in enumerate(batch_data.items):
         try:
-            # Find course
-            course = session.exec(
-                select(Course).where(Course.course_id == update_item.course_id.upper())
-            ).first()
-            
-            if not course:
-                results.append(CourseBulkUpdateResult(
-                    index=index,
-                    course_id=update_item.course_id,
-                    success=False,
-                    code=ErrorCode.COURSE_NOT_FOUND.value,
-                    message=f"Course '{update_item.course_id}' not found",
-                    data=None
-                ))
-                failed_count += 1
-                continue
-            
-            # If college_dept_abbv is provided, verify it exists and update
-            if update_item.college_dept_abbv is not None:
-                college_dept = session.exec(
-                    select(CollegeDept).where(CollegeDept.college_dept_abbv == update_item.college_dept_abbv.upper())
+            with session.begin_nested():
+                # Find course
+                course = session.exec(
+                    select(Course).where(Course.course_id == update_item.course_id.upper())
                 ).first()
                 
-                if not college_dept:
-                    results.append(CourseBulkUpdateResult(
+                if not course:
+                    results.append(CourseBatchUpdateResult(
                         index=index,
                         course_id=update_item.course_id,
                         success=False,
-                        code=ErrorCode.COLLEGE_DEPT_NOT_FOUND.value,
-                        message=f"College department '{update_item.college_dept_abbv}' not found",
+                        code=ErrorCode.COURSE_NOT_FOUND.value,
+                        message=f"Course '{update_item.course_id}' not found",
                         data=None
                     ))
                     failed_count += 1
                     continue
                 
-                course.college_dept_code = college_dept.college_dept_code
-            else:
-                # Get current college dept for response
-                college_dept = session.exec(
-                    select(CollegeDept).where(CollegeDept.college_dept_code == course.college_dept_code)
-                ).first()
-            
-            # Update only provided fields
-            if update_item.course_abbv is not None:
-                course.course_abbv = update_item.course_abbv
-            if update_item.course_name is not None:
-                course.course_name = update_item.course_name
-            if update_item.course_desc is not None:
-                course.course_desc = update_item.course_desc
-            
-            # Update timestamp
-            from datetime import datetime, timezone
-            course.updated_at = datetime.now(timezone.utc)
-            
-            session.add(course)
-            session.flush()
-            session.refresh(course)
-            
-            # Record successful update
-            results.append(CourseBulkUpdateResult(
-                index=index,
-                course_id=update_item.course_id,
-                success=True,
-                code=SuccessCode.COURSE_UPDATED.value,
-                message="Course updated successfully",
-                data=CoursePublic(
-                    **course.model_dump(exclude={"college_dept_code"}),
-                    college_dept_id=college_dept.college_dept_id if college_dept else "UNKNOWN",
-                    college_dept_name=college_dept.college_dept_name if college_dept else "Unknown Department"
-                )
-            ))
-            successful_count += 1
+                # If college_dept_abbv is provided, verify it exists and update
+                if update_item.college_dept_abbv is not None:
+                    college_dept = session.exec(
+                        select(CollegeDept).where(CollegeDept.college_dept_abbv == update_item.college_dept_abbv.upper())
+                    ).first()
+                    
+                    if not college_dept:
+                        results.append(CourseBatchUpdateResult(
+                            index=index,
+                            course_id=update_item.course_id,
+                            success=False,
+                            code=ErrorCode.COLLEGE_DEPT_NOT_FOUND.value,
+                            message=f"College department '{update_item.college_dept_abbv}' not found",
+                            data=None
+                        ))
+                        failed_count += 1
+                        continue
+                    
+                    course.college_dept_code = college_dept.college_dept_code
+                else:
+                    # Get current college dept for response
+                    college_dept = session.exec(
+                        select(CollegeDept).where(CollegeDept.college_dept_code == course.college_dept_code)
+                    ).first()
+                
+                # Update only provided fields
+                if update_item.course_abbv is not None:
+                    course.course_abbv = update_item.course_abbv
+                if update_item.course_name is not None:
+                    course.course_name = update_item.course_name
+                if update_item.course_desc is not None:
+                    course.course_desc = update_item.course_desc
+                
+                # Update timestamp
+                from datetime import datetime, timezone
+                course.updated_at = datetime.now(timezone.utc)
+                
+                session.add(course)
+                session.flush()
+                session.refresh(course)
+                
+                # Record successful update
+                results.append(CourseBatchUpdateResult(
+                    index=index,
+                    course_id=update_item.course_id,
+                    success=True,
+                    code=SuccessCode.COURSE_UPDATED.value,
+                    message="Course updated successfully",
+                    data=CoursePublic(
+                        **course.model_dump(exclude={"college_dept_code"}),
+                        college_dept_id=college_dept.college_dept_id if college_dept else "UNKNOWN",
+                        college_dept_name=college_dept.college_dept_name if college_dept else "Unknown Department"
+                    )
+                ))
+                successful_count += 1
         
         except IntegrityError as e:
-            session.rollback()
+            # session.rollback() is handled automatically by the context manager on error
             error_str = str(e).lower()
             
             if "ix_courses_course_abbv" in error_str or "courses_course_abbv_key" in error_str:
@@ -260,7 +262,7 @@ def bulk_update_courses(
                 error_code = ErrorCode.INVALID_INPUT.value
                 error_msg = "Update failed due to constraint violation"
             
-            results.append(CourseBulkUpdateResult(
+            results.append(CourseBatchUpdateResult(
                 index=index,
                 course_id=update_item.course_id,
                 success=False,
@@ -274,7 +276,7 @@ def bulk_update_courses(
             error_msg = str(e)
             error_code = ErrorCode.INVALID_INPUT.value
             
-            results.append(CourseBulkUpdateResult(
+            results.append(CourseBatchUpdateResult(
                 index=index,
                 course_id=update_item.course_id,
                 success=False,
@@ -294,12 +296,12 @@ def bulk_update_courses(
             detail=StandardResponse(
                 success=False,
                 code=ErrorCode.INVALID_INPUT.value,
-                message="Bulk update operation failed during commit"
+                message="Batch update operation failed during commit"
             ).model_dump(mode='json')
         )
     
-    bulk_response = CourseBulkUpdateResponse(
-        total_items=len(bulk_data.items),
+    batch_response = CourseBatchUpdateResponse(
+        total_items=len(batch_data.items),
         successful=successful_count,
         failed=failed_count,
         results=results
@@ -307,23 +309,23 @@ def bulk_update_courses(
     
     return StandardResponse(
         success=failed_count == 0,
-        code=SuccessCode.COURSES_BULK_UPDATED.value,
-        message=f"Bulk update completed: {successful_count} successful, {failed_count} failed",
-        data=bulk_response
+        code=SuccessCode.COURSES_BATCH_UPDATED.value,
+        message=f"Batch update completed: {successful_count} successful, {failed_count} failed",
+        data=batch_response
     )
 
 
-@router.delete("/bulk")
-def bulk_delete_courses(
-    bulk_data: CourseBulkDelete,
+@router.delete("/batch")
+def batch_delete_courses(
+    batch_data: CourseBatchDelete,
     session: Session = Depends(get_session)
 ):
-    """Bulk delete courses"""
+    """Batch delete courses"""
     results = []
     successful_count = 0
     failed_count = 0
     
-    for index, course_id in enumerate(bulk_data.ids):
+    for index, course_id in enumerate(batch_data.ids):
         try:
             # Find course
             course = session.exec(
@@ -331,7 +333,7 @@ def bulk_delete_courses(
             ).first()
             
             if not course:
-                results.append(CourseBulkDeleteResult(
+                results.append(CourseBatchDeleteResult(
                     index=index,
                     course_id=course_id,
                     success=False,
@@ -343,7 +345,7 @@ def bulk_delete_courses(
             
             # Check if already deleted
             if course.is_deleted:
-                results.append(CourseBulkDeleteResult(
+                results.append(CourseBatchDeleteResult(
                     index=index,
                     course_id=course_id,
                     success=False,
@@ -358,7 +360,7 @@ def bulk_delete_courses(
                 select(StudentRecord).where((StudentRecord.course_code == course.course_code) & (StudentRecord.is_deleted == False))
             ).first()
             if active_students:
-                results.append(CourseBulkDeleteResult(
+                results.append(CourseBatchDeleteResult(
                     index=index,
                     course_id=course_id,
                     success=False,
@@ -376,7 +378,7 @@ def bulk_delete_courses(
             session.flush()
             
             # Record successful deletion
-            results.append(CourseBulkDeleteResult(
+            results.append(CourseBatchDeleteResult(
                 index=index,
                 course_id=course_id,
                 success=True,
@@ -390,7 +392,7 @@ def bulk_delete_courses(
             error_code = ErrorCode.INVALID_INPUT.value
             error_msg = "Delete failed: Constraint violation or related data exists"
             
-            results.append(CourseBulkDeleteResult(
+            results.append(CourseBatchDeleteResult(
                 index=index,
                 course_id=course_id,
                 success=False,
@@ -404,7 +406,7 @@ def bulk_delete_courses(
             error_code = ErrorCode.INVALID_INPUT.value
             error_msg = f"Delete failed: {str(e)}"
             
-            results.append(CourseBulkDeleteResult(
+            results.append(CourseBatchDeleteResult(
                 index=index,
                 course_id=course_id,
                 success=False,
@@ -423,12 +425,12 @@ def bulk_delete_courses(
             detail=StandardResponse(
                 success=False,
                 code=ErrorCode.INVALID_INPUT.value,
-                message="Bulk delete operation failed during commit"
+                message="Batch delete operation failed during commit"
             ).model_dump(mode='json')
         )
     
-    bulk_response = CourseBulkDeleteResponse(
-        total_items=len(bulk_data.ids),
+    batch_response = CourseBatchDeleteResponse(
+        total_items=len(batch_data.ids),
         successful=successful_count,
         failed=failed_count,
         results=results
@@ -436,9 +438,9 @@ def bulk_delete_courses(
     
     return StandardResponse(
         success=failed_count == 0,
-        code=SuccessCode.COURSES_BULK_DELETED.value,
-        message=f"Bulk delete completed: {successful_count} successful, {failed_count} failed",
-        data=bulk_response
+        code=SuccessCode.COURSES_BATCH_DELETED.value,
+        message=f"Batch delete completed: {successful_count} successful, {failed_count} failed",
+        data=batch_response
     )
 
 
@@ -654,7 +656,7 @@ def get_course(course_id: str, session: Session = Depends(get_session)):
     )
 
 
-@router.put("/{course_id}")
+@router.patch("/{course_id}")
 def update_course(
     course_id: str,
     course_data: CourseUpdate,
@@ -839,9 +841,9 @@ def delete_course(course_id: str, session: Session = Depends(get_session)):
         )
 
 
-@router.post("/bulk/restore")
-def bulk_restore_courses(
-    data: CourseBulkRestore,
+@router.post("/batch/restore")
+def batch_restore_courses(
+    data: CourseBatchRestore,
     session: Session = Depends(get_session)
 ):
     """Restore multiple soft-deleted courses"""
@@ -856,7 +858,7 @@ def bulk_restore_courses(
             ).first()
             
             if not course:
-                results.append(CourseBulkRestoreResult(
+                results.append(CourseBatchRestoreResult(
                     index=index,
                     course_id=course_id,
                     success=False,
@@ -867,7 +869,7 @@ def bulk_restore_courses(
                 continue
             
             if not course.is_deleted:
-                results.append(CourseBulkRestoreResult(
+                results.append(CourseBatchRestoreResult(
                     index=index,
                     course_id=course_id,
                     success=False,
@@ -884,7 +886,7 @@ def bulk_restore_courses(
             session.flush()
             
             # Record successful restoration
-            results.append(CourseBulkRestoreResult(
+            results.append(CourseBatchRestoreResult(
                 index=index,
                 course_id=course_id,
                 success=True,
@@ -897,22 +899,22 @@ def bulk_restore_courses(
             session.rollback()
             error_code = ErrorCode.INVALID_INPUT.value
             error_msg = "Restore failed: Constraint violation or related data issue"
-            results.append(CourseBulkRestoreResult(
+            results.append(CourseBatchRestoreResult(
                 index=index,
                 course_id=course_id,
                 success=False,
                 code=error_code,
                 message=error_msg
             ))
-            log_integrity_error("courses", "bulk_restore_courses", error_code, error_msg, str(e))
+            log_integrity_error("courses", "batch_restore_courses", error_code, error_msg, str(e))
             failed_count += 1
     
     session.commit()
     return StandardResponse(
         success=failed_count == 0,
-        code=SuccessCode.COURSES_BULK_RESTORED.value,
+        code=SuccessCode.COURSES_BATCH_RESTORED.value,
         message=f"Restore operation completed: {successful_count} succeeded, {failed_count} failed",
-        data=CourseBulkRestoreResponse(
+        data=CourseBatchRestoreResponse(
             total_items=len(data.ids),
             successful=successful_count,
             failed=failed_count,

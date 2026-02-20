@@ -49,10 +49,10 @@ class CompleteAlumniResponse(SQLModel):
     message: str
 
 
-# Bulk alumni registration models
+# Batch alumni registration models
 
 # Safe display models (exclude passwords from responses)
-class BulkAlumniRegistrationItemSafeDisplay(BaseModel):
+class BatchAlumniRegistrationItemSafeDisplay(BaseModel):
     """Alumni registration data for response (no password included)"""
     username: str
     email: str
@@ -63,8 +63,8 @@ class BulkAlumniRegistrationItemSafeDisplay(BaseModel):
     age: int
 
 
-class BulkAlumniRegistrationItem(BaseModel):
-    """Individual alumni registration data for bulk registration (input model)"""
+class BatchAlumniRegistrationItem(BaseModel):
+    """Individual alumni registration data for batch registration (input model)"""
     username: str
     email: str
     password: str
@@ -98,10 +98,10 @@ class BulkAlumniRegistrationItem(BaseModel):
         return v  # Return unhashed for now, hash during actual registration
 
 
-class BulkAlumniRegistrationResult(BaseModel):
-    """Individual item result from bulk alumni registration"""
+class BatchAlumniRegistrationResult(BaseModel):
+    """Individual item result from batch alumni registration"""
     index: int
-    item: BulkAlumniRegistrationItemSafeDisplay
+    item: BatchAlumniRegistrationItemSafeDisplay
     success: bool
     code: str
     message: str
@@ -109,22 +109,22 @@ class BulkAlumniRegistrationResult(BaseModel):
     alumni_id: Optional[str] = None
 
 
-class BulkAlumniRegister(BaseModel):
-    """Bulk alumni registration request"""
-    items: List[BulkAlumniRegistrationItem] = Field(..., min_items=1, max_items=100, description="List of alumni to register (1-100 items)")
+class BatchAlumniRegister(BaseModel):
+    """Batch alumni registration request"""
+    items: List[BatchAlumniRegistrationItem] = Field(..., min_items=1, max_items=100, description="List of alumni to register (1-100 items)")
 
 
-class BulkAlumniRegisterResponse(BaseModel):
-    """Bulk alumni registration response"""
+class BatchAlumniRegisterResponse(BaseModel):
+    """Batch alumni registration response"""
     total_items: int
     successful: int
     failed: int
-    results: List[BulkAlumniRegistrationResult]
+    results: List[BatchAlumniRegistrationResult]
 
 
-# Bulk alumni update models
-class BulkAlumniUpdateItem(BaseModel):
-    """Alumni update item in bulk request"""
+# Batch alumni update models
+class BatchAlumniUpdateItem(BaseModel):
+    """Alumni update item in batch request"""
     alumni_id: str
     last_name: Optional[str] = None
     first_name: Optional[str] = None
@@ -133,8 +133,8 @@ class BulkAlumniUpdateItem(BaseModel):
     age: Optional[int] = None
 
 
-class BulkAlumniUpdateResult(BaseModel):
-    """Individual item result from bulk alumni update operation"""
+class BatchAlumniUpdateResult(BaseModel):
+    """Individual item result from batch alumni update operation"""
     index: int
     alumni_id: str
     success: bool
@@ -143,22 +143,22 @@ class BulkAlumniUpdateResult(BaseModel):
     data: Optional[dict] = None  # Full profile if successful
 
 
-class BulkAlumniUpdate(BaseModel):
-    """Bulk alumni update request"""
-    items: List[BulkAlumniUpdateItem] = Field(..., min_items=1, max_items=100, description="List of alumni to update (1-100 items)")
+class BatchAlumniUpdate(BaseModel):
+    """Batch alumni update request"""
+    items: List[BatchAlumniUpdateItem] = Field(..., min_items=1, max_items=100, description="List of alumni to update (1-100 items)")
 
 
-class BulkAlumniUpdateResponse(BaseModel):
-    """Bulk alumni update response"""
+class BatchAlumniUpdateResponse(BaseModel):
+    """Batch alumni update response"""
     total_items: int
     successful: int
     failed: int
-    results: List[BulkAlumniUpdateResult]
+    results: List[BatchAlumniUpdateResult]
 
 
-# Bulk alumni delete models
-class BulkAlumniDeleteResult(BaseModel):
-    """Individual item result from bulk alumni delete operation"""
+# Batch alumni delete models
+class BatchAlumniDeleteResult(BaseModel):
+    """Individual item result from batch alumni delete operation"""
     index: int
     alumni_id: str
     success: bool
@@ -166,22 +166,22 @@ class BulkAlumniDeleteResult(BaseModel):
     message: str
 
 
-class BulkAlumniDelete(BaseModel):
-    """Bulk alumni delete request"""
+class BatchAlumniDelete(BaseModel):
+    """Batch alumni delete request"""
     ids: List[str] = Field(..., min_items=1, max_items=100, description="List of alumni IDs to delete (1-100 items)")
 
 
-class BulkAlumniDeleteResponse(BaseModel):
-    """Bulk alumni delete response"""
+class BatchAlumniDeleteResponse(BaseModel):
+    """Batch alumni delete response"""
     total_items: int
     successful: int
     failed: int
-    results: List[BulkAlumniDeleteResult]
+    results: List[BatchAlumniDeleteResult]
 
 
-# Bulk alumni restore models
-class BulkAlumniRestoreResult(BaseModel):
-    """Individual item result from bulk alumni restore operation"""
+# Batch alumni restore models
+class BatchAlumniRestoreResult(BaseModel):
+    """Individual item result from batch alumni restore operation"""
     index: int
     alumni_id: str
     success: bool
@@ -189,14 +189,14 @@ class BulkAlumniRestoreResult(BaseModel):
     message: str
 
 
-class BulkAlumniRestore(BaseModel):
-    """Bulk alumni restore request"""
+class BatchAlumniRestore(BaseModel):
+    """Batch alumni restore request"""
     ids: List[str] = Field(..., min_items=1, max_items=100, description="List of alumni IDs to restore (1-100 items)")
 
 
-class BulkAlumniRestoreResponse(BaseModel):
-    """Bulk alumni restore response"""
+class BatchAlumniRestoreResponse(BaseModel):
+    """Batch alumni restore response"""
     total_items: int
     successful: int
     failed: int
-    results: List[BulkAlumniRestoreResult]
+    results: List[BatchAlumniRestoreResult]

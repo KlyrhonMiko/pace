@@ -86,9 +86,9 @@ class CoursePublic(CourseBase):
         gmt8_time = value.astimezone(GMT8)
         return gmt8_time.strftime('%Y-%m-%d %H:%M:%S')
 
-# Bulk operation models
-class CourseBulkCreateItem(BaseModel):
-    """Individual item result from bulk create operation"""
+# Batch operation models
+class CourseBatchCreateItem(BaseModel):
+    """Individual item result from batch create operation"""
     index: int = Field(..., description="Index in the request list (0-based)")
     item: CourseCreate = Field(..., description="The course data submitted")
     success: bool = Field(..., description="Whether this item was created successfully")
@@ -97,22 +97,22 @@ class CourseBulkCreateItem(BaseModel):
     data: Optional[CoursePublic] = Field(default=None, description="Created course (if successful)")
 
 
-class CourseBulkCreate(BaseModel):
-    """Bulk create request for courses"""
+class CourseBatchCreate(BaseModel):
+    """Batch create request for courses"""
     items: List[CourseCreate] = Field(..., min_items=1, max_items=100, description="List of courses to create (1-100 items)")
 
 
-class CourseBulkCreateResponse(BaseModel):
-    """Bulk create response for courses"""
+class CourseBatchCreateResponse(BaseModel):
+    """Batch create response for courses"""
     total_items: int = Field(..., description="Total items in request")
     successful: int = Field(..., description="Number of items successfully created")
     failed: int = Field(..., description="Number of items that failed")
-    results: List[CourseBulkCreateItem] = Field(..., description="Detailed results for each item")
+    results: List[CourseBatchCreateItem] = Field(..., description="Detailed results for each item")
 
 
-# Bulk update models
-class CourseBulkUpdateItem(BaseModel):
-    """Course update item in bulk request"""
+# Batch update models
+class CourseBatchUpdateItem(BaseModel):
+    """Course update item in batch request"""
     course_id: str = Field(..., description="Course ID to update")
     course_abbv: Optional[str] = Field(default=None, max_length=20, description="New abbreviation")
     course_name: Optional[str] = Field(default=None, max_length=200, description="New name")
@@ -120,8 +120,8 @@ class CourseBulkUpdateItem(BaseModel):
     college_dept_abbv: Optional[str] = Field(default=None, description="New college department abbreviation")
 
 
-class CourseBulkUpdateResult(BaseModel):
-    """Individual item result from bulk update operation"""
+class CourseBatchUpdateResult(BaseModel):
+    """Individual item result from batch update operation"""
     index: int = Field(..., description="Index in the request list (0-based)")
     course_id: str = Field(..., description="Course ID that was updated")
     success: bool = Field(..., description="Whether this item was updated successfully")
@@ -130,22 +130,22 @@ class CourseBulkUpdateResult(BaseModel):
     data: Optional[CoursePublic] = Field(default=None, description="Updated course (if successful)")
 
 
-class CourseBulkUpdate(BaseModel):
-    """Bulk update request for courses"""
-    items: List[CourseBulkUpdateItem] = Field(..., min_items=1, max_items=100, description="List of courses to update (1-100 items)")
+class CourseBatchUpdate(BaseModel):
+    """Batch update request for courses"""
+    items: List[CourseBatchUpdateItem] = Field(..., min_items=1, max_items=100, description="List of courses to update (1-100 items)")
 
 
-class CourseBulkUpdateResponse(BaseModel):
-    """Bulk update response for courses"""
+class CourseBatchUpdateResponse(BaseModel):
+    """Batch update response for courses"""
     total_items: int = Field(..., description="Total items in request")
     successful: int = Field(..., description="Number of items successfully updated")
     failed: int = Field(..., description="Number of items that failed")
-    results: List[CourseBulkUpdateResult] = Field(..., description="Detailed results for each item")
+    results: List[CourseBatchUpdateResult] = Field(..., description="Detailed results for each item")
 
 
-# Bulk delete models
-class CourseBulkDeleteResult(BaseModel):
-    """Individual item result from bulk delete operation"""
+# Batch delete models
+class CourseBatchDeleteResult(BaseModel):
+    """Individual item result from batch delete operation"""
     index: int = Field(..., description="Index in the request list (0-based)")
     course_id: str = Field(..., description="Course ID that was deleted")
     success: bool = Field(..., description="Whether this item was deleted successfully")
@@ -153,22 +153,22 @@ class CourseBulkDeleteResult(BaseModel):
     message: str = Field(..., description="Detailed message about the result")
 
 
-class CourseBulkDelete(BaseModel):
-    """Bulk delete request for courses"""
+class CourseBatchDelete(BaseModel):
+    """Batch delete request for courses"""
     ids: List[str] = Field(..., min_items=1, max_items=100, description="List of course IDs to delete (1-100 items)")
 
 
-class CourseBulkDeleteResponse(BaseModel):
-    """Bulk delete response for courses"""
+class CourseBatchDeleteResponse(BaseModel):
+    """Batch delete response for courses"""
     total_items: int = Field(..., description="Total items in request")
     successful: int = Field(..., description="Number of items successfully deleted")
     failed: int = Field(..., description="Number of items that failed")
-    results: List[CourseBulkDeleteResult] = Field(..., description="Detailed results for each item")
+    results: List[CourseBatchDeleteResult] = Field(..., description="Detailed results for each item")
 
 
-# Bulk course restore models
-class CourseBulkRestoreResult(BaseModel):
-    """Individual item result from bulk course restore operation"""
+# Batch course restore models
+class CourseBatchRestoreResult(BaseModel):
+    """Individual item result from batch course restore operation"""
     index: int = Field(..., description="Index in the request list (0-based)")
     course_id: str = Field(..., description="Course ID that was restored")
     success: bool = Field(..., description="Whether this item was restored successfully")
@@ -176,14 +176,14 @@ class CourseBulkRestoreResult(BaseModel):
     message: str = Field(..., description="Detailed message about the result")
 
 
-class CourseBulkRestore(BaseModel):
-    """Bulk restore request for courses"""
+class CourseBatchRestore(BaseModel):
+    """Batch restore request for courses"""
     ids: List[str] = Field(..., min_items=1, max_items=100, description="List of course IDs to restore (1-100 items)")
 
 
-class CourseBulkRestoreResponse(BaseModel):
-    """Bulk restore response for courses"""
+class CourseBatchRestoreResponse(BaseModel):
+    """Batch restore response for courses"""
     total_items: int = Field(..., description="Total items in request")
     successful: int = Field(..., description="Number of items successfully restored")
     failed: int = Field(..., description="Number of items that failed")
-    results: List[CourseBulkRestoreResult] = Field(..., description="Detailed results for each item")
+    results: List[CourseBatchRestoreResult] = Field(..., description="Detailed results for each item")

@@ -73,7 +73,7 @@ export default function JobFilters({
 
             <div className="relative z-10">
                 <div className="flex items-center gap-2 mb-6">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-800">
                         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                         </svg>
@@ -90,7 +90,7 @@ export default function JobFilters({
                             placeholder="Search jobs..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10 h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-400 focus-visible:ring-emerald-500/20"
+                            className="pl-10 h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
                         />
                     </div>
 
@@ -103,7 +103,7 @@ export default function JobFilters({
                                 placeholder="City, state, or zip code"
                                 value={locationSearch}
                                 onChange={(e) => setLocationSearch(e.target.value)}
-                                className="pl-10 h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-400 focus-visible:ring-emerald-500/20"
+                                className="pl-10 h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
                             />
 
                         </div>
@@ -123,7 +123,7 @@ export default function JobFilters({
                                             <Checkbox
                                                 checked={selectedTypes.includes(type)}
                                                 onCheckedChange={() => toggleFilter(selectedTypes, setSelectedTypes, type)}
-                                                className="border-slate-300 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
+                                                className="border-slate-300 data-[state=checked]:bg-emerald-700 data-[state=checked]:border-emerald-700"
                                             />
                                             <Briefcase className="h-4 w-4 text-slate-400" />
                                             <span className="text-sm text-slate-700">{type}</span>
@@ -150,7 +150,7 @@ export default function JobFilters({
                                             <Checkbox
                                                 checked={selectedWorkTypes.includes(workType)}
                                                 onCheckedChange={() => toggleFilter(selectedWorkTypes, setSelectedWorkTypes, workType)}
-                                                className="border-slate-300 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
+                                                className="border-slate-300 data-[state=checked]:bg-emerald-700 data-[state=checked]:border-emerald-700"
                                             />
                                             <IconComponent className="h-4 w-4 text-slate-400" />
                                             <span className="text-sm text-slate-700">{workType}</span>
@@ -176,7 +176,7 @@ export default function JobFilters({
                                             <Checkbox
                                                 checked={selectedExperience.includes(level)}
                                                 onCheckedChange={() => toggleFilter(selectedExperience, setSelectedExperience, level)}
-                                                className="border-slate-300 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
+                                                className="border-slate-300 data-[state=checked]:bg-emerald-700 data-[state=checked]:border-emerald-700"
                                             />
                                             <GraduationCap className="h-4 w-4 text-slate-400" />
                                             <span className="text-sm text-slate-700">{level}</span>
@@ -195,7 +195,7 @@ export default function JobFilters({
                                 id="hasSalary"
                                 checked={hasSalary}
                                 onCheckedChange={(checked) => setHasSalary(checked as boolean)}
-                                className="border-slate-300 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
+                                className="border-slate-300 data-[state=checked]:bg-emerald-700 data-[state=checked]:border-emerald-700"
                             />
                             <label
                                 htmlFor="hasSalary"
@@ -222,7 +222,7 @@ export default function JobFilters({
                                 min={0}
                                 max={500}
                                 step={5}
-                                className="[&_[data-slot=slider-track]]:bg-slate-200 [&_[data-slot=slider-range]]:bg-emerald-500 [&_[data-slot=slider-thumb]]:border-emerald-500 [&_[data-slot=slider-thumb]]:hover:ring-emerald-200"
+                                className="[&_[data-slot=slider-track]]:bg-slate-200 [&_[data-slot=slider-range]]:bg-emerald-700 [&_[data-slot=slider-thumb]]:border-emerald-700 [&_[data-slot=slider-thumb]]:hover:ring-emerald-200"
                             />
                             <div className="flex justify-between text-xs text-slate-400">
                                 <span>₱0k</span>

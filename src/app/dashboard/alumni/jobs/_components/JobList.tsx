@@ -151,7 +151,7 @@ export default function JobList({
                     <p className="text-slate-500 mb-4">Try adjusting your search or filter criteria</p>
                     <button
                         onClick={clearFilters}
-                        className="px-6 py-2.5 rounded-xl bg-emerald-500 text-white font-medium hover:bg-emerald-600 transition-colors"
+                        className="px-6 py-2.5 rounded-xl bg-emerald-700 text-white font-medium hover:bg-emerald-800 transition-colors"
                     >
                         Clear Filters
                     </button>
@@ -165,7 +165,7 @@ export default function JobList({
                     <button
                         onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                         disabled={currentPage === 1}
-                        className="flex items-center gap-1 px-4 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 font-medium transition-all duration-200 hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:text-slate-600 disabled:hover:bg-slate-50"
+                        className="flex items-center gap-1 px-4 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 font-medium transition-all duration-200 hover:border-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:text-slate-600 disabled:hover:bg-slate-50"
                     >
                         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -200,8 +200,8 @@ export default function JobList({
                                     key={page}
                                     onClick={() => setCurrentPage(page)}
                                     className={`min-w-[40px] h-10 rounded-lg font-medium transition-all duration-200 ${currentPage === page
-                                        ? "bg-emerald-500 text-white shadow-md shadow-emerald-200"
-                                        : "bg-slate-50 border border-slate-200 text-slate-600 hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50"
+                                        ? "bg-emerald-700 text-white shadow-md shadow-emerald-200"
+                                        : "bg-slate-50 border border-slate-200 text-slate-600 hover:border-emerald-600 hover:text-emerald-800 hover:bg-emerald-50"
                                         }`}
                                 >
                                     {page}
@@ -214,7 +214,7 @@ export default function JobList({
                     <button
                         onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                         disabled={currentPage === totalPages}
-                        className="flex items-center gap-1 px-4 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 font-medium transition-all duration-200 hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:text-slate-600 disabled:hover:bg-slate-50"
+                        className="flex items-center gap-1 px-4 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 font-medium transition-all duration-200 hover:border-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:text-slate-600 disabled:hover:bg-slate-50"
                     >
                         Next
                         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

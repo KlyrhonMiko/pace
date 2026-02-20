@@ -32,7 +32,7 @@ export default function UserDistribution() {
                     </div>
                 </div>
                 <div className="flex items-center gap-2 bg-gray-50/80 rounded-full px-3 py-1.5 ring-1 ring-gray-100/60">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
                     <span className="text-[11px] font-semibold text-gray-500">{total.toLocaleString()} users</span>
                 </div>
             </div>
@@ -148,7 +148,7 @@ export default function UserDistribution() {
                 <div className="flex items-center justify-between bg-gradient-to-b from-gray-50/80 to-gray-50/40 rounded-xl py-3 px-4 ring-1 ring-gray-100/60">
                     <div className="flex items-center gap-2">
                         <div className="w-6 h-6 rounded-lg bg-emerald-50 flex items-center justify-center">
-                            <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                            <svg className="w-3.5 h-3.5 text-emerald-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                         </div>
@@ -158,7 +158,7 @@ export default function UserDistribution() {
                         </div>
                     </div>
                     <div className="text-right">
-                        <p className="text-sm font-extrabold text-emerald-600">892</p>
+                        <p className="text-sm font-extrabold text-emerald-800">892</p>
                         <p className="text-[10px] text-gray-400">alumni</p>
                     </div>
                 </div>

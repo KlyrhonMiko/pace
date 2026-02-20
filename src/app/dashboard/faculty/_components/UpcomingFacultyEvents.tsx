@@ -6,7 +6,7 @@ const events = [
         location: "PLP Main Hall",
         attendees: 245,
         status: "Organizing",
-        gradient: "from-emerald-500 to-emerald-600",
+        gradient: "from-emerald-700 to-emerald-800",
         hex: "#10b981",
         statusStyle: "bg-emerald-50/80 text-emerald-700 ring-emerald-100/60",
     },

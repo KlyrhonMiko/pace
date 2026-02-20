@@ -24,7 +24,7 @@ export default function DateWidget() {
 
     return (
         <div className="hidden md:flex items-center gap-0 rounded-lg overflow-hidden border border-gray-200 shadow-sm">
-            <div className="flex items-center justify-center w-11 h-11 bg-emerald-500 text-white">
+            <div className="flex items-center justify-center w-11 h-11 bg-emerald-700 text-white">
                 <span className="text-lg font-bold">{day}</span>
             </div>
             <div className="flex flex-col justify-center px-3 py-1 bg-white">

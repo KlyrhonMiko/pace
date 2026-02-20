@@ -7,7 +7,7 @@ const actions = [
         href: "/dashboard/admin/users",
         icon: "M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z",
         color: "#10b981",
-        gradient: "from-emerald-500 to-emerald-600",
+        gradient: "from-emerald-700 to-emerald-800",
         bgTint: "bg-emerald-50",
         ringTint: "ring-emerald-100/60",
     },

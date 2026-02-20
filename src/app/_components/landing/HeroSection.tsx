@@ -81,9 +81,6 @@ export function HeroSection() {
                                                 <div className="h-3 w-24 bg-slate-800 rounded-full" />
                                                 <div className="h-2 w-16 bg-slate-400 rounded-full" />
                                             </div>
-                                            <div className="ml-auto h-6 px-3 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold flex items-center">
-                                                APPLY
-                                            </div>
                                         </div>
 
                                         {/* Job Item 2 */}

@@ -76,7 +76,7 @@ export default function AdminLayout({
                         </div>
                         <div className="flex flex-col">
                             <span className="text-[16px] font-bold text-gray-900 tracking-tight leading-tight">P.A.C.E.</span>
-                            <span className="text-[10px] text-emerald-600 font-semibold tracking-[0.1em] uppercase mt-0.5">Admin Console</span>
+                            <span className="text-[10px] text-emerald-800 font-semibold tracking-[0.1em] uppercase mt-0.5">Admin Console</span>
                         </div>
                     </Link>
                     <button
@@ -104,7 +104,7 @@ export default function AdminLayout({
                                         group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium
                                         transition-all duration-200 ease-out
                                         ${isActive
-                                            ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/25"
+                                            ? "bg-emerald-700 text-white shadow-lg shadow-emerald-700/25"
                                             : "text-gray-600 hover:text-gray-900 hover:bg-white/90 hover:shadow-sm"
                                         }
                                     `}
@@ -117,7 +117,7 @@ export default function AdminLayout({
                                         flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-200
                                         ${isActive
                                             ? "bg-white/20 text-white"
-                                            : "text-gray-500 group-hover:text-emerald-600 group-hover:bg-emerald-50"
+                                            : "text-gray-500 group-hover:text-emerald-800 group-hover:bg-emerald-50"
                                         }
                                     `}>
                                         <item.icon />
@@ -146,7 +146,7 @@ export default function AdminLayout({
                                 group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium
                                 transition-all duration-200 ease-out
                                 ${pathname === "/dashboard/admin/settings"
-                                    ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/25"
+                                    ? "bg-emerald-700 text-white shadow-lg shadow-emerald-700/25"
                                     : "text-gray-600 hover:text-gray-900 hover:bg-white/90 hover:shadow-sm"
                                 }
                             `}
@@ -158,7 +158,7 @@ export default function AdminLayout({
                                 flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-200
                                 ${pathname === "/dashboard/admin/settings"
                                     ? "bg-white/20 text-white"
-                                    : "text-gray-500 group-hover:text-emerald-600 group-hover:bg-emerald-50"
+                                    : "text-gray-500 group-hover:text-emerald-800 group-hover:bg-emerald-50"
                                 }
                             `}>
                                 <SettingsIcon />
@@ -174,10 +174,10 @@ export default function AdminLayout({
                 <div className="p-4 border-t border-gray-200/60 bg-white/60 backdrop-blur-sm">
                     <div className="flex items-center gap-3 rounded-xl bg-gradient-to-br from-gray-50/80 to-white p-3.5 border border-gray-200/60 shadow-sm hover:shadow-md hover:border-gray-300/60 transition-all duration-200">
                         <div className="relative flex-shrink-0">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 text-xs font-bold text-white shadow-md ring-2 ring-white">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-emerald-700 to-emerald-800 text-xs font-bold text-white shadow-md ring-2 ring-white">
                                 AD
                             </div>
-                            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 rounded-full ring-2 ring-white shadow-sm" />
+                            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-600 rounded-full ring-2 ring-white shadow-sm" />
                         </div>
                         <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-gray-900 truncate leading-tight">Admin User</p>
@@ -234,7 +234,7 @@ export default function AdminLayout({
                         {/* Notifications */}
                         <button className="relative flex items-center justify-center h-9 w-9 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors duration-150">
                             <BellIcon />
-                            <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[9px] font-bold text-white ring-2 ring-white">
+                            <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-700 text-[9px] font-bold text-white ring-2 ring-white">
                                 5
                             </span>
                         </button>

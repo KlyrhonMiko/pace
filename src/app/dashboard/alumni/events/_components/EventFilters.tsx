@@ -37,7 +37,7 @@ export default function EventFilters({
             <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-200/60">
                 <div className="flex items-center gap-2.5">
                     <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-100 to-emerald-50 border border-emerald-200/50">
-                        <svg className="h-5 w-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="h-5 w-5 text-emerald-800" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                         </svg>
                     </div>
@@ -45,7 +45,7 @@ export default function EventFilters({
                 </div>
                 <button
                     onClick={onClearFilters}
-                    className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition-all px-2.5 py-1.5 hover:bg-emerald-50/80 rounded-lg border border-emerald-200/0 hover:border-emerald-200/50"
+                    className="text-xs font-semibold text-emerald-800 hover:text-emerald-700 transition-all px-2.5 py-1.5 hover:bg-emerald-50/80 rounded-lg border border-emerald-200/0 hover:border-emerald-200/50"
                 >
                     Reset
                 </button>
@@ -79,7 +79,7 @@ export default function EventFilters({
                                         onChange={(e) =>
                                             setSelectedType(e.target.checked ? type.label : null)
                                         }
-                                        className="h-4 w-4 rounded border-slate-300 text-emerald-600 transition-all accent-emerald-600 cursor-pointer"
+                                        className="h-4 w-4 rounded border-slate-300 text-emerald-800 transition-all accent-emerald-800 cursor-pointer"
                                     />
                                 </div>
                                 <span className="text-sm text-slate-700 group-hover:text-slate-900 transition-colors flex-1 font-medium">
@@ -119,7 +119,7 @@ export default function EventFilters({
                                     type="checkbox"
                                     checked={showRegisteredOnly}
                                     onChange={(e) => setShowRegisteredOnly(e.target.checked)}
-                                    className="h-4 w-4 rounded border-slate-300 text-emerald-600 transition-all accent-emerald-600 cursor-pointer"
+                                    className="h-4 w-4 rounded border-slate-300 text-emerald-800 transition-all accent-emerald-800 cursor-pointer"
                                 />
                             </div>
                             <span className="text-sm text-slate-700 group-hover:text-slate-900 transition-colors flex-1 font-medium">

@@ -4,10 +4,10 @@ from sqlalchemy.exc import IntegrityError
 from core.database import get_session
 from models.college_dept import (
     CollegeDept, CollegeDeptCreate, CollegeDeptUpdate, CollegeDeptPublic,
-    CollegeDeptBulkCreate, CollegeDeptBulkCreateResponse, CollegeDeptBulkCreateItem,
-    CollegeDeptBulkUpdate, CollegeDeptBulkUpdateResponse, CollegeDeptBulkUpdateResult,
-    CollegeDeptBulkDelete, CollegeDeptBulkDeleteResponse, CollegeDeptBulkDeleteResult,
-    CollegeDeptBulkRestore, CollegeDeptBulkRestoreResponse, CollegeDeptBulkRestoreResult
+    CollegeDeptBatchCreate, CollegeDeptBatchCreateResponse, CollegeDeptBatchCreateItem,
+    CollegeDeptBatchUpdate, CollegeDeptBatchUpdateResponse, CollegeDeptBatchUpdateResult,
+    CollegeDeptBatchDelete, CollegeDeptBatchDeleteResponse, CollegeDeptBatchDeleteResult,
+    CollegeDeptBatchRestore, CollegeDeptBatchRestoreResponse, CollegeDeptBatchRestoreResult
 )
 from models.courses import Course
 from models.response_codes import ErrorCode, SuccessCode, StandardResponse
@@ -33,17 +33,17 @@ def generate_college_dept_id(session: Session) -> str:
     return f"CLG-{new_num:06d}"  # Format: CLG-000001
 
 
-@router.post("/bulk")
-def bulk_create_college_depts(
-    bulk_data: CollegeDeptBulkCreate,
+@router.post("/batch")
+def batch_create_college_depts(
+    batch_data: CollegeDeptBatchCreate,
     session: Session = Depends(get_session)
 ):
-    """Bulk create college departments"""
+    """Batch create college departments"""
     results = []
     successful_count = 0
     failed_count = 0
     
-    for index, college_dept_item in enumerate(bulk_data.items):
+    for index, college_dept_item in enumerate(batch_data.items):
         try:
             with session.begin_nested():
                 # Generate college_dept_id
@@ -59,7 +59,7 @@ def bulk_create_college_depts(
                 session.refresh(new_college_dept)
                 
                 # Record successful creation
-                results.append(CollegeDeptBulkCreateItem(
+                results.append(CollegeDeptBatchCreateItem(
                     index=index,
                     item=college_dept_item,
                     success=True,
@@ -83,7 +83,7 @@ def bulk_create_college_depts(
                 error_code = ErrorCode.INVALID_INPUT.value
                 error_msg = "College department creation failed due to constraint violation"
             
-            results.append(CollegeDeptBulkCreateItem(
+            results.append(CollegeDeptBatchCreateItem(
                 index=index,
                 item=college_dept_item,
                 success=False,
@@ -97,7 +97,7 @@ def bulk_create_college_depts(
             error_msg = str(e)
             error_code = ErrorCode.INVALID_INPUT.value
             
-            results.append(CollegeDeptBulkCreateItem(
+            results.append(CollegeDeptBatchCreateItem(
                 index=index,
                 item=college_dept_item,
                 success=False,
@@ -117,12 +117,12 @@ def bulk_create_college_depts(
             detail=StandardResponse(
                 success=False,
                 code=ErrorCode.INVALID_INPUT.value,
-                message="Bulk create operation failed during commit"
+                message="Batch create operation failed during commit"
             ).model_dump(mode='json')
         )
     
-    bulk_response = CollegeDeptBulkCreateResponse(
-        total_items=len(bulk_data.items),
+    batch_response = CollegeDeptBatchCreateResponse(
+        total_items=len(batch_data.items),
         successful=successful_count,
         failed=failed_count,
         results=results
@@ -130,23 +130,23 @@ def bulk_create_college_depts(
     
     return StandardResponse(
         success=failed_count == 0,  # True only if all succeeded
-        code=SuccessCode.COLLEGE_DEPTS_BULK_CREATED.value,
-        message=f"Bulk create completed: {successful_count} successful, {failed_count} failed",
-        data=bulk_response
+        code=SuccessCode.COLLEGE_DEPTS_BATCH_CREATED.value,
+        message=f"Batch create completed: {successful_count} successful, {failed_count} failed",
+        data=batch_response
     )
 
 
-@router.put("/bulk")
-def bulk_update_college_depts(
-    bulk_data: CollegeDeptBulkUpdate,
+@router.put("/batch")
+def batch_update_college_depts(
+    batch_data: CollegeDeptBatchUpdate,
     session: Session = Depends(get_session)
 ):
-    """Bulk update college departments"""
+    """Batch update college departments"""
     results = []
     successful_count = 0
     failed_count = 0
     
-    for index, update_item in enumerate(bulk_data.items):
+    for index, update_item in enumerate(batch_data.items):
         try:
             with session.begin_nested():
                 # Find college department
@@ -155,7 +155,7 @@ def bulk_update_college_depts(
                 ).first()
                 
                 if not college_dept:
-                    results.append(CollegeDeptBulkUpdateResult(
+                    results.append(CollegeDeptBatchUpdateResult(
                         index=index,
                         college_dept_id=update_item.college_dept_id,
                         success=False,
@@ -183,7 +183,7 @@ def bulk_update_college_depts(
                 session.refresh(college_dept)
                 
                 # Record successful update
-                results.append(CollegeDeptBulkUpdateResult(
+                results.append(CollegeDeptBatchUpdateResult(
                     index=index,
                     college_dept_id=update_item.college_dept_id,
                     success=True,
@@ -207,7 +207,7 @@ def bulk_update_college_depts(
                 error_code = ErrorCode.INVALID_INPUT.value
                 error_msg = "Update failed due to constraint violation"
             
-            results.append(CollegeDeptBulkUpdateResult(
+            results.append(CollegeDeptBatchUpdateResult(
                 index=index,
                 college_dept_id=update_item.college_dept_id,
                 success=False,
@@ -221,7 +221,7 @@ def bulk_update_college_depts(
             error_msg = str(e)
             error_code = ErrorCode.INVALID_INPUT.value
             
-            results.append(CollegeDeptBulkUpdateResult(
+            results.append(CollegeDeptBatchUpdateResult(
                 index=index,
                 college_dept_id=update_item.college_dept_id,
                 success=False,
@@ -241,12 +241,12 @@ def bulk_update_college_depts(
             detail=StandardResponse(
                 success=False,
                 code=ErrorCode.INVALID_INPUT.value,
-                message="Bulk update operation failed during commit"
+                message="Batch update operation failed during commit"
             ).model_dump(mode='json')
         )
     
-    bulk_response = CollegeDeptBulkUpdateResponse(
-        total_items=len(bulk_data.items),
+    batch_response = CollegeDeptBatchUpdateResponse(
+        total_items=len(batch_data.items),
         successful=successful_count,
         failed=failed_count,
         results=results
@@ -254,23 +254,23 @@ def bulk_update_college_depts(
     
     return StandardResponse(
         success=failed_count == 0,
-        code=SuccessCode.COLLEGE_DEPTS_BULK_UPDATED.value,
-        message=f"Bulk update completed: {successful_count} successful, {failed_count} failed",
-        data=bulk_response
+        code=SuccessCode.COLLEGE_DEPTS_BATCH_UPDATED.value,
+        message=f"Batch update completed: {successful_count} successful, {failed_count} failed",
+        data=batch_response
     )
 
 
-@router.delete("/bulk")
-def bulk_delete_college_depts(
-    bulk_data: CollegeDeptBulkDelete,
+@router.delete("/batch")
+def batch_delete_college_depts(
+    batch_data: CollegeDeptBatchDelete,
     session: Session = Depends(get_session)
 ):
-    """Bulk delete college departments"""
+    """Batch delete college departments"""
     results = []
     successful_count = 0
     failed_count = 0
     
-    for index, college_dept_id in enumerate(bulk_data.ids):
+    for index, college_dept_id in enumerate(batch_data.ids):
         try:
             # Find college department
             college_dept = session.exec(
@@ -278,7 +278,7 @@ def bulk_delete_college_depts(
             ).first()
             
             if not college_dept:
-                results.append(CollegeDeptBulkDeleteResult(
+                results.append(CollegeDeptBatchDeleteResult(
                     index=index,
                     college_dept_id=college_dept_id,
                     success=False,
@@ -290,7 +290,7 @@ def bulk_delete_college_depts(
             
             # Check if already deleted
             if college_dept.is_deleted:
-                results.append(CollegeDeptBulkDeleteResult(
+                results.append(CollegeDeptBatchDeleteResult(
                     index=index,
                     college_dept_id=college_dept_id,
                     success=False,
@@ -305,7 +305,7 @@ def bulk_delete_college_depts(
                 select(Course).where((Course.college_dept_code == college_dept.college_dept_code) & (Course.is_deleted == False))
             ).first()
             if active_courses:
-                results.append(CollegeDeptBulkDeleteResult(
+                results.append(CollegeDeptBatchDeleteResult(
                     index=index,
                     college_dept_id=college_dept_id,
                     success=False,
@@ -322,7 +322,7 @@ def bulk_delete_college_depts(
             session.flush()
             
             # Record successful deletion
-            results.append(CollegeDeptBulkDeleteResult(
+            results.append(CollegeDeptBatchDeleteResult(
                 index=index,
                 college_dept_id=college_dept_id,
                 success=True,
@@ -336,7 +336,7 @@ def bulk_delete_college_depts(
             error_code = ErrorCode.INVALID_INPUT.value
             error_msg = "Delete failed: Constraint violation or related data exists"
             
-            results.append(CollegeDeptBulkDeleteResult(
+            results.append(CollegeDeptBatchDeleteResult(
                 index=index,
                 college_dept_id=college_dept_id,
                 success=False,
@@ -350,7 +350,7 @@ def bulk_delete_college_depts(
             error_code = ErrorCode.INVALID_INPUT.value
             error_msg = f"Delete failed: {str(e)}"
             
-            results.append(CollegeDeptBulkDeleteResult(
+            results.append(CollegeDeptBatchDeleteResult(
                 index=index,
                 college_dept_id=college_dept_id,
                 success=False,
@@ -369,12 +369,12 @@ def bulk_delete_college_depts(
             detail=StandardResponse(
                 success=False,
                 code=ErrorCode.INVALID_INPUT.value,
-                message="Bulk delete operation failed during commit"
+                message="Batch delete operation failed during commit"
             ).model_dump(mode='json')
         )
     
-    bulk_response = CollegeDeptBulkDeleteResponse(
-        total_items=len(bulk_data.ids),
+    batch_response = CollegeDeptBatchDeleteResponse(
+        total_items=len(batch_data.ids),
         successful=successful_count,
         failed=failed_count,
         results=results
@@ -382,9 +382,9 @@ def bulk_delete_college_depts(
     
     return StandardResponse(
         success=failed_count == 0,
-        code=SuccessCode.COLLEGE_DEPTS_BULK_DELETED.value,
-        message=f"Bulk delete completed: {successful_count} successful, {failed_count} failed",
-        data=bulk_response
+        code=SuccessCode.COLLEGE_DEPTS_BATCH_DELETED.value,
+        message=f"Batch delete completed: {successful_count} successful, {failed_count} failed",
+        data=batch_response
     )
 
 
@@ -703,9 +703,9 @@ def delete_college_dept(college_dept_id: str, session: Session = Depends(get_ses
 
 
 
-@router.post("/bulk/restore")
-def bulk_restore_college_depts(
-    data: CollegeDeptBulkRestore,
+@router.post("/batch/restore")
+def batch_restore_college_depts(
+    data: CollegeDeptBatchRestore,
     session: Session = Depends(get_session)
 ):
     """Restore multiple soft-deleted college departments"""
@@ -720,7 +720,7 @@ def bulk_restore_college_depts(
             ).first()
             
             if not college_dept:
-                results.append(CollegeDeptBulkRestoreResult(
+                results.append(CollegeDeptBatchRestoreResult(
                     index=index,
                     college_dept_id=college_dept_id,
                     success=False,
@@ -731,7 +731,7 @@ def bulk_restore_college_depts(
                 continue
             
             if not college_dept.is_deleted:
-                results.append(CollegeDeptBulkRestoreResult(
+                results.append(CollegeDeptBatchRestoreResult(
                     index=index,
                     college_dept_id=college_dept_id,
                     success=False,
@@ -748,7 +748,7 @@ def bulk_restore_college_depts(
             session.flush()
             
             # Record successful restoration
-            results.append(CollegeDeptBulkRestoreResult(
+            results.append(CollegeDeptBatchRestoreResult(
                 index=index,
                 college_dept_id=college_dept_id,
                 success=True,
@@ -761,22 +761,22 @@ def bulk_restore_college_depts(
             session.rollback()
             error_code = ErrorCode.INVALID_INPUT.value
             error_msg = "Restore failed: Constraint violation or related data issue"
-            results.append(CollegeDeptBulkRestoreResult(
+            results.append(CollegeDeptBatchRestoreResult(
                 index=index,
                 college_dept_id=college_dept_id,
                 success=False,
                 code=error_code,
                 message=error_msg
             ))
-            log_integrity_error("college_depts", "bulk_restore_college_depts", error_code, error_msg, str(e))
+            log_integrity_error("college_depts", "batch_restore_college_depts", error_code, error_msg, str(e))
             failed_count += 1
     
     session.commit()
     return StandardResponse(
         success=failed_count == 0,
-        code=SuccessCode.COLLEGE_DEPTS_BULK_RESTORED.value,
+        code=SuccessCode.COLLEGE_DEPTS_BATCH_RESTORED.value,
         message=f"Restore operation completed: {successful_count} succeeded, {failed_count} failed",
-        data=CollegeDeptBulkRestoreResponse(
+        data=CollegeDeptBatchRestoreResponse(
             total_items=len(data.ids),
             successful=successful_count,
             failed=failed_count,

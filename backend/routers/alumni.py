@@ -8,10 +8,10 @@ from models.student_records import StudentRecord
 from models.alumni import Alumni, AlumniCreate, AlumniUpdate, AlumniPublic
 from models.composite import (
     CompleteAlumniRegistration, CompleteAlumniResponse,
-    BulkAlumniRegister, BulkAlumniRegistrationResult, BulkAlumniRegisterResponse, BulkAlumniRegistrationItemSafeDisplay,
-    BulkAlumniUpdate, BulkAlumniUpdateItem, BulkAlumniUpdateResult, BulkAlumniUpdateResponse,
-    BulkAlumniDelete, BulkAlumniDeleteResult, BulkAlumniDeleteResponse,
-    BulkAlumniRestore, BulkAlumniRestoreResult, BulkAlumniRestoreResponse
+    BatchAlumniRegister, BatchAlumniRegistrationResult, BatchAlumniRegisterResponse, BatchAlumniRegistrationItemSafeDisplay,
+    BatchAlumniUpdate, BatchAlumniUpdateItem, BatchAlumniUpdateResult, BatchAlumniUpdateResponse,
+    BatchAlumniDelete, BatchAlumniDeleteResult, BatchAlumniDeleteResponse,
+    BatchAlumniRestore, BatchAlumniRestoreResult, BatchAlumniRestoreResponse
 )
 from models.responses import AlumniFullProfile
 from models.response_codes import ErrorCode, SuccessCode, StandardResponse
@@ -160,17 +160,17 @@ def register_complete_alumni(
         )
 
 
-@router.post("/bulk/register")
-def bulk_register_alumni(
-    bulk_data: BulkAlumniRegister,
+@router.post("/batch/register")
+def batch_register_alumni(
+    batch_data: BatchAlumniRegister,
     session: Session = Depends(get_session)
 ):
-    """Bulk create alumni profiles (creates both User and Alumni for each item)"""
+    """Batch create alumni profiles (creates both User and Alumni for each item)"""
     results = []
     successful_count = 0
     failed_count = 0
     
-    for index, alumni_item in enumerate(bulk_data.items):
+    for index, alumni_item in enumerate(batch_data.items):
         try:
             with session.begin_nested():
                 # Generate user_id based on user_type
@@ -229,9 +229,9 @@ def bulk_register_alumni(
                 session.refresh(new_alumni)
                 
                 # Record successful registration
-                results.append(BulkAlumniRegistrationResult(
+                results.append(BatchAlumniRegistrationResult(
                     index=index,
-                    item=BulkAlumniRegistrationItemSafeDisplay(
+                    item=BatchAlumniRegistrationItemSafeDisplay(
                         username=alumni_item.username,
                         email=alumni_item.email,
                         last_name=alumni_item.last_name,
@@ -262,9 +262,9 @@ def bulk_register_alumni(
                 error_code = ErrorCode.REGISTRATION_FAILED.value
                 error_msg = "Alumni registration failed due to constraint violation"
             
-            results.append(BulkAlumniRegistrationResult(
+            results.append(BatchAlumniRegistrationResult(
                 index=index,
-                item=BulkAlumniRegistrationItemSafeDisplay(
+                item=BatchAlumniRegistrationItemSafeDisplay(
                     username=alumni_item.username,
                     email=alumni_item.email,
                     last_name=alumni_item.last_name,
@@ -285,9 +285,9 @@ def bulk_register_alumni(
             error_msg = str(e)
             error_code = ErrorCode.INVALID_INPUT.value
             
-            results.append(BulkAlumniRegistrationResult(
+            results.append(BatchAlumniRegistrationResult(
                 index=index,
-                item=BulkAlumniRegistrationItemSafeDisplay(
+                item=BatchAlumniRegistrationItemSafeDisplay(
                     username=alumni_item.username,
                     email=alumni_item.email,
                     last_name=alumni_item.last_name,
@@ -314,12 +314,12 @@ def bulk_register_alumni(
             detail=StandardResponse(
                 success=False,
                 code=ErrorCode.REGISTRATION_FAILED.value,
-                message="Bulk registration operation failed during commit"
+                message="Batch registration operation failed during commit"
             ).model_dump(mode='json')
         )
     
-    bulk_response = BulkAlumniRegisterResponse(
-        total_items=len(bulk_data.items),
+    batch_response = BatchAlumniRegisterResponse(
+        total_items=len(batch_data.items),
         successful=successful_count,
         failed=failed_count,
         results=results
@@ -327,9 +327,9 @@ def bulk_register_alumni(
     
     return StandardResponse(
         success=failed_count == 0,
-        code=SuccessCode.ALUMNI_BULK_REGISTERED.value,
-        message=f"Bulk registration completed: {successful_count} successful, {failed_count} failed",
-        data=bulk_response
+        code=SuccessCode.ALUMNI_BATCH_REGISTERED.value,
+        message=f"Batch registration completed: {successful_count} successful, {failed_count} failed",
+        data=batch_response
     )
 
 
@@ -524,17 +524,17 @@ def get_alumni(alumni_id: str, session: Session = Depends(get_session)):
     )
 
 
-@router.put("/bulk")
-def bulk_update_alumni(
-    bulk_data: BulkAlumniUpdate,
+@router.put("/batch")
+def batch_update_alumni(
+    batch_data: BatchAlumniUpdate,
     session: Session = Depends(get_session)
 ):
-    """Bulk update alumni records"""
+    """Batch update alumni records"""
     results = []
     successful_count = 0
     failed_count = 0
     
-    for index, update_item in enumerate(bulk_data.items):
+    for index, update_item in enumerate(batch_data.items):
         try:
             with session.begin_nested():
                 # Find the alumni
@@ -543,7 +543,7 @@ def bulk_update_alumni(
                 ).first()
                 
                 if not alumni:
-                    results.append(BulkAlumniUpdateResult(
+                    results.append(BatchAlumniUpdateResult(
                         index=index,
                         alumni_id=update_item.alumni_id,
                         success=False,
@@ -614,7 +614,7 @@ def bulk_update_alumni(
                 )
                 
                 # Record successful update
-                results.append(BulkAlumniUpdateResult(
+                results.append(BatchAlumniUpdateResult(
                     index=index,
                     alumni_id=update_item.alumni_id,
                     success=True,
@@ -626,7 +626,7 @@ def bulk_update_alumni(
         
         except IntegrityError as e:
             # session.rollback() is handled automatically by the context manager on error
-            results.append(BulkAlumniUpdateResult(
+            results.append(BatchAlumniUpdateResult(
                 index=index,
                 alumni_id=update_item.alumni_id,
                 success=False,
@@ -638,7 +638,7 @@ def bulk_update_alumni(
         
         except ValueError as e:
             error_msg = str(e)
-            results.append(BulkAlumniUpdateResult(
+            results.append(BatchAlumniUpdateResult(
                 index=index,
                 alumni_id=update_item.alumni_id,
                 success=False,
@@ -658,12 +658,12 @@ def bulk_update_alumni(
             detail=StandardResponse(
                 success=False,
                 code=ErrorCode.INVALID_INPUT.value,
-                message="Bulk update operation failed during commit"
+                message="Batch update operation failed during commit"
             ).model_dump(mode='json')
         )
     
-    bulk_response = BulkAlumniUpdateResponse(
-        total_items=len(bulk_data.items),
+    batch_response = BatchAlumniUpdateResponse(
+        total_items=len(batch_data.items),
         successful=successful_count,
         failed=failed_count,
         results=results
@@ -671,9 +671,9 @@ def bulk_update_alumni(
     
     return StandardResponse(
         success=failed_count == 0,
-        code=SuccessCode.ALUMNI_BULK_UPDATED.value,
-        message=f"Bulk update completed: {successful_count} successful, {failed_count} failed",
-        data=bulk_response
+        code=SuccessCode.ALUMNI_BATCH_UPDATED.value,
+        message=f"Batch update completed: {successful_count} successful, {failed_count} failed",
+        data=batch_response
     )
 
 
@@ -779,17 +779,17 @@ def update_alumni(
     )
 
 
-@router.delete("/bulk")
-def bulk_delete_alumni(
-    bulk_data: BulkAlumniDelete,
+@router.delete("/batch")
+def batch_delete_alumni(
+    batch_data: BatchAlumniDelete,
     session: Session = Depends(get_session)
 ):
-    """Bulk delete alumni records"""
+    """Batch delete alumni records"""
     results = []
     successful_count = 0
     failed_count = 0
     
-    for index, alumni_id in enumerate(bulk_data.ids):
+    for index, alumni_id in enumerate(batch_data.ids):
         try:
             # Find the alumni
             alumni = session.exec(
@@ -797,7 +797,7 @@ def bulk_delete_alumni(
             ).first()
             
             if not alumni:
-                results.append(BulkAlumniDeleteResult(
+                results.append(BatchAlumniDeleteResult(
                     index=index,
                     alumni_id=alumni_id,
                     success=False,
@@ -809,7 +809,7 @@ def bulk_delete_alumni(
             
             # Check if already deleted
             if alumni.is_deleted:
-                results.append(BulkAlumniDeleteResult(
+                results.append(BatchAlumniDeleteResult(
                     index=index,
                     alumni_id=alumni_id,
                     success=False,
@@ -836,7 +836,7 @@ def bulk_delete_alumni(
             session.flush()
             
             # Record successful deletion
-            results.append(BulkAlumniDeleteResult(
+            results.append(BatchAlumniDeleteResult(
                 index=index,
                 alumni_id=alumni_id,
                 success=True,
@@ -847,7 +847,7 @@ def bulk_delete_alumni(
         
         except IntegrityError as e:
             session.rollback()
-            results.append(BulkAlumniDeleteResult(
+            results.append(BatchAlumniDeleteResult(
                 index=index,
                 alumni_id=alumni_id,
                 success=False,
@@ -858,7 +858,7 @@ def bulk_delete_alumni(
         
         except ValueError as e:
             error_msg = str(e)
-            results.append(BulkAlumniDeleteResult(
+            results.append(BatchAlumniDeleteResult(
                 index=index,
                 alumni_id=alumni_id,
                 success=False,
@@ -877,12 +877,12 @@ def bulk_delete_alumni(
             detail=StandardResponse(
                 success=False,
                 code=ErrorCode.INVALID_INPUT.value,
-                message="Bulk delete operation failed during commit"
+                message="Batch delete operation failed during commit"
             ).model_dump(mode='json')
         )
     
-    bulk_response = BulkAlumniDeleteResponse(
-        total_items=len(bulk_data.ids),
+    batch_response = BatchAlumniDeleteResponse(
+        total_items=len(batch_data.ids),
         successful=successful_count,
         failed=failed_count,
         results=results
@@ -890,9 +890,9 @@ def bulk_delete_alumni(
     
     return StandardResponse(
         success=failed_count == 0,
-        code=SuccessCode.ALUMNI_BULK_DELETED.value,
-        message=f"Bulk delete completed: {successful_count} successful, {failed_count} failed",
-        data=bulk_response
+        code=SuccessCode.ALUMNI_BATCH_DELETED.value,
+        message=f"Batch delete completed: {successful_count} successful, {failed_count} failed",
+        data=batch_response
     )
 
 
@@ -958,9 +958,9 @@ def delete_alumni(alumni_id: str, session: Session = Depends(get_session)):
         )
 
 
-@router.post("/bulk/restore")
-def bulk_restore_alumni(
-    data: BulkAlumniRestore,
+@router.post("/batch/restore")
+def batch_restore_alumni(
+    data: BatchAlumniRestore,
     session: Session = Depends(get_session)
 ):
     """Restore multiple soft-deleted alumni"""
@@ -975,7 +975,7 @@ def bulk_restore_alumni(
             ).first()
             
             if not alumni:
-                results.append(BulkAlumniRestoreResult(
+                results.append(BatchAlumniRestoreResult(
                     index=index,
                     alumni_id=alumni_id,
                     success=False,
@@ -986,7 +986,7 @@ def bulk_restore_alumni(
                 continue
             
             if not alumni.is_deleted:
-                results.append(BulkAlumniRestoreResult(
+                results.append(BatchAlumniRestoreResult(
                     index=index,
                     alumni_id=alumni_id,
                     success=False,
@@ -1012,7 +1012,7 @@ def bulk_restore_alumni(
             session.flush()
             
             # Record successful restoration
-            results.append(BulkAlumniRestoreResult(
+            results.append(BatchAlumniRestoreResult(
                 index=index,
                 alumni_id=alumni_id,
                 success=True,
@@ -1025,22 +1025,22 @@ def bulk_restore_alumni(
             session.rollback()
             error_code = ErrorCode.INVALID_INPUT.value
             error_msg = "Restore failed: Constraint violation or related data issue"
-            results.append(BulkAlumniRestoreResult(
+            results.append(BatchAlumniRestoreResult(
                 index=index,
                 alumni_id=alumni_id,
                 success=False,
                 code=error_code,
                 message=error_msg
             ))
-            log_integrity_error("alumni", "bulk_restore_alumni", error_code, error_msg, str(e))
+            log_integrity_error("alumni", "batch_restore_alumni", error_code, error_msg, str(e))
             failed_count += 1
     
     session.commit()
     return StandardResponse(
         success=failed_count == 0,
-        code=SuccessCode.ALUMNI_BULK_RESTORED.value,
+        code=SuccessCode.ALUMNI_BATCH_RESTORED.value,
         message=f"Restore operation completed: {successful_count} succeeded, {failed_count} failed",
-        data=BulkAlumniRestoreResponse(
+        data=BatchAlumniRestoreResponse(
             total_items=len(data.ids),
             successful=successful_count,
             failed=failed_count,

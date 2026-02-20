@@ -132,7 +132,7 @@ class UserLogin(SQLModel):
     password: str
 
 
-# Bulk operation models
+# Batch operation models
 
 # Safe display models (exclude passwords from responses)
 class UserCreateSafeDisplay(BaseModel):
@@ -149,8 +149,8 @@ class UserUpdateSafeDisplay(BaseModel):
     email: Optional[str] = None
 
 
-class UserBulkCreateItem(BaseModel):
-    """Individual item result from bulk create operation"""
+class UserBatchCreateItem(BaseModel):
+    """Individual item result from batch create operation"""
     index: int = Field(..., description="Index in the request list (0-based)")
     item: UserCreateSafeDisplay = Field(..., description="The user data submitted (password excluded)")
     success: bool = Field(..., description="Whether this item was created successfully")
@@ -160,22 +160,22 @@ class UserBulkCreateItem(BaseModel):
 
 
 
-class UserBulkCreate(BaseModel):
-    """Bulk create request for users"""
+class UserBatchCreate(BaseModel):
+    """Batch create request for users"""
     items: List[UserCreate] = Field(..., min_items=1, max_items=100, description="List of users to create (1-100 items)")
 
 
-class UserBulkCreateResponse(BaseModel):
-    """Bulk create response for users"""
+class UserBatchCreateResponse(BaseModel):
+    """Batch create response for users"""
     total_items: int = Field(..., description="Total items in request")
     successful: int = Field(..., description="Number of items successfully created")
     failed: int = Field(..., description="Number of items that failed")
-    results: List[UserBulkCreateItem] = Field(..., description="Detailed results for each item")
+    results: List[UserBatchCreateItem] = Field(..., description="Detailed results for each item")
 
 
-# Bulk update models
-class UserBulkUpdateItem(BaseModel):
-    """User update item in bulk request"""
+# Batch update models
+class UserBatchUpdateItem(BaseModel):
+    """User update item in batch request"""
     user_id: str = Field(..., description="User ID to update")
     username: Optional[str] = Field(default=None, max_length=50, description="New username")
     email: Optional[str] = Field(default=None, max_length=100, description="New email")
@@ -210,8 +210,8 @@ class UserBulkUpdateItem(BaseModel):
         return v
 
 
-class UserBulkUpdateResult(BaseModel):
-    """Individual item result from bulk update operation"""
+class UserBatchUpdateResult(BaseModel):
+    """Individual item result from batch update operation"""
     index: int = Field(..., description="Index in the request list (0-based)")
     item: UserUpdateSafeDisplay = Field(..., description="The user data submitted (passwords excluded)")
     success: bool = Field(..., description="Whether this item was updated successfully")
@@ -220,22 +220,22 @@ class UserBulkUpdateResult(BaseModel):
     data: Optional[UserPublic] = Field(default=None, description="Updated user (if successful)")
 
 
-class UserBulkUpdate(BaseModel):
-    """Bulk update request for users"""
-    items: List[UserBulkUpdateItem] = Field(..., min_items=1, max_items=100, description="List of users to update (1-100 items)")
+class UserBatchUpdate(BaseModel):
+    """Batch update request for users"""
+    items: List[UserBatchUpdateItem] = Field(..., min_items=1, max_items=100, description="List of users to update (1-100 items)")
 
 
-class UserBulkUpdateResponse(BaseModel):
-    """Bulk update response for users"""
+class UserBatchUpdateResponse(BaseModel):
+    """Batch update response for users"""
     total_items: int = Field(..., description="Total items in request")
     successful: int = Field(..., description="Number of items successfully updated")
     failed: int = Field(..., description="Number of items that failed")
-    results: List[UserBulkUpdateResult] = Field(..., description="Detailed results for each item")
+    results: List[UserBatchUpdateResult] = Field(..., description="Detailed results for each item")
 
 
-# Bulk delete models
-class UserBulkDeleteResult(BaseModel):
-    """Individual item result from bulk delete operation"""
+# Batch delete models
+class UserBatchDeleteResult(BaseModel):
+    """Individual item result from batch delete operation"""
     index: int = Field(..., description="Index in the request list (0-based)")
     user_id: str = Field(..., description="User ID that was deleted")
     success: bool = Field(..., description="Whether this item was deleted successfully")
@@ -243,22 +243,22 @@ class UserBulkDeleteResult(BaseModel):
     message: str = Field(..., description="Detailed message about the result")
 
 
-class UserBulkDelete(BaseModel):
-    """Bulk delete request for users"""
+class UserBatchDelete(BaseModel):
+    """Batch delete request for users"""
     ids: List[str] = Field(..., min_items=1, max_items=100, description="List of user IDs to delete (1-100 items)")
 
 
-class UserBulkDeleteResponse(BaseModel):
-    """Bulk delete response for users"""
+class UserBatchDeleteResponse(BaseModel):
+    """Batch delete response for users"""
     total_items: int = Field(..., description="Total items in request")
     successful: int = Field(..., description="Number of items successfully deleted")
     failed: int = Field(..., description="Number of items that failed")
-    results: List[UserBulkDeleteResult] = Field(..., description="Detailed results for each item")
+    results: List[UserBatchDeleteResult] = Field(..., description="Detailed results for each item")
 
 
-# Bulk user restore models
-class UserBulkRestoreResult(BaseModel):
-    """Individual item result from bulk restore operation"""
+# Batch user restore models
+class UserBatchRestoreResult(BaseModel):
+    """Individual item result from batch restore operation"""
     index: int = Field(..., description="Index in the request list (0-based)")
     user_id: str = Field(..., description="User ID that was restored")
     success: bool = Field(..., description="Whether this item was restored successfully")
@@ -266,15 +266,15 @@ class UserBulkRestoreResult(BaseModel):
     message: str = Field(..., description="Detailed message about the result")
 
 
-class UserBulkRestore(BaseModel):
-    """Bulk restore request for users"""
+class UserBatchRestore(BaseModel):
+    """Batch restore request for users"""
     ids: List[str] = Field(..., min_items=1, max_items=100, description="List of user IDs to restore (1-100 items)")
 
 
-class UserBulkRestoreResponse(BaseModel):
-    """Bulk restore response for users"""
+class UserBatchRestoreResponse(BaseModel):
+    """Batch restore response for users"""
     total_items: int = Field(..., description="Total items in request")
     successful: int = Field(..., description="Number of items successfully restored")
     failed: int = Field(..., description="Number of items that failed")
-    results: List[UserBulkRestoreResult] = Field(..., description="Detailed results for each item")
+    results: List[UserBatchRestoreResult] = Field(..., description="Detailed results for each item")
 

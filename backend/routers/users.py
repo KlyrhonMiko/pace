@@ -4,10 +4,10 @@ from sqlalchemy.exc import IntegrityError
 from core.database import get_session
 from models.users import (
     User, UserCreate, UserUpdate, UserPublic, UserType, SuccessResponse,
-    UserBulkCreate, UserBulkCreateItem, UserBulkCreateResponse, UserCreateSafeDisplay,
-    UserBulkUpdate, UserBulkUpdateItem, UserBulkUpdateResult, UserBulkUpdateResponse, UserUpdateSafeDisplay,
-    UserBulkDelete, UserBulkDeleteResult, UserBulkDeleteResponse,
-    UserBulkRestore, UserBulkRestoreResult, UserBulkRestoreResponse
+    UserBatchCreate, UserBatchCreateItem, UserBatchCreateResponse, UserCreateSafeDisplay,
+    UserBatchUpdate, UserBatchUpdateItem, UserBatchUpdateResult, UserBatchUpdateResponse, UserUpdateSafeDisplay,
+    UserBatchDelete, UserBatchDeleteResult, UserBatchDeleteResponse,
+    UserBatchRestore, UserBatchRestoreResult, UserBatchRestoreResponse
 )
 from models.response_codes import ErrorCode, SuccessCode, StandardResponse
 from models.pagination import PaginatedResponse, PaginationMetadata
@@ -105,17 +105,17 @@ def create_user(
             )
 
 
-@router.post("/bulk")
-def bulk_create_users(
-    bulk_data: UserBulkCreate,
+@router.post("/batch")
+def batch_create_users(
+    batch_data: UserBatchCreate,
     session: Session = Depends(get_session)
 ):
-    """Bulk create users"""
+    """Batch create users"""
     results = []
     successful_count = 0
     failed_count = 0
     
-    for index, user_item in enumerate(bulk_data.items):
+    for index, user_item in enumerate(batch_data.items):
         try:
             with session.begin_nested():
                 # Generate user_id based on user_type
@@ -131,7 +131,7 @@ def bulk_create_users(
                 session.refresh(new_user)
                 
                 # Record successful creation
-                results.append(UserBulkCreateItem(
+                results.append(UserBatchCreateItem(
                     index=index,
                     item=UserCreateSafeDisplay(
                         username=user_item.username,
@@ -159,7 +159,7 @@ def bulk_create_users(
                 error_code = ErrorCode.INVALID_INPUT.value
                 error_msg = "User creation failed due to constraint violation"
             
-            results.append(UserBulkCreateItem(
+            results.append(UserBatchCreateItem(
                 index=index,
                 item=UserCreateSafeDisplay(
                     username=user_item.username,
@@ -177,7 +177,7 @@ def bulk_create_users(
             error_msg = str(e)
             error_code = ErrorCode.INVALID_INPUT.value
             
-            results.append(UserBulkCreateItem(
+            results.append(UserBatchCreateItem(
                 index=index,
                 item=UserCreateSafeDisplay(
                     username=user_item.username,
@@ -201,12 +201,12 @@ def bulk_create_users(
             detail=StandardResponse(
                 success=False,
                 code=ErrorCode.INVALID_INPUT.value,
-                message="Bulk create operation failed during commit"
+                message="Batch create operation failed during commit"
             ).model_dump(mode='json')
         )
     
-    bulk_response = UserBulkCreateResponse(
-        total_items=len(bulk_data.items),
+    batch_response = UserBatchCreateResponse(
+        total_items=len(batch_data.items),
         successful=successful_count,
         failed=failed_count,
         results=results
@@ -214,9 +214,9 @@ def bulk_create_users(
     
     return StandardResponse(
         success=failed_count == 0,  # True only if all succeeded
-        code=SuccessCode.USERS_BULK_CREATED.value,
-        message=f"Bulk create completed: {successful_count} successful, {failed_count} failed",
-        data=bulk_response
+        code=SuccessCode.USERS_BATCH_CREATED.value,
+        message=f"Batch create completed: {successful_count} successful, {failed_count} failed",
+        data=batch_response
     )
 
 
@@ -315,17 +315,17 @@ def get_user(user_id: str, session: Session = Depends(get_session)):
     )
 
 
-@router.put("/bulk")
-def bulk_update_users(
-    bulk_data: UserBulkUpdate,
+@router.put("/batch")
+def batch_update_users(
+    batch_data: UserBatchUpdate,
     session: Session = Depends(get_session)
 ):
-    """Bulk update users"""
+    """Batch update users"""
     results = []
     successful_count = 0
     failed_count = 0
     
-    for index, update_item in enumerate(bulk_data.items):
+    for index, update_item in enumerate(batch_data.items):
         try:
             with session.begin_nested():
                 # Find the user
@@ -334,7 +334,7 @@ def bulk_update_users(
                 ).first()
                 
                 if not user:
-                    results.append(UserBulkUpdateResult(
+                    results.append(UserBatchUpdateResult(
                         index=index,
                         item=UserUpdateSafeDisplay(
                             user_id=update_item.user_id,
@@ -352,7 +352,7 @@ def bulk_update_users(
                 # If password change is requested, verify current password
                 if update_item.password is not None:
                     if update_item.current_password is None:
-                        results.append(UserBulkUpdateResult(
+                        results.append(UserBatchUpdateResult(
                             index=index,
                             item=UserUpdateSafeDisplay(
                                 user_id=update_item.user_id,
@@ -369,7 +369,7 @@ def bulk_update_users(
                     
                     # Verify the current password
                     if not verify_password(update_item.current_password, user.password):
-                        results.append(UserBulkUpdateResult(
+                        results.append(UserBatchUpdateResult(
                             index=index,
                             item=UserUpdateSafeDisplay(
                                 user_id=update_item.user_id,
@@ -390,7 +390,7 @@ def bulk_update_users(
                 if update_item.email is not None:
                     user.email = update_item.email
                 if update_item.password is not None:
-                    # Password is already hashed by validator in UserBulkUpdateItem
+                    # Password is already hashed by validator in UserBatchUpdateItem
                     user.password = update_item.password
                 
                 session.add(user)
@@ -398,7 +398,7 @@ def bulk_update_users(
                 session.refresh(user)
                 
                 # Record successful update
-                results.append(UserBulkUpdateResult(
+                results.append(UserBatchUpdateResult(
                     index=index,
                     item=UserUpdateSafeDisplay(
                         user_id=update_item.user_id,
@@ -426,7 +426,7 @@ def bulk_update_users(
                 error_code = ErrorCode.INVALID_INPUT.value
                 error_msg = "User update failed due to constraint violation"
             
-            results.append(UserBulkUpdateResult(
+            results.append(UserBatchUpdateResult(
                 index=index,
                 item=UserUpdateSafeDisplay(
                     user_id=update_item.user_id,
@@ -444,7 +444,7 @@ def bulk_update_users(
             error_msg = str(e)
             error_code = ErrorCode.INVALID_INPUT.value
             
-            results.append(UserBulkUpdateResult(
+            results.append(UserBatchUpdateResult(
                 index=index,
                 item=UserUpdateSafeDisplay(
                     user_id=update_item.user_id,
@@ -468,12 +468,12 @@ def bulk_update_users(
             detail=StandardResponse(
                 success=False,
                 code=ErrorCode.INVALID_INPUT.value,
-                message="Bulk update operation failed during commit"
+                message="Batch update operation failed during commit"
             ).model_dump(mode='json')
         )
     
-    bulk_response = UserBulkUpdateResponse(
-        total_items=len(bulk_data.items),
+    batch_response = UserBatchUpdateResponse(
+        total_items=len(batch_data.items),
         successful=successful_count,
         failed=failed_count,
         results=results
@@ -481,9 +481,9 @@ def bulk_update_users(
     
     return StandardResponse(
         success=failed_count == 0,
-        code=SuccessCode.USERS_BULK_UPDATED.value,
-        message=f"Bulk update completed: {successful_count} successful, {failed_count} failed",
-        data=bulk_response
+        code=SuccessCode.USERS_BATCH_UPDATED.value,
+        message=f"Batch update completed: {successful_count} successful, {failed_count} failed",
+        data=batch_response
     )
 
 
@@ -590,17 +590,17 @@ def update_user(
             )
 
 
-@router.delete("/bulk")
-def bulk_delete_users(
-    bulk_data: UserBulkDelete,
+@router.delete("/batch")
+def batch_delete_users(
+    batch_data: UserBatchDelete,
     session: Session = Depends(get_session)
 ):
-    """Bulk delete users"""
+    """Batch delete users"""
     results = []
     successful_count = 0
     failed_count = 0
     
-    for index, user_id in enumerate(bulk_data.ids):
+    for index, user_id in enumerate(batch_data.ids):
         try:
             # Find the user
             user = session.exec(
@@ -608,7 +608,7 @@ def bulk_delete_users(
             ).first()
             
             if not user:
-                results.append(UserBulkDeleteResult(
+                results.append(UserBatchDeleteResult(
                     index=index,
                     user_id=user_id,
                     success=False,
@@ -620,7 +620,7 @@ def bulk_delete_users(
             
             # Check if already deleted
             if user.is_deleted:
-                results.append(UserBulkDeleteResult(
+                results.append(UserBatchDeleteResult(
                     index=index,
                     user_id=user_id,
                     success=False,
@@ -655,7 +655,7 @@ def bulk_delete_users(
             session.flush()
             
             # Record successful deletion
-            results.append(UserBulkDeleteResult(
+            results.append(UserBatchDeleteResult(
                 index=index,
                 user_id=user_id,
                 success=True,
@@ -666,7 +666,7 @@ def bulk_delete_users(
         
         except IntegrityError as e:
             session.rollback()
-            results.append(UserBulkDeleteResult(
+            results.append(UserBatchDeleteResult(
                 index=index,
                 user_id=user_id,
                 success=False,
@@ -677,7 +677,7 @@ def bulk_delete_users(
         
         except ValueError as e:
             error_msg = str(e)
-            results.append(UserBulkDeleteResult(
+            results.append(UserBatchDeleteResult(
                 index=index,
                 user_id=user_id,
                 success=False,
@@ -696,12 +696,12 @@ def bulk_delete_users(
             detail=StandardResponse(
                 success=False,
                 code=ErrorCode.INVALID_INPUT.value,
-                message="Bulk delete operation failed during commit"
+                message="Batch delete operation failed during commit"
             ).model_dump(mode='json')
         )
     
-    bulk_response = UserBulkDeleteResponse(
-        total_items=len(bulk_data.ids),
+    batch_response = UserBatchDeleteResponse(
+        total_items=len(batch_data.ids),
         successful=successful_count,
         failed=failed_count,
         results=results
@@ -709,9 +709,9 @@ def bulk_delete_users(
     
     return StandardResponse(
         success=failed_count == 0,
-        code=SuccessCode.USERS_BULK_DELETED.value,
-        message=f"Bulk delete completed: {successful_count} successful, {failed_count} failed",
-        data=bulk_response
+        code=SuccessCode.USERS_BATCH_DELETED.value,
+        message=f"Batch delete completed: {successful_count} successful, {failed_count} failed",
+        data=batch_response
     )
 
 
@@ -805,9 +805,9 @@ def delete_user(
 
 
 
-@router.post("/bulk/restore")
-def bulk_restore_users(
-    data: UserBulkRestore,
+@router.post("/batch/restore")
+def batch_restore_users(
+    data: UserBatchRestore,
     session: Session = Depends(get_session)
 ):
     """Restore multiple soft-deleted users"""
@@ -822,7 +822,7 @@ def bulk_restore_users(
             ).first()
             
             if not user:
-                results.append(UserBulkRestoreResult(
+                results.append(UserBatchRestoreResult(
                     index=index,
                     user_id=user_id,
                     success=False,
@@ -833,7 +833,7 @@ def bulk_restore_users(
                 continue
             
             if not user.is_deleted:
-                results.append(UserBulkRestoreResult(
+                results.append(UserBatchRestoreResult(
                     index=index,
                     user_id=user_id,
                     success=False,
@@ -850,7 +850,7 @@ def bulk_restore_users(
             session.flush()
             
             # Record successful restoration
-            results.append(UserBulkRestoreResult(
+            results.append(UserBatchRestoreResult(
                 index=index,
                 user_id=user_id,
                 success=True,
@@ -863,22 +863,22 @@ def bulk_restore_users(
             session.rollback()
             error_code = ErrorCode.INVALID_INPUT.value
             error_msg = "Restore failed: Constraint violation or related data issue"
-            results.append(UserBulkRestoreResult(
+            results.append(UserBatchRestoreResult(
                 index=index,
                 user_id=user_id,
                 success=False,
                 code=error_code,
                 message=error_msg
             ))
-            log_integrity_error("users", "bulk_restore_users", error_code, error_msg, str(e))
+            log_integrity_error("users", "batch_restore_users", error_code, error_msg, str(e))
             failed_count += 1
     
     session.commit()
     return StandardResponse(
         success=failed_count == 0,
-        code=SuccessCode.USERS_BULK_RESTORED.value,
+        code=SuccessCode.USERS_BATCH_RESTORED.value,
         message=f"Restore operation completed: {successful_count} succeeded, {failed_count} failed",
-        data=UserBulkRestoreResponse(
+        data=UserBatchRestoreResponse(
             total_items=len(data.ids),
             successful=successful_count,
             failed=failed_count,

@@ -5,10 +5,10 @@ from core.database import get_session
 from models.student_records import (
     StudentRecord, StudentRecordCreate, StudentRecordUpdate, StudentRecordPublic,
     StudentRecordCreateSafeDisplay, StudentRecordUpdateSafeDisplay,
-    StudentRecordBulkCreate, StudentRecordBulkCreateItem, StudentRecordBulkCreateResponse,
-    StudentRecordBulkUpdate, StudentRecordBulkUpdateItem, StudentRecordBulkUpdateResult, StudentRecordBulkUpdateResponse,
-    StudentRecordBulkDelete, StudentRecordBulkDeleteResult, StudentRecordBulkDeleteResponse,
-    StudentRecordBulkRestore, StudentRecordBulkRestoreResult, StudentRecordBulkRestoreResponse
+    StudentRecordBatchCreate, StudentRecordBatchCreateItem, StudentRecordBatchCreateResponse,
+    StudentRecordBatchUpdate, StudentRecordBatchUpdateItem, StudentRecordBatchUpdateResult, StudentRecordBatchUpdateResponse,
+    StudentRecordBatchDelete, StudentRecordBatchDeleteResult, StudentRecordBatchDeleteResponse,
+    StudentRecordBatchRestore, StudentRecordBatchRestoreResult, StudentRecordBatchRestoreResponse
 )
 from models.courses import Course
 from models.alumni import Alumni
@@ -136,17 +136,17 @@ def create_student_record(
             )
 
 
-@router.post("/bulk")
-def bulk_create_student_records(
-    bulk_data: StudentRecordBulkCreate,
+@router.post("/batch")
+def batch_create_student_records(
+    batch_data: StudentRecordBatchCreate,
     session: Session = Depends(get_session)
 ):
-    """Bulk create student records"""
+    """Batch create student records"""
     results = []
     successful_count = 0
     failed_count = 0
     
-    for index, student_item in enumerate(bulk_data.items):
+    for index, student_item in enumerate(batch_data.items):
         try:
             with session.begin_nested():
                 # Verify course exists
@@ -155,7 +155,7 @@ def bulk_create_student_records(
                 ).first()
                 
                 if not course:
-                    results.append(StudentRecordBulkCreateItem(
+                    results.append(StudentRecordBatchCreateItem(
                         index=index,
                         item=StudentRecordCreateSafeDisplay(
                             student_id=student_item.student_id,
@@ -176,7 +176,7 @@ def bulk_create_student_records(
                 ).first()
                 
                 if not alumni:
-                    results.append(StudentRecordBulkCreateItem(
+                    results.append(StudentRecordBatchCreateItem(
                         index=index,
                         item=StudentRecordCreateSafeDisplay(
                             student_id=student_item.student_id,
@@ -207,7 +207,7 @@ def bulk_create_student_records(
                 session.refresh(new_student)
                 
                 # Record successful creation
-                results.append(StudentRecordBulkCreateItem(
+                results.append(StudentRecordBatchCreateItem(
                     index=index,
                     item=StudentRecordCreateSafeDisplay(
                         student_id=student_item.student_id,
@@ -235,7 +235,7 @@ def bulk_create_student_records(
                 error_code = ErrorCode.INVALID_INPUT.value
                 error_msg = "Student record creation failed due to constraint violation"
             
-            results.append(StudentRecordBulkCreateItem(
+            results.append(StudentRecordBatchCreateItem(
                 index=index,
                 item=StudentRecordCreateSafeDisplay(
                     student_id=student_item.student_id,
@@ -253,7 +253,7 @@ def bulk_create_student_records(
             error_msg = str(e)
             error_code = ErrorCode.INVALID_INPUT.value
             
-            results.append(StudentRecordBulkCreateItem(
+            results.append(StudentRecordBatchCreateItem(
                 index=index,
                 item=StudentRecordCreateSafeDisplay(
                     student_id=student_item.student_id,
@@ -277,12 +277,12 @@ def bulk_create_student_records(
             detail=StandardResponse(
                 success=False,
                 code=ErrorCode.INVALID_INPUT.value,
-                message="Bulk create operation failed during commit"
+                message="Batch create operation failed during commit"
             ).model_dump(mode='json')
         )
     
-    bulk_response = StudentRecordBulkCreateResponse(
-        total_items=len(bulk_data.items),
+    batch_response = StudentRecordBatchCreateResponse(
+        total_items=len(batch_data.items),
         successful=successful_count,
         failed=failed_count,
         results=results
@@ -290,9 +290,9 @@ def bulk_create_student_records(
     
     return StandardResponse(
         success=failed_count == 0,
-        code=SuccessCode.STUDENT_RECORDS_BULK_CREATED.value,
-        message=f"Bulk create completed: {successful_count} successful, {failed_count} failed",
-        data=bulk_response
+        code=SuccessCode.STUDENT_RECORDS_BATCH_CREATED.value,
+        message=f"Batch create completed: {successful_count} successful, {failed_count} failed",
+        data=batch_response
     )
 
 
@@ -401,17 +401,17 @@ def get_student_record(student_id: str, session: Session = Depends(get_session))
     )
 
 
-@router.put("/bulk")
-def bulk_update_student_records(
-    bulk_data: StudentRecordBulkUpdate,
+@router.put("/batch")
+def batch_update_student_records(
+    batch_data: StudentRecordBatchUpdate,
     session: Session = Depends(get_session)
 ):
-    """Bulk update student records"""
+    """Batch update student records"""
     results = []
     successful_count = 0
     failed_count = 0
     
-    for index, update_item in enumerate(bulk_data.items):
+    for index, update_item in enumerate(batch_data.items):
         try:
             with session.begin_nested():
                 # Find the student record
@@ -420,7 +420,7 @@ def bulk_update_student_records(
                 ).first()
                 
                 if not student:
-                    results.append(StudentRecordBulkUpdateResult(
+                    results.append(StudentRecordBatchUpdateResult(
                         index=index,
                         item=StudentRecordUpdateSafeDisplay(
                             student_id=update_item.student_id,
@@ -442,7 +442,7 @@ def bulk_update_student_records(
                     ).first()
                     
                     if not alumni:
-                        results.append(StudentRecordBulkUpdateResult(
+                        results.append(StudentRecordBatchUpdateResult(
                             index=index,
                             item=StudentRecordUpdateSafeDisplay(
                                 student_id=update_item.student_id,
@@ -483,7 +483,7 @@ def bulk_update_student_records(
                 session.refresh(student)
                 
                 # Record successful update
-                results.append(StudentRecordBulkUpdateResult(
+                results.append(StudentRecordBatchUpdateResult(
                     index=index,
                     item=StudentRecordUpdateSafeDisplay(
                         student_id=update_item.student_id,
@@ -511,7 +511,7 @@ def bulk_update_student_records(
                 error_code = ErrorCode.INVALID_INPUT.value
                 error_msg = "Student record update failed due to constraint violation"
             
-            results.append(StudentRecordBulkUpdateResult(
+            results.append(StudentRecordBatchUpdateResult(
                 index=index,
                 item=StudentRecordUpdateSafeDisplay(
                     student_id=update_item.student_id,
@@ -529,7 +529,7 @@ def bulk_update_student_records(
             error_msg = str(e)
             error_code = ErrorCode.INVALID_INPUT.value
             
-            results.append(StudentRecordBulkUpdateResult(
+            results.append(StudentRecordBatchUpdateResult(
                 index=index,
                 item=StudentRecordUpdateSafeDisplay(
                     student_id=update_item.student_id,
@@ -553,12 +553,12 @@ def bulk_update_student_records(
             detail=StandardResponse(
                 success=False,
                 code=ErrorCode.INVALID_INPUT.value,
-                message="Bulk update operation failed during commit"
+                message="Batch update operation failed during commit"
             ).model_dump(mode='json')
         )
     
-    bulk_response = StudentRecordBulkUpdateResponse(
-        total_items=len(bulk_data.items),
+    batch_response = StudentRecordBatchUpdateResponse(
+        total_items=len(batch_data.items),
         successful=successful_count,
         failed=failed_count,
         results=results
@@ -566,9 +566,9 @@ def bulk_update_student_records(
     
     return StandardResponse(
         success=failed_count == 0,
-        code=SuccessCode.STUDENT_RECORDS_BULK_UPDATED.value,
-        message=f"Bulk update completed: {successful_count} successful, {failed_count} failed",
-        data=bulk_response
+        code=SuccessCode.STUDENT_RECORDS_BATCH_UPDATED.value,
+        message=f"Batch update completed: {successful_count} successful, {failed_count} failed",
+        data=batch_response
     )
 
 
@@ -698,17 +698,17 @@ def update_student_record(
             )
 
 
-@router.delete("/bulk")
-def bulk_delete_student_records(
-    bulk_data: StudentRecordBulkDelete,
+@router.delete("/batch")
+def batch_delete_student_records(
+    batch_data: StudentRecordBatchDelete,
     session: Session = Depends(get_session)
 ):
-    """Bulk delete student records"""
+    """Batch delete student records"""
     results = []
     successful_count = 0
     failed_count = 0
     
-    for index, student_id in enumerate(bulk_data.ids):
+    for index, student_id in enumerate(batch_data.ids):
         try:
             # Find the student record
             student = session.exec(
@@ -716,7 +716,7 @@ def bulk_delete_student_records(
             ).first()
             
             if not student:
-                results.append(StudentRecordBulkDeleteResult(
+                results.append(StudentRecordBatchDeleteResult(
                     index=index,
                     student_id=student_id,
                     success=False,
@@ -728,7 +728,7 @@ def bulk_delete_student_records(
             
             # Check if already deleted
             if student.is_deleted:
-                results.append(StudentRecordBulkDeleteResult(
+                results.append(StudentRecordBatchDeleteResult(
                     index=index,
                     student_id=student_id,
                     success=False,
@@ -745,7 +745,7 @@ def bulk_delete_student_records(
             session.flush()
             
             # Record successful deletion
-            results.append(StudentRecordBulkDeleteResult(
+            results.append(StudentRecordBatchDeleteResult(
                 index=index,
                 student_id=student_id,
                 success=True,
@@ -756,7 +756,7 @@ def bulk_delete_student_records(
         
         except IntegrityError as e:
             session.rollback()
-            results.append(StudentRecordBulkDeleteResult(
+            results.append(StudentRecordBatchDeleteResult(
                 index=index,
                 student_id=student_id,
                 success=False,
@@ -767,7 +767,7 @@ def bulk_delete_student_records(
         
         except ValueError as e:
             error_msg = str(e)
-            results.append(StudentRecordBulkDeleteResult(
+            results.append(StudentRecordBatchDeleteResult(
                 index=index,
                 student_id=student_id,
                 success=False,
@@ -786,12 +786,12 @@ def bulk_delete_student_records(
             detail=StandardResponse(
                 success=False,
                 code=ErrorCode.INVALID_INPUT.value,
-                message="Bulk delete operation failed during commit"
+                message="Batch delete operation failed during commit"
             ).model_dump(mode='json')
         )
     
-    bulk_response = StudentRecordBulkDeleteResponse(
-        total_items=len(bulk_data.ids),
+    batch_response = StudentRecordBatchDeleteResponse(
+        total_items=len(batch_data.ids),
         successful=successful_count,
         failed=failed_count,
         results=results
@@ -799,9 +799,9 @@ def bulk_delete_student_records(
     
     return StandardResponse(
         success=failed_count == 0,
-        code=SuccessCode.STUDENT_RECORDS_BULK_DELETED.value,
-        message=f"Bulk delete completed: {successful_count} successful, {failed_count} failed",
-        data=bulk_response
+        code=SuccessCode.STUDENT_RECORDS_BATCH_DELETED.value,
+        message=f"Batch delete completed: {successful_count} successful, {failed_count} failed",
+        data=batch_response
     )
 
 @router.delete("/{student_id}")
@@ -855,9 +855,9 @@ def delete_student_record(student_id: str, session: Session = Depends(get_sessio
         )
 
 
-@router.post("/bulk/restore")
-def bulk_restore_student_records(
-    data: StudentRecordBulkRestore,
+@router.post("/batch/restore")
+def batch_restore_student_records(
+    data: StudentRecordBatchRestore,
     session: Session = Depends(get_session)
 ):
     """Restore multiple soft-deleted student records"""
@@ -872,7 +872,7 @@ def bulk_restore_student_records(
             ).first()
             
             if not student:
-                results.append(StudentRecordBulkRestoreResult(
+                results.append(StudentRecordBatchRestoreResult(
                     index=index,
                     student_id=student_id,
                     success=False,
@@ -883,7 +883,7 @@ def bulk_restore_student_records(
                 continue
             
             if not student.is_deleted:
-                results.append(StudentRecordBulkRestoreResult(
+                results.append(StudentRecordBatchRestoreResult(
                     index=index,
                     student_id=student_id,
                     success=False,
@@ -900,7 +900,7 @@ def bulk_restore_student_records(
             session.flush()
             
             # Record successful restoration
-            results.append(StudentRecordBulkRestoreResult(
+            results.append(StudentRecordBatchRestoreResult(
                 index=index,
                 student_id=student_id,
                 success=True,
@@ -913,22 +913,22 @@ def bulk_restore_student_records(
             session.rollback()
             error_code = ErrorCode.INVALID_INPUT.value
             error_msg = "Restore failed: Constraint violation or related data issue"
-            results.append(StudentRecordBulkRestoreResult(
+            results.append(StudentRecordBatchRestoreResult(
                 index=index,
                 student_id=student_id,
                 success=False,
                 code=error_code,
                 message=error_msg
             ))
-            log_integrity_error("student_records", "bulk_restore_student_records", error_code, error_msg, str(e))
+            log_integrity_error("student_records", "batch_restore_student_records", error_code, error_msg, str(e))
             failed_count += 1
     
     session.commit()
     return StandardResponse(
         success=failed_count == 0,
-        code=SuccessCode.STUDENT_RECORDS_BULK_RESTORED.value,
+        code=SuccessCode.STUDENT_RECORDS_BATCH_RESTORED.value,
         message=f"Restore operation completed: {successful_count} succeeded, {failed_count} failed",
-        data=StudentRecordBulkRestoreResponse(
+        data=StudentRecordBatchRestoreResponse(
             total_items=len(data.ids),
             successful=successful_count,
             failed=failed_count,

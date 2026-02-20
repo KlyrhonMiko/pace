@@ -3,8 +3,8 @@ import asyncio
 
 BASE_URL = "http://127.0.0.1:8000/api"
 
-async def test_bulk_partial_success():
-    print("Testing Partial Success in Bulk College Depts...")
+async def test_batch_partial_success():
+    print("Testing Partial Success in Batch College Depts...")
     
     # Payload with one valid item, and one invalid item (duplicate PK)
     # We will run this twice, first time should succeed, second time item 1 fails, item 2 succeeds
@@ -35,12 +35,12 @@ async def test_bulk_partial_success():
     
     async with httpx.AsyncClient() as client:
         # 1. Insert TEST-1
-        resp = await client.post(f"{BASE_URL}/college-depts/bulk", json=payload_1)
+        resp = await client.post(f"{BASE_URL}/college-depts/batch", json=payload_1)
         print("Setup (Insert TEST-1):", resp.status_code)
         
         # 2. Insert TEST-1 (Duplicate) AND TEST-2 (Valid)
         # Without savepoints, TEST-2 would be rolled back because TEST-1 throws IntegrityError
-        resp = await client.post(f"{BASE_URL}/college-depts/bulk", json=payload_2)
+        resp = await client.post(f"{BASE_URL}/college-depts/batch", json=payload_2)
         print("Test (Insert Duplicate TEST-1, Valid TEST-2):", resp.status_code)
         print("Response:", resp.json())
         
@@ -56,4 +56,4 @@ async def test_bulk_partial_success():
             print("FAILED! TEST-2 was rolled back.")
 
 if __name__ == "__main__":
-    asyncio.run(test_bulk_partial_success())
+    asyncio.run(test_batch_partial_success())

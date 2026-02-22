@@ -14,11 +14,11 @@ class SupabaseStorageService:
         """Initialize Supabase Storage client using direct REST API calls"""
         self.supabase_url = os.getenv("SUPABASE_URL")
         self.service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        self.bucket_name = os.getenv("SUPABASE_BUCKET_NAME", "event-images")
         
         if not self.supabase_url or not self.service_role_key:
             raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in environment")
         
-        self.bucket_name = "event-images"
         self.supported_formats = {"image/jpeg", "image/png", "image/webp"}
         self.max_file_size = 5 * 1024 * 1024  # 5MB
         

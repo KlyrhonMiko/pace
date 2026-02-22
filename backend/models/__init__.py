@@ -22,6 +22,7 @@ from .surveys import (
     SurveyListResponse, SurveyInvitationListResponse, DistributionStatsResponse,
     SurveyQuestionReorderRequest
 )
+from .employability import EmployabilityPrediction
 
 __all__ = [
     "User",
@@ -46,4 +47,5 @@ __all__ = [
     "SurveyStatus", "SurveyInvitationStatus", "DistributionTargetGroup", "DistributionStatus",
     "SurveyListResponse", "SurveyInvitationListResponse", "DistributionStatsResponse",
     "SurveyQuestionReorderRequest"
+    "EmployabilityPrediction"
 ]

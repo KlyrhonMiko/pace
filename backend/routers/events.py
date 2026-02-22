@@ -18,6 +18,28 @@ router = APIRouter(prefix="/events", tags=["events"])
 storage_service = SupabaseStorageService()
 
 
+def generate_event_id(session: Session) -> str:
+    """Generate next event_id in EVNT-XXXXXX format"""
+    stmt = select(Event.event_id).order_by(Event.event_id.desc()).limit(1)
+    last_id = session.exec(stmt).first()
+    
+    if last_id:
+        try:
+            # Parse the last ID (format: EVNT-XXXXXX)
+            parts = last_id.split('-')
+            if len(parts) >= 2:
+                num = int(parts[1])
+                next_num = num + 1
+            else:
+                # Malformed ID, start fresh
+                next_num = 1
+        except (ValueError, IndexError):
+            # If parsing fails, start from 1
+            next_num = 1
+    else:
+        next_num = 1
+    
+    return f"EVNT-{next_num:06d}"
 
 
 # ==================== Single CRUD Endpoints ====================
@@ -36,7 +58,6 @@ def create_event(
     """
     Create a new event
     
-    - **event_id**: Unique event identifier (required)
     - **name**: Event name (required)
     - **description**: Event description (required)
     - **event_type**: Type of event (CAREER_FAIR, WORKSHOP, SEMINAR, NETWORKING, OTHER)
@@ -47,20 +68,13 @@ def create_event(
     - **capacity**: Event capacity in attendees (required, > 0)
     """
     try:
-        # Check for duplicate event_id
-        existing = session.exec(select(Event).where(Event.event_id == event_create.event_id)).first()
-        if existing:
-            raise HTTPException(
-                status_code=409,
-                detail=StandardResponse(
-                    success=False,
-                    code=ErrorCode.DUPLICATE_EVENT_ID,
-                    message=f"Event with ID '{event_create.event_id}' already exists"
-                ).model_dump()
-            )
+        # Generate event_id automatically
+        event_id = generate_event_id(session)
         
         # Create event with timezone conversion
         event_data = event_create.model_dump()
+        event_data['event_id'] = event_id
+        
         # Convert event date to GMT+8
         if event_data.get('date'):
             event_data['date'] = convert_to_gmt8(event_data['date'])

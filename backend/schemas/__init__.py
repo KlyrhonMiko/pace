@@ -37,3 +37,8 @@ from .student_records import (
     StudentRecordBatchDelete, StudentRecordBatchDeleteResult, StudentRecordBatchDeleteResponse,
     StudentRecordBatchRestore, StudentRecordBatchRestoreResult, StudentRecordBatchRestoreResponse,
 )
+from .skills import SkillsCreate, SkillsPublic, SkillsListCreate, SkillsListPublic
+from .events import (
+    EventType, EventCreate, EventUpdate, EventPublic,
+    EventRegistrationResponse, EventRegistrationRequest,
+)

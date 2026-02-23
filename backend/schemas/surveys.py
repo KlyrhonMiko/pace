@@ -1,23 +1,56 @@
-import uuid
 import json
+import uuid
 from datetime import datetime, timezone
 from typing import Optional, List
-from sqlmodel import SQLModel, Field
+from enum import Enum
+from sqlmodel import SQLModel, Field, JSON
 from pydantic import field_serializer, field_validator
-
 from utils.timezone import GMT8
-from models.questions import QuestionPublic
-from models.surveys import (
-    SurveyBase, SurveyStatus, SurveyResponseBase,
-    SurveyAnswerBase, SurveyInvitationBase, SurveyDistributionConfigBase,
-    SurveyInvitationStatus, DistributionTargetGroup, DistributionStatus
-)
+from schemas.questions import QuestionPublic
 
-class SurveyCreate(SurveyBase):
+
+class SurveyStatus(str, Enum):
+    DRAFT = "DRAFT"
+    ACTIVE = "ACTIVE"
+    CLOSED = "CLOSED"
+    ARCHIVED = "ARCHIVED"
+
+
+class SurveyInvitationStatus(str, Enum):
+    PENDING = "PENDING"
+    SENT = "SENT"
+    OPENED = "OPENED"
+    RESPONDED = "RESPONDED"
+    EXPIRED = "EXPIRED"
+
+
+class DistributionTargetGroup(str, Enum):
+    ALL_ALUMNI = "ALL_ALUMNI"
+    SPECIFIC_COURSE = "SPECIFIC_COURSE"
+    GRADUATION_YEAR_RANGE = "GRADUATION_YEAR_RANGE"
+    CUSTOM_LIST = "CUSTOM_LIST"
+
+
+class DistributionStatus(str, Enum):
+    DRAFT = "DRAFT"
+    SCHEDULED = "SCHEDULED"
+    SENT = "SENT"
+    COMPLETED = "COMPLETED"
+
+
+# ── Survey schemas ──────────────────────────────────────────────────────────
+
+class SurveyCreate(SQLModel):
+    title: str = Field(max_length=255)
+    description: Optional[str] = Field(default=None, max_length=2000)
+    is_anonymous: bool = Field(default=False)
+    allow_multiple_responses: bool = Field(default=False)
+    opens_at: Optional[datetime] = None
+    closes_at: Optional[datetime] = None
+
     @field_validator('closes_at')
     @classmethod
     def validate_closes_at(cls, v, info):
-        """Validate closes_at is after opens_at if both provided"""
         opens_at = info.data.get('opens_at')
         if opens_at and v and v <= opens_at:
             raise ValueError('closes_at must be after opens_at')
@@ -31,24 +64,29 @@ class SurveyUpdate(SQLModel):
     allow_multiple_responses: Optional[bool] = None
     opens_at: Optional[datetime] = None
     closes_at: Optional[datetime] = None
-    
+
     @field_validator('closes_at')
     @classmethod
     def validate_closes_at(cls, v, info):
-        """Validate closes_at is after opens_at if both provided"""
         opens_at = info.data.get('opens_at')
         if opens_at and v and v <= opens_at:
             raise ValueError('closes_at must be after opens_at')
         return v
 
 
-class SurveyPublic(SurveyBase):
+class SurveyPublic(SQLModel):
     survey_id: str
+    title: str
+    description: Optional[str] = None
+    is_anonymous: bool
+    allow_multiple_responses: bool
+    opens_at: Optional[datetime] = None
+    closes_at: Optional[datetime] = None
     status: SurveyStatus
     created_at: datetime
     updated_at: datetime
     question_count: int = 0
-    
+
     @field_serializer('created_at', 'updated_at')
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         if value is None:
@@ -60,35 +98,34 @@ class SurveyPublic(SurveyBase):
 
 
 class SurveyQuestionWithDetails(SQLModel):
-    """Survey question with full question details"""
     order_index: int
     question: QuestionPublic
-    
+
     class Config:
         from_attributes = True
 
 
-class SurveyWithQuestions(SurveyPublic):
-    """Survey with composed questions"""
-    questions: List[SurveyQuestionWithDetails] = Field(default_factory=list)
-
-
 class SurveyQuestionCreate(SQLModel):
-    """Request schema for adding question to survey - uses human-readable ID"""
-    question_id: str  # Like QSTN-000001, not UUID
-    order_index: Optional[int] = None  # Auto-assigns if not provided
+    question_id: str  # Human-readable e.g. QSTN-000001
+    order_index: Optional[int] = None
 
 
-class SurveyResponseCreate(SurveyResponseBase):
-    """Request schema for submitting response"""
-    pass
+class SurveyQuestionReorderRequest(SQLModel):
+    order_map: dict
+
+
+# ── Survey Response schemas ─────────────────────────────────────────────────
+
+class SurveyResponseCreate(SQLModel):
+    survey_code: uuid.UUID
+    alumni_code: Optional[uuid.UUID] = None
 
 
 class SurveyResponsePublic(SQLModel):
     response_id: str
     submitted_at: datetime
     is_complete: bool
-    
+
     @field_serializer('submitted_at')
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         if value is None:
@@ -99,20 +136,17 @@ class SurveyResponsePublic(SQLModel):
         return gmt8_time.strftime('%Y-%m-%d %H:%M:%S')
 
 
-class SurveyAnswerPublic(SurveyAnswerBase):
-    answer_code: uuid.UUID
-    question_id: Optional[str] = None  # Denormalized for convenience
-    question_text: Optional[str] = None
+class SurveyAnswerCreate(SQLModel):
+    response_code: uuid.UUID
+    question_code: uuid.UUID
+    answer_text: Optional[str] = Field(default=None, max_length=5000)
+    answer_choice: Optional[str] = Field(default=None, max_length=255)
+    answer_choices: Optional[str] = None
+    answer_scale: Optional[int] = None
+    answer_number: Optional[float] = None
+    answer_date: Optional[datetime] = None
+    answer_bool: Optional[bool] = None
 
-
-class SurveyResponseWithAnswers(SurveyResponsePublic):
-    """Response with all answers"""
-    answers: List[SurveyAnswerPublic] = Field(default_factory=list)
-
-
-class SurveyAnswerCreate(SurveyAnswerBase):
-    """Request schema for submitting answer"""
-    
     @field_validator('answer_text', 'answer_choice')
     @classmethod
     def strip_whitespace(cls, v):
@@ -121,9 +155,28 @@ class SurveyAnswerCreate(SurveyAnswerBase):
         return v
 
 
-class SurveyInvitationCreate(SurveyInvitationBase):
-    """Request schema for creating invitation"""
-    pass
+class SurveyAnswerPublic(SQLModel):
+    answer_code: uuid.UUID
+    response_code: uuid.UUID
+    question_code: uuid.UUID
+    answer_text: Optional[str] = None
+    answer_choice: Optional[str] = None
+    answer_choices: Optional[str] = None
+    answer_scale: Optional[int] = None
+    answer_number: Optional[float] = None
+    answer_date: Optional[datetime] = None
+    answer_bool: Optional[bool] = None
+    question_id: Optional[str] = None
+    question_text: Optional[str] = None
+
+
+# ── Survey Invitation schemas ───────────────────────────────────────────────
+
+class SurveyInvitationCreate(SQLModel):
+    survey_code: uuid.UUID
+    alumni_code: uuid.UUID
+    recipient_email: str = Field(max_length=255)
+    status: SurveyInvitationStatus = Field(default=SurveyInvitationStatus.PENDING)
 
 
 class SurveyInvitationPublic(SQLModel):
@@ -134,7 +187,7 @@ class SurveyInvitationPublic(SQLModel):
     opened_at: Optional[datetime]
     responded_at: Optional[datetime]
     created_at: datetime
-    
+
     @field_serializer('sent_at', 'opened_at', 'responded_at', 'created_at')
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         if value is None:
@@ -145,28 +198,30 @@ class SurveyInvitationPublic(SQLModel):
         return gmt8_time.strftime('%Y-%m-%d %H:%M:%S')
 
 
-class SurveyDistributionConfigCreate(SurveyDistributionConfigBase):
-    """Database model creation - for internal use only"""
-    pass
+class SurveyInvitationListResponse(SQLModel):
+    invitations: List[SurveyInvitationPublic]
+    total: int
+    count: int
+    offset: int
+    limit: int
+    has_more: bool
 
+
+# ── Distribution schemas ────────────────────────────────────────────────────
 
 class SurveyDistributionConfigCreateRequest(SQLModel):
-    """Request schema for creating distribution config - survey_id from URL path"""
     target_group: DistributionTargetGroup
     filters: Optional[str] = None
     scheduled_send_at: Optional[datetime] = None
-    
+
     @field_validator('filters', mode='before')
     @classmethod
     def validate_filters(cls, v, info):
-        """Validate filters based on target_group"""
         target_group = info.data.get('target_group')
-        
         if v is None:
             if target_group != DistributionTargetGroup.ALL_ALUMNI:
                 raise ValueError(f'{target_group} requires filters')
             return None
-        
         if isinstance(v, str):
             try:
                 parsed = json.loads(v)
@@ -174,8 +229,6 @@ class SurveyDistributionConfigCreateRequest(SQLModel):
                 raise ValueError('Filters must be valid JSON')
         else:
             parsed = v
-        
-        # Validate based on target group
         if target_group == DistributionTargetGroup.SPECIFIC_COURSE:
             if 'courses' not in parsed or not isinstance(parsed['courses'], list):
                 raise ValueError('SPECIFIC_COURSE requires courses list in filters')
@@ -185,7 +238,6 @@ class SurveyDistributionConfigCreateRequest(SQLModel):
         elif target_group == DistributionTargetGroup.CUSTOM_LIST:
             if 'alumni_ids' not in parsed or not isinstance(parsed['alumni_ids'], list):
                 raise ValueError('CUSTOM_LIST requires alumni_ids list in filters')
-        
         return json.dumps(parsed) if isinstance(v, dict) else v
 
 
@@ -205,7 +257,7 @@ class SurveyDistributionConfigPublic(SQLModel):
     sent_at: Optional[datetime]
     created_at: datetime
     updated_at: datetime
-    
+
     @field_serializer('scheduled_send_at', 'sent_at', 'created_at', 'updated_at')
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         if value is None:
@@ -216,38 +268,21 @@ class SurveyDistributionConfigPublic(SQLModel):
         return gmt8_time.strftime('%Y-%m-%d %H:%M:%S')
 
 
-class SurveyQuestionReorderRequest(SQLModel):
-    """Request for reordering survey questions"""
-    order_map: dict
-
-
-class SurveyListResponse(SQLModel):
-    """Response for survey list endpoint"""
-    surveys: List[SurveyPublic]
-    total: int
-    count: int
-    offset: int
-    limit: int
-    has_more: bool
-
-
-class SurveyInvitationListResponse(SQLModel):
-    """Response for invitation list endpoint"""
-    invitations: List[SurveyInvitationPublic]
-    total: int
-    count: int
-    offset: int
-    limit: int
-    has_more: bool
-
-
 class DistributionStatsResponse(SQLModel):
-    """Response with distribution statistics"""
     distribution_id: str
     survey_id: str
     total_recipients: int
     sent_count: int
     opened_count: int
     responded_count: int
-    response_rate: float  # percentage
+    response_rate: float
     pending_count: int
+
+
+class SurveyListResponse(SQLModel):
+    surveys: List[SurveyPublic]
+    total: int
+    count: int
+    offset: int
+    limit: int
+    has_more: bool

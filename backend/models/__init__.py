@@ -7,26 +7,23 @@ from .skills import Skills, SkillsList
 from .job_listings import JobListing
 from .transaction_logs import TransactionLog
 from .events import Event, EventRegistration
-from .questions import (
-    Question, QuestionCreate, QuestionUpdate, QuestionPublic,
-    QuestionType, QuestionListResponse
-)
+from .questions import Question
 from .surveys import (
     Survey, SurveyCreate, SurveyUpdate, SurveyPublic, SurveyWithQuestions,
     SurveyQuestion, SurveyQuestionCreate, SurveyQuestionWithDetails,
     SurveyResponse, SurveyResponseCreate, SurveyResponsePublic, SurveyResponseWithAnswers,
     SurveyAnswer, SurveyAnswerCreate, SurveyAnswerPublic,
-    SurveyInvitation, SurveyInvitationCreate, SurveyInvitationPublic,
+    SurveyInvitation, SurveyInvitationCreate, SurveyInvitationPublic, SurveyInvitationListResponse,
     SurveyDistributionConfig, SurveyDistributionConfigCreate, SurveyDistributionConfigCreateRequest, SurveyDistributionConfigUpdate, SurveyDistributionConfigPublic,
-    SurveyStatus, SurveyInvitationStatus, DistributionTargetGroup, DistributionStatus,
-    SurveyListResponse, SurveyInvitationListResponse, DistributionStatsResponse,
-    SurveyQuestionReorderRequest
+    SurveyQuestionReorderRequest, DistributionStatsResponse, SurveyInvitationStatus,
+    DistributionTargetGroup, DistributionStatus, SurveyStatus
 )
 
 __all__ = [
+    # ORM table classes only — schemas live in schemas/
     "User",
     "Course",
-    "CollegeDept", 
+    "CollegeDept",
     "StudentRecord",
     "Alumni",
     "Skills",
@@ -35,15 +32,11 @@ __all__ = [
     "TransactionLog",
     "Event",
     "EventRegistration",
-    "Question", "QuestionCreate", "QuestionUpdate", "QuestionPublic",
-    "QuestionType", "QuestionListResponse",
-    "Survey", "SurveyCreate", "SurveyUpdate", "SurveyPublic", "SurveyWithQuestions",
-    "SurveyQuestion", "SurveyQuestionCreate", "SurveyQuestionWithDetails",
-    "SurveyResponse", "SurveyResponseCreate", "SurveyResponsePublic", "SurveyResponseWithAnswers",
-    "SurveyAnswer", "SurveyAnswerCreate", "SurveyAnswerPublic",
-    "SurveyInvitation", "SurveyInvitationCreate", "SurveyInvitationPublic",
-    "SurveyDistributionConfig", "SurveyDistributionConfigCreate", "SurveyDistributionConfigCreateRequest", "SurveyDistributionConfigUpdate", "SurveyDistributionConfigPublic",
-    "SurveyStatus", "SurveyInvitationStatus", "DistributionTargetGroup", "DistributionStatus",
-    "SurveyListResponse", "SurveyInvitationListResponse", "DistributionStatsResponse",
-    "SurveyQuestionReorderRequest"
+    "Question",
+    "Survey",
+    "SurveyQuestion",
+    "SurveyResponse",
+    "SurveyAnswer",
+    "SurveyInvitation",
+    "SurveyDistributionConfig",
 ]

@@ -29,3 +29,11 @@ from .composite import (
     BatchAlumniDeleteResult, BatchAlumniDelete, BatchAlumniDeleteResponse,
     BatchAlumniRestoreResult, BatchAlumniRestore, BatchAlumniRestoreResponse,
 )
+from .student_records import (
+    StudentRecordCreate, StudentRecordUpdate, StudentRecordPublic,
+    StudentRecordCreateSafeDisplay, StudentRecordUpdateSafeDisplay,
+    StudentRecordBatchCreate, StudentRecordBatchCreateItem, StudentRecordBatchCreateResponse,
+    StudentRecordBatchUpdate, StudentRecordBatchUpdateItem, StudentRecordBatchUpdateResult, StudentRecordBatchUpdateResponse,
+    StudentRecordBatchDelete, StudentRecordBatchDeleteResult, StudentRecordBatchDeleteResponse,
+    StudentRecordBatchRestore, StudentRecordBatchRestoreResult, StudentRecordBatchRestoreResponse,
+)

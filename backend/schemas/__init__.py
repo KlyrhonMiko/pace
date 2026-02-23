@@ -20,3 +20,12 @@ from .users import (
     UserBatchDelete, UserBatchDeleteResult, UserBatchDeleteResponse,
     UserBatchRestore, UserBatchRestoreResult, UserBatchRestoreResponse,
 )
+from .alumni import AlumniCreate, AlumniUpdate, AlumniPublic
+from .composite import (
+    CompleteAlumniRegistration, CompleteAlumniResponse,
+    BatchAlumniRegistrationItemSafeDisplay, BatchAlumniRegistrationItem,
+    BatchAlumniRegistrationResult, BatchAlumniRegister, BatchAlumniRegisterResponse,
+    BatchAlumniUpdateItem, BatchAlumniUpdateResult, BatchAlumniUpdate, BatchAlumniUpdateResponse,
+    BatchAlumniDeleteResult, BatchAlumniDelete, BatchAlumniDeleteResponse,
+    BatchAlumniRestoreResult, BatchAlumniRestore, BatchAlumniRestoreResponse,
+)

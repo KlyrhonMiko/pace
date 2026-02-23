@@ -12,3 +12,11 @@ from .courses import (
     CourseBatchDelete, CourseBatchDeleteResult, CourseBatchDeleteResponse,
     CourseBatchRestore, CourseBatchRestoreResult, CourseBatchRestoreResponse,
 )
+from .users import (
+    UserType, UserCreate, UserUpdate, UserPublic, UserLogin, SuccessResponse,
+    UserCreateSafeDisplay, UserUpdateSafeDisplay,
+    UserBatchCreate, UserBatchCreateItem, UserBatchCreateResponse,
+    UserBatchUpdate, UserBatchUpdateItem, UserBatchUpdateResult, UserBatchUpdateResponse,
+    UserBatchDelete, UserBatchDeleteResult, UserBatchDeleteResponse,
+    UserBatchRestore, UserBatchRestoreResult, UserBatchRestoreResponse,
+)

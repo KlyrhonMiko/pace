@@ -128,7 +128,7 @@ def get_deleted_courses(
     courses, total = get_all_courses(
         session, limit, offset, search, None, include_deleted=True, sort_by=sort_by, sort_order=sort_order
     )
-    deleted = [c for c in courses if hasattr(c, 'is_deleted')]  # CoursePublic doesn't have is_deleted; all returned are from deleted filter
+    deleted = [c for c in courses if c.is_deleted]
     returned = len(courses)
     pagination = PaginationMetadata(
         total=total, limit=limit, offset=offset, returned=returned,

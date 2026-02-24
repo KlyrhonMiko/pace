@@ -23,12 +23,14 @@ def create_question_route(body: QuestionCreate, session: Session = Depends(get_s
         if existing:
             raise HTTPException(
                 status_code=409,
-                detail={"code": ErrorCode.DUPLICATE_QUESTION_TEXT,
-                        "message": f"Question with this text already exists (ID: {existing.question_id})"}
+                detail=StandardResponse(
+                    success=False, code=ErrorCode.DUPLICATE_QUESTION_TEXT.value,
+                    message=f"Question with this text already exists (ID: {existing.question_id})"
+                ).model_dump(mode='json')
             )
         question = create_question(session, body)
         return StandardResponse(
-            success=True, code=SuccessCode.QUESTION_CREATED,
+            success=True, code=SuccessCode.QUESTION_CREATED.value,
             message="Question created successfully",
             data=QuestionPublic.model_validate(question),
             timestamp=get_current_time_gmt8()
@@ -37,7 +39,9 @@ def create_question_route(body: QuestionCreate, session: Session = Depends(get_s
         raise
     except Exception as e:
         session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+        ).model_dump(mode='json'))
 
 
 @router.get("", response_model=StandardResponse)
@@ -52,7 +56,7 @@ def list_questions_route(
     try:
         questions, total = list_questions(session, skip, limit, search, question_type)
         return StandardResponse(
-            success=True, code=SuccessCode.QUESTIONS_RETRIEVED,
+            success=True, code=SuccessCode.QUESTIONS_RETRIEVED.value,
             message="Questions retrieved successfully",
             data={
                 "questions": [QuestionPublic.model_validate(q) for q in questions],
@@ -63,7 +67,9 @@ def list_questions_route(
             timestamp=get_current_time_gmt8()
         )
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+        ).model_dump(mode='json'))
 
 
 @router.get("/{question_id}", response_model=StandardResponse)
@@ -72,9 +78,11 @@ def get_question_route(question_id: str, session: Session = Depends(get_session)
     try:
         question = get_question_by_id(session, question_id)
         if not question:
-            raise HTTPException(status_code=404, detail="QUESTION_NOT_FOUND")
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.QUESTION_NOT_FOUND.value, message="Question not found"
+            ).model_dump(mode='json'))
         return StandardResponse(
-            success=True, code=SuccessCode.QUESTION_RETRIEVED,
+            success=True, code=SuccessCode.QUESTION_RETRIEVED.value,
             message="Question retrieved successfully",
             data=QuestionPublic.model_validate(question),
             timestamp=get_current_time_gmt8()
@@ -82,7 +90,9 @@ def get_question_route(question_id: str, session: Session = Depends(get_session)
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+        ).model_dump(mode='json'))
 
 
 @router.patch("/{question_id}", response_model=StandardResponse)
@@ -94,10 +104,12 @@ def update_question_route(
     try:
         question = get_question_by_id(session, question_id)
         if not question:
-            raise HTTPException(status_code=404, detail="QUESTION_NOT_FOUND")
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.QUESTION_NOT_FOUND.value, message="Question not found"
+            ).model_dump(mode='json'))
         updated = update_question(session, question, body)
         return StandardResponse(
-            success=True, code=SuccessCode.QUESTION_UPDATED,
+            success=True, code=SuccessCode.QUESTION_UPDATED.value,
             message="Question updated successfully",
             data=QuestionPublic.model_validate(updated),
             timestamp=get_current_time_gmt8()
@@ -106,7 +118,9 @@ def update_question_route(
         raise
     except Exception as e:
         session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+        ).model_dump(mode='json'))
 
 
 @router.delete("/{question_id}", response_model=StandardResponse)
@@ -115,10 +129,12 @@ def delete_question_route(question_id: str, session: Session = Depends(get_sessi
     try:
         question = get_question_by_id(session, question_id)
         if not question:
-            raise HTTPException(status_code=404, detail="QUESTION_NOT_FOUND")
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.QUESTION_NOT_FOUND.value, message="Question not found"
+            ).model_dump(mode='json'))
         soft_delete_question(session, question)
         return StandardResponse(
-            success=True, code=SuccessCode.QUESTION_DELETED,
+            success=True, code=SuccessCode.QUESTION_DELETED.value,
             message="Question deleted successfully",
             timestamp=get_current_time_gmt8()
         )
@@ -126,7 +142,9 @@ def delete_question_route(question_id: str, session: Session = Depends(get_sessi
         raise
     except Exception as e:
         session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+        ).model_dump(mode='json'))
 
 
 @router.post("/{question_id}/restore", response_model=StandardResponse)
@@ -135,10 +153,12 @@ def restore_question_route(question_id: str, session: Session = Depends(get_sess
     try:
         question = get_question_by_id_deleted(session, question_id)
         if not question:
-            raise HTTPException(status_code=404, detail="QUESTION_NOT_FOUND")
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.QUESTION_NOT_FOUND.value, message="Question not found"
+            ).model_dump(mode='json'))
         restored = restore_question(session, question)
         return StandardResponse(
-            success=True, code=SuccessCode.QUESTION_RESTORED,
+            success=True, code=SuccessCode.QUESTION_RESTORED.value,
             message="Question restored successfully",
             data=QuestionPublic.model_validate(restored),
             timestamp=get_current_time_gmt8()
@@ -147,4 +167,6 @@ def restore_question_route(question_id: str, session: Session = Depends(get_sess
         raise
     except Exception as e:
         session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+        ).model_dump(mode='json'))

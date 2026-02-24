@@ -205,7 +205,7 @@ def create_student_record_route(
     except ValueError as e:
         msg = str(e)
         if msg.startswith("COURSE_NOT_FOUND:"):
-            code, detail = ErrorCode.DEGREE_NOT_FOUND.value, "Course not found"
+            code, detail = ErrorCode.COURSE_NOT_FOUND.value, "Course not found"
             log_error("student_records", "create", code, detail)
             raise HTTPException(status_code=404, detail=StandardResponse(success=False, code=code, message=detail).model_dump(mode='json'))
         if msg.startswith("ALUMNI_NOT_FOUND:"):
@@ -221,7 +221,7 @@ def create_student_record_route(
         elif "student_records_alumni_code_key" in error_str:
             code, msg = ErrorCode.ALUMNI_ALREADY_HAS_STUDENT_RECORD.value, "This alumni already has a student record"
         elif "course_code" in error_str:
-            code, msg = ErrorCode.DEGREE_NOT_FOUND.value, "Specified course does not exist"
+            code, msg = ErrorCode.COURSE_NOT_FOUND.value, "Specified course does not exist"
         elif "alumni_code" in error_str:
             code, msg = ErrorCode.ALUMNI_NOT_FOUND.value, "Specified alumni does not exist"
         else:
@@ -282,7 +282,7 @@ def update_student_record_route(
         if "student_records_alumni_code_key" in error_str:
             code, msg = ErrorCode.ALUMNI_ALREADY_HAS_STUDENT_RECORD.value, "This alumni already has a student record"
         elif "course_code" in error_str:
-            code, msg = ErrorCode.DEGREE_NOT_FOUND.value, "Specified course does not exist"
+            code, msg = ErrorCode.COURSE_NOT_FOUND.value, "Specified course does not exist"
         elif "alumni_code" in error_str:
             code, msg = ErrorCode.ALUMNI_NOT_FOUND.value, "Specified alumni does not exist"
         elif "ix_student_records_student_id" in error_str or "student_records_student_id_key" in error_str:

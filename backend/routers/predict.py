@@ -115,10 +115,13 @@ def get_prediction(
     prediction = db.get(EmployabilityPrediction, prediction_id)
 
     if not prediction:
-        return StandardResponse(
-            success=False,
-            code=ErrorCode.PREDICTION_NOT_FOUND.value,
-            message=f"Prediction with ID '{prediction_id}' not found",
+        raise HTTPException(
+            status_code=404,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.PREDICTION_NOT_FOUND.value,
+                message=f"Prediction with ID '{prediction_id}' not found",
+            ).model_dump(mode="json"),
         )
 
     return StandardResponse(

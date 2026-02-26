@@ -37,12 +37,14 @@ def create_survey_route(body: SurveyCreate, session: Session = Depends(get_sessi
         if existing:
             raise HTTPException(
                 status_code=409,
-                detail={"code": ErrorCode.DUPLICATE_SURVEY_TITLE,
-                        "message": f"Survey with this title already exists (ID: {existing.survey_id})"}
+                detail=StandardResponse(
+                    success=False, code=ErrorCode.DUPLICATE_SURVEY_TITLE.value,
+                    message=f"Survey with this title already exists (ID: {existing.survey_id})"
+                ).model_dump(mode='json')
             )
         survey = create_survey(session, body)
         return StandardResponse(
-            success=True, code=SuccessCode.SURVEY_CREATED,
+            success=True, code=SuccessCode.SURVEY_CREATED.value,
             message="Survey created successfully",
             data=SurveyPublic.model_validate(survey),
             timestamp=get_current_time_gmt8()
@@ -51,7 +53,9 @@ def create_survey_route(body: SurveyCreate, session: Session = Depends(get_sessi
         raise
     except Exception as e:
         session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+        ).model_dump(mode='json'))
 
 
 @router.get("", response_model=StandardResponse)
@@ -71,14 +75,16 @@ def list_surveys_route(
             d["question_count"] = get_survey_question_count(session, survey.survey_code)
             survey_data.append(d)
         return StandardResponse(
-            success=True, code=SuccessCode.SURVEYS_RETRIEVED,
+            success=True, code=SuccessCode.SURVEYS_RETRIEVED.value,
             message="Surveys retrieved successfully",
             data={"surveys": survey_data, "total": total, "count": len(surveys),
                   "offset": skip, "limit": limit, "has_more": (skip + limit) < total},
             timestamp=get_current_time_gmt8()
         )
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+        ).model_dump(mode='json'))
 
 
 @router.get("/{survey_id}", response_model=StandardResponse)
@@ -87,20 +93,24 @@ def get_survey_route(survey_id: str, session: Session = Depends(get_session)):
     try:
         survey = get_survey_by_id(session, survey_id)
         if not survey:
-            raise HTTPException(status_code=404, detail="SURVEY_NOT_FOUND")
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.SURVEY_NOT_FOUND.value, message="Survey not found"
+            ).model_dump(mode='json'))
         questions = get_survey_questions_with_details(session, survey.survey_code)
         d = SurveyPublic.model_validate(survey).dict()
         d["questions"] = [q.dict() for q in questions]
         d["question_count"] = len(questions)
         return StandardResponse(
-            success=True, code=SuccessCode.SURVEY_RETRIEVED,
+            success=True, code=SuccessCode.SURVEY_RETRIEVED.value,
             message="Survey retrieved successfully", data=d,
             timestamp=get_current_time_gmt8()
         )
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+        ).model_dump(mode='json'))
 
 
 @router.patch("/{survey_id}", response_model=StandardResponse)
@@ -112,10 +122,12 @@ def update_survey_route(
     try:
         survey = get_survey_by_id(session, survey_id)
         if not survey:
-            raise HTTPException(status_code=404, detail="SURVEY_NOT_FOUND")
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.SURVEY_NOT_FOUND.value, message="Survey not found"
+            ).model_dump(mode='json'))
         updated = update_survey(session, survey, body)
         return StandardResponse(
-            success=True, code=SuccessCode.SURVEY_UPDATED,
+            success=True, code=SuccessCode.SURVEY_UPDATED.value,
             message="Survey updated successfully",
             data=SurveyPublic.model_validate(updated),
             timestamp=get_current_time_gmt8()
@@ -124,7 +136,9 @@ def update_survey_route(
         raise
     except Exception as e:
         session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+        ).model_dump(mode='json'))
 
 
 @router.delete("/{survey_id}", response_model=StandardResponse)
@@ -133,10 +147,12 @@ def delete_survey_route(survey_id: str, session: Session = Depends(get_session))
     try:
         survey = get_survey_by_id(session, survey_id)
         if not survey:
-            raise HTTPException(status_code=404, detail="SURVEY_NOT_FOUND")
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.SURVEY_NOT_FOUND.value, message="Survey not found"
+            ).model_dump(mode='json'))
         soft_delete_survey(session, survey)
         return StandardResponse(
-            success=True, code=SuccessCode.SURVEY_DELETED,
+            success=True, code=SuccessCode.SURVEY_DELETED.value,
             message="Survey deleted successfully",
             timestamp=get_current_time_gmt8()
         )
@@ -144,7 +160,9 @@ def delete_survey_route(survey_id: str, session: Session = Depends(get_session))
         raise
     except Exception as e:
         session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+        ).model_dump(mode='json'))
 
 
 @router.post("/{survey_id}/restore", response_model=StandardResponse)
@@ -153,10 +171,12 @@ def restore_survey_route(survey_id: str, session: Session = Depends(get_session)
     try:
         survey = get_deleted_survey_by_id(session, survey_id)
         if not survey:
-            raise HTTPException(status_code=404, detail="SURVEY_NOT_FOUND")
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.SURVEY_NOT_FOUND.value, message="Survey not found"
+            ).model_dump(mode='json'))
         restored = restore_survey(session, survey)
         return StandardResponse(
-            success=True, code=SuccessCode.SURVEY_RESTORED,
+            success=True, code=SuccessCode.SURVEY_RESTORED.value,
             message="Survey restored successfully",
             data=SurveyPublic.model_validate(restored),
             timestamp=get_current_time_gmt8()
@@ -165,7 +185,9 @@ def restore_survey_route(survey_id: str, session: Session = Depends(get_session)
         raise
     except Exception as e:
         session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+        ).model_dump(mode='json'))
 
 
 # ---------------------------------------------------------------------------
@@ -178,14 +200,20 @@ def publish_survey(survey_id: str, session: Session = Depends(get_session)):
     try:
         survey = get_survey_by_id(session, survey_id)
         if not survey:
-            raise HTTPException(status_code=404, detail="SURVEY_NOT_FOUND")
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.SURVEY_NOT_FOUND.value, message="Survey not found"
+            ).model_dump(mode='json'))
         if survey.status != SurveyStatus.DRAFT:
-            raise HTTPException(status_code=409, detail="SURVEY_NOT_DRAFT")
+            raise HTTPException(status_code=409, detail=StandardResponse(
+                success=False, code=ErrorCode.SURVEY_NOT_DRAFT.value, message="Survey is not in DRAFT status"
+            ).model_dump(mode='json'))
         if get_survey_question_count(session, survey.survey_code) == 0:
-            raise HTTPException(status_code=400, detail="SURVEY_HAS_NO_QUESTIONS")
+            raise HTTPException(status_code=400, detail=StandardResponse(
+                success=False, code=ErrorCode.SURVEY_HAS_NO_QUESTIONS.value, message="Survey has no questions"
+            ).model_dump(mode='json'))
         published = set_survey_status(session, survey, SurveyStatus.ACTIVE)
         return StandardResponse(
-            success=True, code=SuccessCode.SURVEY_PUBLISHED,
+            success=True, code=SuccessCode.SURVEY_PUBLISHED.value,
             message="Survey published successfully",
             data=SurveyPublic.model_validate(published),
             timestamp=get_current_time_gmt8()
@@ -194,7 +222,9 @@ def publish_survey(survey_id: str, session: Session = Depends(get_session)):
         raise
     except Exception as e:
         session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+        ).model_dump(mode='json'))
 
 
 @router.post("/{survey_id}/close", response_model=StandardResponse)
@@ -203,12 +233,16 @@ def close_survey(survey_id: str, session: Session = Depends(get_session)):
     try:
         survey = get_survey_by_id(session, survey_id)
         if not survey:
-            raise HTTPException(status_code=404, detail="SURVEY_NOT_FOUND")
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.SURVEY_NOT_FOUND.value, message="Survey not found"
+            ).model_dump(mode='json'))
         if survey.status == SurveyStatus.CLOSED:
-            raise HTTPException(status_code=409, detail="SURVEY_ALREADY_CLOSED")
+            raise HTTPException(status_code=409, detail=StandardResponse(
+                success=False, code=ErrorCode.SURVEY_ALREADY_CLOSED.value, message="Survey is already closed"
+            ).model_dump(mode='json'))
         closed = set_survey_status(session, survey, SurveyStatus.CLOSED)
         return StandardResponse(
-            success=True, code=SuccessCode.SURVEY_CLOSED,
+            success=True, code=SuccessCode.SURVEY_CLOSED.value,
             message="Survey closed successfully",
             data=SurveyPublic.model_validate(closed),
             timestamp=get_current_time_gmt8()
@@ -217,7 +251,9 @@ def close_survey(survey_id: str, session: Session = Depends(get_session)):
         raise
     except Exception as e:
         session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+        ).model_dump(mode='json'))
 
 
 @router.post("/{survey_id}/reopen", response_model=StandardResponse)
@@ -226,12 +262,16 @@ def reopen_survey(survey_id: str, session: Session = Depends(get_session)):
     try:
         survey = get_survey_by_id(session, survey_id)
         if not survey:
-            raise HTTPException(status_code=404, detail="SURVEY_NOT_FOUND")
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.SURVEY_NOT_FOUND.value, message="Survey not found"
+            ).model_dump(mode='json'))
         if survey.status != SurveyStatus.CLOSED:
-            raise HTTPException(status_code=409, detail="Survey is not closed")
+            raise HTTPException(status_code=409, detail=StandardResponse(
+                success=False, code=ErrorCode.SURVEY_NOT_ACTIVE.value, message="Survey is not closed"
+            ).model_dump(mode='json'))
         reopened = set_survey_status(session, survey, SurveyStatus.ACTIVE)
         return StandardResponse(
-            success=True, code=SuccessCode.SURVEY_REOPENED,
+            success=True, code=SuccessCode.SURVEY_REOPENED.value,
             message="Survey reopened successfully",
             data=SurveyPublic.model_validate(reopened),
             timestamp=get_current_time_gmt8()
@@ -240,7 +280,9 @@ def reopen_survey(survey_id: str, session: Session = Depends(get_session)):
         raise
     except Exception as e:
         session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+        ).model_dump(mode='json'))
 
 
 # ---------------------------------------------------------------------------
@@ -256,25 +298,35 @@ def add_question_to_survey_route(
     try:
         survey = get_survey_by_id(session, survey_id)
         if not survey:
-            raise HTTPException(status_code=404, detail="SURVEY_NOT_FOUND")
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.SURVEY_NOT_FOUND.value, message="Survey not found"
+            ).model_dump(mode='json'))
         sq = add_question_to_survey(session, survey, body)
         return StandardResponse(
-            success=True, code=SuccessCode.SURVEY_QUESTION_ADDED,
+            success=True, code=SuccessCode.SURVEY_QUESTION_ADDED.value,
             message="Question added to survey", data=sq.dict(),
             timestamp=get_current_time_gmt8()
         )
     except ValueError as e:
         msg = str(e)
         if msg == "QUESTION_NOT_FOUND":
-            raise HTTPException(status_code=404, detail="QUESTION_NOT_FOUND")
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.QUESTION_NOT_FOUND.value, message="Question not found"
+            ).model_dump(mode='json'))
         if msg == "QUESTION_ALREADY_IN_SURVEY":
-            raise HTTPException(status_code=409, detail="Question already in survey")
-        raise HTTPException(status_code=400, detail=msg)
+            raise HTTPException(status_code=409, detail=StandardResponse(
+                success=False, code=ErrorCode.INVALID_INPUT.value, message="Question already in survey"
+            ).model_dump(mode='json'))
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=msg
+        ).model_dump(mode='json'))
     except HTTPException:
         raise
     except Exception as e:
         session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+        ).model_dump(mode='json'))
 
 
 @router.post("/{survey_id}/questions/batch", response_model=StandardResponse, status_code=201)
@@ -286,16 +338,20 @@ def add_questions_batch_route(
     try:
         survey = get_survey_by_id(session, survey_id)
         if not survey:
-            raise HTTPException(status_code=404, detail="SURVEY_NOT_FOUND")
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.SURVEY_NOT_FOUND.value, message="Survey not found"
+            ).model_dump(mode='json'))
         if survey.status != SurveyStatus.DRAFT:
-            raise HTTPException(status_code=409, detail="Can only add questions to DRAFT surveys")
+            raise HTTPException(status_code=409, detail=StandardResponse(
+                success=False, code=ErrorCode.SURVEY_NOT_DRAFT.value, message="Can only add questions to DRAFT surveys"
+            ).model_dump(mode='json'))
         added, failed = add_questions_batch(session, survey, body)
         result = {"added": len(added), "failed": len(failed), "questions": [q.dict() for q in added]}
         if failed:
             result["failed_items"] = failed
         return StandardResponse(
             success=len(failed) == 0,
-            code=SuccessCode.SURVEY_QUESTIONS_BATCH_ADDED,
+            code=SuccessCode.SURVEY_QUESTIONS_BATCH_ADDED.value,
             message=f"Added {len(added)} questions" + (f", {len(failed)} failed" if failed else ""),
             data=result, timestamp=get_current_time_gmt8()
         )
@@ -303,7 +359,9 @@ def add_questions_batch_route(
         raise
     except Exception as e:
         session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+        ).model_dump(mode='json'))
 
 
 @router.get("/{survey_id}/questions", response_model=StandardResponse)
@@ -312,10 +370,12 @@ def get_survey_questions_route(survey_id: str, session: Session = Depends(get_se
     try:
         survey = get_survey_by_id(session, survey_id)
         if not survey:
-            raise HTTPException(status_code=404, detail="SURVEY_NOT_FOUND")
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.SURVEY_NOT_FOUND.value, message="Survey not found"
+            ).model_dump(mode='json'))
         questions = get_survey_questions_with_details(session, survey.survey_code)
         return StandardResponse(
-            success=True, code=SuccessCode.SURVEY_QUESTIONS_RETRIEVED,
+            success=True, code=SuccessCode.SURVEY_QUESTIONS_RETRIEVED.value,
             message="Survey questions retrieved",
             data={"questions": [q.dict() for q in questions]},
             timestamp=get_current_time_gmt8()
@@ -323,7 +383,9 @@ def get_survey_questions_route(survey_id: str, session: Session = Depends(get_se
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+        ).model_dump(mode='json'))
 
 
 @router.delete("/{survey_id}/questions/{question_id}", response_model=StandardResponse)
@@ -335,24 +397,35 @@ def remove_question_from_survey_route(
     try:
         survey = get_survey_by_id(session, survey_id)
         if not survey:
-            raise HTTPException(status_code=404, detail={"code": ErrorCode.SURVEY_NOT_FOUND, "message": "Survey not found"})
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.SURVEY_NOT_FOUND.value, message="Survey not found"
+            ).model_dump(mode='json'))
         remove_question_from_survey(session, survey, question_id)
         return StandardResponse(
-            success=True, code=SuccessCode.SURVEY_QUESTION_REMOVED,
+            success=True, code=SuccessCode.SURVEY_QUESTION_REMOVED.value,
             message="Question removed from survey",
             timestamp=get_current_time_gmt8()
         )
     except ValueError as e:
         msg = str(e)
         if msg == "QUESTION_NOT_FOUND":
-            raise HTTPException(status_code=404, detail={"code": ErrorCode.QUESTION_NOT_FOUND, "message": "Question not found"})
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.QUESTION_NOT_FOUND.value, message="Question not found"
+            ).model_dump(mode='json'))
         if msg == "SURVEY_QUESTION_NOT_FOUND":
-            raise HTTPException(status_code=404, detail={"code": ErrorCode.SURVEY_QUESTION_NOT_FOUND, "message": f"Question {question_id} is not in survey {survey_id}"})
-        raise HTTPException(status_code=500, detail={"code": ErrorCode.INVALID_INPUT, "message": msg})
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.SURVEY_QUESTION_NOT_FOUND.value,
+                message=f"Question {question_id} is not in survey {survey_id}"
+            ).model_dump(mode='json'))
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=msg
+        ).model_dump(mode='json'))
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail={"code": ErrorCode.INVALID_INPUT, "message": str(e)})
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+        ).model_dump(mode='json'))
 
 
 @router.patch("/{survey_id}/questions/reorder", response_model=StandardResponse)
@@ -364,10 +437,12 @@ def reorder_survey_questions_route(
     try:
         survey = get_survey_by_id(session, survey_id)
         if not survey:
-            raise HTTPException(status_code=404, detail="SURVEY_NOT_FOUND")
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.SURVEY_NOT_FOUND.value, message="Survey not found"
+            ).model_dump(mode='json'))
         reorder_survey_questions(session, survey, body.order_map)
         return StandardResponse(
-            success=True, code=SuccessCode.SURVEY_QUESTIONS_REORDERED,
+            success=True, code=SuccessCode.SURVEY_QUESTIONS_REORDERED.value,
             message="Questions reordered successfully",
             timestamp=get_current_time_gmt8()
         )
@@ -375,7 +450,9 @@ def reorder_survey_questions_route(
         raise
     except Exception as e:
         session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+        ).model_dump(mode='json'))
 
 
 # ---------------------------------------------------------------------------
@@ -391,12 +468,14 @@ def configure_distribution_route(
     try:
         survey = get_survey_by_id(session, survey_id)
         if not survey:
-            raise HTTPException(status_code=404, detail="SURVEY_NOT_FOUND")
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.SURVEY_NOT_FOUND.value, message="Survey not found"
+            ).model_dump(mode='json'))
         config = configure_distribution(session, survey, body)
         existing_existed = get_distribution_config(session, survey.survey_code) is not None
         return StandardResponse(
             success=True,
-            code=SuccessCode.DISTRIBUTION_CONFIG_UPDATED if existing_existed else SuccessCode.DISTRIBUTION_CONFIG_CREATED,
+            code=SuccessCode.DISTRIBUTION_CONFIG_UPDATED.value if existing_existed else SuccessCode.DISTRIBUTION_CONFIG_CREATED.value,
             message="Distribution config updated" if existing_existed else "Distribution config created",
             data=SurveyDistributionConfigPublic.model_validate(config),
             timestamp=get_current_time_gmt8()
@@ -405,7 +484,9 @@ def configure_distribution_route(
         raise
     except Exception as e:
         session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+        ).model_dump(mode='json'))
 
 
 @router.get("/{survey_id}/distribution/config", response_model=StandardResponse)
@@ -414,12 +495,16 @@ def get_distribution_config_route(survey_id: str, session: Session = Depends(get
     try:
         survey = get_survey_by_id(session, survey_id)
         if not survey:
-            raise HTTPException(status_code=404, detail="SURVEY_NOT_FOUND")
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.SURVEY_NOT_FOUND.value, message="Survey not found"
+            ).model_dump(mode='json'))
         config = get_distribution_config(session, survey.survey_code)
         if not config:
-            raise HTTPException(status_code=404, detail="DISTRIBUTION_CONFIG_NOT_FOUND")
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.DISTRIBUTION_CONFIG_NOT_FOUND.value, message="Distribution config not found"
+            ).model_dump(mode='json'))
         return StandardResponse(
-            success=True, code=SuccessCode.DISTRIBUTION_CONFIG_RETRIEVED,
+            success=True, code=SuccessCode.DISTRIBUTION_CONFIG_RETRIEVED.value,
             message="Distribution config retrieved",
             data=SurveyDistributionConfigPublic.model_validate(config),
             timestamp=get_current_time_gmt8()
@@ -427,7 +512,9 @@ def get_distribution_config_route(survey_id: str, session: Session = Depends(get
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+        ).model_dump(mode='json'))
 
 
 @router.patch("/{survey_id}/distribution/config", response_model=StandardResponse)
@@ -439,15 +526,21 @@ def update_distribution_config_route(
     try:
         survey = get_survey_by_id(session, survey_id)
         if not survey:
-            raise HTTPException(status_code=404, detail="SURVEY_NOT_FOUND")
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.SURVEY_NOT_FOUND.value, message="Survey not found"
+            ).model_dump(mode='json'))
         config = get_distribution_config(session, survey.survey_code)
         if not config:
-            raise HTTPException(status_code=404, detail="DISTRIBUTION_CONFIG_NOT_FOUND")
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.DISTRIBUTION_CONFIG_NOT_FOUND.value, message="Distribution config not found"
+            ).model_dump(mode='json'))
         if config.status != DistributionStatus.DRAFT:
-            raise HTTPException(status_code=409, detail="DISTRIBUTION_ALREADY_SENT")
+            raise HTTPException(status_code=409, detail=StandardResponse(
+                success=False, code=ErrorCode.DISTRIBUTION_ALREADY_SENT.value, message="Distribution already sent"
+            ).model_dump(mode='json'))
         updated = update_distribution_config(session, config, body)
         return StandardResponse(
-            success=True, code=SuccessCode.DISTRIBUTION_CONFIG_UPDATED,
+            success=True, code=SuccessCode.DISTRIBUTION_CONFIG_UPDATED.value,
             message="Distribution config updated",
             data=SurveyDistributionConfigPublic.model_validate(updated),
             timestamp=get_current_time_gmt8()
@@ -456,4 +549,6 @@ def update_distribution_config_route(
         raise
     except Exception as e:
         session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+        ).model_dump(mode='json'))

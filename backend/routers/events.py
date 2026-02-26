@@ -28,7 +28,7 @@ def create_event_route(event_create: EventCreate, session: Session = Depends(get
     try:
         event = create_event(session, event_create)
         return StandardResponse(
-            success=True, code=SuccessCode.EVENT_CREATED,
+            success=True, code=SuccessCode.EVENT_CREATED.value,
             message="Event created successfully",
             data=EventPublic.model_validate(event)
         )
@@ -37,8 +37,8 @@ def create_event_route(event_create: EventCreate, session: Session = Depends(get
     except Exception as e:
         logger.error(f"Error creating event: {e}")
         raise HTTPException(status_code=400, detail=StandardResponse(
-            success=False, code=ErrorCode.INVALID_INPUT, message=f"Failed to create event: {e}"
-        ).model_dump())
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=f"Failed to create event: {e}"
+        ).model_dump(mode='json'))
 
 
 @router.get("/", response_model=StandardResponse)
@@ -65,15 +65,15 @@ def list_events(
             has_next=(offset + returned) < total if limit > 0 else False
         )
         return StandardResponse(
-            success=True, code=SuccessCode.EVENTS_RETRIEVED,
+            success=True, code=SuccessCode.EVENTS_RETRIEVED.value,
             message=f"Retrieved {returned} events",
             data={"events": [EventPublic.model_validate(e) for e in events], "pagination": pagination}
         )
     except Exception as e:
         logger.error(f"Error listing events: {e}")
         raise HTTPException(status_code=400, detail=StandardResponse(
-            success=False, code=ErrorCode.INVALID_INPUT, message=f"Failed to list events: {e}"
-        ).model_dump())
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=f"Failed to list events: {e}"
+        ).model_dump(mode='json'))
 
 
 @router.get("/{event_id}", response_model=StandardResponse)
@@ -83,11 +83,11 @@ def get_event(event_id: str, session: Session = Depends(get_session)):
         event = get_active_event_by_id(session, event_id)
         if not event:
             raise HTTPException(status_code=404, detail=StandardResponse(
-                success=False, code=ErrorCode.EVENT_NOT_FOUND,
+                success=False, code=ErrorCode.EVENT_NOT_FOUND.value,
                 message=f"Event with ID '{event_id}' not found"
-            ).model_dump())
+            ).model_dump(mode='json'))
         return StandardResponse(
-            success=True, code=SuccessCode.EVENT_RETRIEVED,
+            success=True, code=SuccessCode.EVENT_RETRIEVED.value,
             message="Event retrieved successfully",
             data=EventPublic.model_validate(event)
         )
@@ -96,8 +96,8 @@ def get_event(event_id: str, session: Session = Depends(get_session)):
     except Exception as e:
         logger.error(f"Error retrieving event: {e}")
         raise HTTPException(status_code=400, detail=StandardResponse(
-            success=False, code=ErrorCode.INVALID_INPUT, message=f"Failed to retrieve event: {e}"
-        ).model_dump())
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=f"Failed to retrieve event: {e}"
+        ).model_dump(mode='json'))
 
 
 @router.patch("/{event_id}", response_model=StandardResponse)
@@ -109,13 +109,13 @@ def update_event_route(
     try:
         event = get_event_by_id(session, event_id)
         if event.is_deleted:
-            raise HTTPException(status_code=404, detail=StandardResponse(
-                success=False, code=ErrorCode.EVENT_ALREADY_DELETED,
+            raise HTTPException(status_code=400, detail=StandardResponse(
+                success=False, code=ErrorCode.EVENT_ALREADY_DELETED.value,
                 message="Cannot update a deleted event"
-            ).model_dump())
+            ).model_dump(mode='json'))
         updated = update_event(session, event, event_update)
         return StandardResponse(
-            success=True, code=SuccessCode.EVENT_UPDATED,
+            success=True, code=SuccessCode.EVENT_UPDATED.value,
             message="Event updated successfully",
             data=EventPublic.model_validate(updated)
         )
@@ -124,8 +124,8 @@ def update_event_route(
     except Exception as e:
         logger.error(f"Error updating event: {e}")
         raise HTTPException(status_code=400, detail=StandardResponse(
-            success=False, code=ErrorCode.INVALID_INPUT, message=f"Failed to update event: {e}"
-        ).model_dump())
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=f"Failed to update event: {e}"
+        ).model_dump(mode='json'))
 
 
 @router.delete("/{event_id}", response_model=StandardResponse)
@@ -134,18 +134,18 @@ def delete_event(event_id: str, session: Session = Depends(get_session)):
     try:
         event = get_event_by_id(session, event_id)
         if event.is_deleted:
-            raise HTTPException(status_code=409, detail=StandardResponse(
-                success=False, code=ErrorCode.ALREADY_DELETED, message="Event is already deleted"
-            ).model_dump())
+            raise HTTPException(status_code=400, detail=StandardResponse(
+                success=False, code=ErrorCode.ALREADY_DELETED.value, message="Event is already deleted"
+            ).model_dump(mode='json'))
         soft_delete_event(session, event)
-        return StandardResponse(success=True, code=SuccessCode.EVENT_DELETED, message="Event deleted successfully")
+        return StandardResponse(success=True, code=SuccessCode.EVENT_DELETED.value, message="Event deleted successfully")
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error deleting event: {e}")
         raise HTTPException(status_code=400, detail=StandardResponse(
-            success=False, code=ErrorCode.INVALID_INPUT, message=f"Failed to delete event: {e}"
-        ).model_dump())
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=f"Failed to delete event: {e}"
+        ).model_dump(mode='json'))
 
 
 @router.post("/{event_id}/restore", response_model=StandardResponse)
@@ -154,12 +154,12 @@ def restore_event_route(event_id: str, session: Session = Depends(get_session)):
     try:
         event = get_event_by_id(session, event_id)
         if not event.is_deleted:
-            raise HTTPException(status_code=409, detail=StandardResponse(
-                success=False, code=ErrorCode.EVENT_NOT_DELETED, message="Event is not deleted"
-            ).model_dump())
+            raise HTTPException(status_code=400, detail=StandardResponse(
+                success=False, code=ErrorCode.EVENT_NOT_DELETED.value, message="Event is not deleted"
+            ).model_dump(mode='json'))
         restored = restore_event(session, event)
         return StandardResponse(
-            success=True, code=SuccessCode.EVENT_RESTORED,
+            success=True, code=SuccessCode.EVENT_RESTORED.value,
             message="Event restored successfully",
             data=EventPublic.model_validate(restored)
         )
@@ -168,8 +168,8 @@ def restore_event_route(event_id: str, session: Session = Depends(get_session)):
     except Exception as e:
         logger.error(f"Error restoring event: {e}")
         raise HTTPException(status_code=400, detail=StandardResponse(
-            success=False, code=ErrorCode.INVALID_INPUT, message=f"Failed to restore event: {e}"
-        ).model_dump())
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=f"Failed to restore event: {e}"
+        ).model_dump(mode='json'))
 
 
 # ---------------------------------------------------------------------------
@@ -186,28 +186,28 @@ async def upload_event_image(
         event = get_active_event_by_id(session, event_id)
         if not event:
             raise HTTPException(status_code=404, detail=StandardResponse(
-                success=False, code=ErrorCode.EVENT_NOT_FOUND, message="Event not found"
-            ).model_dump())
+                success=False, code=ErrorCode.EVENT_NOT_FOUND.value, message="Event not found"
+            ).model_dump(mode='json'))
 
         success, image_path, error = await storage_service.upload_image(file, event_id)
         if not success:
             if "Invalid file type" in str(error):
                 raise HTTPException(status_code=400, detail=StandardResponse(
-                    success=False, code=ErrorCode.IMAGE_INVALID_TYPE, message=error
-                ).model_dump())
+                    success=False, code=ErrorCode.IMAGE_INVALID_TYPE.value, message=error
+                ).model_dump(mode='json'))
             elif "too large" in str(error).lower():
                 raise HTTPException(status_code=413, detail=StandardResponse(
-                    success=False, code=ErrorCode.IMAGE_TOO_LARGE, message=error
-                ).model_dump())
+                    success=False, code=ErrorCode.IMAGE_TOO_LARGE.value, message=error
+                ).model_dump(mode='json'))
             else:
                 raise HTTPException(status_code=400, detail=StandardResponse(
-                    success=False, code=ErrorCode.IMAGE_UPLOAD_FAILED, message=error
-                ).model_dump())
+                    success=False, code=ErrorCode.IMAGE_UPLOAD_FAILED.value, message=error
+                ).model_dump(mode='json'))
 
         update_event_image(session, event, image_path)
         image_url = storage_service.get_public_url(image_path)
         return StandardResponse(
-            success=True, code=SuccessCode.IMAGE_UPLOADED,
+            success=True, code=SuccessCode.IMAGE_UPLOADED.value,
             message="Image uploaded successfully",
             data={"image_path": image_path, "image_url": image_url}
         )
@@ -216,8 +216,8 @@ async def upload_event_image(
     except Exception as e:
         logger.error(f"Error uploading image: {e}")
         raise HTTPException(status_code=400, detail=StandardResponse(
-            success=False, code=ErrorCode.INVALID_INPUT, message=f"Failed to upload image: {e}"
-        ).model_dump())
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=f"Failed to upload image: {e}"
+        ).model_dump(mode='json'))
 
 
 @router.delete("/{event_id}/delete-image", response_model=StandardResponse)
@@ -227,24 +227,24 @@ async def delete_event_image(event_id: str, session: Session = Depends(get_sessi
         event = get_event_by_id(session, event_id)
         if not event.image_path:
             raise HTTPException(status_code=404, detail=StandardResponse(
-                success=False, code=ErrorCode.IMAGE_NOT_FOUND, message="Event has no image"
-            ).model_dump())
+                success=False, code=ErrorCode.IMAGE_NOT_FOUND.value, message="Event has no image"
+            ).model_dump(mode='json'))
 
         success, error = await storage_service.delete_image(event.image_path)
         if not success:
             raise HTTPException(status_code=400, detail=StandardResponse(
-                success=False, code=ErrorCode.IMAGE_DELETE_FAILED, message=error
-            ).model_dump())
+                success=False, code=ErrorCode.IMAGE_DELETE_FAILED.value, message=error
+            ).model_dump(mode='json'))
 
         clear_event_image(session, event)
-        return StandardResponse(success=True, code=SuccessCode.IMAGE_DELETED, message="Image deleted successfully")
+        return StandardResponse(success=True, code=SuccessCode.IMAGE_DELETED.value, message="Image deleted successfully")
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error deleting image: {e}")
         raise HTTPException(status_code=400, detail=StandardResponse(
-            success=False, code=ErrorCode.INVALID_INPUT, message=f"Failed to delete image: {e}"
-        ).model_dump())
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=f"Failed to delete image: {e}"
+        ).model_dump(mode='json'))
 
 
 @router.get("/{event_id}/image-url", response_model=StandardResponse)
@@ -254,15 +254,15 @@ def get_event_image_url(event_id: str, session: Session = Depends(get_session)):
         event = get_event_by_id(session, event_id)
         if not event.image_path:
             raise HTTPException(status_code=404, detail=StandardResponse(
-                success=False, code=ErrorCode.IMAGE_NOT_FOUND, message="Event has no image"
-            ).model_dump())
+                success=False, code=ErrorCode.IMAGE_NOT_FOUND.value, message="Event has no image"
+            ).model_dump(mode='json'))
         image_url = storage_service.get_public_url(event.image_path)
         if not image_url:
             raise HTTPException(status_code=400, detail=StandardResponse(
-                success=False, code=ErrorCode.IMAGE_URL_FAILED, message="Failed to generate image URL"
-            ).model_dump())
+                success=False, code=ErrorCode.IMAGE_URL_FAILED.value, message="Failed to generate image URL"
+            ).model_dump(mode='json'))
         return StandardResponse(
-            success=True, code=SuccessCode.IMAGE_URL_RETRIEVED,
+            success=True, code=SuccessCode.IMAGE_URL_RETRIEVED.value,
             message="Image URL retrieved successfully",
             data={"image_url": image_url}
         )
@@ -271,5 +271,5 @@ def get_event_image_url(event_id: str, session: Session = Depends(get_session)):
     except Exception as e:
         logger.error(f"Error getting image URL: {e}")
         raise HTTPException(status_code=400, detail=StandardResponse(
-            success=False, code=ErrorCode.INVALID_INPUT, message=f"Failed to get image URL: {e}"
-        ).model_dump())
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=f"Failed to get image URL: {e}"
+        ).model_dump(mode='json'))

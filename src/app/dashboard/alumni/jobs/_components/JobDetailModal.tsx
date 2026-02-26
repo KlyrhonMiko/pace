@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 interface JobDetailModalProps {
     job: {
@@ -85,7 +86,7 @@ export default function JobDetailModal({ job, onClose }: JobDetailModalProps) {
         }
     })();
 
-    return (
+    const modalContent = (
         <div
             ref={overlayRef}
             onClick={handleOverlayClick}
@@ -535,4 +536,7 @@ export default function JobDetailModal({ job, onClose }: JobDetailModalProps) {
             </div>
         </div>
     );
+
+    if (typeof document === "undefined") return null;
+    return createPortal(modalContent, document.body);
 }

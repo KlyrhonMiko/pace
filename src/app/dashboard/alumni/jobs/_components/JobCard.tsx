@@ -7,6 +7,7 @@ export default function JobCard({
     logo,
     description,
     className,
+    onClick,
 }: {
     title: string;
     company: string;
@@ -16,6 +17,7 @@ export default function JobCard({
     logo: string;
     description?: string;
     className?: string;
+    onClick?: () => void;
 }) {
     const getBadgeStyle = () => {
         switch (type.toLowerCase()) {
@@ -45,7 +47,7 @@ export default function JobCard({
     };
 
     return (
-        <div className={`group relative flex items-start gap-4 rounded-xl border border-gray-100 bg-white p-4 transition-all duration-300 hover:bg-gradient-to-r hover:from-white hover:to-amber-50/30 hover:border-amber-200/60 hover:shadow-md hover:shadow-amber-100/20 ${className}`}>
+        <div onClick={onClick} className={`group relative flex items-start gap-4 rounded-xl border border-gray-100 bg-white p-4 transition-all duration-300 hover:bg-gradient-to-r hover:from-white hover:to-amber-50/30 hover:border-amber-200/60 hover:shadow-md hover:shadow-amber-100/20 cursor-pointer ${className}`}>
             {/* Hover accent bar */}
             <div className="absolute left-0 top-3 bottom-3 w-0.5 rounded-full bg-gradient-to-b from-amber-400 to-orange-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 

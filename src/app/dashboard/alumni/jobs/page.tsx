@@ -3,9 +3,9 @@
 import { toast } from "sonner";
 import { useState, useMemo, useEffect, useCallback } from "react";
 
-
 import JobFilters from "./_components/JobFilters";
 import JobList from "./_components/JobList";
+import JobsHeader from "./_components/JobsHeader";
 import { jobTypes, experienceLevels, workTypes } from "./_components/constants";
 import { searchJobs, JoobleJob } from "./_lib/api";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -271,11 +271,8 @@ export default function JobListingsPage() {
             </div>
 
             {/* Page Header */}
-            <div className="relative mb-8">
-                <h1 className="text-2xl font-bold text-slate-900">Job Listings</h1>
-                <p className="mt-1 text-slate-500">Discover opportunities that match your skills and career goals</p>
-
-
+            <div className="mb-6">
+                <JobsHeader />
             </div>
 
 

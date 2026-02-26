@@ -1,8 +1,8 @@
 "use client";
 
-
-
+import { useState } from "react";
 import JobCard from "./JobCard";
+import JobDetailModal from "./JobDetailModal";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface Job {
@@ -18,6 +18,8 @@ interface Job {
     experienceLevel: string;
     workType: string;
     snippet?: string;
+    link?: string;
+    description?: string;
 }
 
 interface JobListProps {
@@ -46,190 +48,186 @@ export default function JobList({
     isLoading = false,
 }: JobListProps) {
     const paginatedJobs = filteredJobs;
+    const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
     return (
-        <div className="relative rounded-2xl bg-white border border-slate-400/50 p-6 shadow-lg shadow-slate-300/50 hover:shadow-xl transition-all duration-300 overflow-hidden">
-            {/* Texture pattern */}
-            <div
-                className="pointer-events-none absolute inset-0 opacity-[0.015]"
-                style={{
-                    backgroundImage: `repeating-linear-gradient(
-                                    -45deg,
-                                    transparent,
-                                    transparent 6px,
-                                    rgba(0,0,0,0.05) 6px,
-                                    rgba(0,0,0,0.05) 7px
-                                )`,
-                }}
-            />
-            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white to-transparent opacity-80" />
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-emerald-100/50 to-transparent rounded-full blur-2xl" />
-
-            <div className="relative z-10 mb-6 flex items-center justify-between">
-                <div>
-                    <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="group/card rounded-2xl bg-white border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50 hover:-translate-y-0.5 h-full flex flex-col">
+            <div className="p-6 flex-1 flex flex-col">
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-400 to-indigo-600 text-white shadow-lg shadow-blue-200/50">
+                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                             </svg>
-                        </span>
-                        Available Positions
-                    </h2>
-                    <p className="mt-1 text-sm text-slate-500">
-                        Showing <strong className="text-slate-800">{filteredJobs.length}</strong> of {totalJobs} jobs
-                    </p>
+                        </div>
+                        <div>
+                            <h2 className="text-base font-bold text-gray-900">
+                                Available Positions
+                            </h2>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                                Showing <strong className="text-gray-900">{filteredJobs.length}</strong> of {totalJobs} jobs
+                            </p>
+                        </div>
+                    </div>
                 </div>
-            </div>
 
-            {/* Loading State */}
-            {isLoading ? (
-                <div className="relative z-10 flex flex-col gap-4">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                        <div key={i} className="flex items-start gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                            {/* Logo Skeleton */}
-                            <Skeleton className="h-12 w-12 rounded-xl flex-shrink-0" />
+                {/* Loading State */}
+                {isLoading ? (
+                    <div className="relative z-10 flex flex-col gap-4">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                            <div key={i} className="flex items-start gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                                {/* Logo Skeleton */}
+                                <Skeleton className="h-12 w-12 rounded-xl flex-shrink-0" />
 
-                            <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-start mb-2">
-                                    <div className="space-y-1.5">
-                                        {/* Title Skeleton */}
-                                        <Skeleton className="h-6 w-48" />
-                                        {/* Company Skeleton */}
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div className="space-y-1.5">
+                                            {/* Title Skeleton */}
+                                            <Skeleton className="h-6 w-48" />
+                                            {/* Company Skeleton */}
+                                            <Skeleton className="h-4 w-32" />
+                                        </div>
+                                        <div className="flex gap-2">
+                                            {/* Badge Skeleton */}
+                                            <Skeleton className="h-6 w-20 rounded-full" />
+                                        </div>
+                                    </div>
+
+                                    {/* Description Skeleton */}
+                                    <div className="space-y-1.5 mb-3">
+                                        <Skeleton className="h-4 w-full" />
+                                        <Skeleton className="h-4 w-5/6" />
+                                    </div>
+
+                                    {/* Footer Skeleton (Location & Salary) */}
+                                    <div className="flex gap-4">
                                         <Skeleton className="h-4 w-32" />
+                                        <Skeleton className="h-4 w-24" />
                                     </div>
-                                    <div className="flex gap-2">
-                                        {/* Badge Skeleton */}
-                                        <Skeleton className="h-6 w-20 rounded-full" />
-                                    </div>
-                                </div>
-
-                                {/* Description Skeleton */}
-                                <div className="space-y-1.5 mb-3">
-                                    <Skeleton className="h-4 w-full" />
-                                    <Skeleton className="h-4 w-5/6" />
-                                </div>
-
-                                {/* Footer Skeleton (Location & Salary) */}
-                                <div className="flex gap-4">
-                                    <Skeleton className="h-4 w-32" />
-                                    <Skeleton className="h-4 w-24" />
                                 </div>
                             </div>
+                        ))}
+                    </div>
+                ) : (
+                    /* Job Cards List */
+                    <div className="relative z-10 flex flex-col gap-4">
+                        {paginatedJobs.map((job) => (
+                            <JobCard
+                                key={job.id}
+                                title={job.title}
+                                company={job.company}
+                                location={job.location}
+                                salary={job.salaryDisplay}
+                                type={job.type}
+                                logo={job.logo}
+                                description={job.snippet}
+                                onClick={() => setSelectedJob(job)}
+                            />
+                        ))}
+                    </div>
+                )}
+
+                {/* Empty State */}
+                {!isLoading && filteredJobs.length === 0 && (
+                    <div className="relative z-10 py-12 text-center">
+                        <div className="flex justify-center mb-4">
+                            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+                                <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                            </div>
                         </div>
-                    ))}
-                </div>
-            ) : (
-                /* Job Cards List */
-                <div className="relative z-10 flex flex-col gap-4">
-                    {paginatedJobs.map((job) => (
-                        <JobCard
-                            key={job.id}
-                            title={job.title}
-                            company={job.company}
-                            location={job.location}
-                            salary={job.salaryDisplay}
-                            type={job.type}
+                        <h3 className="text-lg font-semibold text-slate-800 mb-2">No jobs found</h3>
+                        <p className="text-slate-500 mb-4">Try adjusting your search or filter criteria</p>
+                        <button
+                            onClick={clearFilters}
+                            className="px-6 py-2.5 rounded-xl bg-emerald-700 text-white font-medium hover:bg-emerald-800 transition-colors"
+                        >
+                            Clear Filters
+                        </button>
+                    </div>
+                )}
 
-                            logo={job.logo}
-                            description={job.snippet}
-                        />
-                    ))}
-                </div>
-            )}
-
-            {/* Empty State */}
-            {!isLoading && filteredJobs.length === 0 && (
-                <div className="relative z-10 py-12 text-center">
-                    <div className="flex justify-center mb-4">
-                        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
-                            <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                {/* Pagination */}
+                {!isLoading && totalPages > 1 && (
+                    <div className="relative z-10 mt-8 flex items-center justify-center gap-2">
+                        {/* Previous Button */}
+                        <button
+                            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className="flex items-center gap-1 px-4 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 font-medium transition-all duration-200 hover:border-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:text-slate-600 disabled:hover:bg-slate-50"
+                        >
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                             </svg>
-                        </div>
-                    </div>
-                    <h3 className="text-lg font-semibold text-slate-800 mb-2">No jobs found</h3>
-                    <p className="text-slate-500 mb-4">Try adjusting your search or filter criteria</p>
-                    <button
-                        onClick={clearFilters}
-                        className="px-6 py-2.5 rounded-xl bg-emerald-700 text-white font-medium hover:bg-emerald-800 transition-colors"
-                    >
-                        Clear Filters
-                    </button>
-                </div>
-            )}
+                            Prev
+                        </button>
 
-            {/* Pagination */}
-            {!isLoading && totalPages > 1 && (
-                <div className="relative z-10 mt-8 flex items-center justify-center gap-2">
-                    {/* Previous Button */}
-                    <button
-                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                        className="flex items-center gap-1 px-4 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 font-medium transition-all duration-200 hover:border-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:text-slate-600 disabled:hover:bg-slate-50"
-                    >
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                        </svg>
-                        Prev
-                    </button>
+                        {/* Page Numbers */}
+                        <div className="flex items-center gap-1">
+                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                                // Show first, last, current, and adjacent pages
+                                const showPage =
+                                    page === 1 ||
+                                    page === totalPages ||
+                                    Math.abs(page - currentPage) <= 1;
+                                const showEllipsis =
+                                    (page === 2 && currentPage > 3) ||
+                                    (page === totalPages - 1 && currentPage < totalPages - 2);
 
-                    {/* Page Numbers */}
-                    <div className="flex items-center gap-1">
-                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
-                            // Show first, last, current, and adjacent pages
-                            const showPage =
-                                page === 1 ||
-                                page === totalPages ||
-                                Math.abs(page - currentPage) <= 1;
-                            const showEllipsis =
-                                (page === 2 && currentPage > 3) ||
-                                (page === totalPages - 1 && currentPage < totalPages - 2);
+                                if (!showPage && !showEllipsis) return null;
 
-                            if (!showPage && !showEllipsis) return null;
+                                if (showEllipsis && !showPage) {
+                                    return (
+                                        <span key={page} className="px-2 text-slate-400">
+                                            ...
+                                        </span>
+                                    );
+                                }
 
-                            if (showEllipsis && !showPage) {
                                 return (
-                                    <span key={page} className="px-2 text-slate-400">
-                                        ...
-                                    </span>
+                                    <button
+                                        key={page}
+                                        onClick={() => setCurrentPage(page)}
+                                        className={`min-w-[40px] h-10 rounded-lg font-medium transition-all duration-200 ${currentPage === page
+                                            ? "bg-emerald-700 text-white shadow-md shadow-emerald-200"
+                                            : "bg-slate-50 border border-slate-200 text-slate-600 hover:border-emerald-600 hover:text-emerald-800 hover:bg-emerald-50"
+                                            }`}
+                                    >
+                                        {page}
+                                    </button>
                                 );
-                            }
+                            })}
+                        </div>
 
-                            return (
-                                <button
-                                    key={page}
-                                    onClick={() => setCurrentPage(page)}
-                                    className={`min-w-[40px] h-10 rounded-lg font-medium transition-all duration-200 ${currentPage === page
-                                        ? "bg-emerald-700 text-white shadow-md shadow-emerald-200"
-                                        : "bg-slate-50 border border-slate-200 text-slate-600 hover:border-emerald-600 hover:text-emerald-800 hover:bg-emerald-50"
-                                        }`}
-                                >
-                                    {page}
-                                </button>
-                            );
-                        })}
+                        {/* Next Button */}
+                        <button
+                            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            className="flex items-center gap-1 px-4 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 font-medium transition-all duration-200 hover:border-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:text-slate-600 disabled:hover:bg-slate-50"
+                        >
+                            Next
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                        </button>
                     </div>
+                )}
 
-                    {/* Next Button */}
-                    <button
-                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                        disabled={currentPage === totalPages}
-                        className="flex items-center gap-1 px-4 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 font-medium transition-all duration-200 hover:border-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:text-slate-600 disabled:hover:bg-slate-50"
-                    >
-                        Next
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                    </button>
-                </div>
-            )}
-
-            {/* Showing X of Y jobs indicator */}
-            {!isLoading && filteredJobs.length > 0 && (
-                <div className="relative z-10 mt-4 text-center text-sm text-slate-500">
-                    Showing {(currentPage - 1) * JOBS_PER_PAGE + 1}-{Math.min((currentPage - 1) * JOBS_PER_PAGE + filteredJobs.length, totalJobs)} of {totalJobs} jobs
-                </div>
-            )}
+                {/* Showing X of Y jobs indicator */}
+                {!isLoading && filteredJobs.length > 0 && (
+                    <div className="relative z-10 mt-4 text-center text-sm text-slate-500">
+                        Showing {(currentPage - 1) * JOBS_PER_PAGE + 1}-{Math.min((currentPage - 1) * JOBS_PER_PAGE + filteredJobs.length, totalJobs)} of {totalJobs} jobs
+                    </div>
+                )}
+                {/* Job Detail Modal */}
+                {selectedJob && (
+                    <JobDetailModal
+                        job={selectedJob}
+                        onClose={() => setSelectedJob(null)}
+                    />
+                )}
+            </div>
         </div>
     );
 }

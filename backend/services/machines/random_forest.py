@@ -115,6 +115,19 @@ class EmployabilityPredictor:
         pred2 = self._model2.predict(X2)[0]
 
         top_factors, suggestions = self._improvement_insights(X2)
+        
+        # Build skill breakdown from all actual skills provided by user
+        skill_breakdown = []
+        for key, value in student_data.items():
+            if "skills" in key.lower() or "programming" in key.lower() or "networking" in key.lower():
+                # Try to clean up the name for the UI if it's raw
+                clean_name = key.replace("_", " ").title()
+                if isinstance(value, (int, float)):
+                    skill_breakdown.append({
+                        "feature": clean_name,
+                        "current": float(value),
+                        "importance": 0.0 # UI doesn't need importance for the breakdown chart
+                    })
 
         return {
             "realistic_assessment": {
@@ -130,6 +143,7 @@ class EmployabilityPredictor:
             "cgpa": student_data.get("CGPA", "N/A"),
             "top_factors": top_factors,
             "improvement_suggestions": suggestions,
+            "skill_breakdown": skill_breakdown,
         }
 
     def unload(self):
@@ -232,13 +246,24 @@ class EmployabilityPredictor:
 
         top_features = importance_df.head(10)["feature"].tolist()
         top_factors = top_features[:5]
-
+        top_features = importance_df.head(15)["feature"].tolist()
+        
+        # We want to show actionable improvement areas.
+        # So we look at the top features and pick ones that are either explicit skills or performance metrics
+        # and see if they are below a certain standard (e.g. 85 for average metrics, 80 for specific skills)
         suggestions = []
-        for feature in top_factors:
+        for feature in top_features:
             if feature not in X2.columns:
                 continue
             current_value = float(X2[feature].values[0])
-            if "Skills" in feature and current_value < 80:
+            
+            # Actionable if it's a skill, average, or grade
+            is_actionable = any(keyword in feature for keyword in ["Skills", "Ave", "Grade"])
+            
+            # Determine threshold based on category (stricter for averages, looser for specific skills)
+            target_threshold = 85 if any(k in feature for k in ["Ave", "Grade"]) else 80
+            
+            if is_actionable and current_value < target_threshold:
                 suggestions.append({
                     "feature":    feature,
                     "current":    round(current_value, 2),
@@ -249,5 +274,9 @@ class EmployabilityPredictor:
                         4
                     ),
                 })
+                
+                # Limit to top 5 suggestions max
+                if len(suggestions) >= 5:
+                    break
 
         return top_factors, suggestions

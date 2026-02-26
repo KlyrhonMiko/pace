@@ -54,31 +54,24 @@ export default function JobFilters({
     };
 
     return (
-        <div className="relative rounded-2xl bg-white border border-slate-400/50 p-6 shadow-lg shadow-slate-300/50 hover:shadow-xl transition-all duration-300 overflow-hidden">
-            {/* Texture */}
-            <div
-                className="pointer-events-none absolute inset-0 opacity-[0.012]"
-                style={{
-                    backgroundImage: `repeating-linear-gradient(
-                                    45deg,
-                                    transparent,
-                                    transparent 5px,
-                                    rgba(0,0,0,0.03) 5px,
-                                    rgba(0,0,0,0.03) 6px
-                                )`,
-                }}
-            />
-            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white to-transparent opacity-80" />
-            <div className="absolute -top-8 -right-8 w-32 h-32 bg-gradient-to-br from-emerald-100/40 to-transparent rounded-full blur-2xl" />
-
-            <div className="relative z-10">
-                <div className="flex items-center gap-2 mb-6">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-800">
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-                        </svg>
-                    </span>
-                    <h2 className="text-lg font-bold text-slate-900">Filters</h2>
+        <div className="group/card rounded-2xl bg-white border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50 hover:-translate-y-0.5">
+            <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 text-white shadow-lg shadow-emerald-500/20">
+                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h2 className="text-base font-bold text-gray-900">
+                                Filters
+                            </h2>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                                Refine your job search
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="space-y-1">

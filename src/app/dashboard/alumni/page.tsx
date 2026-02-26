@@ -1,19 +1,47 @@
 import DashboardHeader from "./_components/DashboardHeader";
 import StatsGrid from "./_components/StatsGrid";
+import EmployabilityScore from "./_components/EmployabilityScore";
 import RecommendedJobs from "./jobs/_components/RecommendedJobs";
 import ProfileStrength from "./_components/ProfileStrength";
 import QuickActions from "./_components/QuickActions";
 import UpcomingEvents from "./events/_components/UpcomingEvents";
 import RecentActivity from "./_components/RecentActivity";
+import { createClient } from "@/lib/supabase/server";
+import { getLatestPrediction, fetchDemoPrediction } from "./_lib/api";
 
-export default function AlumniDashboard() {
+export default async function AlumniDashboard() {
+    // 1. Get current logged-in user
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // 2. Fetch the latest employability prediction
+    let predictionData = null;
+    let isDemoData = false;
+
+    if (user?.id) {
+        predictionData = await getLatestPrediction(user.id);
+    }
+
+    // 3. Fallback to demo prediction if no data exists
+    if (!predictionData) {
+        predictionData = await fetchDemoPrediction();
+        isDemoData = true;
+    }
+
     return (
         <div className="space-y-5">
             {/* Hero */}
             <DashboardHeader />
 
-            {/* Stats with sparklines */}
-            <StatsGrid />
+            {/* Employability Score & Stats */}
+            <div className="grid gap-5 lg:grid-cols-4">
+                <div className="lg:col-span-2 flex flex-col justify-center">
+                    <EmployabilityScore data={predictionData} isDemo={isDemoData} />
+                </div>
+                <div className="lg:col-span-2 flex flex-col justify-center">
+                    <StatsGrid />
+                </div>
+            </div>
 
             {/* Main Content - Bento Grid */}
             <div className="grid gap-5 lg:grid-cols-3">

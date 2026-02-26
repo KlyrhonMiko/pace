@@ -11,7 +11,7 @@ import {
     BriefcaseIcon,
     CalendarIcon,
     UserIcon,
-    DocumentIcon,
+    SparklesIcon,
     SettingsIcon,
     LogoutIcon,
     BellIcon,
@@ -24,7 +24,7 @@ const navItems = [
     { name: "Overview", href: "/dashboard/alumni", icon: HomeIcon },
     { name: "Job Listings", href: "/dashboard/alumni/jobs", icon: BriefcaseIcon },
     { name: "Events", href: "/dashboard/alumni/events", icon: CalendarIcon },
-    { name: "My Applications", href: "/dashboard/alumni/applications", icon: DocumentIcon },
+    { name: "Employability Insights", href: "/dashboard/alumni/insights", icon: SparklesIcon },
     { name: "Profile", href: "/dashboard/alumni/profile", icon: UserIcon },
 ];
 

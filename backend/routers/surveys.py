@@ -20,9 +20,50 @@ from services.queries.surveys_queries import (
     add_question_to_survey, add_questions_batch,
     remove_question_from_survey, reorder_survey_questions,
     get_distribution_config, configure_distribution, update_distribution_config,
+    # Phase 1.4B
+    send_survey_invitations, send_survey_reminders,
+    get_distribution_stats, get_non_respondents,
+    # Phase 1.6
+    get_survey_results, export_survey_responses,
 )
 
 router = APIRouter(prefix="/surveys", tags=["surveys"])
+
+@router.post("/templates/tracer-study", response_model=StandardResponse, status_code=201)
+def create_tracer_study_template_route(session: Session = Depends(get_session)):
+    """Create a new DRAFT survey pre-populated with 10 standard CHED Tracer Study questions."""
+    try:
+        # Guard: reject if a non-deleted tracer study survey already exists
+        existing = check_duplicate_survey_title(session, "CHED Tracer Study")
+        if existing:
+            raise HTTPException(
+                status_code=409,
+                detail=StandardResponse(
+                    success=False,
+                    code=ErrorCode.DUPLICATE_SURVEY_TITLE.value,
+                    message=f"A Tracer Study template already exists (ID: {existing.survey_id}). "
+                            f"Delete or archive it before creating a new one."
+                ).model_dump(mode='json')
+            )
+        from services.survey_templates import create_tracer_study_template
+        survey = create_tracer_study_template(session)
+        question_count = get_survey_question_count(session, survey.survey_code)
+        data = SurveyPublic.model_validate(survey).dict()
+        data["question_count"] = question_count
+        return StandardResponse(
+            success=True, code=SuccessCode.SURVEY_CREATED.value,
+            message="Tracer Study template created successfully",
+            data=data, timestamp=get_current_time_gmt8()
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+        ).model_dump(mode='json'))
+
+
 
 
 # ---------------------------------------------------------------------------
@@ -552,3 +593,222 @@ def update_distribution_config_route(
         raise HTTPException(status_code=400, detail=StandardResponse(
             success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
         ).model_dump(mode='json'))
+
+
+# ---------------------------------------------------------------------------
+# Phase 1.4B — Distribution sending & stats
+# ---------------------------------------------------------------------------
+
+@router.post("/{survey_id}/distribution/send", response_model=StandardResponse)
+def send_distribution_route(survey_id: str, session: Session = Depends(get_session)):
+    """
+    Send invitations to all configured recipients.
+    Creates SurveyInvitation records and marks the config as SENT.
+    Actual email delivery is a future integration.
+    """
+    try:
+        survey = get_survey_by_id(session, survey_id)
+        if not survey:
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.SURVEY_NOT_FOUND.value, message="Survey not found"
+            ).model_dump(mode='json'))
+        config = get_distribution_config(session, survey.survey_code)
+        if not config:
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.DISTRIBUTION_CONFIG_NOT_FOUND.value,
+                message="Distribution config not found. Create one first via POST /distribution/configure"
+            ).model_dump(mode='json'))
+        if config.status == DistributionStatus.SENT:
+            raise HTTPException(status_code=409, detail=StandardResponse(
+                success=False, code=ErrorCode.DISTRIBUTION_ALREADY_SENT.value,
+                message="Invitations have already been sent for this distribution"
+            ).model_dump(mode='json'))
+        sent_count, _ = send_survey_invitations(session, survey, config)
+        if sent_count == 0:
+            raise HTTPException(status_code=400, detail=StandardResponse(
+                success=False, code=ErrorCode.NO_RECIPIENTS_FOUND.value,
+                message="No eligible alumni found matching the distribution filters"
+            ).model_dump(mode='json'))
+        return StandardResponse(
+            success=True, code=SuccessCode.DISTRIBUTION_INVITATIONS_SENT.value,
+            message=f"Invitations sent to {sent_count} alumni",
+            data={"sent_count": sent_count, "distribution_id": config.distribution_id},
+            timestamp=get_current_time_gmt8()
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+        ).model_dump(mode='json'))
+
+
+@router.post("/{survey_id}/distribution/send-reminders", response_model=StandardResponse)
+def send_reminders_route(survey_id: str, session: Session = Depends(get_session)):
+    """
+    Send reminders to alumni who received an invitation but haven't responded yet.
+    Re-timestamps their sent_at to indicate a reminder was sent.
+    Actual email delivery is a future integration.
+    """
+    try:
+        survey = get_survey_by_id(session, survey_id)
+        if not survey:
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.SURVEY_NOT_FOUND.value, message="Survey not found"
+            ).model_dump(mode='json'))
+        config = get_distribution_config(session, survey.survey_code)
+        if not config:
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.DISTRIBUTION_CONFIG_NOT_FOUND.value,
+                message="Distribution config not found"
+            ).model_dump(mode='json'))
+        if config.status != DistributionStatus.SENT:
+            raise HTTPException(status_code=409, detail=StandardResponse(
+                success=False, code=ErrorCode.INVALID_INPUT.value,
+                message="Reminders can only be sent after the initial distribution has been sent"
+            ).model_dump(mode='json'))
+        reminder_count, _ = send_survey_reminders(session, survey)
+        return StandardResponse(
+            success=True, code=SuccessCode.DISTRIBUTION_REMINDERS_SENT.value,
+            message=f"Reminders queued for {reminder_count} non-respondents",
+            data={"reminder_count": reminder_count},
+            timestamp=get_current_time_gmt8()
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+        ).model_dump(mode='json'))
+
+
+@router.get("/{survey_id}/distribution/status", response_model=StandardResponse)
+def get_distribution_status_route(survey_id: str, session: Session = Depends(get_session)):
+    """Get distribution statistics: total recipients, response rate, sent/responded/pending counts."""
+    try:
+        survey = get_survey_by_id(session, survey_id)
+        if not survey:
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.SURVEY_NOT_FOUND.value, message="Survey not found"
+            ).model_dump(mode='json'))
+        config = get_distribution_config(session, survey.survey_code)
+        if not config:
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.DISTRIBUTION_CONFIG_NOT_FOUND.value,
+                message="Distribution config not found"
+            ).model_dump(mode='json'))
+        stats = get_distribution_stats(session, survey.survey_code, config)
+        return StandardResponse(
+            success=True, code=SuccessCode.DISTRIBUTION_STATUS_RETRIEVED.value,
+            message="Distribution status retrieved",
+            data=stats, timestamp=get_current_time_gmt8()
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+        ).model_dump(mode='json'))
+
+
+@router.get("/{survey_id}/distribution/non-respondents", response_model=StandardResponse)
+def get_non_respondents_route(
+    survey_id: str,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(10, ge=1, le=100),
+    session: Session = Depends(get_session)
+):
+    """List alumni who received an invitation but have not yet submitted a response."""
+    try:
+        survey = get_survey_by_id(session, survey_id)
+        if not survey:
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.SURVEY_NOT_FOUND.value, message="Survey not found"
+            ).model_dump(mode='json'))
+        config = get_distribution_config(session, survey.survey_code)
+        if not config:
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.DISTRIBUTION_CONFIG_NOT_FOUND.value,
+                message="Distribution config not found"
+            ).model_dump(mode='json'))
+        non_respondents, total = get_non_respondents(session, survey.survey_code, skip, limit)
+        return StandardResponse(
+            success=True, code=SuccessCode.DISTRIBUTION_STATUS_RETRIEVED.value,
+            message="Non-respondents retrieved",
+            data={
+                "non_respondents": non_respondents,
+                "total": total,
+                "count": len(non_respondents),
+                "offset": skip,
+                "limit": limit,
+                "has_more": (skip + limit) < total,
+            },
+            timestamp=get_current_time_gmt8()
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+        ).model_dump(mode='json'))
+
+
+# ---------------------------------------------------------------------------
+# Phase 1.6 — Results & Analytics
+# ---------------------------------------------------------------------------
+
+@router.get("/{survey_id}/results", response_model=StandardResponse)
+def get_survey_results_route(survey_id: str, session: Session = Depends(get_session)):
+    """
+    Get aggregated results for a survey.
+    Returns per-question statistics: choice distributions, averages, YES/NO counts,
+    SCALE distributions, NUMBER stats, and TEXT samples.
+    """
+    try:
+        survey = get_survey_by_id(session, survey_id)
+        if not survey:
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.SURVEY_NOT_FOUND.value, message="Survey not found"
+            ).model_dump(mode='json'))
+        results = get_survey_results(session, survey)
+        return StandardResponse(
+            success=True, code=SuccessCode.SURVEY_RESULTS_RETRIEVED.value,
+            message="Survey results retrieved",
+            data=results, timestamp=get_current_time_gmt8()
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+        ).model_dump(mode='json'))
+
+
+@router.get("/{survey_id}/export", response_model=StandardResponse)
+def export_survey_route(survey_id: str, session: Session = Depends(get_session)):
+    """
+    Export all survey responses as raw JSON.
+    Each response includes all answers with joined question texts.
+    For anonymous surveys, respondent identity is omitted.
+    """
+    try:
+        survey = get_survey_by_id(session, survey_id)
+        if not survey:
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.SURVEY_NOT_FOUND.value, message="Survey not found"
+            ).model_dump(mode='json'))
+        export_data = export_survey_responses(session, survey)
+        return StandardResponse(
+            success=True, code=SuccessCode.SURVEY_RESULTS_RETRIEVED.value,
+            message="Survey responses exported",
+            data=export_data, timestamp=get_current_time_gmt8()
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+        ).model_dump(mode='json'))
+

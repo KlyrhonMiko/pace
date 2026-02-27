@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from routers import users, courses, college_dept, student_records, alumni, auth, jobs, events, event_registration, surveys, questions, predict
+from routers import users, courses, college_dept, student_records, alumni, alumni_skills, auth, jobs, events, event_registration, surveys, questions, predict
 from core.config import settings
 from models.response_codes import StandardResponse, ErrorCode
 from datetime import datetime
@@ -29,6 +29,7 @@ app.include_router(college_dept.router)
 app.include_router(courses.router)
 app.include_router(student_records.router)
 app.include_router(alumni.router)
+app.include_router(alumni_skills.router)
 app.include_router(jobs.router)
 app.include_router(events.router)
 app.include_router(surveys.router)

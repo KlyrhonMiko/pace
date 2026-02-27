@@ -3,6 +3,7 @@ from .courses import Course
 from .college_dept import CollegeDept
 from .student_records import StudentRecord
 from .alumni import Alumni
+from .alumni_skills import AlumniSkills
 from .skills import Skills, SkillsList
 from .job_listings import JobListing
 from .transaction_logs import TransactionLog
@@ -21,6 +22,7 @@ __all__ = [
     "CollegeDept",
     "StudentRecord",
     "Alumni",
+    "AlumniSkills",
     "Skills",
     "SkillsList",
     "JobListing",

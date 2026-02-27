@@ -1,5 +1,5 @@
 from typing import Optional
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date
 from sqlmodel import SQLModel
 from pydantic import field_serializer
 from utils.timezone import GMT8
@@ -15,6 +15,8 @@ class AlumniFullProfile(SQLModel):
     middle_name: Optional[str]
     gender: str
     age: int
+    birthdate: Optional[date]
+    consent_for_survey_ml: Optional[bool]
     
     # User account info
     user_id: Optional[str]

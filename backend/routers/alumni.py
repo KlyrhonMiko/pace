@@ -45,6 +45,8 @@ def register_complete_alumni_route(
             middle_name=data.middle_name,
             gender=data.gender,
             age=data.age,
+            birthdate=data.birthdate,
+            consent_for_survey_ml=data.consent_for_survey_ml,
         )
         return StandardResponse(
             success=True,

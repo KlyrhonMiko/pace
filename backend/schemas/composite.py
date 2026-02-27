@@ -3,6 +3,7 @@ All schema classes for composite (cross-domain alumni+user) operations.
 Moved from models/composite.py — that file becomes an ORM-only re-export shim.
 """
 import re
+from datetime import date
 from typing import Optional, List
 from sqlmodel import SQLModel
 from pydantic import field_validator, BaseModel, Field
@@ -22,6 +23,8 @@ class CompleteAlumniRegistration(SQLModel):
     middle_name: Optional[str] = None
     gender: str
     age: int
+    birthdate: Optional[date] = None
+    consent_for_survey_ml: bool = False
 
     @field_validator('email')
     @classmethod
@@ -61,6 +64,8 @@ class BatchAlumniRegistrationItemSafeDisplay(BaseModel):
     middle_name: Optional[str] = None
     gender: str
     age: int
+    birthdate: Optional[date] = None
+    consent_for_survey_ml: bool = False
 
 
 # ── Batch register ──────────────────────────────────────────────────────────
@@ -74,6 +79,8 @@ class BatchAlumniRegistrationItem(BaseModel):
     middle_name: Optional[str] = None
     gender: str
     age: int
+    birthdate: Optional[date] = None
+    consent_for_survey_ml: bool = False
 
     @field_validator('email')
     @classmethod
@@ -127,6 +134,8 @@ class BatchAlumniUpdateItem(BaseModel):
     middle_name: Optional[str] = None
     gender: Optional[str] = None
     age: Optional[int] = None
+    birthdate: Optional[date] = None
+    consent_for_survey_ml: Optional[bool] = None
 
 
 class BatchAlumniUpdateResult(BaseModel):

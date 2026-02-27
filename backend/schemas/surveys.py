@@ -286,3 +286,89 @@ class SurveyListResponse(SQLModel):
     offset: int
     limit: int
     has_more: bool
+
+
+# ── Survey Submission schemas (Phase 1.5 — ready, auth-blocked) ─────────────
+
+class AnswerItem(SQLModel):
+    """One answer record inside a survey submission, keyed by human-readable question_id."""
+    question_id: str  # e.g. QSTN-000001
+    answer_text: Optional[str] = Field(default=None, max_length=5000)
+    answer_choice: Optional[str] = Field(default=None, max_length=255)
+    answer_choices: Optional[str] = None  # JSON string for MULTI_SELECT
+    answer_scale: Optional[int] = None
+    answer_number: Optional[float] = None
+    answer_date: Optional[datetime] = None
+    answer_bool: Optional[bool] = None
+
+
+class SurveySubmission(SQLModel):
+    """Body for POST /surveys/{survey_id}/respond (Phase 1.5, blocked on auth)."""
+    alumni_id: Optional[str] = None  # human-readable e.g. ALM-000001; optional for anonymous
+    answers: List[AnswerItem]
+
+
+# ── Results & Analytics schemas (Phase 1.6) ─────────────────────────────────
+
+class QuestionSummary(SQLModel):
+    """Aggregated statistics for a single question."""
+    question_id: str
+    question_text: str
+    question_type: str  # QuestionType value as string to avoid circular imports
+    total_answers: int
+
+    # MULTIPLE_CHOICE / MULTI_SELECT
+    choice_distribution: Optional[dict] = None  # e.g. {"Employed": 45, "Unemployed": 12}
+
+    # SCALE / NUMBER
+    average: Optional[float] = None
+    distribution: Optional[dict] = None  # for SCALE e.g. {"1": 3, "2": 5, ...}
+    min_value: Optional[float] = None   # for NUMBER
+    max_value: Optional[float] = None   # for NUMBER
+    median_value: Optional[float] = None  # for NUMBER
+
+    # YES_NO
+    yes_count: Optional[int] = None
+    no_count: Optional[int] = None
+
+    # TEXT / DATE
+    sample_answers: Optional[List[str]] = None  # first 10 unique values
+
+
+class SurveyResultsSummary(SQLModel):
+    """Top-level aggregated results for GET /surveys/{id}/results."""
+    survey_id: str
+    title: str
+    total_responses: int
+    completion_rate: float  # 0.0–1.0
+    question_summaries: List[QuestionSummary]
+
+
+# ── Export schemas (Phase 1.6) ───────────────────────────────────────────────
+
+class SurveyExportResponse(SQLModel):
+    """Raw data dump for GET /surveys/{id}/export."""
+    survey_id: str
+    title: str
+    total_responses: int
+    responses: List[dict]  # each: {response_id, submitted_at, is_complete, alumni_id?, answers: [...]}
+
+
+# ── Non-respondent schemas (Phase 1.4B) ─────────────────────────────────────
+
+class NonRespondentPublic(SQLModel):
+    """Alumni who received an invitation but haven't responded."""
+    alumni_id: str
+    first_name: str
+    last_name: str
+    invitation_id: str
+    sent_at: Optional[datetime] = None
+
+    @field_serializer('sent_at')
+    def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        gmt8_time = value.astimezone(GMT8)
+        return gmt8_time.strftime('%Y-%m-%d %H:%M:%S')

@@ -21,6 +21,7 @@ from models.response_codes import ErrorCode, SuccessCode
 from utils.auth import hash_password
 from utils.logging import log_integrity_error
 from utils.timezone import get_current_time_gmt8
+from datetime import date
 
 
 # ---------------------------------------------------------------------------
@@ -78,6 +79,8 @@ def build_full_profile(session: Session, alumni: Alumni) -> AlumniFullProfile:
         middle_name=alumni.middle_name,
         gender=alumni.gender,
         age=alumni.age,
+        birthdate=alumni.birthdate,
+        consent_for_survey_ml=alumni.consent_for_survey_ml,
         user_id=user.user_id if user else None,
         username=user.username if user else None,
         email=user.email if user else None,
@@ -156,6 +159,8 @@ def register_complete_alumni(
     middle_name: str | None,
     gender: str,
     age: int,
+    birthdate: date | None = None,
+    consent_for_survey_ml: bool = False,
 ) -> tuple[User, Alumni]:
     """Create User + Alumni atomically. Returns (new_user, new_alumni)."""
     user_id = generate_user_id(session)
@@ -178,6 +183,8 @@ def register_complete_alumni(
         middle_name=middle_name,
         gender=gender,
         age=age,
+        birthdate=birthdate,
+        consent_for_survey_ml=consent_for_survey_ml,
         user_code=new_user.user_code,
     )
     session.add(new_alumni)
@@ -196,6 +203,10 @@ def update_alumni(session: Session, alumni: Alumni, data: AlumniUpdate) -> Alumn
         alumni.gender = data.gender.upper()
     if data.age is not None:
         alumni.age = data.age
+    if data.birthdate is not None:
+        alumni.birthdate = data.birthdate
+    if data.consent_for_survey_ml is not None:
+        alumni.consent_for_survey_ml = data.consent_for_survey_ml
     session.add(alumni)
     session.commit()
     session.refresh(alumni)
@@ -289,6 +300,8 @@ def batch_register_alumni(
             middle_name=item.middle_name,
             gender=item.gender,
             age=item.age,
+            birthdate=item.birthdate,
+            consent_for_survey_ml=item.consent_for_survey_ml,
         )
         try:
             with session.begin_nested():
@@ -313,6 +326,8 @@ def batch_register_alumni(
                     middle_name=item.middle_name,
                     gender=item.gender,
                     age=item.age,
+                    birthdate=item.birthdate,
+                    consent_for_survey_ml=item.consent_for_survey_ml,
                     user_code=new_user.user_code,
                 )
                 session.add(new_alumni)
@@ -392,6 +407,10 @@ def batch_update_alumni(
                     alumni.gender = item.gender.upper()
                 if item.age is not None:
                     alumni.age = item.age
+                if item.birthdate is not None:
+                    alumni.birthdate = item.birthdate
+                if item.consent_for_survey_ml is not None:
+                    alumni.consent_for_survey_ml = item.consent_for_survey_ml
 
                 session.add(alumni)
                 session.flush()

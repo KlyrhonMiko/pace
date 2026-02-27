@@ -14,7 +14,6 @@ class StudentRecordBase(SQLModel):
     ojt_grade: Optional[float] = None
     leadership_pos: Optional[bool] = None
     act_member_pos: Optional[bool] = None
-    consent_for_survey_ml: bool = Field(default=False)
 
 
 class StudentRecord(StudentRecordBase, table=True):

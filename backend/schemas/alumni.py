@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from typing import Optional
 from sqlmodel import SQLModel, Field
 from pydantic import field_serializer, field_validator
@@ -12,6 +12,8 @@ class AlumniCreate(SQLModel):
     middle_name: Optional[str] = Field(default=None, max_length=50)
     gender: str = Field(max_length=10)
     age: int
+    birthdate: Optional[date] = None
+    consent_for_survey_ml: bool = False
     student_code: Optional[str] = None  # kept Optional for flexible linking
 
     @field_validator('gender', mode='before')
@@ -36,6 +38,8 @@ class AlumniPublic(SQLModel):
     middle_name: Optional[str] = None
     gender: str
     age: int
+    birthdate: Optional[date]
+    consent_for_survey_ml: bool
     created_at: datetime
     updated_at: datetime
 
@@ -55,6 +59,8 @@ class AlumniUpdate(SQLModel):
     middle_name: Optional[str] = Field(default=None, max_length=50)
     gender: Optional[str] = Field(default=None, max_length=10)
     age: Optional[int] = None
+    birthdate: Optional[date] = None
+    consent_for_survey_ml: Optional[bool] = None
 
     @field_validator('gender', mode='before')
     @classmethod

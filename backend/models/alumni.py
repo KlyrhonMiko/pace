@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional
 from sqlmodel import SQLModel, Field
 from utils.timezone import get_current_time_gmt8
@@ -12,6 +12,8 @@ class AlumniBase(SQLModel):
     middle_name: Optional[str] = Field(default=None, max_length=50)
     gender: str = Field(max_length=10)
     age: int
+    birthdate: Optional[date] = None
+    consent_for_survey_ml: bool = Field(default=False)
 
 
 class Alumni(AlumniBase, table=True):

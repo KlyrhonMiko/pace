@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Filter, ChevronDown } from "lucide-react";
 
 interface EventFiltersProps {
     eventTypes: { id: string; label: string; count: number }[];
@@ -37,9 +38,7 @@ export default function EventFilters({
             <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-200/60">
                 <div className="flex items-center gap-2.5">
                     <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-100 to-emerald-50 border border-emerald-200/50">
-                        <svg className="h-5 w-5 text-emerald-800" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                        </svg>
+                        <Filter className="h-5 w-5 text-emerald-800" strokeWidth={2} />
                     </div>
                     <h3 className="font-bold text-slate-900 text-sm">Filters</h3>
                 </div>
@@ -58,14 +57,10 @@ export default function EventFilters({
                     className="flex w-full items-center justify-between mb-3 hover:text-emerald-700 transition-all group"
                 >
                     <h4 className="font-bold text-sm text-slate-900 group-hover:text-emerald-700 transition-colors">Event Type</h4>
-                    <svg
+                    <ChevronDown
                         className={`h-4 w-4 text-slate-400 transition-transform ${expandedSections.type ? "rotate-180" : ""}`}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                    >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                    </svg>
+                        strokeWidth={2}
+                    />
                 </button>
 
                 {expandedSections.type && (
@@ -101,14 +96,10 @@ export default function EventFilters({
                     className="flex w-full items-center justify-between mb-3 hover:text-emerald-700 transition-all group"
                 >
                     <h4 className="font-bold text-sm text-slate-900 group-hover:text-emerald-700 transition-colors">Status</h4>
-                    <svg
+                    <ChevronDown
                         className={`h-4 w-4 text-slate-400 transition-transform ${expandedSections.status ? "rotate-180" : ""}`}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                    >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                    </svg>
+                        strokeWidth={2}
+                    />
                 </button>
 
                 {expandedSections.status && (

@@ -1,4 +1,5 @@
 "use client";
+import { PieChart, CheckCircle2 } from "lucide-react";
 
 const segments = [
     { label: "Alumni", value: 892, color: "#10b981", ringColor: "ring-emerald-100", barBg: "bg-emerald-100", pct: 71.5 },
@@ -22,9 +23,7 @@ export default function UserDistribution() {
             <div className="px-6 pt-5 pb-4 flex items-start justify-between">
                 <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25">
-                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-                        </svg>
+                        <PieChart className="h-5 w-5" strokeWidth={2} />
                     </div>
                     <div>
                         <h3 className="text-[13px] font-semibold text-gray-900 tracking-tight">User Distribution</h3>
@@ -148,9 +147,7 @@ export default function UserDistribution() {
                 <div className="flex items-center justify-between bg-gradient-to-b from-gray-50/80 to-gray-50/40 rounded-xl py-3 px-4 ring-1 ring-gray-100/60">
                     <div className="flex items-center gap-2">
                         <div className="w-6 h-6 rounded-lg bg-emerald-50 flex items-center justify-center">
-                            <svg className="w-3.5 h-3.5 text-emerald-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" strokeWidth={2} />
                         </div>
                         <div>
                             <p className="text-[11px] font-semibold text-gray-700">Largest group</p>

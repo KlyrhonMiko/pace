@@ -1,3 +1,5 @@
+import { UserPlus, Check, GraduationCap, ShieldCheck, Clock, Circle } from "lucide-react";
+
 const registrations = [
     { name: "Maria Santos", email: "maria.santos@plp.edu.ph", role: "Alumni", course: "BSIT", date: "2h ago", status: "verified" as const, initials: "MS", color: "from-emerald-700 to-emerald-800" },
     { name: "Carlos Reyes", email: "carlos.reyes@plp.edu.ph", role: "Alumni", course: "BSCS", date: "5h ago", status: "pending" as const, initials: "CR", color: "from-blue-500 to-blue-600" },
@@ -17,9 +19,7 @@ export default function RecentRegistrations() {
             <div className="px-6 pt-5 pb-4 flex items-start justify-between">
                 <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-rose-600 text-white shadow-lg shadow-rose-500/25">
-                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z" />
-                        </svg>
+                        <UserPlus className="h-5 w-5" strokeWidth={2} />
                     </div>
                     <div>
                         <h3 className="text-[13px] font-semibold text-gray-900 tracking-tight">Recent Registrations</h3>
@@ -60,13 +60,9 @@ export default function RecentRegistrations() {
                                         }`}
                                 >
                                     {user.status === "verified" ? (
-                                        <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={4}>
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                                        </svg>
+                                        <Check className="w-2 h-2 text-white" strokeWidth={4} />
                                     ) : (
-                                        <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 24 24">
-                                            <circle cx="12" cy="12" r="4" />
-                                        </svg>
+                                        <Circle className="w-2 h-2 text-white fill-current" strokeWidth={0} />
                                     )}
                                 </div>
                             </div>
@@ -81,9 +77,7 @@ export default function RecentRegistrations() {
                         {/* Role */}
                         <div className="col-span-2 hidden sm:flex justify-center">
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-50/80 text-emerald-700 ring-1 ring-emerald-100/60">
-                                <svg className="w-3 h-3 text-emerald-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342" />
-                                </svg>
+                                <GraduationCap className="w-3 h-3 text-emerald-700" strokeWidth={2} />
                                 {user.role}
                             </span>
                         </div>
@@ -92,16 +86,12 @@ export default function RecentRegistrations() {
                         <div className="col-span-3 hidden md:flex justify-center">
                             {user.status === "verified" ? (
                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-50/80 text-emerald-800 ring-1 ring-emerald-100/60">
-                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
-                                    </svg>
+                                    <ShieldCheck className="w-3 h-3" strokeWidth={2.5} />
                                     Verified
                                 </span>
                             ) : (
                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-amber-50/80 text-amber-600 ring-1 ring-amber-100/60">
-                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
+                                    <Clock className="w-3 h-3" strokeWidth={2.5} />
                                     Pending
                                 </span>
                             )}

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Briefcase, Users } from "lucide-react";
+import { ArrowRight, Briefcase, Users, Zap } from "lucide-react";
 
 export function HeroSection() {
     return (
@@ -48,9 +48,7 @@ export function HeroSection() {
                                 {/* Mockup Sidebar */}
                                 <div className="w-16 bg-slate-50 border-r border-slate-100 flex flex-col items-center py-6 gap-6">
                                     <div className="h-8 w-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-200">
-                                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                        </svg>
+                                        <Zap className="h-4 w-4" strokeWidth={2} />
                                     </div>
                                     <div className="w-full px-4 space-y-4">
                                         <div className="h-1.5 w-full bg-slate-200 rounded-full" />

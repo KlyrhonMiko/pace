@@ -1,4 +1,5 @@
 "use client";
+import { TrendingUp, ArrowUpRight } from "lucide-react";
 
 export default function UserGrowthChart() {
     const months = ["Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb"];
@@ -45,9 +46,7 @@ export default function UserGrowthChart() {
             <div className="px-6 pt-5 pb-1 flex items-start justify-between">
                 <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-700 to-emerald-800 text-white shadow-lg shadow-emerald-700/25">
-                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
-                        </svg>
+                        <TrendingUp className="h-5 w-5" strokeWidth={2} />
                     </div>
                     <div>
                         <h3 className="text-[13px] font-semibold text-gray-900 tracking-tight">Registration Trend</h3>
@@ -56,9 +55,7 @@ export default function UserGrowthChart() {
                 </div>
                 <div className="text-right flex flex-col items-end">
                     <div className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 px-2.5 py-1 rounded-full ring-1 ring-emerald-100">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
-                        </svg>
+                        <ArrowUpRight className="w-3 h-3" strokeWidth={3} />
                         <span className="text-[11px] font-bold tracking-tight">+21.8%</span>
                     </div>
                     <p className="text-[10px] text-gray-400 mt-1.5">vs previous period</p>

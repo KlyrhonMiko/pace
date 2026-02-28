@@ -6,45 +6,38 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 
 import {
-    HomeIcon,
-    CalendarIcon,
-    SettingsIcon,
-    LogoutIcon,
-    BellIcon,
-    MenuIcon,
-    CloseIcon,
-} from "../_components/Icons";
+    Home,
+    Calendar,
+    Settings,
+    LogOut,
+    Bell,
+    Menu,
+    X,
+    Users,
+    Briefcase,
+    BarChart3,
+    Search,
+    ChevronRight,
+} from "lucide-react";
 import DateWidget from "../_components/DateWidget";
 
 const navItems = [
-    { name: "Overview", href: "/dashboard/faculty", icon: HomeIcon },
+    { name: "Overview", href: "/dashboard/faculty", icon: () => <Home size={18} /> },
     {
         name: "My Students",
         href: "/dashboard/faculty/students",
-        icon: () => (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
-        ),
+        icon: () => <Users size={18} />,
     },
-    { name: "Events", href: "/dashboard/faculty/events", icon: CalendarIcon },
+    { name: "Events", href: "/dashboard/faculty/events", icon: () => <Calendar size={18} /> },
     {
         name: "Job Board",
         href: "/dashboard/faculty/jobs",
-        icon: () => (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
-        ),
+        icon: () => <Briefcase size={18} />,
     },
     {
         name: "Reports",
         href: "/dashboard/faculty/reports",
-        icon: () => (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-        ),
+        icon: () => <BarChart3 size={18} />,
     },
 ];
 
@@ -97,7 +90,7 @@ export default function FacultyLayout({
                         className="rounded-lg p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors duration-200 lg:hidden"
                         onClick={() => setSidebarOpen(false)}
                     >
-                        <CloseIcon />
+                        <X size={20} />
                     </button>
                 </div>
 
@@ -140,9 +133,7 @@ export default function FacultyLayout({
                                     <span className="flex-1 font-medium">{item.name}</span>
 
                                     {isActive && (
-                                        <svg className="w-4 h-4 text-white/90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                                        </svg>
+                                        <ChevronRight className="w-4 h-4 text-white/90" strokeWidth={2.5} />
                                     )}
                                 </Link>
                             );
@@ -175,7 +166,7 @@ export default function FacultyLayout({
                                     : "text-gray-500 group-hover:text-emerald-800 group-hover:bg-emerald-50"
                                 }
                             `}>
-                                <SettingsIcon />
+                                <Settings size={18} />
                             </span>
                             <span className="flex-1 font-medium">Settings</span>
                         </Link>
@@ -202,7 +193,7 @@ export default function FacultyLayout({
                             className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all duration-200 flex-shrink-0"
                             title="Sign out"
                         >
-                            <LogoutIcon />
+                            <LogOut size={18} />
                         </Link>
                     </div>
                 </div>
@@ -217,7 +208,7 @@ export default function FacultyLayout({
                             className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors duration-150 lg:hidden"
                             onClick={() => setSidebarOpen(true)}
                         >
-                            <MenuIcon />
+                            <Menu size={20} />
                         </button>
                         <div className="flex items-center gap-3">
                             <DateWidget />
@@ -232,9 +223,7 @@ export default function FacultyLayout({
                     <div className="flex items-center gap-2">
                         {/* Search */}
                         <div className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors duration-150 group">
-                            <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
+                            <Search className="h-4 w-4 text-gray-400" />
                             <input
                                 type="text"
                                 placeholder="Search students, events..."
@@ -247,7 +236,7 @@ export default function FacultyLayout({
 
                         {/* Notifications */}
                         <button className="relative flex items-center justify-center h-9 w-9 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors duration-150">
-                            <BellIcon />
+                            <Bell size={20} />
                             <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-700 text-[9px] font-bold text-white ring-2 ring-white">
                                 4
                             </span>
@@ -255,10 +244,7 @@ export default function FacultyLayout({
 
                         {/* Settings */}
                         <button className="hidden sm:flex items-center justify-center h-9 w-9 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors duration-150">
-                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
+                            <Settings className="h-5 w-5" strokeWidth={1.5} />
                         </button>
                     </div>
                 </header>

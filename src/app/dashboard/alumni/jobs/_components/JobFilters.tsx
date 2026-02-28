@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, MapPin, Briefcase, Home, RefreshCw, Building2, GraduationCap } from "lucide-react";
+import { Search, MapPin, Briefcase, Home, RefreshCw, Building2, GraduationCap, SlidersHorizontal } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
@@ -59,9 +59,7 @@ export default function JobFilters({
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 text-white shadow-lg shadow-emerald-500/20">
-                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-                            </svg>
+                            <SlidersHorizontal className="h-5 w-5" />
                         </div>
                         <div>
                             <h2 className="text-base font-bold text-gray-900">

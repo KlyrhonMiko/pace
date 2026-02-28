@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 
 export default function ProfileStrength() {
     const percentage = 75;
@@ -40,9 +41,7 @@ export default function ProfileStrength() {
                         className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-white/20 backdrop-blur-sm px-3 py-1.5 text-xs font-semibold transition-all hover:bg-white/30 border border-white/10"
                     >
                         Complete Profile
-                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                        </svg>
+                        <ChevronRight className="h-3 w-3" strokeWidth={2.5} />
                     </Link>
                 </div>
             </div>

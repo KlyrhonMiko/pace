@@ -4,6 +4,7 @@ import { useState } from "react";
 import JobCard from "./JobCard";
 import JobDetailModal from "./JobDetailModal";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Briefcase, Search, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface Job {
     id: number | string;
@@ -56,9 +57,7 @@ export default function JobList({
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-400 to-indigo-600 text-white shadow-lg shadow-blue-200/50">
-                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                            </svg>
+                            <Briefcase className="h-5 w-5" strokeWidth={2} />
                         </div>
                         <div>
                             <h2 className="text-base font-bold text-gray-900">
@@ -132,9 +131,7 @@ export default function JobList({
                     <div className="relative z-10 py-12 text-center">
                         <div className="flex justify-center mb-4">
                             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
-                                <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
+                                <Search className="h-8 w-8" strokeWidth={1.5} />
                             </div>
                         </div>
                         <h3 className="text-lg font-semibold text-slate-800 mb-2">No jobs found</h3>
@@ -157,9 +154,7 @@ export default function JobList({
                             disabled={currentPage === 1}
                             className="flex items-center gap-1 px-4 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 font-medium transition-all duration-200 hover:border-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:text-slate-600 disabled:hover:bg-slate-50"
                         >
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                            </svg>
+                            <ChevronLeft className="h-4 w-4" strokeWidth={2} />
                             Prev
                         </button>
 
@@ -207,9 +202,7 @@ export default function JobList({
                             className="flex items-center gap-1 px-4 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 font-medium transition-all duration-200 hover:border-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:text-slate-600 disabled:hover:bg-slate-50"
                         >
                             Next
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
+                            <ChevronRight className="h-4 w-4" strokeWidth={2} />
                         </button>
                     </div>
                 )}

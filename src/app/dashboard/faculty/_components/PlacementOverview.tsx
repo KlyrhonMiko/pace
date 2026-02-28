@@ -1,5 +1,7 @@
 "use client";
 
+import { Briefcase, TrendingUp, TrendingDown } from "lucide-react";
+
 const segments = [
     { label: "Employed", desc: "Successfully placed", value: 50, color: "#10b981", pct: 78.1 },
     { label: "Interviewing", desc: "In progress", value: 8, color: "#3b82f6", pct: 12.5 },
@@ -28,9 +30,7 @@ export default function PlacementOverview() {
             <div className="px-5 pt-5 pb-3 flex items-start justify-between">
                 <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 text-white shadow-lg shadow-teal-500/25">
-                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
-                        </svg>
+                        <Briefcase className="h-5 w-5" />
                     </div>
                     <div>
                         <h3 className="text-[13px] font-semibold text-gray-900 tracking-tight">Batch 2025 Placement</h3>
@@ -157,13 +157,11 @@ export default function PlacementOverview() {
                             <p className="text-sm font-bold text-gray-900 tabular-nums">{stat.value}</p>
                             {stat.up !== null ? (
                                 <div className={`flex items-center justify-center gap-0.5 mt-0.5 ${stat.up ? "text-emerald-700" : "text-red-500"}`}>
-                                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                                        {stat.up ? (
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
-                                        ) : (
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 4.5l15 15m0 0V8.25m0 11.25H8.25" />
-                                        )}
-                                    </svg>
+                                    {stat.up ? (
+                                        <TrendingUp className="w-2.5 h-2.5" />
+                                    ) : (
+                                        <TrendingDown className="w-2.5 h-2.5" />
+                                    )}
                                     <span className="text-[9px] font-semibold">{stat.trend}</span>
                                 </div>
                             ) : (

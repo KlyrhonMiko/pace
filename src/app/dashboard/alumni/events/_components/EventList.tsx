@@ -1,6 +1,7 @@
 "use client";
 
 import EventCard from "./EventCard";
+import { Search, Calendar, RefreshCcw, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface Event {
     id: number;
@@ -54,19 +55,7 @@ export default function EventList({
                 <div className="mb-7">
                     <label className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2.5 block">Search Events</label>
                     <div className="relative group">
-                        <svg
-                            className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-700 transition-colors"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                            />
-                        </svg>
+                        <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-700 transition-colors" strokeWidth={2} />
                         <input
                             type="text"
                             placeholder="Search by title, description..."
@@ -92,19 +81,7 @@ export default function EventList({
                     <div className="relative z-10 py-16 text-center">
                         <div className="flex justify-center mb-4">
                             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-slate-100">
-                                <svg
-                                    className="h-10 w-10 text-slate-400"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={1.5}
-                                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                                    />
-                                </svg>
+                                <Calendar className="h-10 w-10 text-slate-400" strokeWidth={1.5} />
                             </div>
                         </div>
                         <h3 className="text-lg font-semibold text-slate-900 mb-1">No events found</h3>
@@ -117,9 +94,7 @@ export default function EventList({
                             onClick={clearFilters}
                             className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-800 hover:text-emerald-700 transition-colors px-4 py-2 rounded-lg hover:bg-emerald-50"
                         >
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
+                            <RefreshCcw className="h-4 w-4" strokeWidth={2} />
                             Reset filters
                         </button>
                     </div>
@@ -164,9 +139,7 @@ export default function EventList({
                                     disabled={currentPage === 1}
                                     className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:shadow-sm"
                                 >
-                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                                    </svg>
+                                    <ChevronLeft className="h-4 w-4" strokeWidth={2} />
                                     Previous
                                 </button>
 
@@ -196,9 +169,7 @@ export default function EventList({
                                     className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:shadow-sm"
                                 >
                                     Next
-                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                    </svg>
+                                    <ChevronRight className="h-4 w-4" strokeWidth={2} />
                                 </button>
                             </div>
                         )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, ReactNode } from "react";
+import { ChevronDown } from "lucide-react";
 
 interface FilterSectionProps {
     title: string;
@@ -34,15 +35,9 @@ export default function FilterSection({
                         </span>
                     )}
                 </div>
-                <svg
-                    className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""
-                        }`}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
+                <ChevronDown
+                    className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+                />
             </button>
             <div
                 className={`overflow-hidden transition-all duration-300 ${isExpanded ? "max-h-[1000px] opacity-100 pb-4" : "max-h-0 opacity-0"

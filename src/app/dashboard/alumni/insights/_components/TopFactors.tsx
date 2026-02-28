@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { BarChart3 } from "lucide-react";
 
 const rankColors = [
     { bg: "bg-emerald-50", text: "text-emerald-700", ring: "ring-emerald-200/60", dot: "from-emerald-500 to-teal-400", barBg: "bg-emerald-100" },
@@ -27,9 +28,7 @@ export default function TopFactors({ factors }: { factors: string[] }) {
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-lg shadow-violet-500/25">
-                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5m.75-9l3-3 2.148 2.148A12.061 12.061 0 0116.5 7.605" />
-                            </svg>
+                            <BarChart3 className="h-5 w-5" strokeWidth={2} />
                         </div>
                         <div>
                             <h2 className="text-base font-bold text-gray-900">

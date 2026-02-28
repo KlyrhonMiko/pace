@@ -1,3 +1,5 @@
+import { Activity, Briefcase, Send, Edit, Calendar } from "lucide-react";
+
 const activities = [
     {
         action: "Maria Santos got hired",
@@ -5,11 +7,7 @@ const activities = [
         time: "1h",
         color: "#10b981",
         bgClass: "bg-emerald-50",
-        icon: (
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0M12 12.75h.008v.008H12v-.008z" />
-            </svg>
-        ),
+        icon: <Briefcase className="w-3.5 h-3.5" />,
     },
     {
         action: "Carlos Reyes applied",
@@ -17,11 +15,7 @@ const activities = [
         time: "3h",
         color: "#3b82f6",
         bgClass: "bg-blue-50",
-        icon: (
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-            </svg>
-        ),
+        icon: <Send className="w-3.5 h-3.5" />,
     },
     {
         action: "Ana Dela Cruz updated profile",
@@ -29,11 +23,7 @@ const activities = [
         time: "1d",
         color: "#8b5cf6",
         bgClass: "bg-violet-50",
-        icon: (
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-            </svg>
-        ),
+        icon: <Edit className="w-3.5 h-3.5" />,
     },
     {
         action: "Lea Garcia registered for event",
@@ -41,11 +31,7 @@ const activities = [
         time: "2d",
         color: "#f59e0b",
         bgClass: "bg-amber-50",
-        icon: (
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-            </svg>
-        ),
+        icon: <Calendar className="w-3.5 h-3.5" />,
     },
 ];
 
@@ -57,9 +43,7 @@ export default function RecentStudentActivity() {
             <div className="px-6 pt-5 pb-4 flex items-start justify-between">
                 <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-slate-500 to-slate-600 text-white shadow-lg shadow-slate-500/25">
-                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
+                        <Activity className="h-5 w-5" />
                     </div>
                     <div>
                         <h3 className="text-[13px] font-semibold text-gray-900 tracking-tight">Student Activity</h3>

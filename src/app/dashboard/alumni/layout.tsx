@@ -7,25 +7,27 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 
 import {
-    HomeIcon,
-    BriefcaseIcon,
-    CalendarIcon,
-    UserIcon,
-    SparklesIcon,
-    SettingsIcon,
-    LogoutIcon,
-    BellIcon,
-    MenuIcon,
-    CloseIcon,
-} from "../_components/Icons";
+    Home,
+    Briefcase,
+    Calendar,
+    User,
+    Sparkles,
+    Settings,
+    LogOut,
+    Bell,
+    Menu,
+    X,
+    ChevronRight,
+    Search,
+} from "lucide-react";
 import DateWidget from "../_components/DateWidget";
 
 const navItems = [
-    { name: "Overview", href: "/dashboard/alumni", icon: HomeIcon },
-    { name: "Job Listings", href: "/dashboard/alumni/jobs", icon: BriefcaseIcon },
-    { name: "Events", href: "/dashboard/alumni/events", icon: CalendarIcon },
-    { name: "Employability Insights", href: "/dashboard/alumni/insights", icon: SparklesIcon },
-    { name: "Profile", href: "/dashboard/alumni/profile", icon: UserIcon },
+    { name: "Overview", href: "/dashboard/alumni", icon: () => <Home size={18} /> },
+    { name: "Job Listings", href: "/dashboard/alumni/jobs", icon: () => <Briefcase size={18} /> },
+    { name: "Events", href: "/dashboard/alumni/events", icon: () => <Calendar size={18} /> },
+    { name: "Employability Insights", href: "/dashboard/alumni/insights", icon: () => <Sparkles size={18} /> },
+    { name: "Profile", href: "/dashboard/alumni/profile", icon: () => <User size={18} /> },
 ];
 
 export default function AlumniLayout({
@@ -77,7 +79,7 @@ export default function AlumniLayout({
                         className="rounded-lg p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors duration-200 lg:hidden"
                         onClick={() => setSidebarOpen(false)}
                     >
-                        <CloseIcon />
+                        <X size={20} />
                     </button>
                 </div>
 
@@ -126,14 +128,7 @@ export default function AlumniLayout({
 
                                     {/* Active arrow indicator */}
                                     {isActive && (
-                                        <svg
-                                            className="w-4 h-4 text-white/90"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                        >
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                                        </svg>
+                                        <ChevronRight className="w-4 h-4 text-white/90" strokeWidth={2.5} />
                                     )}
                                 </Link>
                             );
@@ -166,18 +161,11 @@ export default function AlumniLayout({
                                     : "text-gray-500 group-hover:text-emerald-800 group-hover:bg-emerald-50"
                                 }
                             `}>
-                                <SettingsIcon />
+                                <Settings size={18} />
                             </span>
                             <span className="flex-1 font-medium">Settings</span>
                             {pathname === "/dashboard/alumni/settings" && (
-                                <svg
-                                    className="w-4 h-4 text-white/90"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                >
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                                </svg>
+                                <ChevronRight className="w-4 h-4 text-white/90" strokeWidth={2.5} />
                             )}
                         </Link>
                     </div>
@@ -207,7 +195,7 @@ export default function AlumniLayout({
                             className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all duration-200 flex-shrink-0"
                             title="Sign out"
                         >
-                            <LogoutIcon />
+                            <LogOut size={18} />
                         </Link>
                     </div>
                 </div>
@@ -223,7 +211,7 @@ export default function AlumniLayout({
                             className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors duration-150 lg:hidden"
                             onClick={() => setSidebarOpen(true)}
                         >
-                            <MenuIcon />
+                            <Menu size={20} />
                         </button>
                         <div className="flex items-center gap-3">
                             {/* Date Badge */}
@@ -240,9 +228,7 @@ export default function AlumniLayout({
                     <div className="flex items-center gap-2">
                         {/* Search */}
                         <div className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors duration-150 group">
-                            <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
+                            <Search className="h-4 w-4 text-gray-400" />
                             <input
                                 type="text"
                                 placeholder="Search jobs, events..."
@@ -255,7 +241,7 @@ export default function AlumniLayout({
 
                         {/* Notifications */}
                         <button className="relative flex items-center justify-center h-9 w-9 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors duration-150">
-                            <BellIcon />
+                            <Bell size={20} />
                             <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-700 text-[9px] font-bold text-white ring-2 ring-white">
                                 3
                             </span>
@@ -263,10 +249,7 @@ export default function AlumniLayout({
 
                         {/* Settings */}
                         <button className="hidden sm:flex items-center justify-center h-9 w-9 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors duration-150">
-                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
+                            <Settings className="h-5 w-5" strokeWidth={1.5} />
                         </button>
                     </div>
                 </header>

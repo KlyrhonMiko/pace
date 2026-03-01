@@ -12,6 +12,7 @@ import {
     Settings,
     LogOut,
     Bell,
+    ClipboardList,
     Menu,
     X,
     Briefcase,
@@ -30,6 +31,11 @@ const navItems = [
         name: "Reports",
         href: "/dashboard/admin/reports",
         icon: () => <BarChart3 size={18} />,
+    },
+    {
+        name: "Surveys",
+        href: "/dashboard/admin/surveys",
+        icon: () => <ClipboardList size={18} />,
     },
 ];
 

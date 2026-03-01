@@ -2,20 +2,9 @@
 
 import EventCard from "./EventCard";
 import { Search, Calendar, RefreshCcw, ChevronLeft, ChevronRight } from "lucide-react";
+import { type Event } from "../../../_lib/events";
 
-interface Event {
-    id: number;
-    title: string;
-    date: string;
-    time: string;
-    location: string;
-    type: string;
-    description: string;
-    attendees: number;
-    capacity: number;
-    image?: string;
-    isRegistered?: boolean;
-}
+// Event interface is now imported from src/app/dashboard/_lib/events.ts
 
 interface EventListProps {
     filteredEvents: Event[];
@@ -27,6 +16,7 @@ interface EventListProps {
     clearFilters: () => void;
     searchQuery: string;
     onSearchChange: (query: string) => void;
+    onToggleRegistration: (id: number) => void;
 }
 
 export default function EventList({
@@ -39,6 +29,7 @@ export default function EventList({
     clearFilters,
     searchQuery,
     onSearchChange,
+    onToggleRegistration,
 }: EventListProps) {
     const isLoading = false;
 
@@ -117,15 +108,18 @@ export default function EventList({
                             {filteredEvents.map((event) => (
                                 <div key={event.id} className="group">
                                     <EventCard
+                                        id={event.id}
                                         title={event.title}
                                         date={event.date}
-                                        time={event.time}
+                                        start={event.start}
+                                        end={event.end}
                                         location={event.location}
                                         attendees={event.attendees}
                                         type={event.type}
                                         capacity={event.capacity}
                                         description={event.description}
                                         isRegistered={event.isRegistered}
+                                        onToggleRegistration={onToggleRegistration}
                                     />
                                 </div>
                             ))}

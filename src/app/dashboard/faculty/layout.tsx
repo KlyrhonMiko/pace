@@ -18,6 +18,7 @@ import {
     BarChart3,
     Search,
     ChevronRight,
+    ClipboardList,
 } from "lucide-react";
 import DateWidget from "../_components/DateWidget";
 
@@ -38,6 +39,11 @@ const navItems = [
         name: "Reports",
         href: "/dashboard/faculty/reports",
         icon: () => <BarChart3 size={18} />,
+    },
+    {
+        name: "Surveys",
+        href: "/dashboard/faculty/surveys",
+        icon: () => <ClipboardList size={18} />,
     },
 ];
 

@@ -21,7 +21,6 @@ export default function PlacementOverview() {
     const radius = 46;
     const strokeWidth = 11;
     const circumference = 2 * Math.PI * radius;
-    let cumulativeOffset = 0;
 
     return (
         <div className="group relative rounded-2xl bg-white border border-gray-100/80 shadow-sm transition-all duration-500 hover:shadow-xl hover:shadow-emerald-100/20 hover:border-gray-200/80 overflow-hidden flex flex-col h-full">
@@ -69,25 +68,29 @@ export default function PlacementOverview() {
                                 opacity="0.5"
                             />
                             <g style={{ transform: "rotate(-90deg)", transformOrigin: "60px 60px" }}>
-                                {segments.map((seg) => {
-                                    const dash = (seg.pct / 100) * circumference;
-                                    const gap = circumference - dash;
-                                    const offset = cumulativeOffset;
-                                    cumulativeOffset += dash;
-                                    return (
-                                        <circle
-                                            key={seg.label}
-                                            cx="60" cy="60" r={radius}
-                                            fill="none"
-                                            strokeWidth={strokeWidth}
-                                            strokeLinecap="round"
-                                            stroke={seg.color}
-                                            strokeDasharray={`${dash - 3} ${gap + 3}`}
-                                            strokeDashoffset={-offset}
-                                            className="transition-all duration-700"
-                                        />
-                                    );
-                                })}
+                                {segments.reduce<{ elements: JSX.Element[], currentOffset: number }>(
+                                    (acc, seg) => {
+                                        const dash = (seg.pct / 100) * circumference;
+                                        const gap = circumference - dash;
+                                        const offset = acc.currentOffset;
+                                        acc.elements.push(
+                                            <circle
+                                                key={seg.label}
+                                                cx="60" cy="60" r={radius}
+                                                fill="none"
+                                                strokeWidth={strokeWidth}
+                                                strokeLinecap="round"
+                                                stroke={seg.color}
+                                                strokeDasharray={`${dash - 3} ${gap + 3}`}
+                                                strokeDashoffset={-offset}
+                                                className="transition-all duration-700"
+                                            />
+                                        );
+                                        acc.currentOffset += dash;
+                                        return acc;
+                                    },
+                                    { elements: [], currentOffset: 0 }
+                                ).elements}
                             </g>
                         </svg>
 

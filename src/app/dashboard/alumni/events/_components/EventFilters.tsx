@@ -33,7 +33,7 @@ export default function EventFilters({
     };
 
     return (
-        <div className="rounded-2xl bg-gradient-to-b from-white to-slate-50/50 border border-slate-200/80 p-6 shadow-lg shadow-slate-200/30 sticky top-24 h-fit backdrop-blur-sm">
+        <div className="rounded-2xl bg-gradient-to-b from-white to-slate-50/50 border border-slate-200/80 p-6 shadow-lg shadow-slate-200/30 h-fit backdrop-blur-sm">
             {/* Header with Icon */}
             <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-200/60">
                 <div className="flex items-center gap-2.5">

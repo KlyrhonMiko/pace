@@ -59,6 +59,7 @@ export default function SurveyModal({ isOpen, onClose, onSubmit, initialData, qu
     const handleAddFromLibrary = (q: Question) => {
         // Deep copy the question so edits here don't affect the library
         const newQuestion = JSON.parse(JSON.stringify(q));
+        // eslint-disable-next-line react-hooks/purity
         newQuestion.id = Date.now();
         setFormData({ ...formData, questions: [...formData.questions, newQuestion] });
         setShowLibrarySelector(false);
@@ -168,7 +169,7 @@ export default function SurveyModal({ isOpen, onClose, onSubmit, initialData, qu
                                             <label className="block text-sm font-semibold text-slate-700 mb-1">Status</label>
                                             <select
                                                 value={formData.status}
-                                                onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                                                onChange={(e) => setFormData({ ...formData, status: e.target.value as "DRAFT" | "ACTIVE" | "CLOSED" })}
                                                 className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors bg-white font-medium"
                                             >
                                                 {SURVEY_STATUSES.map(status => (

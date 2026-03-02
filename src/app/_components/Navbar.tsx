@@ -8,6 +8,7 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3 group">
           <div className="relative h-10 w-10 flex-shrink-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/plp-logo.png?v=2"
               alt="PLP Logo"

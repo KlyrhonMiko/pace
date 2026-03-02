@@ -8,8 +8,6 @@ const registrations = [
 ];
 
 export default function RecentRegistrations() {
-    const verifiedCount = registrations.filter((r) => r.status === "verified").length;
-    const pendingCount = registrations.filter((r) => r.status === "pending").length;
 
     return (
         <div className="group relative rounded-2xl bg-white border border-gray-100/80 shadow-sm transition-all duration-500 hover:shadow-xl hover:shadow-gray-200/20 hover:border-gray-200/80 overflow-hidden flex flex-col lg:col-span-2">

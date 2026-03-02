@@ -2,17 +2,14 @@
 
 import { useState, useEffect, useMemo } from "react";
 import {
-    Calendar,
     Clock,
     MapPin,
-    Users,
     Plus,
     Search,
     Edit2,
     Trash2,
     X,
     Image as ImageIcon,
-    MoreVertical,
     Check
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -43,6 +40,7 @@ export default function EventManagement() {
 
     // Initial load and synchronization
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setEvents(getStoredEvents());
 
         const handleSync = () => {

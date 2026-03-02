@@ -12,6 +12,7 @@ export function Footer() {
                     <div className="md:col-span-5 space-y-6">
                         <div className="flex items-center gap-3">
                             <div className="relative w-20 h-20 shrink-0">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                     src="/plp-logo.png?v=2"
                                     alt="PLP Logo"

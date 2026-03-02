@@ -51,7 +51,6 @@ const colorMap: Record<string, { gradient: string; hex: string; bg: string; text
 };
 
 export default function UpcomingSessions() {
-    const todayCount = sessions.filter((s) => s.day === "Today").length;
 
     return (
         <div className="group relative rounded-2xl bg-white border border-gray-100/80 shadow-sm transition-all duration-500 hover:shadow-xl hover:shadow-gray-200/20 hover:border-gray-200/80 overflow-hidden flex flex-col">

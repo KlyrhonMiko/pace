@@ -203,7 +203,7 @@ export default function JobListingsPage() {
     // Fetch filter counts only on mount
     useEffect(() => {
         fetchFilterCounts();
-    }, []);
+    }, [fetchFilterCounts]);
 
     // Debounce salary range updates to prevent layout shift while dragging
     useEffect(() => {

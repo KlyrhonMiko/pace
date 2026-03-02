@@ -81,6 +81,7 @@ export default function SalaryRangeSlider({
             document.removeEventListener("touchmove", handleTouchMove);
             document.removeEventListener("touchend", handleEnd);
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isDragging, value]);
 
     const minPercentage = getPercentage(value[0]);

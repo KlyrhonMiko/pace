@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 
-export default function InsightsHeader() {
+export default function EventsHeader() {
     return (
         <div className="rounded-2xl bg-white border border-gray-100 overflow-hidden shadow-sm">
             <div className="px-8 py-6">
@@ -16,16 +16,16 @@ export default function InsightsHeader() {
                         Dashboard
                     </Link>
                     <ChevronRight className="w-3 h-3" strokeWidth={2.5} />
-                    <span className="text-gray-600">Employability Insights</span>
+                    <span className="text-gray-600">Events & Networking</span>
                 </nav>
 
                 <div className="flex items-start justify-between gap-4 flex-wrap">
                     <div>
                         <h1 className="text-2xl font-semibold text-gray-900 tracking-tight">
-                            Employability Insights
+                            Events & Networking
                         </h1>
                         <p className="text-sm text-gray-500 mt-1">
-                            AI-powered analysis of your career readiness and growth areas
+                            Discover professional development events, seminars, and networking opportunities
                         </p>
                     </div>
                 </div>

@@ -3,7 +3,8 @@
 import { useState, useMemo, useEffect } from "react";
 import EventFilters from "./_components/EventFilters";
 import EventList from "./_components/EventList";
-import { eventTypes as _unused_eventTypes } from "./_components/constants";
+import EventsHeader from "./_components/EventsHeader";
+
 import { getStoredEvents, saveStoredEvents, type Event } from "../../_lib/events";
 
 // Mock data is now managed in src/app/dashboard/_lib/events.ts
@@ -17,6 +18,7 @@ export default function EventsPage() {
 
     // Initial load and synchronization
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setEvents(getStoredEvents());
 
         const handleSync = () => {
@@ -31,7 +33,7 @@ export default function EventsPage() {
         };
     }, []);
 
-    const EVENTS_PER_PAGE = 10;
+    const EVENTS_PER_PAGE = 5;
 
     // Filter and search logic
     const filteredEvents = useMemo(() => {
@@ -105,58 +107,10 @@ export default function EventsPage() {
         saveStoredEvents(updatedEvents);
     };
 
-    const registeredCount = events.filter(e => e.isRegistered).length;
-
     return (
         <div className="space-y-6">
-            {/* Redesigned Header to match Overview Page */}
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-800 via-emerald-700 to-teal-500 p-6 lg:p-10 text-white shadow-xl shadow-emerald-900/10">
-                {/* Decorative mesh */}
-                <div className="absolute inset-0 opacity-30">
-                    <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-white/10 blur-3xl" />
-                    <div className="absolute -bottom-16 -left-16 w-64 h-64 rounded-full bg-teal-300/20 blur-3xl" />
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-emerald-600/10 blur-3xl pointer-events-none" />
-                </div>
-
-                {/* Grid overlay pattern */}
-                <div className="absolute inset-0 opacity-[0.05]" style={{
-                    backgroundImage: `radial-gradient(circle at 1px 1px, white 1px, transparent 0)`,
-                    backgroundSize: '32px 32px',
-                }} />
-
-                <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
-                    {/* Left: Content */}
-                    <div className="max-w-2xl">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[10px] font-bold uppercase tracking-wider mb-4">
-                            <div className="h-1.5 w-1.5 rounded-full bg-emerald-300 animate-pulse" />
-                            Events Hub
-                        </div>
-                        <h1 className="text-3xl lg:text-4xl font-extrabold tracking-tight mb-4">Events & Networking</h1>
-                        <p className="text-emerald-50/80 text-sm lg:text-base leading-relaxed">
-                            Discover professional development events, seminars, and networking opportunities.
-                            Connect with industry leaders and expand your career network.
-                        </p>
-                    </div>
-
-                    {/* Right: Quick Stats */}
-                    <div className="flex flex-wrap gap-4 items-center">
-                        <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 min-w-[140px]">
-                            <p className="text-emerald-100/70 text-[10px] font-bold uppercase tracking-wider mb-1">Available</p>
-                            <div className="flex items-baseline gap-2">
-                                <span className="text-2xl font-bold">{totalEvents}</span>
-                                <span className="text-xs text-emerald-100/60 uppercase">Events</span>
-                            </div>
-                        </div>
-                        <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 min-w-[140px]">
-                            <p className="text-emerald-100/70 text-[10px] font-bold uppercase tracking-wider mb-1">Registered</p>
-                            <div className="flex items-baseline gap-2">
-                                <span className="text-2xl font-bold">{registeredCount}</span>
-                                <span className="text-xs text-emerald-100/60 uppercase">Signed Up</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            {/* Page Header */}
+            <EventsHeader />
 
             {/* 2-Column Layout */}
             <div className="relative grid grid-cols-1 lg:grid-cols-4 gap-6">

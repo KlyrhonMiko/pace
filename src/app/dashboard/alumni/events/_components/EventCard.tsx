@@ -1,4 +1,4 @@
-import { Briefcase, SlidersHorizontal, Presentation, Users, Check, Calendar, MapPin } from "lucide-react";
+import { Briefcase, SlidersHorizontal, Presentation, Users, Calendar, MapPin } from "lucide-react";
 import { formatEventDate } from "../../../_lib/events";
 
 export default function EventCard({

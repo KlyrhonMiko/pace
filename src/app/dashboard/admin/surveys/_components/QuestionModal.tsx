@@ -23,6 +23,7 @@ export default function QuestionModal({ isOpen, onClose, onSubmit, initialData }
 
     useEffect(() => {
         if (initialData) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setFormData(initialData);
         } else {
             setFormData(defaultQuestionData);

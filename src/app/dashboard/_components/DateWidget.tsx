@@ -6,6 +6,7 @@ export default function DateWidget() {
     const [date, setDate] = useState<Date | null>(null);
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setDate(new Date());
     }, []);
 

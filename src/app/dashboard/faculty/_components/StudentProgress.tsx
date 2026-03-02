@@ -8,7 +8,6 @@ const students = [
 ]; import { Users, Check } from "lucide-react";
 
 export default function StudentProgress() {
-    const employed = students.filter((s) => s.status === "Employed").length;
 
     return (
         <div className="group relative rounded-2xl bg-white border border-gray-100/80 shadow-sm transition-all duration-500 hover:shadow-xl hover:shadow-gray-200/20 hover:border-gray-200/80 overflow-hidden flex flex-col lg:col-span-2">

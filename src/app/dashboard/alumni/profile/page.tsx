@@ -34,24 +34,7 @@ interface AcademicInfo {
     course: string;
 }
 
-// ─── Constants ─────────────────────────────────────────────────────────────────
 
-const COURSES = [
-    "BS Information Technology",
-    "BS Computer Science",
-    "BS Information Systems",
-    "BS Electrical Engineering",
-    "BS Electronics Engineering",
-    "BS Civil Engineering",
-    "BS Mechanical Engineering",
-    "BS Hotel & Restaurant Management",
-    "BS Business Administration",
-    "BS Accountancy",
-    "BS Nursing",
-    "BS Education",
-    "BA Communication",
-    "BA Psychology",
-];
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -266,7 +249,6 @@ export default function ProfilePage() {
     const [accountDraft, setAccountDraft] = useState<AccountInfo>(account);
     const [editingAccount, setEditingAccount] = useState(false);
     const [accountSaved, setAccountSaved] = useState(false);
-    const [showPassword, setShowPassword] = useState(false);
 
     // ── Personal Info ──
     const [personal, setPersonal] = useState<PersonalInfo>({
@@ -299,6 +281,7 @@ export default function ProfilePage() {
 
     // ── Age auto-compute ──
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setPersonalDraft((prev) => ({
             ...prev,
             age: computeAge(prev.birthdate),

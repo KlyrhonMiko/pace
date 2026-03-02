@@ -5,7 +5,7 @@ import { Users, TrendingUp, CalendarDays, Target, Link } from "lucide-react";
 export default function FacultyStatsGrid() {
     return (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {/* Students Advised */}
+            {/* Alumni Advised */}
             <div className="group relative rounded-2xl bg-white border border-gray-100 p-5 transition-all duration-300 hover:shadow-lg hover:shadow-emerald-700/5 hover:-translate-y-0.5">
                 <div className="flex items-center justify-between mb-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-700 to-emerald-800 text-white shadow-lg shadow-emerald-700/25">
@@ -17,7 +17,7 @@ export default function FacultyStatsGrid() {
                     </span>
                 </div>
                 <p className="text-3xl font-extrabold text-gray-900 tracking-tight">64</p>
-                <p className="text-xs text-gray-400 mt-1 font-medium">Students Advised</p>
+                <p className="text-xs text-gray-400 mt-1 font-medium">Alumni Advised</p>
                 {/* Mini sparkline */}
                 <div className="flex items-end gap-[3px] mt-3 h-6">
                     {[3, 5, 4, 7, 6, 8, 9, 7, 10, 12].map((v, i) => (

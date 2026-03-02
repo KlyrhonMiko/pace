@@ -31,12 +31,12 @@ export function Navbar() {
 
 
         <div className="flex items-center gap-4">
-          <Link href="/dashboard/alumni">
+          <Link href="/register">
             <Button variant="ghost" className="hidden sm:inline-flex text-emerald-800 hover:text-emerald-900 hover:bg-emerald-50">
               Sign In
             </Button>
           </Link>
-          <Link href="/dashboard/alumni">
+          <Link href="/register">
             <Button className="bg-emerald-700 hover:bg-emerald-800 text-white shadow-sm shadow-emerald-200">
               Get Started
             </Button>

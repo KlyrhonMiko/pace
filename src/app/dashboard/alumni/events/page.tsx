@@ -108,12 +108,12 @@ export default function EventsPage() {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-5">
             {/* Page Header */}
             <EventsHeader />
 
             {/* 2-Column Layout */}
-            <div className="relative grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <div className="relative grid grid-cols-1 lg:grid-cols-4 gap-5">
                 {/* Left Column: Event List */}
                 <div className="lg:col-span-3">
                     <EventList
@@ -134,7 +134,7 @@ export default function EventsPage() {
                 </div>
 
                 {/* Right Column: Filters */}
-                <div className="lg:col-span-1">
+                <div className="lg:col-span-1 lg:sticky lg:top-5 lg:self-start">
                     <EventFilters
                         eventTypes={derivedEventTypes}
                         selectedType={selectedType}

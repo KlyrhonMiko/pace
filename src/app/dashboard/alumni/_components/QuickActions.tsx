@@ -66,9 +66,9 @@ const actions = [
     },
 ];
 
-export default function QuickActions() {
+export default function QuickActions({ className }: { className?: string }) {
     return (
-        <div className="group relative rounded-2xl bg-white border border-gray-100/80 shadow-sm transition-all duration-500 hover:shadow-xl hover:shadow-gray-200/20 hover:border-gray-200/80 overflow-hidden flex flex-col">
+        <div className={`group relative rounded-2xl bg-white border border-gray-100/80 shadow-sm transition-all duration-500 hover:shadow-xl hover:shadow-gray-200/20 hover:border-gray-200/80 overflow-hidden flex flex-col ${className}`}>
 
             {/* Header */}
             <div className="px-6 pt-5 pb-4 flex items-center gap-3">

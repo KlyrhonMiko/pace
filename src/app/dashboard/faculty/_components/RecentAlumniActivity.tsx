@@ -35,7 +35,7 @@ const activities = [
     },
 ];
 
-export default function RecentStudentActivity() {
+export default function RecentAlumniActivity() {
     return (
         <div className="group relative rounded-2xl bg-white border border-gray-100/80 shadow-sm transition-all duration-500 hover:shadow-xl hover:shadow-gray-200/20 hover:border-gray-200/80 overflow-hidden flex flex-col h-full">
 
@@ -46,7 +46,7 @@ export default function RecentStudentActivity() {
                         <Activity className="h-5 w-5" />
                     </div>
                     <div>
-                        <h3 className="text-[13px] font-semibold text-gray-900 tracking-tight">Student Activity</h3>
+                        <h3 className="text-[13px] font-semibold text-gray-900 tracking-tight">Alumni Activity</h3>
                         <p className="text-[11px] text-gray-400 mt-0.5">From your advisees</p>
                     </div>
                 </div>

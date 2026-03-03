@@ -1,10 +1,10 @@
 import FacultyStatsGrid from "./_components/FacultyStatsGrid";
 import FacultyQuickActions from "./_components/FacultyQuickActions";
-import StudentProgress from "./_components/StudentProgress";
+import AlumniProgress from "./_components/AlumniProgress";
 import PlacementOverview from "./_components/PlacementOverview";
 import UpcomingSessions from "./_components/UpcomingSessions";
 import UpcomingFacultyEvents from "./_components/UpcomingFacultyEvents";
-import RecentStudentActivity from "./_components/RecentStudentActivity";
+import RecentAlumniActivity from "./_components/RecentAlumniActivity";
 
 export default function FacultyDashboard() {
     return (
@@ -12,15 +12,15 @@ export default function FacultyDashboard() {
             {/* Header */}
             <div className="flex flex-col gap-1">
                 <h1 className="text-xl font-bold text-gray-900">Faculty Overview</h1>
-                <p className="text-sm text-gray-500">Track student progress, manage sessions, and monitor placements.</p>
+                <p className="text-sm text-gray-500">Track alumni progress, manage sessions, and monitor placements.</p>
             </div>
 
             {/* Stats - mixed sizes */}
             <FacultyStatsGrid />
 
-            {/* Student Cards + Placement Donut */}
+            {/* Alumni Cards + Placement Donut */}
             <div className="grid gap-5 lg:grid-cols-3">
-                <StudentProgress />
+                <AlumniProgress />
                 <PlacementOverview />
             </div>
 
@@ -33,7 +33,7 @@ export default function FacultyDashboard() {
             {/* Activity Feed + Quick Actions */}
             <div className="grid gap-5 lg:grid-cols-3">
                 <div className="lg:col-span-2">
-                    <RecentStudentActivity />
+                    <RecentAlumniActivity />
                 </div>
                 <div>
                     <FacultyQuickActions />

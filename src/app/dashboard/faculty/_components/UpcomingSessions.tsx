@@ -3,7 +3,7 @@ import { Briefcase, FileText, Users, MonitorPlay, CalendarDays } from "lucide-re
 const sessions = [
     {
         title: "Career Counseling",
-        student: "Carlos Reyes",
+        alumni: "Carlos Reyes",
         time: "2:00 PM",
         day: "Today",
         type: "1-on-1",
@@ -13,7 +13,7 @@ const sessions = [
     },
     {
         title: "Resume Review",
-        student: "Ana Dela Cruz",
+        alumni: "Ana Dela Cruz",
         time: "4:30 PM",
         day: "Today",
         type: "1-on-1",
@@ -23,7 +23,7 @@ const sessions = [
     },
     {
         title: "Group Mentoring",
-        student: "BSIT 4th Year (12)",
+        alumni: "BSIT 4th Year (12)",
         time: "10:00 AM",
         day: "Tomorrow",
         type: "Group",
@@ -33,7 +33,7 @@ const sessions = [
     },
     {
         title: "Mock Interview",
-        student: "Lea Garcia",
+        alumni: "Lea Garcia",
         time: "1:00 PM",
         day: "Wed",
         type: "1-on-1",
@@ -112,7 +112,7 @@ export default function UpcomingSessions() {
                                             )}
                                         </div>
                                         <div className="flex items-center gap-2 mt-1">
-                                            <span className="text-[11px] text-gray-500">{s.student}</span>
+                                            <span className="text-[11px] text-gray-500">{s.alumni}</span>
                                             <span className="text-gray-300">·</span>
                                             <span className={`text-[11px] font-semibold ${s.isLive ? colors.text : "text-gray-500"}`}>
                                                 {s.day}, {s.time}

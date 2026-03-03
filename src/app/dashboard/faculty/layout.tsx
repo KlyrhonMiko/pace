@@ -25,8 +25,8 @@ import DateWidget from "../_components/DateWidget";
 const navItems = [
     { name: "Overview", href: "/dashboard/faculty", icon: () => <Home size={18} /> },
     {
-        name: "My Students",
-        href: "/dashboard/faculty/students",
+        name: "My Alumni",
+        href: "/dashboard/faculty/alumnis",
         icon: () => <Users size={18} />,
     },
     { name: "Events", href: "/dashboard/faculty/events", icon: () => <Calendar size={18} /> },
@@ -221,7 +221,7 @@ export default function FacultyLayout({
                             <div className="h-8 w-px bg-gray-200 hidden md:block" />
                             <div>
                                 <h1 className="text-base font-semibold text-gray-900">Welcome, Prof. Garcia!</h1>
-                                <p className="text-xs text-gray-500 hidden sm:block">Track student progress and manage your academic activities</p>
+                                <p className="text-xs text-gray-500 hidden sm:block">Track alumni progress and manage your academic activities</p>
                             </div>
                         </div>
                     </div>
@@ -232,7 +232,7 @@ export default function FacultyLayout({
                             <Search className="h-4 w-4 text-gray-400" />
                             <input
                                 type="text"
-                                placeholder="Search students, events..."
+                                placeholder="Search alumni, events..."
                                 className="bg-transparent text-sm text-gray-600 placeholder:text-gray-400 focus:outline-none w-40 xl:w-48"
                             />
                             <kbd className="hidden xl:flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-gray-200/80 text-[10px] font-medium text-gray-500">

@@ -24,7 +24,7 @@ export default function FacultyEventsPage() {
                             Event <span className="text-teal-300">HUB</span>
                         </h1>
                         <p className="text-emerald-50/80 text-lg max-w-xl leading-relaxed">
-                            Organize workshops, seminars, and networking sessions for your students and alumni.
+                            Organize workshops, seminars, and networking sessions for your alumni.
                             Build a vibrant academic community.
                         </p>
                     </div>

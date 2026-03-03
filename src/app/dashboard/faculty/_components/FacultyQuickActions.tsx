@@ -6,8 +6,8 @@ import { Zap, ChevronRight, Users, CalendarPlus, Briefcase, BarChart3 } from "lu
 const actions = [
     {
         label: "Schedule Session",
-        description: "Manage student meetings",
-        href: "/dashboard/faculty/students",
+        description: "Manage alumni meetings",
+        href: "/dashboard/faculty/alumnis",
         icon: Users,
         color: "#10b981",
         gradient: "from-emerald-700 to-emerald-800",

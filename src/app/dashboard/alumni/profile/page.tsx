@@ -23,7 +23,7 @@ interface PersonalInfo {
 }
 
 interface AcademicInfo {
-    studentId: string;
+    alumniId: string;
     yearGraduated: string;
     gwa: string;
     avgProfGrade: string;
@@ -50,7 +50,7 @@ function computeAge(birthdate: string): number | string {
 }
 
 // ─── Formatting Helpers ────────────────────────────────────────────────────────
-function formatStudentId(id: string): string {
+function formatAlumniId(id: string): string {
     const digits = id.replace(/\D/g, "");
     if (digits.length <= 2) return digits;
     const firstTwo = digits.substring(0, 2);
@@ -265,7 +265,7 @@ export default function ProfilePage() {
 
     // ── Academic Info ──
     const [academic] = useState<AcademicInfo>({
-        studentId: "2020-12345-MN-0",
+        alumniId: "2020-12345-MN-0",
         yearGraduated: "2024",
         gwa: "1.50",
         avgProfGrade: "1.45",
@@ -386,10 +386,10 @@ export default function ProfilePage() {
                                 </div>
                             </div>
 
-                            {/* Student ID badge */}
+                            {/* Alumni ID badge */}
                             <div className="hidden lg:flex flex-col items-end flex-shrink-0">
-                                <p className="text-emerald-200 text-[10px] font-semibold uppercase tracking-widest mb-1">Student ID</p>
-                                <p className="text-white font-mono font-bold text-lg tracking-wider">{formatStudentId(academic.studentId)}</p>
+                                <p className="text-emerald-200 text-[10px] font-semibold uppercase tracking-widest mb-1">Alunmi ID</p>
+                                <p className="text-white font-mono font-bold text-lg tracking-wider">{formatAlumniId(academic.alumniId)}</p>
                             </div>
                         </div>
                     </div>
@@ -556,7 +556,7 @@ export default function ProfilePage() {
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <ReadOnlyField label="Student ID *" value={formatStudentId(academic.studentId)} />
+                                    <ReadOnlyField label="Alunmi ID *" value={formatAlumniId(academic.alumniId)} />
                                     <ReadOnlyField label="Year Graduated *" value={academic.yearGraduated} />
                                     <ReadOnlyField label="GWA / CGPA *" value={academic.gwa} />
                                     <ReadOnlyField label="Avg. Professional Grade" value={academic.avgProfGrade} />

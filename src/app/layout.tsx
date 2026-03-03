@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "P.A.C.E. - Pamantasan ng Lungsod ng Pasig",
-  description: "The Official Career & Employability System for PLP Alumni & Students",
+  description: "The Official Career & Employability System for PLP Alumni",
   icons: {
     icon: "/plp-logo.png",
   },

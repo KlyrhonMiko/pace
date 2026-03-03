@@ -102,7 +102,7 @@ export default function AdminSurveysPage() {
                     <div>
                         <h1 className="text-3xl font-bold text-slate-900 mb-2">Surveys & Feedback</h1>
                         <p className="text-slate-600 max-w-2xl text-sm leading-relaxed">
-                            Create custom surveys, collect student feedback, and manage your reusable question library for future evaluations.
+                            Create custom surveys, collect alumni feedback, and manage your reusable question library for future evaluations.
                         </p>
                     </div>
 

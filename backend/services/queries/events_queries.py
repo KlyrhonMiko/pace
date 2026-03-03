@@ -1,14 +1,13 @@
 """
 DB query functions for events + event_registration domain.
 """
+
 import logging
 from sqlmodel import Session, select, func
 from models.events import Event, EventRegistration
-from models.event_types import EventType
-from schemas.events import EventCreate, EventUpdate, EventPublic
-from models.response_codes import ErrorCode, SuccessCode
+from schemas.events import EventCreate, EventUpdate
 from utils.timezone import get_current_time_gmt8, convert_to_gmt8
-from services.queries.event_types_queries import get_event_type_by_id
+from services.queries.event_types_queries import get_event_type_by_name
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +16,7 @@ logger = logging.getLogger(__name__)
 # ID generation
 # ---------------------------------------------------------------------------
 
+
 def generate_event_id(session: Session) -> str:
     """Generate next event_id in EVNT-XXXXXX format."""
     last_id = session.exec(
@@ -24,7 +24,7 @@ def generate_event_id(session: Session) -> str:
     ).first()
     if last_id:
         try:
-            parts = last_id.split('-')
+            parts = last_id.split("-")
             next_num = int(parts[1]) + 1 if len(parts) >= 2 else 1
         except (ValueError, IndexError):
             next_num = 1
@@ -37,14 +37,17 @@ def generate_event_id(session: Session) -> str:
 # Single-record lookups
 # ---------------------------------------------------------------------------
 
+
 def get_event_by_id(session: Session, event_id: str) -> Event | None:
     from utils.events import get_event_or_404
+
     return get_event_or_404(session, event_id)
 
 
 def get_active_event_by_id(session: Session, event_id: str) -> Event | None:
     """Returns event only if not deleted."""
     from utils.events import get_event_or_404
+
     event = get_event_or_404(session, event_id)
     return None if event.is_deleted else event
 
@@ -53,24 +56,21 @@ def get_active_event_by_id(session: Session, event_id: str) -> Event | None:
 # Single-record mutations
 # ---------------------------------------------------------------------------
 
+
 def create_event(session: Session, data: EventCreate) -> Event:
     event_id = generate_event_id(session)
-    
-    # Resolve event_type_code from the provided event_type_id string
-    event_type = get_event_type_by_id(session, data.event_type_code)
+
+    # Resolve event_type_code from the provided event_type_name (case-insensitive)
+    event_type = get_event_type_by_name(session, data.event_type_name)
     if not event_type:
-        raise ValueError(f"EVENT_TYPE_NOT_FOUND: {data.event_type_code}")
-    
-    event_data = data.model_dump()
-    event_data['event_id'] = event_id
-    event_data['event_type_code'] = event_type.event_type_code
-    # Remove the event_type_code field if it's the string ID
-    if 'event_type_code' in event_data and isinstance(event_data['event_type_code'], str):
-        del event_data['event_type_code']
-    event_data['event_type_code'] = event_type.event_type_code
-    
-    if event_data.get('date'):
-        event_data['date'] = convert_to_gmt8(event_data['date'])
+        raise ValueError(f"EVENT_TYPE_NOT_FOUND: {data.event_type_name}")
+
+    event_data = data.model_dump(exclude={"event_type_name"})
+    event_data["event_id"] = event_id
+    event_data["event_type_code"] = event_type.event_type_code
+
+    if event_data.get("date"):
+        event_data["date"] = convert_to_gmt8(event_data["date"])
     event = Event(**event_data)
     session.add(event)
     session.commit()
@@ -80,16 +80,18 @@ def create_event(session: Session, data: EventCreate) -> Event:
 
 def update_event(session: Session, event: Event, data: EventUpdate) -> Event:
     update_data = data.model_dump(exclude_unset=True)
-    
-    # Handle event_type_code resolution if provided
-    if 'event_type_code' in update_data and update_data['event_type_code']:
-        event_type = get_event_type_by_id(session, update_data['event_type_code'])
+
+    # Handle event_type_name resolution if provided (case-insensitive)
+    if "event_type_name" in update_data and update_data["event_type_name"]:
+        event_type = get_event_type_by_name(session, update_data.pop("event_type_name"))
         if not event_type:
-            raise ValueError(f"EVENT_TYPE_NOT_FOUND: {update_data['event_type_code']}")
-        update_data['event_type_code'] = event_type.event_type_code
-    
+            raise ValueError("EVENT_TYPE_NOT_FOUND")
+        update_data["event_type_code"] = event_type.event_type_code
+    else:
+        update_data.pop("event_type_name", None)
+
     for field, value in update_data.items():
-        if field == 'date' and value:
+        if field == "date" and value:
             value = convert_to_gmt8(value)
         setattr(event, field, value)
     event.updated_at = get_current_time_gmt8()
@@ -133,6 +135,7 @@ def clear_event_image(session: Session, event: Event) -> None:
 # List / pagination
 # ---------------------------------------------------------------------------
 
+
 def get_all_events(
     session: Session,
     limit: int,
@@ -156,10 +159,14 @@ def get_all_events(
     if search:
         like = f"%{search}%"
         query = query.where(
-            (Event.event_name.ilike(like)) | (Event.location.ilike(like)) | (Event.description.ilike(like))
+            (Event.event_name.ilike(like))
+            | (Event.location.ilike(like))
+            | (Event.description.ilike(like))
         )
         count_q = count_q.where(
-            (Event.event_name.ilike(like)) | (Event.location.ilike(like)) | (Event.description.ilike(like))
+            (Event.event_name.ilike(like))
+            | (Event.location.ilike(like))
+            | (Event.description.ilike(like))
         )
 
     if status == "upcoming":
@@ -170,8 +177,8 @@ def get_all_events(
         count_q = count_q.where(Event.date < now)
 
     if event_type:
-        # event_type is now an event_type_id string, resolve to code
-        et = get_event_type_by_id(session, event_type)
+        # event_type filter is now a name string (case-insensitive)
+        et = get_event_type_by_name(session, event_type)
         if et:
             query = query.where(Event.event_type_code == et.event_type_code)
             count_q = count_q.where(Event.event_type_code == et.event_type_code)
@@ -180,9 +187,13 @@ def get_all_events(
 
     desc = sort_order.lower() == "desc"
     if sort_by == "attendees":
-        query = query.order_by(Event.attendees.desc() if desc else Event.attendees.asc())
+        query = query.order_by(
+            Event.attendees.desc() if desc else Event.attendees.asc()
+        )
     elif sort_by == "name":
-        query = query.order_by(Event.event_name.desc() if desc else Event.event_name.asc())
+        query = query.order_by(
+            Event.event_name.desc() if desc else Event.event_name.asc()
+        )
     else:
         query = query.order_by(Event.date.desc() if desc else Event.date.asc())
 
@@ -195,6 +206,7 @@ def get_all_events(
 # ---------------------------------------------------------------------------
 # Event registration queries
 # ---------------------------------------------------------------------------
+
 
 def register_user_for_event(session: Session, event: Event, user_code: str) -> None:
     """Register a user. Raises ValueError on duplicate or full capacity."""

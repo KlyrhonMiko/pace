@@ -4,8 +4,6 @@ import EventCard from "./EventCard";
 import { Search, Calendar, RefreshCcw, ChevronLeft, ChevronRight } from "lucide-react";
 import { type Event } from "../../../_lib/events";
 
-// Event interface is now imported from src/app/dashboard/_lib/events.ts
-
 interface EventListProps {
     filteredEvents: Event[];
     totalEvents: number;
@@ -16,7 +14,7 @@ interface EventListProps {
     clearFilters: () => void;
     searchQuery: string;
     onSearchChange: (query: string) => void;
-    onToggleRegistration: (id: number) => void;
+    onToggleRegistration: (id: string) => void;
 }
 
 export default function EventList({
@@ -49,7 +47,7 @@ export default function EventList({
                         <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-700 transition-colors" strokeWidth={2} />
                         <input
                             type="text"
-                            placeholder="Search by title, description..."
+                            placeholder="Search by name, description..."
                             value={searchQuery}
                             onChange={(e) => onSearchChange(e.target.value)}
                             className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-700/30 focus:border-emerald-700 transition-all bg-white hover:border-slate-300"
@@ -106,19 +104,19 @@ export default function EventList({
                         {/* Event Cards */}
                         <div className="space-y-3.5 mt-6">
                             {filteredEvents.map((event) => (
-                                <div key={event.id} className="group">
+                                <div key={event.event_id} className="group">
                                     <EventCard
-                                        id={event.id}
-                                        title={event.title}
+                                        event_id={event.event_id}
+                                        event_name={event.event_name}
                                         date={event.date}
-                                        start={event.start}
-                                        end={event.end}
+                                        time_start={event.time_start}
+                                        time_end={event.time_end}
                                         location={event.location}
                                         attendees={event.attendees}
-                                        type={event.type}
+                                        event_type={event.event_type}
                                         capacity={event.capacity}
                                         description={event.description}
-                                        isRegistered={event.isRegistered}
+                                        is_registered={event.is_registered}
                                         onToggleRegistration={onToggleRegistration}
                                     />
                                 </div>

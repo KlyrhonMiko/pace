@@ -1,13 +1,11 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import EventFilters from "./_components/EventFilters";
 import EventList from "./_components/EventList";
 import EventsHeader from "./_components/EventsHeader";
 
-import { getStoredEvents, saveStoredEvents, type Event } from "../../_lib/events";
-
-// Mock data is now managed in src/app/dashboard/_lib/events.ts
+import { fetchEvents, fetchEventTypes, type Event } from "../../_lib/events";
 
 export default function EventsPage() {
     const [events, setEvents] = useState<Event[]>([]);
@@ -15,67 +13,69 @@ export default function EventsPage() {
     const [selectedType, setSelectedType] = useState<string | null>(null);
     const [showRegisteredOnly, setShowRegisteredOnly] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
-
-    // Initial load and synchronization
-    useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setEvents(getStoredEvents());
-
-        const handleSync = () => {
-            setEvents(getStoredEvents());
-        };
-
-        window.addEventListener("eventsUpdated", handleSync);
-        window.addEventListener("storage", handleSync);
-        return () => {
-            window.removeEventListener("eventsUpdated", handleSync);
-            window.removeEventListener("storage", handleSync);
-        };
-    }, []);
+    const [isLoading, setIsLoading] = useState(true);
+    const [eventTypeLabels, setEventTypeLabels] = useState<{ id: string; label: string; count: number }[]>([]);
 
     const EVENTS_PER_PAGE = 5;
 
-    // Filter and search logic
+    // Fetch events and event types from API
+    const loadData = useCallback(async () => {
+        setIsLoading(true);
+        const [eventsResult, types] = await Promise.all([
+            fetchEvents({ limit: 100, sort_by: "date", sort_order: "desc" }),
+            fetchEventTypes(),
+        ]);
+        setEvents(eventsResult.events);
+
+        // Derive event type counts from the fetched events
+        const counts: Record<string, number> = {};
+        eventsResult.events.forEach(event => {
+            counts[event.event_type] = (counts[event.event_type] || 0) + 1;
+        });
+        // Also include types with 0 events from the event-types table
+        types.forEach(t => {
+            if (!(t.event_name in counts)) {
+                counts[t.event_name] = 0;
+            }
+        });
+        setEventTypeLabels(
+            Object.entries(counts).map(([label, count]) => ({
+                id: label.toLowerCase().replace(/\s+/g, "-"),
+                label,
+                count,
+            }))
+        );
+
+        setIsLoading(false);
+    }, []);
+
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
+
+    // Filter and search logic (client-side on the fetched data)
     const filteredEvents = useMemo(() => {
         let result = events;
 
-        // Search filter
         if (searchQuery) {
             result = result.filter(
                 (event) =>
-                    event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    event.event_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                     event.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
                     event.location.toLowerCase().includes(searchQuery.toLowerCase())
             );
         }
 
-        // Type filter
         if (selectedType) {
-            result = result.filter((event) => event.type === selectedType);
+            result = result.filter((event) => event.event_type === selectedType);
         }
 
-        // Registered only filter
         if (showRegisteredOnly) {
-            result = result.filter((event) => event.isRegistered);
+            result = result.filter((event) => event.is_registered);
         }
 
         return result;
     }, [searchQuery, selectedType, showRegisteredOnly, events]);
-
-    const derivedEventTypes = useMemo(() => {
-        const counts: Record<string, number> = {};
-        events.forEach(event => {
-            counts[event.type] = (counts[event.type] || 0) + 1;
-        });
-
-        return Object.entries(counts).map(([label, count]) => ({
-            id: label.toLowerCase().replace(/\s+/g, '-'),
-            label,
-            count
-        }));
-    }, [events]);
-
-
 
     const totalEvents = filteredEvents.length;
     const totalPages = Math.ceil(totalEvents / EVENTS_PER_PAGE);
@@ -91,21 +91,28 @@ export default function EventsPage() {
         setCurrentPage(1);
     };
 
-    const handleToggleRegistration = (eventId: number) => {
-        const updatedEvents = events.map(event => {
-            if (event.id === eventId) {
-                const isRegistering = !event.isRegistered;
-                return {
-                    ...event,
-                    isRegistered: isRegistering,
-                    attendees: isRegistering ? event.attendees + 1 : event.attendees - 1
-                };
-            }
-            return event;
-        });
-        setEvents(updatedEvents);
-        saveStoredEvents(updatedEvents);
+    // Registration toggle — currently a no-op until auth is implemented
+    const handleToggleRegistration = (eventId: string) => {
+        // TODO: Wire to POST /events/{eventId}/register or DELETE once auth is implemented
+        console.log("Registration toggle for:", eventId, "(auth required)");
     };
+
+    if (isLoading) {
+        return (
+            <div className="space-y-5">
+                <EventsHeader />
+                <div className="flex items-center justify-center py-20">
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="relative h-10 w-10">
+                            <div className="absolute inset-0 rounded-full border-2 border-slate-200"></div>
+                            <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-emerald-700 animate-spin"></div>
+                        </div>
+                        <p className="text-sm font-medium text-slate-600">Loading events...</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-5">
@@ -136,7 +143,7 @@ export default function EventsPage() {
                 {/* Right Column: Filters */}
                 <div className="lg:col-span-1 lg:sticky lg:top-5 lg:self-start">
                     <EventFilters
-                        eventTypes={derivedEventTypes}
+                        eventTypes={eventTypeLabels}
                         selectedType={selectedType}
                         setSelectedType={(type) => {
                             setSelectedType(type);

@@ -1,26 +1,24 @@
 @echo off
-REM PACE Development - Redis Quick Reference (Windows)
+REM PACE Development - Upstash Redis Quick Reference (Windows)
 
 cls
 echo.
 echo 浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔
-echo 罒罒  PACE Development - Redis Quick Reference              罒罒
+echo 罒罒  PACE Development - Upstash Redis Quick Reference    罒罒
 echo 浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔浔
 echo.
-echo 🚀 START and STOP REDIS
+echo ✅ UPSTASH REDIS MIGRATION
 echo ═══════════════════════════════════════════════════════════════
 echo.
-echo   Start Redis:
-echo     scripts\windows\start-redis.bat
-echo.
-echo   Stop Redis:
-echo     scripts\windows\stop-redis.bat
+echo   ✓ Local Redis container has been replaced with Upstash
+echo   ✓ No startup/shutdown scripts needed
+echo   ✓ Cache automatically uses cloud-based Redis at Upstash
 echo.
 echo.
 echo 🗑️  CLEAR CACHE
 echo ═══════════════════════════════════════════════════════════════
 echo.
-echo   Clear all Redis cache (with confirmation):
+echo   Clear all Upstash cache (with confirmation):
 echo     scripts\windows\clear-cache.bat
 echo.
 echo   ⚠️  This clears ALL cache:
@@ -37,37 +35,58 @@ echo.
 echo 📊 CHECK REDIS STATUS
 echo ═══════════════════════════════════════════════════════════════
 echo.
+echo   Prerequisites: redis-cli installed
+echo   - Windows: Use Windows Subsystem for Linux (WSL)
+echo   - Or: Install from https://github.com/microsoftarchive/redis/releases
+echo.
 echo   List all keys:
-echo     docker-compose exec redis redis-cli KEYS "*"
+echo     redis-cli -u "%REDIS_URL%" KEYS "*"
 echo.
 echo   Count keys:
-echo     docker-compose exec redis redis-cli DBSIZE
+echo     redis-cli -u "%REDIS_URL%" DBSIZE
 echo.
 echo   See specific key:
-echo     docker-compose exec redis redis-cli GET all_jobs
+echo     redis-cli -u "%REDIS_URL%" GET all_jobs
 echo.
 echo   Monitor in real-time:
-echo     docker-compose exec redis redis-cli MONITOR
+echo     redis-cli -u "%REDIS_URL%" MONITOR
+echo.
+echo   Note: REDIS_URL is loaded from .env.local
 echo.
 echo.
 echo 🔍 VIEW LOGS
 echo ═══════════════════════════════════════════════════════════════
 echo.
-echo   Redis logs:
-echo     docker-compose logs -f redis
-echo.
 echo   Backend logs (shows cache operations):
+echo     docker-compose logs -f backend
+echo.
 echo     Look for: [CACHE HIT], [CACHE MISS], [CACHE SET]
+echo.
+echo   Upstash Web Console:
+echo     https://console.upstash.io
+echo     Login with your Upstash credentials to view metrics
 echo.
 echo.
 echo 📋 REDIS CONNECTION
 echo ═══════════════════════════════════════════════════════════════
 echo.
-echo   Connection string:
-echo     redis://localhost:6379
+echo   Connection string (from .env.local):
+echo     REDIS_URL=rediss://default:^<token^>@^<host^>:6379
 echo.
-echo   Redis CLI (interactive):
-echo     docker-compose exec redis redis-cli
+echo   Redis CLI (interactive with Upstash):
+echo     redis-cli -u "%REDIS_URL%"
+echo.
+echo.
+echo ⚙️  CONFIGURATION
+echo ═══════════════════════════════════════════════════════════════
+echo.
+echo   Environment variables (.env.local):
+echo     REDIS_URL - Main connection string (TCP/TLS)
+echo     UPSTASH_REDIS_REST_URL - REST API URL (optional)
+echo     UPSTASH_REDIS_REST_TOKEN - REST API token (optional)
+echo.
+echo   No changes needed to docker-compose.yml
+echo   Redis is automatically used by the backend
 echo.
 echo.
 echo   For detailed documentation, see: scripts\README.md

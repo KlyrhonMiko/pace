@@ -2,34 +2,34 @@ import { Briefcase, SlidersHorizontal, Presentation, Users, Calendar, MapPin } f
 import { formatEventDate } from "../../../_lib/events";
 
 export default function EventCard({
-    id,
-    title,
+    event_id,
+    event_name,
     date,
-    start,
-    end,
+    time_start,
+    time_end,
     location,
     attendees,
-    type,
+    event_type,
     capacity,
     description,
-    isRegistered,
+    is_registered,
     onToggleRegistration,
 }: {
-    id: number;
-    title: string;
+    event_id: string;
+    event_name: string;
     date: string;
-    start: string;
-    end: string;
+    time_start: string;
+    time_end: string;
     location: string;
     attendees: number;
-    type: string;
+    event_type: string;
     capacity?: number;
     description?: string;
-    isRegistered?: boolean;
-    onToggleRegistration?: (id: number) => void;
+    is_registered?: boolean | null;
+    onToggleRegistration?: (id: string) => void;
 }) {
     const getTypeStyle = () => {
-        switch (type.toLowerCase()) {
+        switch (event_type.toLowerCase()) {
             case 'career fair':
                 return 'bg-emerald-50 text-emerald-700 border-emerald-200';
             case 'workshop':
@@ -44,7 +44,7 @@ export default function EventCard({
     };
 
     const getTypeIcon = () => {
-        switch (type.toLowerCase()) {
+        switch (event_type.toLowerCase()) {
             case 'career fair':
                 return <Briefcase className="h-4 w-4" strokeWidth={2} />;
             case 'workshop':
@@ -74,9 +74,9 @@ export default function EventCard({
                 <div className="flex items-start justify-between gap-3 mb-3.5">
                     <div className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold border ${getTypeStyle()}`}>
                         {getTypeIcon()}
-                        {type}
+                        {event_type}
                     </div>
-                    {isRegistered && (
+                    {is_registered && (
                         <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100/50 backdrop-blur-sm px-3 py-1 text-[10px] font-bold text-emerald-800 border border-emerald-200 shadow-sm animate-in fade-in zoom-in duration-300">
                             <div className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
                             Registered
@@ -86,7 +86,7 @@ export default function EventCard({
 
                 {/* Title */}
                 <h3 className="text-lg font-bold text-slate-900 group-hover:text-emerald-800 transition-colors duration-300 line-clamp-2 mb-2 leading-tight">
-                    {title}
+                    {event_name}
                 </h3>
 
                 {/* Description */}
@@ -105,7 +105,7 @@ export default function EventCard({
                         </div>
                         <div className="flex flex-col">
                             <span className="font-bold text-slate-900">{formatEventDate(date)}</span>
-                            <span className="text-[10px]">{start} - {end}</span>
+                            <span className="text-[10px]">{time_start} - {time_end}</span>
                         </div>
                     </div>
 
@@ -158,16 +158,16 @@ export default function EventCard({
 
                 {/* Action Button */}
                 <button
-                    onClick={() => onToggleRegistration?.(id)}
-                    className={`group w-full rounded-xl py-3 text-sm font-bold transition-all duration-300 shadow-sm ${isRegistered
+                    onClick={() => onToggleRegistration?.(event_id)}
+                    className={`group w-full rounded-xl py-3 text-sm font-bold transition-all duration-300 shadow-sm ${is_registered
                         ? 'bg-emerald-50/50 text-emerald-700 border border-emerald-200 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700'
                         : spotsRemaining <= 0
                             ? 'bg-slate-50 text-slate-400 cursor-not-allowed border border-slate-200'
                             : 'bg-gradient-to-r from-emerald-800 to-emerald-700 text-white hover:shadow-lg hover:shadow-emerald-700/30 hover:-translate-y-0.5 border border-emerald-800 active:scale-95'
                         }`}
-                    disabled={spotsRemaining <= 0 && !isRegistered}
+                    disabled={spotsRemaining <= 0 && !is_registered}
                 >
-                    {isRegistered ? (
+                    {is_registered ? (
                         <>
                             <span className="group-hover:hidden">Already Registered</span>
                             <span className="hidden group-hover:inline">Unregister from Event</span>

@@ -1,5 +1,6 @@
 import os
 import logging
+import json
 from typing import Tuple, Optional
 from fastapi import UploadFile
 import httpx
@@ -160,6 +161,7 @@ class SupabaseStorageService:
             
             async with httpx.AsyncClient() as client:
                 headers = self._get_headers()
+                headers.pop("Content-Type", None)
                 delete_url = f"{self.storage_url}/object/{self.bucket_name}/{file_path}"
                 
                 response = await client.delete(
@@ -168,10 +170,24 @@ class SupabaseStorageService:
                     timeout=30.0
                 )
                 
-                # 204 = deleted, 404 = not found (both OK)
+                # 204/200 = deleted, 404 = not found (all OK)
                 if response.status_code in (204, 404, 200):
                     logger.info(f"Successfully deleted image at {file_path}")
                     return True, None
+
+                # Some Supabase setups return HTTP 400 with a payload indicating not_found
+                if response.status_code == 400:
+                    try:
+                        payload = response.json()
+                    except json.JSONDecodeError:
+                        payload = None
+
+                    if isinstance(payload, dict):
+                        error_name = str(payload.get("error", "")).lower()
+                        message = str(payload.get("message", "")).lower()
+                        if error_name == "not_found" or "object not found" in message:
+                            logger.info(f"Image not found at {file_path}; continuing")
+                            return True, None
                 else:
                     error_msg = response.text
                     logger.error(f"Supabase delete error ({response.status_code}): {error_msg}")

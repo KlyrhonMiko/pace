@@ -9,12 +9,16 @@ from datetime import timedelta
 
 # Redis connection
 redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+redis_client: Optional[redis.Redis] = None
+
 try:
     redis_client = redis.from_url(redis_url, decode_responses=True)
-    # Test connection
-    redis_client.ping()
+    if redis_client is not None:
+        # Test connection
+        redis_client.ping()
+        print("[CACHE] Redis connected successfully")
 except Exception as e:
-    print(f"Failed to connect to Redis: {e}")
+    print(f"[CACHE ERROR] Failed to connect to Redis: {e}")
     redis_client = None
 
 
@@ -58,7 +62,7 @@ def cache_get(key: str) -> Optional[dict]:
         data = redis_client.get(key)
         if data:
             print(f"[CACHE HIT] {key}")
-            return json.loads(data)
+            return json.loads(data) # type: ignore
         else:
             print(f"[CACHE MISS] {key}")
     except Exception as e:
@@ -135,7 +139,7 @@ def cache_delete_pattern(pattern: str) -> int:
     try:
         keys = redis_client.keys(pattern)
         if keys:
-            return redis_client.delete(*keys)
+            return redis_client.delete(*keys) # type: ignore
     except Exception as e:
         print(f"Error deleting cache pattern '{pattern}': {e}")
     
@@ -177,7 +181,7 @@ def cache_get_all_jobs() -> Optional[list]:
         data = redis_client.get("all_jobs")
         if data:
             print(f"[CACHE HIT] all_jobs (batch cache)")
-            return json.loads(data)
+            return json.loads(data) # type: ignore
         else:
             print(f"[CACHE MISS] all_jobs (batch cache)")
     except Exception as e:

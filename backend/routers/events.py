@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
 from sqlmodel import Session
 from typing import Optional
 from core.database import get_session
-from schemas.events import EventCreate, EventUpdate, EventPublic, EventType
+from schemas.events import EventCreate, EventUpdate, EventPublic
 from models.response_codes import StandardResponse, ErrorCode, SuccessCode
 from models.pagination import PaginationMetadata
 from services.queries.events_queries import (
@@ -46,7 +46,7 @@ def list_events(
     limit: int = Query(10, ge=0),
     offset: int = Query(0, ge=0),
     search: str = Query(None),
-    event_type: Optional[EventType] = Query(None),
+    event_type: Optional[str] = Query(None, description="Event type ID (e.g., 'ET-000001')"),
     status: str = Query("active", pattern="^(active|upcoming|past)$"),
     include_deleted: bool = Query(False),
     sort_by: str = Query("date", pattern="^(date|attendees|name)$"),

@@ -1,23 +1,16 @@
 import uuid
 from datetime import datetime, time
-from typing import Optional, List
-from enum import Enum
+from typing import Optional, List, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
 from utils.timezone import get_current_time_gmt8
 
-
-class EventType(str, Enum):
-    CAREER_FAIR = "Career Fair"
-    WORKSHOP = "Workshop"
-    SEMINAR = "Seminar"
-    NETWORKING = "Networking"
-    OTHER = "Other"
+if TYPE_CHECKING:
+    from models.event_types import EventType
 
 
 class EventBase(SQLModel):
-    name: str = Field(max_length=255)
+    event_name: str = Field(max_length=255)
     description: str = Field(max_length=1000)
-    event_type: EventType
     date: datetime
     time_start: time
     time_end: time
@@ -30,6 +23,7 @@ class Event(EventBase, table=True):
 
     event_code: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     event_id: str = Field(max_length=12, unique=True, index=True)
+    event_type_code: uuid.UUID = Field(foreign_key="event_types.event_type_code")
     attendees: int = Field(default=0, ge=0)
     image_path: Optional[str] = Field(default=None, max_length=500)
     created_at: datetime = Field(default_factory=get_current_time_gmt8)
@@ -37,6 +31,7 @@ class Event(EventBase, table=True):
     is_deleted: bool = Field(default=False)
     deleted_at: Optional[datetime] = Field(default=None)
 
+    event_type: "EventType" = Relationship(back_populates="events")
     registrants: List["EventRegistration"] = Relationship(back_populates="event")
 
 
@@ -51,3 +46,5 @@ class EventRegistration(SQLModel, table=True):
     deleted_at: Optional[datetime] = Field(default=None)
 
     event: "Event" = Relationship(back_populates="registrants")
+
+

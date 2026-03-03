@@ -4,9 +4,11 @@ DB query functions for events + event_registration domain.
 import logging
 from sqlmodel import Session, select, func
 from models.events import Event, EventRegistration
-from schemas.events import EventCreate, EventUpdate, EventPublic, EventType
+from models.event_types import EventType
+from schemas.events import EventCreate, EventUpdate, EventPublic
 from models.response_codes import ErrorCode, SuccessCode
 from utils.timezone import get_current_time_gmt8, convert_to_gmt8
+from services.queries.event_types_queries import get_event_type_by_id
 
 logger = logging.getLogger(__name__)
 
@@ -53,8 +55,20 @@ def get_active_event_by_id(session: Session, event_id: str) -> Event | None:
 
 def create_event(session: Session, data: EventCreate) -> Event:
     event_id = generate_event_id(session)
+    
+    # Resolve event_type_code from the provided event_type_id string
+    event_type = get_event_type_by_id(session, data.event_type_code)
+    if not event_type:
+        raise ValueError(f"EVENT_TYPE_NOT_FOUND: {data.event_type_code}")
+    
     event_data = data.model_dump()
     event_data['event_id'] = event_id
+    event_data['event_type_code'] = event_type.event_type_code
+    # Remove the event_type_code field if it's the string ID
+    if 'event_type_code' in event_data and isinstance(event_data['event_type_code'], str):
+        del event_data['event_type_code']
+    event_data['event_type_code'] = event_type.event_type_code
+    
     if event_data.get('date'):
         event_data['date'] = convert_to_gmt8(event_data['date'])
     event = Event(**event_data)
@@ -66,6 +80,14 @@ def create_event(session: Session, data: EventCreate) -> Event:
 
 def update_event(session: Session, event: Event, data: EventUpdate) -> Event:
     update_data = data.model_dump(exclude_unset=True)
+    
+    # Handle event_type_code resolution if provided
+    if 'event_type_code' in update_data and update_data['event_type_code']:
+        event_type = get_event_type_by_id(session, update_data['event_type_code'])
+        if not event_type:
+            raise ValueError(f"EVENT_TYPE_NOT_FOUND: {update_data['event_type_code']}")
+        update_data['event_type_code'] = event_type.event_type_code
+    
     for field, value in update_data.items():
         if field == 'date' and value:
             value = convert_to_gmt8(value)
@@ -116,7 +138,7 @@ def get_all_events(
     limit: int,
     offset: int,
     search: str | None,
-    event_type: EventType | None,
+    event_type: str | None,
     status: str,
     include_deleted: bool,
     sort_by: str,
@@ -134,10 +156,10 @@ def get_all_events(
     if search:
         like = f"%{search}%"
         query = query.where(
-            (Event.name.ilike(like)) | (Event.location.ilike(like)) | (Event.description.ilike(like))
+            (Event.event_name.ilike(like)) | (Event.location.ilike(like)) | (Event.description.ilike(like))
         )
         count_q = count_q.where(
-            (Event.name.ilike(like)) | (Event.location.ilike(like)) | (Event.description.ilike(like))
+            (Event.event_name.ilike(like)) | (Event.location.ilike(like)) | (Event.description.ilike(like))
         )
 
     if status == "upcoming":
@@ -148,8 +170,11 @@ def get_all_events(
         count_q = count_q.where(Event.date < now)
 
     if event_type:
-        query = query.where(Event.event_type == event_type)
-        count_q = count_q.where(Event.event_type == event_type)
+        # event_type is now an event_type_id string, resolve to code
+        et = get_event_type_by_id(session, event_type)
+        if et:
+            query = query.where(Event.event_type_code == et.event_type_code)
+            count_q = count_q.where(Event.event_type_code == et.event_type_code)
 
     total = session.exec(count_q).one()
 
@@ -157,7 +182,7 @@ def get_all_events(
     if sort_by == "attendees":
         query = query.order_by(Event.attendees.desc() if desc else Event.attendees.asc())
     elif sort_by == "name":
-        query = query.order_by(Event.name.desc() if desc else Event.name.asc())
+        query = query.order_by(Event.event_name.desc() if desc else Event.event_name.asc())
     else:
         query = query.order_by(Event.date.desc() if desc else Event.date.asc())
 

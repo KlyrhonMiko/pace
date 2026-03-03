@@ -43,10 +43,19 @@ interface AcademicInfo {
     avgProfGrade: string;
     avgElecGrade: string;
     ojtGrade: string;
-    leadershipPos: string;
-    activeMemberPos: string;
-    course: string;
+    leadershipPos: boolean | null;
+    activeMemberPos: boolean | null;
+    courseAbbv: string;
 }
+
+interface CourseOption {
+    course_abbv: string;
+    course_name: string;
+}
+
+// ─── Constants ─────────────────────────────────────────────────────────────────
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -173,7 +182,7 @@ function SelectField({
     label: string;
     value: string;
     onChange: (v: string) => void;
-    options: string[];
+    options: Array<string | { value: string; label: string }>;
     required?: boolean;
     className?: string;
 }) {
@@ -189,11 +198,15 @@ function SelectField({
                 className="w-full rounded-xl border border-gray-200 bg-white text-sm px-3.5 py-2.5 transition-all duration-150 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
             >
                 <option value="">Select {label}</option>
-                {options.map((o) => (
-                    <option key={o} value={o}>
-                        {o}
-                    </option>
-                ))}
+                {options.map((o) => {
+                    const val = typeof o === "string" ? o : o.value;
+                    const lbl = typeof o === "string" ? o : o.label;
+                    return (
+                        <option key={val} value={val}>
+                            {lbl}
+                        </option>
+                    );
+                })}
             </select>
         </div>
     );
@@ -230,10 +243,34 @@ export default function RegisterPage() {
         avgProfGrade: "",
         avgElecGrade: "",
         ojtGrade: "",
-        leadershipPos: "",
-        activeMemberPos: "",
-        course: "",
+        leadershipPos: null,
+        activeMemberPos: null,
+        courseAbbv: "",
     });
+
+    const [courses, setCourses] = useState<CourseOption[]>([]);
+    const [consentForSurveyMl, setConsentForSurveyMl] = useState(false);
+
+    // ── Fetch courses on mount ──
+    useEffect(() => {
+        async function fetchCourses() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/courses/?limit=0`);
+                const result = await res.json();
+                if (result.success && result.data?.courses) {
+                    setCourses(
+                        result.data.courses.map((c: CourseOption) => ({
+                            course_abbv: c.course_abbv,
+                            course_name: c.course_name,
+                        }))
+                    );
+                }
+            } catch {
+                console.error("Failed to fetch courses");
+            }
+        }
+        fetchCourses();
+    }, []);
 
     // ── Age auto-compute ──
     useEffect(() => {
@@ -262,7 +299,7 @@ export default function RegisterPage() {
             if (!academic.yearGraduated.trim()) { toast.error("Graduation year is required"); return false; }
             if (!academic.gwa.trim()) { toast.error("GWA/CGPA is required"); return false; }
             if (!academic.ojtGrade.trim()) { toast.error("OJT Grade is required"); return false; }
-            if (!academic.course) { toast.error("Please select your course"); return false; }
+            if (!academic.courseAbbv) { toast.error("Please select your course"); return false; }
         }
         return true;
     };
@@ -285,6 +322,22 @@ export default function RegisterPage() {
         setStep((s) => Math.max(s - 1, 1));
     };
 
+    // ── API helper ──
+    const apiCall = useCallback(async (endpoint: string, body: Record<string, unknown>) => {
+        const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            // Backend wraps errors in { detail: { message, code } }
+            const detail = data?.detail;
+            throw new Error(detail?.message || data?.message || "Request failed");
+        }
+        return data;
+    }, []);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -302,24 +355,98 @@ export default function RegisterPage() {
         setIsSubmitting(true);
 
         try {
-            // Simulate API call
-            await new Promise((resolve) => setTimeout(resolve, 2000));
+            const computedAge = typeof personal.age === "number" ? personal.age : 0;
+
+            // Step 1: Register alumni + user account
+            const registerRes = await apiCall("/alumni/register", {
+                username: account.username,
+                email: account.email,
+                password: account.password,
+                last_name: personal.lastname,
+                first_name: personal.firstname,
+                middle_name: personal.middlename || null,
+                gender: personal.gender,
+                age: computedAge,
+                birthdate: personal.birthdate || null,
+                consent_for_survey_ml: consentForSurveyMl,
+            });
+
+            const alumniId: string = registerRes.data.alumni_id;
+
+            // Step 2: Create student record
+            await apiCall("/student-records", {
+                student_id: academic.studentId,
+                year_graduated: parseInt(academic.yearGraduated, 10),
+                gwa: parseFloat(academic.gwa),
+                avg_prof_grade: academic.avgProfGrade ? parseFloat(academic.avgProfGrade) : null,
+                avg_elec_grade: academic.avgElecGrade ? parseFloat(academic.avgElecGrade) : null,
+                ojt_grade: academic.ojtGrade ? parseFloat(academic.ojtGrade) : null,
+                leadership_pos: academic.leadershipPos,
+                act_member_pos: academic.activeMemberPos,
+                course_abbv: academic.courseAbbv,
+                alumni_id: alumniId,
+            });
+
+            // Step 3: Initialize blank alumni skills record
+            try {
+                await apiCall("/alumni-skills", {
+                    alumni_id: alumniId,
+                    soft_skills_ave: null,
+                    hard_skills_ave: null,
+                    program_skills: null,
+                });
+            } catch {
+                // Non-critical — skills can be filled later
+                console.warn("Alumni skills initialization skipped");
+            }
+
             setIsComplete(true);
         } catch (error) {
-            toast.error("An error occurred during registration. Please try again.");
+            const message = error instanceof Error ? error.message : "An error occurred during registration.";
+            toast.error(message);
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    const handleSkipAcademic = () => {
-        // Validation for Step 2 should have been done to reach Step 3
+    const handleSkipAcademic = async () => {
         setIsSubmitting(true);
-        // Simulate API call with partial data
-        setTimeout(() => {
-            setIsSubmitting(false);
+        try {
+            const computedAge = typeof personal.age === "number" ? personal.age : 0;
+
+            // Register alumni + user only (no student record)
+            const registerRes = await apiCall("/alumni/register", {
+                username: account.username,
+                email: account.email,
+                password: account.password,
+                last_name: personal.lastname,
+                first_name: personal.firstname,
+                middle_name: personal.middlename || null,
+                gender: personal.gender,
+                age: computedAge,
+                birthdate: personal.birthdate || null,
+                consent_for_survey_ml: consentForSurveyMl,
+            });
+
+            // Initialize blank alumni skills
+            try {
+                await apiCall("/alumni-skills", {
+                    alumni_id: registerRes.data.alumni_id,
+                    soft_skills_ave: null,
+                    hard_skills_ave: null,
+                    program_skills: null,
+                });
+            } catch {
+                console.warn("Alumni skills initialization skipped");
+            }
+
             setIsComplete(true);
-        }, 1500);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "An error occurred during registration.";
+            toast.error(message);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     if (isComplete) {
@@ -461,6 +588,18 @@ export default function RegisterPage() {
                                             {personal.age} {personal.age !== "—" && "years old"}
                                         </div>
                                     </div>
+                                    <div className="md:col-span-2 flex items-center gap-3 pt-2">
+                                        <input
+                                            id="consent"
+                                            type="checkbox"
+                                            checked={consentForSurveyMl}
+                                            onChange={(e) => setConsentForSurveyMl(e.target.checked)}
+                                            className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                                        />
+                                        <label htmlFor="consent" className="text-xs text-gray-500">
+                                            I consent to the use of my data for surveys and machine learning analysis.
+                                        </label>
+                                    </div>
                                 </FormSection>
                             )}
 
@@ -510,32 +649,23 @@ export default function RegisterPage() {
                                         placeholder="95"
                                         required
                                     />
-                                    <InputField
-                                        label="Leadership Position"
-                                        value={academic.leadershipPos}
-                                        onChange={(v) => setAcademic(p => ({ ...p, leadershipPos: v }))}
-                                        placeholder="President, Org Name"
+                                    <SelectField
+                                        label="Held Leadership Position?"
+                                        value={academic.leadershipPos === null ? "" : academic.leadershipPos ? "yes" : "no"}
+                                        onChange={(v) => setAcademic(p => ({ ...p, leadershipPos: v === "" ? null : v === "yes" }))}
+                                        options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No" }]}
                                     />
-                                    <InputField
-                                        label="Active Member Position"
-                                        value={academic.activeMemberPos}
-                                        onChange={(v) => setAcademic(p => ({ ...p, activeMemberPos: v }))}
-                                        placeholder="Member, Org Name"
+                                    <SelectField
+                                        label="Active Org Member?"
+                                        value={academic.activeMemberPos === null ? "" : academic.activeMemberPos ? "yes" : "no"}
+                                        onChange={(v) => setAcademic(p => ({ ...p, activeMemberPos: v === "" ? null : v === "yes" }))}
+                                        options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No" }]}
                                     />
                                     <SelectField
                                         label="Course"
-                                        value={academic.course}
-                                        onChange={(v) => setAcademic(p => ({ ...p, course: v }))}
-                                        options={[
-                                            "BS Information Technology",
-                                            "BS Computer Science",
-                                            "BS Business Administration",
-                                            "BS Accountancy",
-                                            "AB Communication",
-                                            "BS Psychology",
-                                            "BS Nursing",
-                                            "BS Engineering"
-                                        ]}
+                                        value={academic.courseAbbv}
+                                        onChange={(v) => setAcademic(p => ({ ...p, courseAbbv: v }))}
+                                        options={courses.map((c) => ({ value: c.course_abbv, label: c.course_name }))}
                                         required
                                         className="md:col-span-2"
                                     />

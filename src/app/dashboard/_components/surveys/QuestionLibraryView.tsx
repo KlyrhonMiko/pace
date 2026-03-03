@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 import { Plus, Search, Edit2, Trash2 } from "lucide-react";
-import { Question } from "./types";
-import { QUESTION_TYPES } from "./constants";
+import { Question } from "../../_lib/surveys";
+import { QUESTION_TYPES } from "../../_lib/surveys";
 
 interface QuestionLibraryViewProps {
     questions: Question[];
     onCreateQuestion: () => void;
     onEditQuestion: (question: Question) => void;
-    onDeleteQuestion: (id: number) => void;
+    onDeleteQuestion: (id: string) => void;
 }
 
 export default function QuestionLibraryView({
@@ -21,7 +21,7 @@ export default function QuestionLibraryView({
     const [searchQuery, setSearchQuery] = useState("");
 
     const filteredQuestions = questions.filter(q =>
-        q.text.toLowerCase().includes(searchQuery.toLowerCase())
+        q.question_text.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     const getQuestionTypeLabel = (typeValue: string) => {
@@ -72,19 +72,19 @@ export default function QuestionLibraryView({
                                 </tr>
                             ) : (
                                 filteredQuestions.map((q) => (
-                                    <tr key={q.id} className="hover:bg-slate-50/50 transition-colors group">
+                                    <tr key={q.question_id} className="hover:bg-slate-50/50 transition-colors group">
                                         <td className="px-6 py-4">
                                             <p className="font-medium text-slate-900 line-clamp-2 max-w-xl">
-                                                {q.text}
+                                                {q.question_text}
                                             </p>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-slate-600">
                                             <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 text-xs font-medium border border-slate-200">
-                                                {getQuestionTypeLabel(q.type)}
+                                                {getQuestionTypeLabel(q.question_type)}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
-                                            {q.required ? (
+                                            {q.is_required ? (
                                                 <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 text-xs font-bold border border-rose-200/60">
                                                     Yes
                                                 </span>
@@ -103,7 +103,7 @@ export default function QuestionLibraryView({
                                                     <Edit2 className="h-4 w-4" />
                                                 </button>
                                                 <button
-                                                    onClick={() => onDeleteQuestion(q.id)}
+                                                    onClick={() => onDeleteQuestion(q.question_id)}
                                                     className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                                                 >
                                                     <Trash2 className="h-4 w-4" />

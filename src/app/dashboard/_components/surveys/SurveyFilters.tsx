@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Filter, ChevronDown } from "lucide-react";
-import { SURVEY_STATUSES } from "./constants";
+import { SURVEY_STATUSES } from "../../_lib/surveys";
 
 interface SurveyFiltersProps {
     statusCounts: Record<string, number>;

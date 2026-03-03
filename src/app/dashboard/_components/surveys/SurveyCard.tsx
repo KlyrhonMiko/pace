@@ -1,5 +1,5 @@
 import { Calendar, Users, EyeOff, FileText, CheckCircle2, Clock, Archive } from "lucide-react";
-import { Survey } from "./types";
+import { Survey } from "../../_lib/surveys";
 
 interface SurveyCardProps {
     survey: Survey;
@@ -50,7 +50,7 @@ export default function SurveyCard({ survey, onEdit, onDelete }: SurveyCardProps
                 </div>
 
                 {/* Anonymous Badge */}
-                {survey.isAnonymous && (
+                {survey.is_anonymous && (
                     <div className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-100" title="Anonymous Responses">
                         <EyeOff className="h-3.5 w-3.5 text-slate-400" />
                         Anon
@@ -75,14 +75,14 @@ export default function SurveyCard({ survey, onEdit, onDelete }: SurveyCardProps
                         <Calendar className="h-4 w-4 text-slate-400 shrink-0" />
                         <div className="flex flex-col">
                             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 leading-none mb-1">Opens</span>
-                            <span className="font-semibold">{survey.opensAt}</span>
+                            <span className="font-semibold">{survey.opens_at ? survey.opens_at.split(/[T ]/)[0] : '—'}</span>
                         </div>
                     </div>
                     <div className="flex items-center gap-2 text-slate-600">
                         <Users className="h-4 w-4 text-slate-400 shrink-0" />
                         <div className="flex flex-col">
                             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 leading-none mb-1">Responses</span>
-                            <span className="font-semibold text-emerald-700">{survey.responsesCount}</span>
+                            <span className="font-semibold text-emerald-700">{survey.question_count ?? 0}</span>
                         </div>
                     </div>
                 </div>

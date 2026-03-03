@@ -1,9 +1,9 @@
 @echo off
-REM PACE Development - Clear Redis Cache (Windows)
-REM This script clears all cached data from Redis
+REM PACE Development - Clear Upstash Redis Cache (Windows)
+REM This script clears all cached data from Upstash Redis
 
 echo.
-echo 🗑️  PACE Cache Clear Tool
+echo 🗑️  PACE Cache Clear Tool (Upstash)
 echo.
 
 REM Get the directory where this script is located
@@ -12,26 +12,42 @@ set SCRIPT_DIR=%~dp0
 REM Navigate to project root
 cd /d "%SCRIPT_DIR%..\.."
 
-REM Check if docker-compose is available
-where docker-compose >nul 2>nul
-if errorlevel 1 (
-    echo ❌ docker-compose is not installed.
+REM Check if .env.local exists
+if not exist ".env.local" (
+    echo ❌ .env.local file not found.
     pause
     exit /b 1
 )
 
-REM Check if Redis is running
-docker-compose ps redis 2>nul | find "Up" >nul
+REM Check if redis-cli is available
+where redis-cli >nul 2>nul
 if errorlevel 1 (
-    echo ⚠️  Redis is not running. Starting Redis...
-    docker-compose up -d redis
-    timeout /t 2 /nobreak >nul
+    echo ⚠️  redis-cli is not installed.
+    echo Please install redis-cli from: https://redis.io/download
+    echo Or use Windows Subsystem for Linux (WSL).
+    echo.
+    pause
+    exit /b 1
 )
 
-echo Are you sure you want to clear ALL cache? This is irreversible. (y/N)
+REM Parse REDIS_URL from .env.local
+setlocal enabledelayedexpansion
+for /f "tokens=2 delims==" %%A in ('findstr /i "^REDIS_URL" .env.local') do (
+    set "REDIS_URL=%%A"
+    REM Remove quotes if present
+    set "REDIS_URL=!REDIS_URL:"=!"
+)
+
+if "!REDIS_URL!"=="" (
+    echo ❌ REDIS_URL not found in .env.local
+    pause
+    exit /b 1
+)
+
+echo Are you sure you want to clear ALL cache from Upstash? This is irreversible. (y/N)
 set /p confirm=
 
-if /i not "%confirm%"=="y" (
+if /i not "!confirm!"=="y" (
     echo ❌ Cache clear cancelled.
     echo.
     pause
@@ -41,23 +57,27 @@ if /i not "%confirm%"=="y" (
 echo.
 echo ⏳ Clearing cache...
 
-REM Get count before
-for /f "tokens=*" %%A in ('docker-compose exec -T redis redis-cli DBSIZE 2^>nul') do (
+REM Get count before using redis-cli
+for /f "tokens=*" %%A in ('redis-cli -u "!REDIS_URL!" DBSIZE 2^>nul ^| findstr /r "keys"') do (
     set "output=%%A"
 )
-echo 📊 Redis DBSIZE: %output%
+if defined output (
+    echo 📊 Keys before clear: !output!
+) else (
+    echo 📊 Checking cache...
+)
 
 REM Clear the database
-docker-compose exec -T redis redis-cli FLUSHDB >nul 2>&1
+redis-cli -u "!REDIS_URL!" FLUSHDB >nul 2>&1
 
 if errorlevel 1 (
-    echo ❌ Failed to clear cache
+    echo ❌ Failed to clear cache. Check your REDIS_URL in .env.local
     pause
     exit /b 1
 )
 
 echo.
-echo ✅ Cache cleared successfully!
+echo ✅ Cache cleared successfully from Upstash!
 echo.
 echo 📊 Keys after clear: 0
 echo.
@@ -67,3 +87,4 @@ echo    - Or let the cache auto-refresh (jobs refresh every 6 hours)
 echo.
 
 pause
+endlocal

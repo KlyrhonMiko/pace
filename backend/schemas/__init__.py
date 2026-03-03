@@ -38,8 +38,11 @@ from .student_records import (
     StudentRecordBatchRestore, StudentRecordBatchRestoreResult, StudentRecordBatchRestoreResponse,
 )
 from .skills import SkillsCreate, SkillsPublic, SkillsListCreate, SkillsListPublic
+from .event_types import (
+    EventTypeCreate, EventTypeUpdate, EventTypePublic,
+)
 from .events import (
-    EventType, EventCreate, EventUpdate, EventPublic,
+    EventCreate, EventUpdate, EventPublic,
     EventRegistrationResponse, EventRegistrationRequest,
 )
 from .questions import (

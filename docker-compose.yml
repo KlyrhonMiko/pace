@@ -1,16 +1,4 @@
 services:
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    networks:
-      - app-network
-    healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-
   backend:
     build:
       context: ./backend
@@ -21,13 +9,9 @@ services:
       - .env.local
     environment:
       - PORT=8000
-      - REDIS_URL=redis://redis:6379
     volumes:
       - ./backend:/app
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-    depends_on:
-      redis:
-        condition: service_healthy
     networks:
       - app-network
 

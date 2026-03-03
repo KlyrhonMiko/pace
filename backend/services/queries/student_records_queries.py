@@ -105,8 +105,6 @@ def update_student_record(
         student.leadership_pos = data.leadership_pos
     if data.act_member_pos is not None:
         student.act_member_pos = data.act_member_pos
-    if data.consent_for_survey_ml is not None:
-        student.consent_for_survey_ml = data.consent_for_survey_ml
 
     session.add(student)
     session.commit()

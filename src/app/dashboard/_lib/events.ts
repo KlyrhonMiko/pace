@@ -1,176 +1,236 @@
 "use client";
 
+// ---------------------------------------------------------------------------
+// Event interface — matches backend EventPublic schema exactly
+// ---------------------------------------------------------------------------
+
 export interface Event {
-    id: number;
-    title: string;
+    event_id: string;
+    event_name: string;
     description: string;
-    type: string;
+    event_type: string;
     date: string;
-    start: string;
-    end: string;
+    time_start: string;
+    time_end: string;
     location: string;
     capacity: number;
     attendees: number;
-    image?: string;
-    isRegistered?: boolean;
+    image_path?: string | null;
+    is_registered?: boolean | null;
+    created_at: string;
+    updated_at: string;
 }
 
-export const INITIAL_EVENTS: Event[] = [
-    {
-        id: 1,
-        title: "PLP Career Fair 2024 - Connect with Top Employers",
-        description: "Connect with 50+ top employers from technology, finance, healthcare, and engineering sectors. Meet hiring managers, learn about career opportunities, and submit your resume on-site.",
-        date: "2026-02-15",
-        start: "09:00",
-        end: "17:00",
-        location: "PLP Main Campus, Auditorium ",
-        type: "Career Fair",
-        attendees: 234,
-        capacity: 500,
-        isRegistered: false,
-    },
-    {
-        id: 2,
-        title: "Resume Writing Workshop - Stand Out Your Application",
-        description: "Learn professional resume writing techniques from HR experts. Covers formatting, ATS optimization, bullet points, and tailoring your resume for specific industries.",
-        date: "2026-02-20",
-        start: "14:00",
-        end: "16:00",
-        location: "Virtual Event - Zoom Link",
-        type: "Workshop",
-        attendees: 89,
-        capacity: 150,
-        isRegistered: true,
-    },
-    {
-        id: 3,
-        title: "Tech Industry Seminar - Latest Trends & Innovations",
-        date: "2026-02-25",
-        start: "10:00",
-        end: "12:00",
-        location: "PLP Auditorium",
-        type: "Seminar",
-        description: "Hear from industry leaders at Accenture, Google, and Microsoft about emerging technologies, AI/ML trends, and career pathways in tech. Q&A session included.",
-        attendees: 156,
-        capacity: 300,
-        isRegistered: false,
-    },
-    {
-        id: 4,
-        title: "Networking Lunch - Connect with Alumni & Professionals",
-        date: "2026-02-28",
-        start: "12:00",
-        end: "13:30",
-        location: "PLP Banquet Hall",
-        type: "Networking",
-        description: "Casual networking over lunch with alumni from various industries. Great opportunity to build professional relationships and learn about diverse career paths.",
-        attendees: 72,
-        capacity: 100,
-        isRegistered: false,
-    },
-    {
-        id: 5,
-        title: "Interview Preparation & Mock Interview Session",
-        date: "2026-02-22",
-        start: "15:00",
-        end: "17:00",
-        location: "PLP Main Campus - Auditorium",
-        type: "Workshop",
-        description: "Practice your interview skills with experienced professionals. Covers common questions, behavioral interviews (STAR method), and industry-specific scenarios.",
-        attendees: 45,
-        capacity: 80,
-        isRegistered: false,
-    },
-    {
-        id: 6,
-        title: "Finance & Investment Career Seminar",
-        date: "2026-02-18",
-        start: "10:00",
-        end: "12:00",
-        location: "PLP Auditorium - Main Hall",
-        type: "Seminar",
-        description: "Executives from leading financial institutions discuss career opportunities in banking, investment, risk management, and fintech.",
-        attendees: 123,
-        capacity: 200,
-        isRegistered: false,
-    },
-    {
-        id: 7,
-        title: "LinkedIn Profile Optimization Workshop",
-        date: "2026-02-17",
-        start: "16:00",
-        end: "17:30",
-        location: "Virtual Event - Google Meet",
-        type: "Workshop",
-        description: "Optimize your LinkedIn profile to attract recruiters. Learn about professional photography, headline optimization, and networking strategies.",
-        attendees: 156,
-        capacity: 200,
-        isRegistered: true,
-    },
-    {
-        id: 8,
-        title: "Entrepreneurship Talk - From Startup to Success",
-        date: "2026-02-26",
-        start: "14:00",
-        end: "15:30",
-        location: "PLP Main Campus - Banquet Hall",
-        type: "Networking",
-        description: "Young entrepreneurs share their journey, challenges, and success stories. Ideal for those interested in starting their own venture.",
-        attendees: 98,
-        capacity: 120,
-        isRegistered: false,
-    },
-    {
-        id: 9,
-        title: "HRM & Employee Relations Career Path Seminar",
-        date: "2026-02-21",
-        start: "13:00",
-        end: "15:00",
-        location: "PLP Main Campus - Banquet Hall",
-        type: "Seminar",
-        description: "HR professionals from multinational companies discuss recruitment, employee development, compensation, and organizational development.",
-        attendees: 87,
-        capacity: 150,
-        isRegistered: false,
-    },
-    {
-        id: 10,
-        title: "Salary Negotiation Workshop - Know Your Worth",
-        date: "2026-02-23",
-        start: "15:00",
-        end: "16:00",
-        location: "Virtual Event - Teams",
-        type: "Workshop",
-        description: "Learn negotiation strategies, market research for salaries, and how to confidently advocate for fair compensation.",
-        attendees: 112,
-        capacity: 180,
-        isRegistered: false,
-    },
-];
+// ---------------------------------------------------------------------------
+// EventType interface — matches backend EventTypePublic schema
+// ---------------------------------------------------------------------------
 
-const STORAGE_KEY = "pace_events_data";
+export interface EventType {
+    event_type_id: string;
+    event_name: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
 
-export const getStoredEvents = (): Event[] => {
-    if (typeof window === "undefined") return INITIAL_EVENTS;
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_EVENTS));
-        return INITIAL_EVENTS;
-    }
+// ---------------------------------------------------------------------------
+// API configuration
+// ---------------------------------------------------------------------------
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+// ---------------------------------------------------------------------------
+// Event API functions
+// ---------------------------------------------------------------------------
+
+export async function fetchEvents(params?: {
+    search?: string;
+    event_type?: string;
+    status?: string;
+    limit?: number;
+    offset?: number;
+    sort_by?: string;
+    sort_order?: string;
+}): Promise<{ events: Event[]; total: number }> {
     try {
-        return JSON.parse(stored);
-    } catch (e) {
-        console.error("Failed to parse stored events:", e);
-        return INITIAL_EVENTS;
-    }
-};
+        const searchParams = new URLSearchParams();
+        searchParams.set("limit", String(params?.limit ?? 10));
+        searchParams.set("offset", String(params?.offset ?? 0));
+        searchParams.set("status", params?.status ?? "active");
+        searchParams.set("include_deleted", "false");
+        searchParams.set("sort_by", params?.sort_by ?? "date");
+        searchParams.set("sort_order", params?.sort_order ?? "asc");
+        if (params?.search) searchParams.set("search", params.search);
+        if (params?.event_type) searchParams.set("event_type", params.event_type);
 
-export const saveStoredEvents = (events: Event[]) => {
-    if (typeof window === "undefined") return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
-    // Dispatch a custom event to notify other components/tabs if needed
-    window.dispatchEvent(new CustomEvent("eventsUpdated"));
-};
+        const res = await fetch(`${API_BASE_URL}/events/?${searchParams}`, {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+
+        if (json.success && json.data) {
+            return {
+                events: json.data.events ?? [],
+                total: json.data.pagination?.total ?? 0,
+            };
+        }
+        return { events: [], total: 0 };
+    } catch (error) {
+        console.error("Failed to fetch events:", error);
+        return { events: [], total: 0 };
+    }
+}
+
+export async function createEvent(data: {
+    event_name: string;
+    description: string;
+    event_type_name: string;
+    date: string;
+    time_start: string;
+    time_end: string;
+    location: string;
+    capacity: number;
+}): Promise<Event | null> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/events/`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => null);
+            console.error("Create event failed:", err);
+            return null;
+        }
+        const json = await res.json();
+        return json.success ? json.data : null;
+    } catch (error) {
+        console.error("Failed to create event:", error);
+        return null;
+    }
+}
+
+export async function updateEvent(
+    eventId: string,
+    data: Partial<{
+        event_name: string;
+        description: string;
+        event_type_name: string;
+        date: string;
+        time_start: string;
+        time_end: string;
+        location: string;
+        capacity: number;
+    }>
+): Promise<Event | null> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/events/${eventId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => null);
+            console.error("Update event failed:", err);
+            return null;
+        }
+        const json = await res.json();
+        return json.success ? json.data : null;
+    } catch (error) {
+        console.error("Failed to update event:", error);
+        return null;
+    }
+}
+
+export async function deleteEvent(eventId: string): Promise<boolean> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/events/${eventId}`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+        });
+        if (!res.ok) return false;
+        const json = await res.json();
+        return json.success === true;
+    } catch (error) {
+        console.error("Failed to delete event:", error);
+        return false;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Event Type API functions
+// ---------------------------------------------------------------------------
+
+export async function fetchEventTypes(): Promise<EventType[]> {
+    try {
+        const res = await fetch(
+            `${API_BASE_URL}/event-types/?include_deleted=false&sort_by=event_name&sort_order=asc&limit=100&offset=0`,
+            { method: "GET", headers: { "Content-Type": "application/json" } }
+        );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        if (json.success && json.data) {
+            return json.data.event_types ?? [];
+        }
+        return [];
+    } catch (error) {
+        console.error("Failed to fetch event types:", error);
+        return [];
+    }
+}
+
+export async function createEventType(eventName: string): Promise<EventType | null> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/event-types/`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ event_name: eventName }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => null);
+            console.error("Create event type failed:", err);
+            return null;
+        }
+        const json = await res.json();
+        return json.success ? json.data : null;
+    } catch (error) {
+        console.error("Failed to create event type:", error);
+        return null;
+    }
+}
+
+export async function uploadEventImage(eventId: string, file: File): Promise<boolean> {
+    try {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await fetch(`${API_BASE_URL}/events/${eventId}/upload-image`, {
+            method: "POST",
+            body: formData,
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => null);
+            console.error("Upload event image failed:", err);
+            return false;
+        }
+
+        const json = await res.json();
+        return json.success === true;
+    } catch (error) {
+        console.error("Failed to upload event image:", error);
+        return false;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Date formatting utilities (unchanged)
+// ---------------------------------------------------------------------------
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 

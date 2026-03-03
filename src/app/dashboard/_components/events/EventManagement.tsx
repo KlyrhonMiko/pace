@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
     Clock,
     MapPin,
@@ -10,7 +10,8 @@ import {
     Trash2,
     X,
     Image as ImageIcon,
-    Check
+    Check,
+    Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,109 +22,192 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { getStoredEvents, saveStoredEvents, type Event, getMonthAbbreviation, getDayNumber, formatEventDate } from "../../_lib/events";
-
-// Event type and INITIAL_EVENTS are now imported from src/app/dashboard/_lib/events.ts
+import {
+    fetchEvents,
+    fetchEventTypes,
+    createEvent,
+    updateEvent,
+    deleteEvent,
+    createEventType,
+    uploadEventImage,
+    type Event,
+    type EventType,
+    getMonthAbbreviation,
+    getDayNumber,
+    formatEventDate,
+} from "../../_lib/events";
 
 export default function EventManagement() {
     const [events, setEvents] = useState<Event[]>([]);
+    const [eventTypes, setEventTypes] = useState<EventType[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingEvent, setEditingEvent] = useState<Event | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [isAddingNewType, setIsAddingNewType] = useState(false);
-
-    const availableTypes = useMemo(() => {
-        const defaultTypes = ["Career Fair", "Workshop", "Seminar", "Networking"];
-        const existingTypes = events.map(e => e.type);
-        return Array.from(new Set([...defaultTypes, ...existingTypes]));
-    }, [events]);
-
-    // Initial load and synchronization
-    useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setEvents(getStoredEvents());
-
-        const handleSync = () => {
-            setEvents(getStoredEvents());
-        };
-
-        window.addEventListener("eventsUpdated", handleSync);
-        window.addEventListener("storage", handleSync);
-        return () => {
-            window.removeEventListener("eventsUpdated", handleSync);
-            window.removeEventListener("storage", handleSync);
-        };
-    }, []);
+    const [isSaving, setIsSaving] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+    const [selectedImagePreview, setSelectedImagePreview] = useState<string | null>(null);
 
     // Form State
-    const [formData, setFormData] = useState<Partial<Event>>({
-        title: "",
+    const [formData, setFormData] = useState({
+        event_name: "",
         description: "",
-        type: "Workshop",
+        event_type_name: "Workshop",
         date: "",
-        start: "",
-        end: "",
+        time_start: "",
+        time_end: "",
         location: "",
         capacity: 0,
     });
 
+    // Fetch events and event types from backend
+    const loadData = useCallback(async () => {
+        setIsLoading(true);
+        const [eventsResult, types] = await Promise.all([
+            fetchEvents({ limit: 100, sort_by: "date", sort_order: "desc" }),
+            fetchEventTypes(),
+        ]);
+        setEvents(eventsResult.events);
+        setEventTypes(types);
+        setIsLoading(false);
+    }, []);
+
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
+
+    useEffect(() => {
+        return () => {
+            if (selectedImagePreview?.startsWith("blob:")) {
+                URL.revokeObjectURL(selectedImagePreview);
+            }
+        };
+    }, [selectedImagePreview]);
+
+    const availableTypeNames = eventTypes.map(et => et.event_name);
+
     const openCreateModal = () => {
         setEditingEvent(null);
         setFormData({
-            title: "",
+            event_name: "",
             description: "",
-            type: "Workshop",
+            event_type_name: availableTypeNames[0] ?? "Workshop",
             date: "",
-            start: "",
-            end: "",
+            time_start: "",
+            time_end: "",
             location: "",
             capacity: 0,
         });
         setIsModalOpen(true);
         setIsAddingNewType(false);
+        setSelectedImageFile(null);
+        setSelectedImagePreview(null);
     };
 
     const openUpdateModal = (event: Event) => {
         setEditingEvent(event);
-        setFormData(event);
+        setFormData({
+            event_name: event.event_name,
+            description: event.description,
+            event_type_name: event.event_type,
+            date: event.date,
+            time_start: event.time_start,
+            time_end: event.time_end,
+            location: event.location,
+            capacity: event.capacity,
+        });
         setIsModalOpen(true);
         setIsAddingNewType(false);
+        setSelectedImageFile(null);
+        setSelectedImagePreview(null);
     };
 
-    const handleSave = () => {
-        if (!formData.title || !formData.date || !formData.start || !formData.end) {
+    const handleImageChange = (file: File | null) => {
+        if (!file) {
+            setSelectedImageFile(null);
+            setSelectedImagePreview(null);
+            return;
+        }
+        setSelectedImageFile(file);
+        setSelectedImagePreview(URL.createObjectURL(file));
+    };
+
+    const handleSave = async () => {
+        if (!formData.event_name || !formData.date || !formData.time_start || !formData.time_end) {
             alert("Please fill in all required fields.");
             return;
         }
 
-        let updatedEvents: Event[];
+        setIsSaving(true);
 
-        if (editingEvent) {
-            updatedEvents = events.map(e => e.id === editingEvent.id ? { ...e, ...formData } as Event : e);
-        } else {
-            const newEvent: Event = {
-                ...formData,
-                id: events.length > 0 ? Math.max(...events.map(e => e.id)) + 1 : 1,
-                attendees: 0,
-            } as Event;
-            updatedEvents = [...events, newEvent];
+        let selectedEventTypeName = formData.event_type_name.trim();
+
+        // If adding a new type, create it first
+        if (isAddingNewType && formData.event_type_name.trim()) {
+            const newType = await createEventType(formData.event_type_name.trim());
+            if (!newType) {
+                alert("Failed to create new event type. It may already exist.");
+                setIsSaving(false);
+                return;
+            }
+            selectedEventTypeName = newType.event_name;
         }
 
-        setEvents(updatedEvents);
-        saveStoredEvents(updatedEvents);
-        setIsModalOpen(false);
+        if (!selectedEventTypeName) {
+            alert("Please select a valid event type.");
+            setIsSaving(false);
+            return;
+        }
+
+        const eventPayload = {
+            event_name: formData.event_name,
+            description: formData.description,
+            event_type_name: selectedEventTypeName,
+            date: formData.date,
+            time_start: formData.time_start,
+            time_end: formData.time_end,
+            location: formData.location,
+            capacity: formData.capacity,
+        };
+
+        let success: Event | null;
+        if (editingEvent) {
+            success = await updateEvent(editingEvent.event_id, eventPayload);
+        } else {
+            success = await createEvent(eventPayload);
+        }
+
+        if (success) {
+            if (selectedImageFile) {
+                const imageUploaded = await uploadEventImage(success.event_id, selectedImageFile);
+                if (!imageUploaded) {
+                    alert("Event saved, but image upload failed. You can retry by editing the event.");
+                }
+            }
+            await loadData();
+            setIsModalOpen(false);
+            setSelectedImageFile(null);
+            setSelectedImagePreview(null);
+        } else {
+            alert("Failed to save event. Please try again.");
+        }
+        setIsSaving(false);
     };
 
-    const handleDelete = (id: number) => {
+    const handleDelete = async (eventId: string) => {
         if (confirm("Are you sure you want to delete this event?")) {
-            const updatedEvents = events.filter(e => e.id !== id);
-            setEvents(updatedEvents);
-            saveStoredEvents(updatedEvents);
+            const success = await deleteEvent(eventId);
+            if (success) {
+                await loadData();
+            } else {
+                alert("Failed to delete event.");
+            }
         }
     };
 
     const filteredEvents = events.filter(e =>
-        e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        e.event_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         e.location.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
@@ -162,68 +246,85 @@ export default function EventManagement() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {filteredEvents.map((event) => (
-                                <tr key={event.id} className="hover:bg-slate-50/80 transition-colors group">
-                                    <td className="px-6 py-5">
-                                        <div className="flex items-center gap-4">
-                                            <div className="h-12 w-12 rounded-xl bg-emerald-50 flex flex-col items-center justify-center border border-emerald-100 group-hover:bg-emerald-100 transition-colors">
-                                                <span className="text-emerald-700 font-bold text-xs uppercase">{getMonthAbbreviation(event.date)}</span>
-                                                <span className="text-emerald-800 font-extrabold text-lg leading-none">{getDayNumber(event.date)}</span>
-                                            </div>
-                                            <div>
-                                                <h4 className="font-bold text-slate-900 line-clamp-1">{event.title}</h4>
-                                                <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
-                                                    <Clock className="h-3 w-3" /> {formatEventDate(event.date)} • {event.start} - {event.end}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-5">
-                                        <div className="flex flex-col">
-                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-600 w-fit border border-slate-200/60 mb-1.5">
-                                                {event.type}
-                                            </span>
-                                            <span className="text-xs text-slate-500 flex items-center gap-1">
-                                                <MapPin className="h-3 w-3" /> {event.location}
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-5">
-                                        <div className="flex flex-col gap-1 w-32">
-                                            <div className="flex justify-between text-[10px] uppercase font-bold text-slate-400">
-                                                <span>{Math.round((event.attendees / event.capacity) * 100)}%</span>
-                                                <span>{event.attendees}/{event.capacity}</span>
-                                            </div>
-                                            <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                                                <div
-                                                    className="h-full bg-emerald-500 rounded-full"
-                                                    style={{ width: `${(event.attendees / event.capacity) * 100}%` }}
-                                                />
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-5 text-right">
-                                        <div className="flex items-center justify-end gap-2">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon-sm"
-                                                onClick={() => openUpdateModal(event)}
-                                                className="text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
-                                            >
-                                                <Edit2 className="h-4 w-4" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon-sm"
-                                                onClick={() => handleDelete(event.id)}
-                                                className="text-slate-400 hover:text-red-600 hover:bg-red-50"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
+                            {isLoading ? (
+                                <tr>
+                                    <td colSpan={4} className="px-6 py-16 text-center">
+                                        <div className="flex items-center justify-center gap-3 text-slate-500">
+                                            <Loader2 className="h-5 w-5 animate-spin" />
+                                            <span className="text-sm font-medium">Loading events...</span>
                                         </div>
                                     </td>
                                 </tr>
-                            ))}
+                            ) : filteredEvents.length === 0 ? (
+                                <tr>
+                                    <td colSpan={4} className="px-6 py-16 text-center text-sm text-slate-400">
+                                        No events found.
+                                    </td>
+                                </tr>
+                            ) : (
+                                filteredEvents.map((event) => (
+                                    <tr key={event.event_id} className="hover:bg-slate-50/80 transition-colors group">
+                                        <td className="px-6 py-5">
+                                            <div className="flex items-center gap-4">
+                                                <div className="h-12 w-12 rounded-xl bg-emerald-50 flex flex-col items-center justify-center border border-emerald-100 group-hover:bg-emerald-100 transition-colors">
+                                                    <span className="text-emerald-700 font-bold text-xs uppercase">{getMonthAbbreviation(event.date)}</span>
+                                                    <span className="text-emerald-800 font-extrabold text-lg leading-none">{getDayNumber(event.date)}</span>
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-bold text-slate-900 line-clamp-1">{event.event_name}</h4>
+                                                    <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+                                                        <Clock className="h-3 w-3" /> {formatEventDate(event.date)} • {event.time_start} - {event.time_end}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-5">
+                                            <div className="flex flex-col">
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-600 w-fit border border-slate-200/60 mb-1.5">
+                                                    {event.event_type}
+                                                </span>
+                                                <span className="text-xs text-slate-500 flex items-center gap-1">
+                                                    <MapPin className="h-3 w-3" /> {event.location}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-5">
+                                            <div className="flex flex-col gap-1 w-32">
+                                                <div className="flex justify-between text-[10px] uppercase font-bold text-slate-400">
+                                                    <span>{Math.round((event.attendees / event.capacity) * 100)}%</span>
+                                                    <span>{event.attendees}/{event.capacity}</span>
+                                                </div>
+                                                <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-emerald-500 rounded-full"
+                                                        style={{ width: `${(event.attendees / event.capacity) * 100}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-5 text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon-sm"
+                                                    onClick={() => openUpdateModal(event)}
+                                                    className="text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+                                                >
+                                                    <Edit2 className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon-sm"
+                                                    onClick={() => handleDelete(event.event_id)}
+                                                    className="text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
                 </div>
@@ -239,10 +340,14 @@ export default function EventManagement() {
                                 {editingEvent ? "Update Event" : "Create New Event"}
                             </h2>
                             <p className="text-emerald-100/80 text-sm mt-1">
-                                {editingEvent ? `Modifying ID: ${editingEvent.id}` : "Fill in the details to schedule a new event."}
+                                {editingEvent ? `Modifying: ${editingEvent.event_id}` : "Fill in the details to schedule a new event."}
                             </p>
                             <button
-                                onClick={() => setIsModalOpen(false)}
+                                onClick={() => {
+                                    setIsModalOpen(false);
+                                    setSelectedImageFile(null);
+                                    setSelectedImagePreview(null);
+                                }}
                                 className="absolute top-6 right-6 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
                             >
                                 <X className="h-5 w-5" />
@@ -257,8 +362,8 @@ export default function EventManagement() {
                                     <label className="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Event Name*</label>
                                     <Input
                                         placeholder="e.g. Annual Networking Night"
-                                        value={formData.title}
-                                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                                        value={formData.event_name}
+                                        onChange={(e) => setFormData({ ...formData, event_name: e.target.value })}
                                         className="h-11 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all font-medium"
                                     />
                                 </div>
@@ -279,13 +384,13 @@ export default function EventManagement() {
                                     <label className="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Event Type*</label>
                                     {!isAddingNewType ? (
                                         <Select
-                                            value={formData.type}
+                                            value={formData.event_type_name}
                                             onValueChange={(value: string) => {
                                                 if (value === "ADD_NEW") {
                                                     setIsAddingNewType(true);
-                                                    setFormData({ ...formData, type: "" });
+                                                    setFormData({ ...formData, event_type_name: "" });
                                                 } else {
-                                                    setFormData({ ...formData, type: value });
+                                                    setFormData({ ...formData, event_type_name: value });
                                                 }
                                             }}
                                         >
@@ -293,8 +398,8 @@ export default function EventManagement() {
                                                 <SelectValue placeholder="Select type" />
                                             </SelectTrigger>
                                             <SelectContent className="rounded-xl border-slate-200 z-[110]">
-                                                {availableTypes.map(type => (
-                                                    <SelectItem key={type} value={type}>{type}</SelectItem>
+                                                {availableTypeNames.map(name => (
+                                                    <SelectItem key={name} value={name}>{name}</SelectItem>
                                                 ))}
                                                 <div className="h-px bg-slate-100 my-1" />
                                                 <SelectItem value="ADD_NEW" className="text-emerald-600 font-bold focus:text-emerald-700">
@@ -306,9 +411,9 @@ export default function EventManagement() {
                                         <div className="relative">
                                             <Input
                                                 placeholder="Enter new event type..."
-                                                value={formData.type}
+                                                value={formData.event_type_name}
                                                 autoFocus
-                                                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                                                onChange={(e) => setFormData({ ...formData, event_type_name: e.target.value })}
                                                 className="h-11 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all font-medium pr-10"
                                             />
                                             <button
@@ -338,8 +443,8 @@ export default function EventManagement() {
                                     <label className="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Start Time*</label>
                                     <Input
                                         type="time"
-                                        value={formData.start}
-                                        onChange={(e) => setFormData({ ...formData, start: e.target.value })}
+                                        value={formData.time_start}
+                                        onChange={(e) => setFormData({ ...formData, time_start: e.target.value })}
                                         className="h-11 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all font-medium"
                                     />
                                 </div>
@@ -349,8 +454,8 @@ export default function EventManagement() {
                                     <label className="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">End Time*</label>
                                     <Input
                                         type="time"
-                                        value={formData.end}
-                                        onChange={(e) => setFormData({ ...formData, end: e.target.value })}
+                                        value={formData.time_end}
+                                        onChange={(e) => setFormData({ ...formData, time_end: e.target.value })}
                                         className="h-11 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all font-medium"
                                     />
                                 </div>
@@ -373,7 +478,7 @@ export default function EventManagement() {
                                         type="number"
                                         placeholder="Max attendees"
                                         value={formData.capacity}
-                                        onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) })}
+                                        onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 0 })}
                                         className="h-11 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all font-medium"
                                     />
                                 </div>
@@ -381,12 +486,28 @@ export default function EventManagement() {
                                 {/* Image Placeholder */}
                                 <div className="md:col-span-2 space-y-2">
                                     <label className="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Event Image</label>
-                                    <div className="h-32 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 hover:border-emerald-300 hover:bg-emerald-50 transition-all group cursor-pointer">
-                                        <div className="p-2 rounded-full bg-slate-50 group-hover:bg-emerald-100 text-slate-400 group-hover:text-emerald-600 transition-colors">
-                                            <ImageIcon className="h-6 w-6" />
-                                        </div>
-                                        <span className="text-xs font-bold text-slate-400 group-hover:text-emerald-700 uppercase tracking-widest">Click to upload image</span>
-                                    </div>
+                                    <label className="h-32 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 hover:border-emerald-300 hover:bg-emerald-50 transition-all group cursor-pointer overflow-hidden">
+                                        {selectedImagePreview ? (
+                                            <img
+                                                src={selectedImagePreview}
+                                                alt="Selected event preview"
+                                                className="h-full w-full object-cover"
+                                            />
+                                        ) : (
+                                            <>
+                                                <div className="p-2 rounded-full bg-slate-50 group-hover:bg-emerald-100 text-slate-400 group-hover:text-emerald-600 transition-colors">
+                                                    <ImageIcon className="h-6 w-6" />
+                                                </div>
+                                                <span className="text-xs font-bold text-slate-400 group-hover:text-emerald-700 uppercase tracking-widest">Click to upload image</span>
+                                            </>
+                                        )}
+                                        <input
+                                            type="file"
+                                            accept="image/png,image/jpeg,image/webp"
+                                            className="hidden"
+                                            onChange={(e) => handleImageChange(e.target.files?.[0] ?? null)}
+                                        />
+                                    </label>
                                 </div>
                             </div>
                         </div>
@@ -395,16 +516,26 @@ export default function EventManagement() {
                         <div className="p-8 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-3">
                             <Button
                                 variant="outline"
-                                onClick={() => setIsModalOpen(false)}
+                                onClick={() => {
+                                    setIsModalOpen(false);
+                                    setSelectedImageFile(null);
+                                    setSelectedImagePreview(null);
+                                }}
                                 className="h-11 px-6 rounded-xl border-slate-200 text-slate-600 font-bold hover:bg-slate-100 transition-all"
+                                disabled={isSaving}
                             >
                                 Cancel
                             </Button>
                             <Button
                                 onClick={handleSave}
+                                disabled={isSaving}
                                 className="h-11 px-8 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold shadow-lg shadow-emerald-700/20 transition-all active:scale-95 gap-2"
                             >
-                                <Check className="h-5 w-5" strokeWidth={3} />
+                                {isSaving ? (
+                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                ) : (
+                                    <Check className="h-5 w-5" strokeWidth={3} />
+                                )}
                                 {editingEvent ? "Update Event" : "Save Event"}
                             </Button>
                         </div>

@@ -44,7 +44,7 @@ const typeStyles = {
 
 export default function UpcomingEvents() {
     return (
-        <div className="group/card rounded-2xl bg-white border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-violet-100/30 hover:border-violet-100/60">
+        <div className="group/card rounded-2xl bg-white border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-violet-100/30 hover:border-violet-100/60 h-full flex flex-col">
             {/* Decorative top gradient bar */}
 
 

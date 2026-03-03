@@ -35,10 +35,10 @@ export default async function AlumniDashboard() {
 
             {/* Employability Score & Stats */}
             <div className="grid gap-5 lg:grid-cols-4">
-                <div className="lg:col-span-2 flex flex-col justify-center">
+                <div className="lg:col-span-2 flex flex-col">
                     <EmployabilityScore data={predictionData} isDemo={isDemoData} />
                 </div>
-                <div className="lg:col-span-2 flex flex-col justify-center">
+                <div className="lg:col-span-2 flex flex-col">
                     <StatsGrid />
                 </div>
             </div>
@@ -51,7 +51,7 @@ export default async function AlumniDashboard() {
                 {/* Right Column */}
                 <div className="flex flex-col gap-5 h-full">
                     <ProfileStrength />
-                    <QuickActions />
+                    <QuickActions className="flex-1" />
                 </div>
             </div>
 

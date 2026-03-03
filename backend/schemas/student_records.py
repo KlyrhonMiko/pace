@@ -14,7 +14,6 @@ class StudentRecordCreate(SQLModel):
     ojt_grade: Optional[float] = None
     leadership_pos: Optional[bool] = None
     act_member_pos: Optional[bool] = None
-    consent_for_survey_ml: bool = Field(default=False)
     course_abbv: str  # matched to Course by abbreviation
     alumni_id: str    # matched to Alumni by human-readable ID
 
@@ -45,7 +44,6 @@ class StudentRecordUpdate(SQLModel):
     leadership_pos: Optional[bool] = None
     act_member_pos: Optional[bool] = None
     alumni_id: Optional[str] = None
-    consent_for_survey_ml: Optional[bool] = None
 
     @field_validator('year_graduated')
     @classmethod
@@ -75,7 +73,6 @@ class StudentRecordPublic(SQLModel):
     ojt_grade: Optional[float] = None
     leadership_pos: Optional[bool] = None
     act_member_pos: Optional[bool] = None
-    consent_for_survey_ml: bool
     created_at: datetime
     updated_at: datetime
 

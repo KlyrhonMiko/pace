@@ -1,19 +1,29 @@
 """
 DB query functions for surveys domain.
 """
+
 import uuid
 from typing import Optional, List
 from sqlmodel import Session, select, func, and_, or_
 from models.surveys import (
-    Survey, SurveyQuestion, SurveyResponse, SurveyAnswer,
-    SurveyInvitation, SurveyDistributionConfig
+    Survey,
+    SurveyQuestion,
+    SurveyResponse,
+    SurveyAnswer,
+    SurveyInvitation,
+    SurveyDistributionConfig,
 )
 from models.questions import Question
 from schemas.surveys import (
-    SurveyCreate, SurveyUpdate, SurveyPublic,
-    SurveyQuestionCreate, SurveyQuestionWithDetails,
-    SurveyDistributionConfigCreateRequest, SurveyDistributionConfigPublic,
-    SurveyStatus, DistributionStatus,
+    SurveyCreate,
+    SurveyUpdate,
+    SurveyPublic,
+    SurveyQuestionCreate,
+    SurveyQuestionWithDetails,
+    SurveyDistributionConfigCreateRequest,
+    SurveyDistributionConfigPublic,
+    SurveyStatus,
+    DistributionStatus,
 )
 from schemas.questions import QuestionPublic
 from utils.timezone import get_current_time_gmt8
@@ -23,36 +33,42 @@ from utils.timezone import get_current_time_gmt8
 # ID generators
 # ---------------------------------------------------------------------------
 
+
 def generate_survey_id(session: Session) -> str:
     last_id = session.exec(
         select(Survey.survey_id).order_by(Survey.survey_id.desc()).limit(1)
     ).first()
-    next_num = int(last_id.split('-')[1]) + 1 if last_id else 1
+    next_num = int(last_id.split("-")[1]) + 1 if last_id else 1
     return f"SRVY-{next_num:06d}"
 
 
 def generate_response_id(session: Session) -> str:
     last_id = session.exec(
-        select(SurveyResponse.response_id).order_by(SurveyResponse.response_id.desc()).limit(1)
+        select(SurveyResponse.response_id)
+        .order_by(SurveyResponse.response_id.desc())
+        .limit(1)
     ).first()
-    next_num = int(last_id.split('-')[1]) + 1 if last_id else 1
+    next_num = int(last_id.split("-")[1]) + 1 if last_id else 1
     return f"SRSP-{next_num:06d}"
 
 
 def generate_invitation_id(session: Session) -> str:
     last_id = session.exec(
-        select(SurveyInvitation.invitation_id).order_by(SurveyInvitation.invitation_id.desc()).limit(1)
+        select(SurveyInvitation.invitation_id)
+        .order_by(SurveyInvitation.invitation_id.desc())
+        .limit(1)
     ).first()
-    next_num = int(last_id.split('-')[1]) + 1 if last_id else 1
+    next_num = int(last_id.split("-")[1]) + 1 if last_id else 1
     return f"SINV-{next_num:06d}"
 
 
 def generate_distribution_id(session: Session) -> str:
     last_id = session.exec(
         select(SurveyDistributionConfig.distribution_id)
-        .order_by(SurveyDistributionConfig.distribution_id.desc()).limit(1)
+        .order_by(SurveyDistributionConfig.distribution_id.desc())
+        .limit(1)
     ).first()
-    next_num = int(last_id.split('-')[1]) + 1 if last_id else 1
+    next_num = int(last_id.split("-")[1]) + 1 if last_id else 1
     return f"SDST-{next_num:06d}"
 
 
@@ -60,15 +76,20 @@ def generate_distribution_id(session: Session) -> str:
 # Survey lookups
 # ---------------------------------------------------------------------------
 
+
 def get_survey_by_id(session: Session, survey_id: str) -> Survey | None:
     return session.exec(
-        select(Survey).where(and_(Survey.survey_id == survey_id, Survey.is_deleted == False))
+        select(Survey).where(
+            and_(Survey.survey_id == survey_id, Survey.is_deleted == False)
+        )
     ).first()
 
 
 def get_deleted_survey_by_id(session: Session, survey_id: str) -> Survey | None:
     return session.exec(
-        select(Survey).where(and_(Survey.survey_id == survey_id, Survey.is_deleted == True))
+        select(Survey).where(
+            and_(Survey.survey_id == survey_id, Survey.is_deleted == True)
+        )
     ).first()
 
 
@@ -82,8 +103,9 @@ def check_duplicate_survey_title(session: Session, title: str) -> Survey | None:
 
 def get_survey_question_count(session: Session, survey_code: uuid.UUID) -> int:
     return session.exec(
-        select(func.count(SurveyQuestion.survey_question_code))
-        .where(SurveyQuestion.survey_code == survey_code)
+        select(func.count(SurveyQuestion.survey_question_code)).where(
+            SurveyQuestion.survey_code == survey_code
+        )
     ).one()
 
 
@@ -91,16 +113,22 @@ def get_survey_question_count(session: Session, survey_code: uuid.UUID) -> int:
 # Survey CRUD
 # ---------------------------------------------------------------------------
 
+
 def list_surveys(
-    session: Session, skip: int, limit: int,
-    search: str | None, status: str | None
+    session: Session, skip: int, limit: int, search: str | None, status: str | None
 ) -> tuple[list[Survey], int]:
     stmt = select(Survey).where(Survey.is_deleted == False)
-    count_stmt = select(func.count(Survey.survey_code)).where(Survey.is_deleted == False)
+    count_stmt = select(func.count(Survey.survey_code)).where(
+        Survey.is_deleted == False
+    )
 
     if search:
-        stmt = stmt.where(or_(Survey.title.contains(search), Survey.description.contains(search)))
-        count_stmt = count_stmt.where(or_(Survey.title.contains(search), Survey.description.contains(search)))
+        stmt = stmt.where(
+            or_(Survey.title.contains(search), Survey.description.contains(search))
+        )
+        count_stmt = count_stmt.where(
+            or_(Survey.title.contains(search), Survey.description.contains(search))
+        )
     if status:
         stmt = stmt.where(Survey.status == status)
         count_stmt = count_stmt.where(Survey.status == status)
@@ -117,7 +145,7 @@ def create_survey(session: Session, data: SurveyCreate) -> Survey:
         survey_id=generate_survey_id(session),
         status=SurveyStatus.DRAFT,
         created_at=get_current_time_gmt8(),
-        updated_at=get_current_time_gmt8()
+        updated_at=get_current_time_gmt8(),
     )
     session.add(survey)
     session.commit()
@@ -165,6 +193,7 @@ def set_survey_status(session: Session, survey: Survey, status: SurveyStatus) ->
 # Survey questions
 # ---------------------------------------------------------------------------
 
+
 def get_survey_questions_with_details(
     session: Session, survey_code: uuid.UUID
 ) -> list[SurveyQuestionWithDetails]:
@@ -179,10 +208,12 @@ def get_survey_questions_with_details(
             select(Question).where(Question.question_code == sq.question_code)
         ).first()
         if question:
-            result.append(SurveyQuestionWithDetails(
-                order_index=sq.order_index,
-                question=QuestionPublic.model_validate(question)
-            ))
+            result.append(
+                SurveyQuestionWithDetails(
+                    order_index=sq.order_index,
+                    question=QuestionPublic.model_validate(question),
+                )
+            )
     return result
 
 
@@ -212,8 +243,9 @@ def add_question_to_survey(
     order_index = data.order_index
     if order_index is None:
         max_order = session.exec(
-            select(func.max(SurveyQuestion.order_index))
-            .where(SurveyQuestion.survey_code == survey.survey_code)
+            select(func.max(SurveyQuestion.order_index)).where(
+                SurveyQuestion.survey_code == survey.survey_code
+            )
         ).one()
         order_index = (max_order or 0) + 1
 
@@ -227,29 +259,41 @@ def add_question_to_survey(
     session.commit()
     session.refresh(sq)
     return SurveyQuestionWithDetails(
-        order_index=sq.order_index,
-        question=QuestionPublic.model_validate(question)
+        order_index=sq.order_index, question=QuestionPublic.model_validate(question)
     )
 
 
 def add_questions_batch(
     session: Session, survey: Survey, items: list[SurveyQuestionCreate]
 ) -> tuple[list[SurveyQuestionWithDetails], list[dict]]:
-    max_order = session.exec(
-        select(func.max(SurveyQuestion.order_index))
-        .where(SurveyQuestion.survey_code == survey.survey_code)
-    ).one() or 0
+    max_order = (
+        session.exec(
+            select(func.max(SurveyQuestion.order_index)).where(
+                SurveyQuestion.survey_code == survey.survey_code
+            )
+        ).one()
+        or 0
+    )
 
     added, failed = [], []
     for idx, item in enumerate(items, start=1):
         try:
             question = session.exec(
                 select(Question).where(
-                    and_(Question.question_id == item.question_id, Question.is_deleted == False)
+                    and_(
+                        Question.question_id == item.question_id,
+                        Question.is_deleted == False,
+                    )
                 )
             ).first()
             if not question:
-                failed.append({"index": idx, "question_id": item.question_id, "error": "QUESTION_NOT_FOUND"})
+                failed.append(
+                    {
+                        "index": idx,
+                        "question_id": item.question_id,
+                        "error": "QUESTION_NOT_FOUND",
+                    }
+                )
                 continue
 
             dup = session.exec(
@@ -261,7 +305,13 @@ def add_questions_batch(
                 )
             ).first()
             if dup:
-                failed.append({"index": idx, "question_id": item.question_id, "error": "Question already in survey"})
+                failed.append(
+                    {
+                        "index": idx,
+                        "question_id": item.question_id,
+                        "error": "Question already in survey",
+                    }
+                )
                 continue
 
             order_index = item.order_index or (max_order + len(added) + 1)
@@ -273,12 +323,16 @@ def add_questions_batch(
             )
             session.add(sq)
             session.flush()
-            added.append(SurveyQuestionWithDetails(
-                order_index=sq.order_index,
-                question=QuestionPublic.model_validate(question)
-            ))
+            added.append(
+                SurveyQuestionWithDetails(
+                    order_index=sq.order_index,
+                    question=QuestionPublic.model_validate(question),
+                )
+            )
         except Exception as e:
-            failed.append({"index": idx, "question_id": item.question_id, "error": str(e)})
+            failed.append(
+                {"index": idx, "question_id": item.question_id, "error": str(e)}
+            )
 
     session.commit()
     return added, failed
@@ -312,12 +366,14 @@ def remove_question_from_survey(
 
     # Reorder remaining
     lower = session.exec(
-        select(SurveyQuestion).where(
+        select(SurveyQuestion)
+        .where(
             and_(
                 SurveyQuestion.survey_code == survey.survey_code,
                 SurveyQuestion.order_index > removed_order,
             )
-        ).order_by(SurveyQuestion.order_index)
+        )
+        .order_by(SurveyQuestion.order_index)
     ).all()
     for remainder in lower:
         remainder.order_index -= 1
@@ -326,18 +382,51 @@ def remove_question_from_survey(
     session.commit()
 
 
-def reorder_survey_questions(
-    session: Session, survey: Survey, order_map: dict
-) -> None:
-    for sq_code_str, order_index in order_map.items():
-        sq = session.exec(
-            select(SurveyQuestion).where(
-                SurveyQuestion.survey_question_code == uuid.UUID(sq_code_str)
+def reorder_survey_questions(session: Session, survey: Survey, order_map: dict) -> None:
+    """Reorder questions in a survey. order_map: {question_id: new_order_index}
+    Uses a two-phase approach to avoid unique constraint violations on (survey_code, order_index).
+    """
+    if not order_map:
+        return
+
+    # 1. Fetch all questions in one query
+    question_ids = list(order_map.keys())
+    questions = session.exec(
+        select(Question).where(Question.question_id.in_(question_ids))
+    ).all()
+
+    if not questions:
+        return
+
+    question_codes = [q.question_code for q in questions]
+    question_code_to_id = {q.question_code: q.question_id for q in questions}
+
+    # 2. Fetch all SurveyQuestion junctions in one query
+    sqs = session.exec(
+        select(SurveyQuestion).where(
+            and_(
+                SurveyQuestion.survey_code == survey.survey_code,
+                SurveyQuestion.question_code.in_(question_codes),
             )
-        ).first()
-        if sq and sq.survey_code == survey.survey_code:
-            sq.order_index = order_index
-            session.add(sq)
+        )
+    ).all()
+
+    sqs_to_update = []
+    for sq in sqs:
+        q_id = question_code_to_id.get(sq.question_code)
+        if q_id and q_id in order_map:
+            sqs_to_update.append((sq, order_map[q_id]))
+
+    # Phase 1: Set all to temporary negative values to avoid constraint conflicts
+    for i, (sq, _) in enumerate(sqs_to_update):
+        sq.order_index = -(i + 1000)
+        session.add(sq)
+    session.flush()
+
+    # Phase 2: Set to final values
+    for sq, final_order in sqs_to_update:
+        sq.order_index = final_order
+        session.add(sq)
     session.commit()
 
 
@@ -345,10 +434,14 @@ def reorder_survey_questions(
 # Distribution config
 # ---------------------------------------------------------------------------
 
-def get_distribution_config(session: Session, survey_code: uuid.UUID) -> SurveyDistributionConfig | None:
+
+def get_distribution_config(
+    session: Session, survey_code: uuid.UUID
+) -> SurveyDistributionConfig | None:
     return session.exec(
-        select(SurveyDistributionConfig)
-        .where(SurveyDistributionConfig.survey_code == survey_code)
+        select(SurveyDistributionConfig).where(
+            SurveyDistributionConfig.survey_code == survey_code
+        )
     ).first()
 
 
@@ -383,7 +476,9 @@ def configure_distribution(
 
 
 def update_distribution_config(
-    session: Session, config: SurveyDistributionConfig, data: SurveyDistributionConfigCreateRequest
+    session: Session,
+    config: SurveyDistributionConfig,
+    data: SurveyDistributionConfigCreateRequest,
 ) -> SurveyDistributionConfig:
     config.target_group = data.target_group
     config.filters = data.filters
@@ -398,6 +493,7 @@ def update_distribution_config(
 # ---------------------------------------------------------------------------
 # Distribution sending (Phase 1.4B)
 # ---------------------------------------------------------------------------
+
 
 def _resolve_recipients(session: Session, config: SurveyDistributionConfig):
     """Return Alumni queryset based on target_group + filters. Returns list of Alumni."""
@@ -417,8 +513,9 @@ def _resolve_recipients(session: Session, config: SurveyDistributionConfig):
         if courses:
             # Join: Alumni.student_code → StudentRecord.student_code → Course.course_code
             stmt = (
-                stmt
-                .join(StudentRecord, StudentRecord.student_code == Alumni.student_code)
+                stmt.join(
+                    StudentRecord, StudentRecord.student_code == Alumni.student_code
+                )
                 .join(Course, Course.course_code == StudentRecord.course_code)
                 .where(Course.course_abbv.in_(courses))
             )
@@ -428,14 +525,12 @@ def _resolve_recipients(session: Session, config: SurveyDistributionConfig):
         year_min = filters.get("year_min")
         year_max = filters.get("year_max")
         if year_min is not None and year_max is not None:
-            stmt = (
-                stmt
-                .join(StudentRecord, StudentRecord.student_code == Alumni.student_code)
-                .where(
-                    and_(
-                        StudentRecord.year_graduated >= year_min,
-                        StudentRecord.year_graduated <= year_max,
-                    )
+            stmt = stmt.join(
+                StudentRecord, StudentRecord.student_code == Alumni.student_code
+            ).where(
+                and_(
+                    StudentRecord.year_graduated >= year_min,
+                    StudentRecord.year_graduated <= year_max,
                 )
             )
 
@@ -505,8 +600,9 @@ def send_survey_invitations(
     config.status = DistributionStatus.SENT
     config.sent_at = get_current_time_gmt8()
     config.total_recipients = session.exec(
-        select(func.count(SurveyInvitation.invitation_code))
-        .where(SurveyInvitation.survey_code == survey.survey_code)
+        select(func.count(SurveyInvitation.invitation_code)).where(
+            SurveyInvitation.survey_code == survey.survey_code
+        )
     ).one()
     config.updated_at = get_current_time_gmt8()
     session.add(config)
@@ -515,9 +611,7 @@ def send_survey_invitations(
     return len(created), created
 
 
-def send_survey_reminders(
-    session: Session, survey: Survey
-) -> tuple[int, list]:
+def send_survey_reminders(session: Session, survey: Survey) -> tuple[int, list]:
     """
     Identify alumni who received invitations but have not responded, and mark them for reminder.
     Returns (reminder_count, invitation_list_to_remind).
@@ -552,13 +646,13 @@ def get_distribution_stats(
 ) -> dict:
     """Compute distribution statistics: sent, responded, response_rate, etc."""
     total = session.exec(
-        select(func.count(SurveyInvitation.invitation_code))
-        .where(SurveyInvitation.survey_code == survey_code)
+        select(func.count(SurveyInvitation.invitation_code)).where(
+            SurveyInvitation.survey_code == survey_code
+        )
     ).one()
 
     responded = session.exec(
-        select(func.count(SurveyInvitation.invitation_code))
-        .where(
+        select(func.count(SurveyInvitation.invitation_code)).where(
             and_(
                 SurveyInvitation.survey_code == survey_code,
                 SurveyInvitation.responded_at != None,
@@ -567,8 +661,7 @@ def get_distribution_stats(
     ).one()
 
     opened = session.exec(
-        select(func.count(SurveyInvitation.invitation_code))
-        .where(
+        select(func.count(SurveyInvitation.invitation_code)).where(
             and_(
                 SurveyInvitation.survey_code == survey_code,
                 SurveyInvitation.opened_at != None,
@@ -631,13 +724,15 @@ def get_non_respondents(
 
     result = []
     for inv, alumni in rows:
-        result.append({
-            "alumni_id": alumni.alumni_id,
-            "first_name": alumni.first_name,
-            "last_name": alumni.last_name,
-            "invitation_id": inv.invitation_id,
-            "sent_at": inv.sent_at,
-        })
+        result.append(
+            {
+                "alumni_id": alumni.alumni_id,
+                "first_name": alumni.first_name,
+                "last_name": alumni.last_name,
+                "invitation_id": inv.invitation_id,
+                "sent_at": inv.sent_at,
+            }
+        )
 
     return result, total
 
@@ -645,6 +740,7 @@ def get_non_respondents(
 # ---------------------------------------------------------------------------
 # Results & analytics (Phase 1.6)
 # ---------------------------------------------------------------------------
+
 
 def get_survey_results(session: Session, survey: Survey) -> dict:
     """
@@ -657,8 +753,7 @@ def get_survey_results(session: Session, survey: Survey) -> dict:
 
     # Count totals
     total_responses = session.exec(
-        select(func.count(SurveyResponse.response_code))
-        .where(
+        select(func.count(SurveyResponse.response_code)).where(
             and_(
                 SurveyResponse.survey_code == survey.survey_code,
                 SurveyResponse.is_deleted == False,
@@ -667,8 +762,7 @@ def get_survey_results(session: Session, survey: Survey) -> dict:
     ).one()
 
     complete_responses = session.exec(
-        select(func.count(SurveyResponse.response_code))
-        .where(
+        select(func.count(SurveyResponse.response_code)).where(
             and_(
                 SurveyResponse.survey_code == survey.survey_code,
                 SurveyResponse.is_deleted == False,
@@ -677,7 +771,9 @@ def get_survey_results(session: Session, survey: Survey) -> dict:
         )
     ).one()
 
-    completion_rate = round(complete_responses / total_responses, 4) if total_responses > 0 else 0.0
+    completion_rate = (
+        round(complete_responses / total_responses, 4) if total_responses > 0 else 0.0
+    )
 
     # Get ordered questions for this survey
     sq_rows = session.exec(
@@ -687,6 +783,7 @@ def get_survey_results(session: Session, survey: Survey) -> dict:
     ).all()
 
     from models.questions import Question
+
     question_summaries = []
 
     for sq in sq_rows:
@@ -699,7 +796,10 @@ def get_survey_results(session: Session, survey: Survey) -> dict:
         # Fetch all answers for this question in this survey
         answers = session.exec(
             select(SurveyAnswer)
-            .join(SurveyResponse, SurveyResponse.response_code == SurveyAnswer.response_code)
+            .join(
+                SurveyResponse,
+                SurveyResponse.response_code == SurveyAnswer.response_code,
+            )
             .where(
                 and_(
                     SurveyAnswer.question_code == question.question_code,
@@ -725,6 +825,7 @@ def get_survey_results(session: Session, survey: Survey) -> dict:
 
         elif qtype == QuestionType.MULTI_SELECT:
             import json as _json
+
             all_choices = []
             for a in answers:
                 if a.answer_choices:
@@ -764,10 +865,13 @@ def get_survey_results(session: Session, survey: Survey) -> dict:
             summary["no_count"] = no
 
         elif qtype in (QuestionType.TEXT, QuestionType.DATE):
-            unique_samples = list(dict.fromkeys(
-                str(a.answer_text or a.answer_date) for a in answers
-                if (a.answer_text or a.answer_date) is not None
-            ))
+            unique_samples = list(
+                dict.fromkeys(
+                    str(a.answer_text or a.answer_date)
+                    for a in answers
+                    if (a.answer_text or a.answer_date) is not None
+                )
+            )
             summary["sample_answers"] = unique_samples[:10]
 
         question_summaries.append(summary)
@@ -808,7 +912,7 @@ def export_survey_responses(session: Session, survey: Survey) -> dict:
             return None
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=_tz.utc)
-        return dt.astimezone(_GMT8).strftime('%Y-%m-%d %H:%M:%S')
+        return dt.astimezone(_GMT8).strftime("%Y-%m-%d %H:%M:%S")
 
     output_responses = []
     for resp in responses:
@@ -831,26 +935,30 @@ def export_survey_responses(session: Session, survey: Survey) -> dict:
             q = session.exec(
                 select(Question).where(Question.question_code == ans.question_code)
             ).first()
-            answer_list.append({
-                "question_id": q.question_id if q else None,
-                "question_text": q.question_text if q else None,
-                "question_type": q.question_type.value if q else None,
-                "answer_text": ans.answer_text,
-                "answer_choice": ans.answer_choice,
-                "answer_choices": ans.answer_choices,
-                "answer_scale": ans.answer_scale,
-                "answer_number": ans.answer_number,
-                "answer_date": _fmt(ans.answer_date),
-                "answer_bool": ans.answer_bool,
-            })
+            answer_list.append(
+                {
+                    "question_id": q.question_id if q else None,
+                    "question_text": q.question_text if q else None,
+                    "question_type": q.question_type.value if q else None,
+                    "answer_text": ans.answer_text,
+                    "answer_choice": ans.answer_choice,
+                    "answer_choices": ans.answer_choices,
+                    "answer_scale": ans.answer_scale,
+                    "answer_number": ans.answer_number,
+                    "answer_date": _fmt(ans.answer_date),
+                    "answer_bool": ans.answer_bool,
+                }
+            )
 
-        output_responses.append({
-            "response_id": resp.response_id,
-            "submitted_at": _fmt(resp.submitted_at),
-            "is_complete": resp.is_complete,
-            "alumni_id": alumni_id,
-            "answers": answer_list,
-        })
+        output_responses.append(
+            {
+                "response_id": resp.response_id,
+                "submitted_at": _fmt(resp.submitted_at),
+                "is_complete": resp.is_complete,
+                "alumni_id": alumni_id,
+                "answers": answer_list,
+            }
+        )
 
     return {
         "survey_id": survey.survey_id,
@@ -858,4 +966,3 @@ def export_survey_responses(session: Session, survey: Survey) -> dict:
         "total_responses": len(output_responses),
         "responses": output_responses,
     }
-

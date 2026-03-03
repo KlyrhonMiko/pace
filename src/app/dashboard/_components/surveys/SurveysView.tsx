@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { Plus, Search, HelpCircle } from "lucide-react";
-import { Survey } from "./types";
-import { SURVEY_STATUSES } from "./constants";
+import { Survey } from "../../_lib/surveys";
+import { SURVEY_STATUSES } from "../../_lib/surveys";
 import SurveyCard from "./SurveyCard";
 import SurveyFilters from "./SurveyFilters";
 
@@ -11,7 +11,7 @@ interface SurveysViewProps {
     surveys: Survey[];
     onCreateSurvey: () => void;
     onEditSurvey: (survey: Survey) => void;
-    onDeleteSurvey: (id: number) => void;
+    onDeleteSurvey: (id: string) => void;
 }
 
 export default function SurveysView({
@@ -36,7 +36,7 @@ export default function SurveysView({
             s.description.toLowerCase().includes(searchQuery.toLowerCase());
 
         const matchesStatus = selectedStatus ? s.status === selectedStatus : true;
-        const matchesAnon = showAnonymousOnly ? s.isAnonymous === true : true;
+        const matchesAnon = showAnonymousOnly ? s.is_anonymous === true : true;
 
         return matchesSearch && matchesStatus && matchesAnon;
     });
@@ -102,10 +102,10 @@ export default function SurveysView({
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                             {filteredSurveys.map((survey) => (
                                 <SurveyCard
-                                    key={survey.id}
+                                    key={survey.survey_id}
                                     survey={survey}
                                     onEdit={() => onEditSurvey(survey)}
-                                    onDelete={() => onDeleteSurvey(survey.id)}
+                                    onDelete={() => onDeleteSurvey(survey.survey_id)}
                                 />
                             ))}
                         </div>

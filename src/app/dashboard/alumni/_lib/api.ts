@@ -2,7 +2,13 @@
  * API client for Employability Prediction endpoints
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+function getApiBaseUrl(): string {
+    if (typeof window === "undefined") {
+        return process.env.INTERNAL_API_URL || process.env.API_BASE_URL || "http://backend:8000";
+    }
+
+    return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+}
 
 // ── Response types ─────────────────────────────────────────────
 
@@ -43,6 +49,7 @@ export async function getLatestPrediction(
     alumniCode: string
 ): Promise<EmployabilityResult | null> {
     try {
+        const API_BASE_URL = getApiBaseUrl();
         const response = await fetch(
             `${API_BASE_URL}/predict/employability/alumni/${alumniCode}?limit=1`,
             {
@@ -105,6 +112,7 @@ export async function fetchDemoPrediction(): Promise<EmployabilityResult | null>
     };
 
     try {
+        const API_BASE_URL = getApiBaseUrl();
         const response = await fetch(`${API_BASE_URL}/predict/employability`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },

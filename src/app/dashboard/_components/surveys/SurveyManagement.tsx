@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 import { ClipboardList, Library, AlertTriangle, Loader2 } from "lucide-react";
 import {
     type Question,
@@ -28,6 +29,7 @@ export default function SurveyManagement() {
     const [activeTab, setActiveTab] = useState<'surveys' | 'library'>('surveys');
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // --- Survey State ---
     const [surveys, setSurveys] = useState<Survey[]>([]);
@@ -78,12 +80,15 @@ export default function SurveyManagement() {
 
     const confirmDeleteSurvey = async () => {
         if (surveyToDelete !== null) {
+            setIsDeleting(true);
             const success = await apiDeleteSurvey(surveyToDelete);
             if (success) {
+                toast.success("Survey deleted successfully.");
                 await loadData();
             } else {
-                alert("Failed to delete survey.");
+                toast.error("Failed to delete survey.");
             }
+            setIsDeleting(false);
             setSurveyToDelete(null);
         }
     };
@@ -91,17 +96,27 @@ export default function SurveyManagement() {
     const handleSaveSurvey = async (sData: Omit<Survey, "survey_id" | "question_count">) => {
         setIsSaving(true);
         if (editingSurvey) {
-            // 1. Update survey metadata
-            const updated = await apiUpdateSurvey(editingSurvey.survey_id, {
-                title: sData.title,
-                description: sData.description,
-                is_anonymous: sData.is_anonymous,
-                allow_multiple_responses: sData.allow_multiple_responses,
-                opens_at: sData.opens_at,
-                closes_at: sData.closes_at,
-            });
-            if (!updated) {
-                alert("Failed to update survey.");
+            // A1: Skip metadata PATCH if nothing changed
+            const metadataChanged =
+                sData.title !== editingSurvey.title ||
+                sData.description !== editingSurvey.description ||
+                sData.is_anonymous !== editingSurvey.is_anonymous ||
+                sData.allow_multiple_responses !== editingSurvey.allow_multiple_responses ||
+                sData.opens_at !== editingSurvey.opens_at ||
+                sData.closes_at !== editingSurvey.closes_at;
+
+            if (metadataChanged) {
+                const updated = await apiUpdateSurvey(editingSurvey.survey_id, {
+                    title: sData.title,
+                    description: sData.description,
+                    is_anonymous: sData.is_anonymous,
+                    allow_multiple_responses: sData.allow_multiple_responses,
+                    opens_at: sData.opens_at,
+                    closes_at: sData.closes_at,
+                });
+                if (!updated) {
+                    toast.error("Failed to update survey metadata.");
+                }
             }
 
             // 2. Sync questions: diff for add/remove, then reorder
@@ -109,10 +124,12 @@ export default function SurveyManagement() {
             const newQuestions = sData.questions || [];
             const newIds = new Set(newQuestions.map(q => q.question_id));
 
-            // Remove questions that were deleted by the user
+            // A2: Parallelize deletes with Promise.all instead of serial await
             const toRemove = [...originalIds].filter(id => !newIds.has(id));
-            for (const qid of toRemove) {
-                await removeQuestionFromSurvey(editingSurvey.survey_id, qid);
+            if (toRemove.length > 0) {
+                await Promise.all(
+                    toRemove.map(qid => removeQuestionFromSurvey(editingSurvey.survey_id, qid))
+                );
             }
 
             // Add questions that are newly added by the user
@@ -133,6 +150,13 @@ export default function SurveyManagement() {
                 });
                 await reorderSurveyQuestions(editingSurvey.survey_id, orderMap);
             }
+
+            // A3: Optimistic state update instead of full loadData()
+            // Re-fetch only the updated survey for accuracy
+            const refreshed = await fetchSurveys({ limit: 100 });
+            setSurveys(refreshed.surveys);
+            toast.success("Survey updated successfully.");
+            setIsSurveyModalOpen(false);
         } else {
             // Create new survey (DRAFT), then attach questions if any
             const created = await apiCreateSurvey({
@@ -151,10 +175,15 @@ export default function SurveyManagement() {
                 }));
                 await addQuestionsBatch(created.survey_id, batch);
             } else if (!created) {
-                alert("Failed to create survey.");
+                toast.error("Failed to create survey.");
             }
+            if (created) {
+                toast.success("Survey created successfully.");
+            }
+            // For create, do full reload (new survey + question count needs refreshing)
+            await loadData();
+            setIsSurveyModalOpen(false);
         }
-        await loadData();
         setIsSaving(false);
     };
 
@@ -175,12 +204,15 @@ export default function SurveyManagement() {
 
     const confirmDeleteQuestion = async () => {
         if (questionToDelete !== null) {
+            setIsDeleting(true);
             const success = await apiDeleteQuestion(questionToDelete);
             if (success) {
+                toast.success("Question deleted successfully.");
                 await loadData();
             } else {
-                alert("Failed to delete question.");
+                toast.error("Failed to delete question.");
             }
+            setIsDeleting(false);
             setQuestionToDelete(null);
         }
     };
@@ -189,17 +221,22 @@ export default function SurveyManagement() {
         setIsSaving(true);
         if (editingQuestion) {
             const updated = await apiUpdateQuestion(editingQuestion.question_id, qData);
-            if (!updated) {
-                alert("Failed to update question.");
+            if (updated) {
+                toast.success("Question updated successfully.");
+            } else {
+                toast.error("Failed to update question.");
             }
         } else {
             const created = await apiCreateQuestion(qData);
-            if (!created) {
-                alert("Failed to create question.");
+            if (created) {
+                toast.success("Question created successfully.");
+            } else {
+                toast.error("Failed to create question.");
             }
         }
         await loadData();
         setIsSaving(false);
+        setIsQuestionModalOpen(false);
     };
 
     return (
@@ -279,6 +316,7 @@ export default function SurveyManagement() {
                 onClose={() => setIsQuestionModalOpen(false)}
                 onSubmit={handleSaveQuestion}
                 initialData={editingQuestion}
+                isSaving={isSaving}
             />
 
             <SurveyModal
@@ -287,6 +325,7 @@ export default function SurveyManagement() {
                 onSubmit={handleSaveSurvey}
                 initialData={editingSurvey}
                 questionLibrary={questionBank}
+                isSaving={isSaving}
             />
 
             {/* Delete Confirmation Modal for Surveys */}
@@ -303,15 +342,20 @@ export default function SurveyManagement() {
                         <div className="flex gap-3">
                             <button
                                 onClick={() => setSurveyToDelete(null)}
-                                className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
+                                disabled={isDeleting}
+                                className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={confirmDeleteSurvey}
-                                className="flex-1 px-4 py-2.5 rounded-lg text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors"
+                                disabled={isDeleting}
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
                             >
-                                Delete Survey
+                                {isDeleting ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : null}
+                                {isDeleting ? "Deleting..." : "Delete Survey"}
                             </button>
                         </div>
                     </div>
@@ -332,15 +376,20 @@ export default function SurveyManagement() {
                         <div className="flex gap-3">
                             <button
                                 onClick={() => setQuestionToDelete(null)}
-                                className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
+                                disabled={isDeleting}
+                                className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={confirmDeleteQuestion}
-                                className="flex-1 px-4 py-2.5 rounded-lg text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors"
+                                disabled={isDeleting}
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
                             >
-                                Delete Question
+                                {isDeleting ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : null}
+                                {isDeleting ? "Deleting..." : "Delete Question"}
                             </button>
                         </div>
                     </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Plus, Trash2 } from "lucide-react";
+import { X, Plus, Trash2, Loader2 } from "lucide-react";
 import { Question, QuestionType } from "../../_lib/surveys";
 import { QUESTION_TYPES } from "../../_lib/surveys";
 
@@ -10,6 +10,7 @@ interface QuestionModalProps {
     onClose: () => void;
     onSubmit: (question: Omit<Question, "question_id">) => void;
     initialData?: Question | null;
+    isSaving?: boolean;
 }
 
 const defaultQuestionData: Omit<Question, "question_id"> = {
@@ -18,7 +19,7 @@ const defaultQuestionData: Omit<Question, "question_id"> = {
     is_required: false,
 };
 
-export default function QuestionModal({ isOpen, onClose, onSubmit, initialData }: QuestionModalProps) {
+export default function QuestionModal({ isOpen, onClose, onSubmit, initialData, isSaving = false }: QuestionModalProps) {
     const [formData, setFormData] = useState<Omit<Question, "question_id">>(defaultQuestionData);
 
     useEffect(() => {
@@ -73,7 +74,6 @@ export default function QuestionModal({ isOpen, onClose, onSubmit, initialData }
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         onSubmit(formData);
-        onClose();
     };
 
     const optionsArray = getOptionsArray();
@@ -278,16 +278,21 @@ export default function QuestionModal({ isOpen, onClose, onSubmit, initialData }
                     <button
                         type="button"
                         onClick={onClose}
-                        className="px-6 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-200/50 transition-colors"
+                        disabled={isSaving}
+                        className="px-6 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-200/50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
                     >
                         Cancel
                     </button>
                     <button
                         form="question-form"
                         type="submit"
-                        className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-all shadow-sm shadow-emerald-200 active:scale-95"
+                        disabled={isSaving}
+                        className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all shadow-sm shadow-emerald-200 active:scale-95"
                     >
-                        {initialData ? "Save Changes" : "Save Question"}
+                        {isSaving ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : null}
+                        {isSaving ? "Saving..." : (initialData ? "Save Changes" : "Save Question")}
                     </button>
                 </div>
             </div>

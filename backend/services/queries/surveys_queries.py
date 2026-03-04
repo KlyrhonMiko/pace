@@ -109,6 +109,24 @@ def get_survey_question_count(session: Session, survey_code: uuid.UUID) -> int:
     ).one()
 
 
+def get_survey_question_counts_batch(
+    session: Session, survey_codes: list[uuid.UUID]
+) -> dict[uuid.UUID, int]:
+    """Fetch question counts for multiple surveys in one grouped query."""
+    if not survey_codes:
+        return {}
+    rows = session.exec(
+        select(
+            SurveyQuestion.survey_code, func.count(SurveyQuestion.survey_question_code)
+        )
+        .where(SurveyQuestion.survey_code.in_(survey_codes))
+        .group_by(SurveyQuestion.survey_code)
+    ).all()
+    counts = {row[0]: row[1] for row in rows}
+    # Surveys with 0 questions won't appear in the grouped result
+    return {code: counts.get(code, 0) for code in survey_codes}
+
+
 # ---------------------------------------------------------------------------
 # Survey CRUD
 # ---------------------------------------------------------------------------
@@ -197,24 +215,20 @@ def set_survey_status(session: Session, survey: Survey, status: SurveyStatus) ->
 def get_survey_questions_with_details(
     session: Session, survey_code: uuid.UUID
 ) -> list[SurveyQuestionWithDetails]:
-    sq_rows = session.exec(
-        select(SurveyQuestion)
+    """Fetch all questions for a survey in ONE join query (no N+1)."""
+    rows = session.exec(
+        select(SurveyQuestion, Question)
+        .join(Question, SurveyQuestion.question_code == Question.question_code)
         .where(SurveyQuestion.survey_code == survey_code)
         .order_by(SurveyQuestion.order_index)
     ).all()
-    result = []
-    for sq in sq_rows:
-        question = session.exec(
-            select(Question).where(Question.question_code == sq.question_code)
-        ).first()
-        if question:
-            result.append(
-                SurveyQuestionWithDetails(
-                    order_index=sq.order_index,
-                    question=QuestionPublic.model_validate(question),
-                )
-            )
-    return result
+    return [
+        SurveyQuestionWithDetails(
+            order_index=sq.order_index,
+            question=QuestionPublic.model_validate(q),
+        )
+        for sq, q in rows
+    ]
 
 
 def add_question_to_survey(

@@ -12,29 +12,47 @@ from utils.timezone import get_current_time_gmt8, GMT8
 # ──────────────────────────────────────────────────────────────
 
 VALID_DEGREES = [
-    "BSIT", "BSCS", "BSA",
-    "BSBA-Entrepreneurship", "BSBA-Marketing",
-    "BSEd-Filipino", "BSEd-English",
+    "BSIT",
+    "BSCS",
+    "BSA",
+    "BSBA-Entrepreneurship",
+    "BSBA-Marketing",
+    "BSEd-Filipino",
+    "BSEd-English",
 ]
 
 
 class EmployabilityInput(SQLModel):
     """
     Input schema for the /predict/employability endpoint.
-    
+
     Field names use snake_case for the API; the to_predictor_dict()
     method maps them to the exact keys the EmployabilityPredictor expects.
     """
 
     # ── Required fields (all students) ──────────────────────────
-    cgpa: float = Field(..., ge=1.0, le=5.0, description="CGPA (1.0 best → 5.0 worst, inverted scale)")
-    average_prof_grade: float = Field(..., ge=0, le=100, description="Average professional subject grade")
-    average_elec_grade: float = Field(..., ge=0, le=100, description="Average elective grade")
+    cgpa: float = Field(
+        ..., ge=1.0, le=5.0, description="CGPA (1.0 best → 5.0 worst, inverted scale)"
+    )
+    average_prof_grade: float = Field(
+        ..., ge=0, le=100, description="Average professional subject grade"
+    )
+    average_elec_grade: float = Field(
+        ..., ge=0, le=100, description="Average elective grade"
+    )
     ojt_grade: float = Field(..., ge=0, le=100, description="OJT / internship grade")
-    leadership_pos: str = Field(..., description="Leadership position held: 'Yes' or 'No'")
-    act_member_pos: str = Field(..., description="Active member of org/club: 'Yes' or 'No'")
-    soft_skills_ave: float = Field(..., ge=0, le=100, description="Average soft skills score")
-    hard_skills_ave: float = Field(..., ge=0, le=100, description="Average hard skills score")
+    leadership_pos: str = Field(
+        ..., description="Leadership position held: 'Yes' or 'No'"
+    )
+    act_member_pos: str = Field(
+        ..., description="Active member of org/club: 'Yes' or 'No'"
+    )
+    soft_skills_ave: float = Field(
+        ..., ge=0, le=100, description="Average soft skills score"
+    )
+    hard_skills_ave: float = Field(
+        ..., ge=0, le=100, description="Average hard skills score"
+    )
     degree: str = Field(..., description="Degree program, e.g. 'BSIT'")
     year_graduated: int = Field(..., description="Graduation year, e.g. 2024")
 
@@ -88,7 +106,9 @@ class EmployabilityInput(SQLModel):
     @classmethod
     def validate_degree(cls, v: str) -> str:
         if v not in VALID_DEGREES:
-            raise ValueError(f"Invalid degree. Must be one of: {', '.join(VALID_DEGREES)}")
+            raise ValueError(
+                f"Invalid degree. Must be one of: {', '.join(VALID_DEGREES)}"
+            )
         return v
 
     @field_validator("year_graduated")
@@ -96,7 +116,9 @@ class EmployabilityInput(SQLModel):
     def validate_year(cls, v: int) -> int:
         current_year = datetime.now().year
         if v > current_year:
-            raise ValueError(f"Year graduated cannot be in the future (max: {current_year})")
+            raise ValueError(
+                f"Year graduated cannot be in the future (max: {current_year})"
+            )
         if v < 1950:
             raise ValueError("Year graduated must be 1950 or later")
         return v
@@ -161,8 +183,10 @@ class EmployabilityInput(SQLModel):
 # Database table — stores predictions
 # ──────────────────────────────────────────────────────────────
 
+
 class EmployabilityPrediction(SQLModel, table=True):
     """Persists prediction input + results for audit and history."""
+
     __tablename__ = "employability_predictions"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -177,10 +201,18 @@ class EmployabilityPrediction(SQLModel, table=True):
     prediction_result: Any = Field(sa_column=Column(JSON, nullable=False))
 
     # Denormalized key results for easy querying / filtering
-    realistic_prediction: str = Field(max_length=20, description="'Employable' or 'Not Employable'")
-    realistic_probability: float = Field(description="0–100, employability likelihood (Model 1)")
-    improvement_prediction: str = Field(max_length=20, description="'Employable' or 'Not Employable'")
-    improvement_probability: float = Field(description="0–100, employability likelihood (Model 2)")
+    realistic_prediction: str = Field(
+        max_length=20, description="'Employable' or 'Not Employable'"
+    )
+    realistic_probability: float = Field(
+        description="0–100, employability likelihood (Model 1)"
+    )
+    improvement_prediction: str = Field(
+        max_length=20, description="'Employable' or 'Not Employable'"
+    )
+    improvement_probability: float = Field(
+        description="0–100, employability likelihood (Model 2)"
+    )
 
     created_at: datetime = Field(default_factory=get_current_time_gmt8)
 
@@ -189,8 +221,10 @@ class EmployabilityPrediction(SQLModel, table=True):
 # Response schema — for GET endpoints
 # ──────────────────────────────────────────────────────────────
 
+
 class EmployabilityPredictionRead(SQLModel):
     """Public read schema returned by GET /predict/employability/{id}."""
+
     id: uuid.UUID
     alumni_code: Optional[uuid.UUID]
     input_data: Any

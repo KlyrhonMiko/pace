@@ -2,16 +2,29 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from routers import users, courses, college_dept, student_records, alumni, alumni_skills, auth, jobs, event_types, events, event_registration, surveys, questions, predict
+from routers import (
+    users,
+    courses,
+    college_dept,
+    student_records,
+    alumni,
+    alumni_skills,
+    auth,
+    jobs,
+    event_types,
+    events,
+    event_registration,
+    surveys,
+    questions,
+    predict,
+    otp,
+)
 from core.config import settings
 from models.response_codes import StandardResponse, ErrorCode
 from datetime import datetime
 from utils.timezone import get_current_time_gmt8
 
-app = FastAPI(
-    title="Pasig Alumni and Career Employment (PACE) System",
-    version="1.0.0"
-)
+app = FastAPI(title="Pasig Alumni and Career Employment (PACE) System", version="1.0.0")
 
 # Add CORS middleware
 app.add_middleware(
@@ -36,6 +49,7 @@ app.include_router(events.router)
 app.include_router(surveys.router)
 app.include_router(questions.router)
 app.include_router(predict.router)
+app.include_router(otp.router)
 
 # TODO: Add event_registration router once auth and RBAC are implemented
 # app.include_router(event_registration.router)
@@ -54,48 +68,39 @@ async def startup_event():
 async def validation_exception_handler(request, exc):
     """Handle Pydantic validation errors and wrap in StandardResponse"""
     errors = exc.errors()
-    
+
     # Extract the validation error details
     error_details = []
     error_code = ErrorCode.INVALID_INPUT.value
-    
+
     for error in errors:
-        field = error.get('loc', [])[-1]  # Get the field name
-        msg = error.get('msg', 'Invalid input')
-        error_type = error.get('type', '')
-        
+        field = error.get("loc", [])[-1]  # Get the field name
+        msg = error.get("msg", "Invalid input")
+        error_type = error.get("type", "")
+
         # Map validation errors to specific error codes
-        if 'email' in str(field).lower():
+        if "email" in str(field).lower():
             error_code = ErrorCode.INVALID_EMAIL.value
-        elif 'password' in str(field).lower():
+        elif "password" in str(field).lower():
             error_code = ErrorCode.INVALID_PASSWORD.value
-        elif 'year_graduated' in str(field).lower():
+        elif "year_graduated" in str(field).lower():
             error_code = ErrorCode.INVALID_YEAR_GRADUATED.value
-        elif 'age' in str(field).lower():
+        elif "age" in str(field).lower():
             error_code = ErrorCode.INVALID_AGE.value
-        
-        error_details.append({
-            'field': str(field),
-            'message': msg,
-            'type': error_type
-        })
-    
+
+        error_details.append({"field": str(field), "message": msg, "type": error_type})
+
     # Create standardized error response
     response = StandardResponse(
         success=False,
         code=error_code,
-        message=error_details[0]['message'] if error_details else 'Validation error',
-        data={'errors': error_details}
+        message=error_details[0]["message"] if error_details else "Validation error",
+        data={"errors": error_details},
     )
-    
-    return JSONResponse(
-        status_code=400,
-        content=response.model_dump(mode='json')
-    )
+
+    return JSONResponse(status_code=400, content=response.model_dump(mode="json"))
 
 
 @app.get("/")
 def read_root():
     return {"message": "Hello from PACE Backend v3"}
-
-

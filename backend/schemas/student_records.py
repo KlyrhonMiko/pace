@@ -15,19 +15,21 @@ class StudentRecordCreate(SQLModel):
     leadership_pos: Optional[bool] = None
     act_member_pos: Optional[bool] = None
     course_abbv: str  # matched to Course by abbreviation
-    alumni_id: str    # matched to Alumni by human-readable ID
+    alumni_id: str  # matched to Alumni by human-readable ID
 
-    @field_validator('year_graduated')
+    @field_validator("year_graduated")
     @classmethod
     def validate_year_graduated(cls, v):
         current_year = datetime.now().year
         if v > current_year:
-            raise ValueError(f'Year graduated cannot be in the future (max: {current_year})')
+            raise ValueError(
+                f"Year graduated cannot be in the future (max: {current_year})"
+            )
         if v < 1950:
-            raise ValueError('Year graduated must be 1950 or later')
+            raise ValueError("Year graduated must be 1950 or later")
         return v
 
-    @field_validator('course_abbv', 'alumni_id', mode='before')
+    @field_validator("course_abbv", "alumni_id", mode="before")
     @classmethod
     def uppercase_ids(cls, v):
         if isinstance(v, str):
@@ -45,18 +47,20 @@ class StudentRecordUpdate(SQLModel):
     act_member_pos: Optional[bool] = None
     alumni_id: Optional[str] = None
 
-    @field_validator('year_graduated')
+    @field_validator("year_graduated")
     @classmethod
     def validate_year_graduated(cls, v):
         if v is not None:
             current_year = datetime.now().year
             if v > current_year:
-                raise ValueError(f'Year graduated cannot be in the future (max: {current_year})')
+                raise ValueError(
+                    f"Year graduated cannot be in the future (max: {current_year})"
+                )
             if v < 1950:
-                raise ValueError('Year graduated must be 1950 or later')
+                raise ValueError("Year graduated must be 1950 or later")
         return v
 
-    @field_validator('alumni_id', mode='before')
+    @field_validator("alumni_id", mode="before")
     @classmethod
     def uppercase_alumni_id(cls, v):
         if isinstance(v, str):
@@ -76,17 +80,18 @@ class StudentRecordPublic(SQLModel):
     created_at: datetime
     updated_at: datetime
 
-    @field_serializer('created_at', 'updated_at')
+    @field_serializer("created_at", "updated_at")
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         if value is None:
             return None
         if value.tzinfo is None:
             value = value.replace(tzinfo=timezone.utc)
         gmt8_time = value.astimezone(GMT8)
-        return gmt8_time.strftime('%Y-%m-%d %H:%M:%S')
+        return gmt8_time.strftime("%Y-%m-%d %H:%M:%S")
 
 
 # ── Safe display models ─────────────────────────────────────────────────────
+
 
 class StudentRecordCreateSafeDisplay(BaseModel):
     student_id: str
@@ -101,6 +106,7 @@ class StudentRecordUpdateSafeDisplay(BaseModel):
 
 
 # ── Batch create ────────────────────────────────────────────────────────────
+
 
 class StudentRecordBatchCreateItem(BaseModel):
     index: int
@@ -124,6 +130,7 @@ class StudentRecordBatchCreateResponse(BaseModel):
 
 # ── Batch update ────────────────────────────────────────────────────────────
 
+
 class StudentRecordBatchUpdateItem(BaseModel):
     student_id: str
     year_graduated: Optional[int] = None
@@ -135,18 +142,20 @@ class StudentRecordBatchUpdateItem(BaseModel):
     act_member_pos: Optional[bool] = None
     alumni_id: Optional[str] = None
 
-    @field_validator('year_graduated')
+    @field_validator("year_graduated")
     @classmethod
     def validate_year_graduated(cls, v):
         if v is not None:
             current_year = datetime.now().year
             if v > current_year:
-                raise ValueError(f'Year graduated cannot be in the future (max: {current_year})')
+                raise ValueError(
+                    f"Year graduated cannot be in the future (max: {current_year})"
+                )
             if v < 1950:
-                raise ValueError('Year graduated must be 1950 or later')
+                raise ValueError("Year graduated must be 1950 or later")
         return v
 
-    @field_validator('alumni_id', mode='before')
+    @field_validator("alumni_id", mode="before")
     @classmethod
     def uppercase_alumni_id(cls, v):
         if isinstance(v, str):
@@ -176,6 +185,7 @@ class StudentRecordBatchUpdateResponse(BaseModel):
 
 # ── Batch delete ────────────────────────────────────────────────────────────
 
+
 class StudentRecordBatchDeleteResult(BaseModel):
     index: int
     student_id: str
@@ -196,6 +206,7 @@ class StudentRecordBatchDeleteResponse(BaseModel):
 
 
 # ── Batch restore ───────────────────────────────────────────────────────────
+
 
 class StudentRecordBatchRestoreResult(BaseModel):
     index: int

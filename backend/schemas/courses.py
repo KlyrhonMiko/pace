@@ -11,7 +11,7 @@ class CourseCreate(SQLModel):
     course_desc: Optional[str] = Field(default=None, max_length=500)
     college_dept_abbv: str  # College department abbreviation (e.g., CCS)
 
-    @field_validator('course_abbv', 'college_dept_abbv', mode='before')
+    @field_validator("course_abbv", "college_dept_abbv", mode="before")
     @classmethod
     def capitalize_abbvs(cls, v):
         """Convert abbreviations to uppercase"""
@@ -19,12 +19,12 @@ class CourseCreate(SQLModel):
             return v.upper()
         return v
 
-    @field_validator('course_abbv', 'course_name')
+    @field_validator("course_abbv", "course_name")
     @classmethod
     def validate_non_empty(cls, v):
         """Ensure abbreviation and name are not empty"""
         if isinstance(v, str) and not v.strip():
-            raise ValueError('This field cannot be empty')
+            raise ValueError("This field cannot be empty")
         return v
 
 
@@ -34,7 +34,7 @@ class CourseUpdate(SQLModel):
     course_desc: Optional[str] = Field(default=None, max_length=500)
     college_dept_abbv: Optional[str] = Field(default=None)
 
-    @field_validator('course_abbv', 'college_dept_abbv', mode='before')
+    @field_validator("course_abbv", "college_dept_abbv", mode="before")
     @classmethod
     def capitalize_abbvs(cls, v):
         """Convert abbreviations to uppercase"""
@@ -42,12 +42,12 @@ class CourseUpdate(SQLModel):
             return v.upper()
         return v
 
-    @field_validator('course_abbv', 'course_name')
+    @field_validator("course_abbv", "course_name")
     @classmethod
     def validate_non_empty(cls, v):
         """Ensure abbreviation and name are not empty if provided"""
         if v is not None and isinstance(v, str) and not v.strip():
-            raise ValueError('This field cannot be empty')
+            raise ValueError("This field cannot be empty")
         return v
 
 
@@ -61,7 +61,7 @@ class CoursePublic(SQLModel):
     created_at: datetime
     updated_at: datetime
 
-    @field_serializer('created_at', 'updated_at')
+    @field_serializer("created_at", "updated_at")
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         """Convert to GMT+8 and format as YYYY-MM-DD HH:MM:SS without microseconds"""
         if value is None:
@@ -69,69 +69,103 @@ class CoursePublic(SQLModel):
         if value.tzinfo is None:
             value = value.replace(tzinfo=timezone.utc)
         gmt8_time = value.astimezone(GMT8)
-        return gmt8_time.strftime('%Y-%m-%d %H:%M:%S')
+        return gmt8_time.strftime("%Y-%m-%d %H:%M:%S")
 
 
 # Batch operation models
 class CourseBatchCreateItem(BaseModel):
     """Individual item result from batch create operation"""
+
     index: int = Field(..., description="Index in the request list (0-based)")
     item: CourseCreate = Field(..., description="The course data submitted")
     success: bool = Field(..., description="Whether this item was created successfully")
     code: str = Field(..., description="Error code (if failed) or success code")
     message: str = Field(..., description="Detailed message about the result")
-    data: Optional[CoursePublic] = Field(default=None, description="Created course (if successful)")
+    data: Optional[CoursePublic] = Field(
+        default=None, description="Created course (if successful)"
+    )
 
 
 class CourseBatchCreate(BaseModel):
     """Batch create request for courses"""
-    items: List[CourseCreate] = Field(..., min_length=1, max_length=100, description="List of courses to create (1-100 items)")
+
+    items: List[CourseCreate] = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="List of courses to create (1-100 items)",
+    )
 
 
 class CourseBatchCreateResponse(BaseModel):
     """Batch create response for courses"""
+
     total_items: int = Field(..., description="Total items in request")
     successful: int = Field(..., description="Number of items successfully created")
     failed: int = Field(..., description="Number of items that failed")
-    results: List[CourseBatchCreateItem] = Field(..., description="Detailed results for each item")
+    results: List[CourseBatchCreateItem] = Field(
+        ..., description="Detailed results for each item"
+    )
 
 
 # Batch update models
 class CourseBatchUpdateItem(BaseModel):
     """Course update item in batch request"""
+
     course_id: str = Field(..., description="Course ID to update")
-    course_abbv: Optional[str] = Field(default=None, max_length=20, description="New abbreviation")
-    course_name: Optional[str] = Field(default=None, max_length=200, description="New name")
-    course_desc: Optional[str] = Field(default=None, max_length=500, description="New description")
-    college_dept_abbv: Optional[str] = Field(default=None, description="New college department abbreviation")
+    course_abbv: Optional[str] = Field(
+        default=None, max_length=20, description="New abbreviation"
+    )
+    course_name: Optional[str] = Field(
+        default=None, max_length=200, description="New name"
+    )
+    course_desc: Optional[str] = Field(
+        default=None, max_length=500, description="New description"
+    )
+    college_dept_abbv: Optional[str] = Field(
+        default=None, description="New college department abbreviation"
+    )
 
 
 class CourseBatchUpdateResult(BaseModel):
     """Individual item result from batch update operation"""
+
     index: int = Field(..., description="Index in the request list (0-based)")
     course_id: str = Field(..., description="Course ID that was updated")
     success: bool = Field(..., description="Whether this item was updated successfully")
     code: str = Field(..., description="Error code (if failed) or success code")
     message: str = Field(..., description="Detailed message about the result")
-    data: Optional[CoursePublic] = Field(default=None, description="Updated course (if successful)")
+    data: Optional[CoursePublic] = Field(
+        default=None, description="Updated course (if successful)"
+    )
 
 
 class CourseBatchUpdate(BaseModel):
     """Batch update request for courses"""
-    items: List[CourseBatchUpdateItem] = Field(..., min_length=1, max_length=100, description="List of courses to update (1-100 items)")
+
+    items: List[CourseBatchUpdateItem] = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="List of courses to update (1-100 items)",
+    )
 
 
 class CourseBatchUpdateResponse(BaseModel):
     """Batch update response for courses"""
+
     total_items: int = Field(..., description="Total items in request")
     successful: int = Field(..., description="Number of items successfully updated")
     failed: int = Field(..., description="Number of items that failed")
-    results: List[CourseBatchUpdateResult] = Field(..., description="Detailed results for each item")
+    results: List[CourseBatchUpdateResult] = Field(
+        ..., description="Detailed results for each item"
+    )
 
 
 # Batch delete models
 class CourseBatchDeleteResult(BaseModel):
     """Individual item result from batch delete operation"""
+
     index: int = Field(..., description="Index in the request list (0-based)")
     course_id: str = Field(..., description="Course ID that was deleted")
     success: bool = Field(..., description="Whether this item was deleted successfully")
@@ -141,35 +175,56 @@ class CourseBatchDeleteResult(BaseModel):
 
 class CourseBatchDelete(BaseModel):
     """Batch delete request for courses"""
-    ids: List[str] = Field(..., min_length=1, max_length=100, description="List of course IDs to delete (1-100 items)")
+
+    ids: List[str] = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="List of course IDs to delete (1-100 items)",
+    )
 
 
 class CourseBatchDeleteResponse(BaseModel):
     """Batch delete response for courses"""
+
     total_items: int = Field(..., description="Total items in request")
     successful: int = Field(..., description="Number of items successfully deleted")
     failed: int = Field(..., description="Number of items that failed")
-    results: List[CourseBatchDeleteResult] = Field(..., description="Detailed results for each item")
+    results: List[CourseBatchDeleteResult] = Field(
+        ..., description="Detailed results for each item"
+    )
 
 
 # Batch restore models
 class CourseBatchRestoreResult(BaseModel):
     """Individual item result from batch course restore operation"""
+
     index: int = Field(..., description="Index in the request list (0-based)")
     course_id: str = Field(..., description="Course ID that was restored")
-    success: bool = Field(..., description="Whether this item was restored successfully")
+    success: bool = Field(
+        ..., description="Whether this item was restored successfully"
+    )
     code: str = Field(..., description="Error code (if failed) or success code")
     message: str = Field(..., description="Detailed message about the result")
 
 
 class CourseBatchRestore(BaseModel):
     """Batch restore request for courses"""
-    ids: List[str] = Field(..., min_length=1, max_length=100, description="List of course IDs to restore (1-100 items)")
+
+    ids: List[str] = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="List of course IDs to restore (1-100 items)",
+    )
 
 
 class CourseBatchRestoreResponse(BaseModel):
     """Batch restore response for courses"""
+
     total_items: int = Field(..., description="Total items in request")
     successful: int = Field(..., description="Number of items successfully restored")
     failed: int = Field(..., description="Number of items that failed")
-    results: List[CourseBatchRestoreResult] = Field(..., description="Detailed results for each item")
+    results: List[CourseBatchRestoreResult] = Field(
+        ..., description="Detailed results for each item"
+    )

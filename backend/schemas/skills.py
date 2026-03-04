@@ -22,14 +22,14 @@ class SkillsPublic(SQLModel):
     is_deleted: bool
     deleted_at: Optional[datetime] = None
 
-    @field_serializer('created_at', 'updated_at', 'deleted_at')
+    @field_serializer("created_at", "updated_at", "deleted_at")
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         if value is None:
             return None
         if value.tzinfo is None:
             value = value.replace(tzinfo=timezone.utc)
         gmt8_time = value.astimezone(GMT8)
-        return gmt8_time.strftime('%Y-%m-%d %H:%M:%S')
+        return gmt8_time.strftime("%Y-%m-%d %H:%M:%S")
 
 
 class SkillsListCreate(SQLModel):

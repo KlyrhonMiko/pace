@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Calendar, Settings2, HelpCircle, GripVertical, Trash2, LibraryBig } from "lucide-react";
+import { X, Calendar, Settings2, HelpCircle, GripVertical, Trash2, LibraryBig, Loader2 } from "lucide-react";
 import { Survey, Question } from "../../_lib/surveys";
 import { SURVEY_STATUSES } from "../../_lib/surveys";
 
@@ -11,6 +11,7 @@ interface SurveyModalProps {
     onSubmit: (survey: Omit<Survey, "survey_id" | "question_count">) => void;
     initialData?: Survey | null;
     questionLibrary: Question[];
+    isSaving?: boolean;
 }
 
 const defaultSurveyData: Omit<Survey, "survey_id" | "question_count"> = {
@@ -24,7 +25,7 @@ const defaultSurveyData: Omit<Survey, "survey_id" | "question_count"> = {
     questions: [],
 };
 
-export default function SurveyModal({ isOpen, onClose, onSubmit, initialData, questionLibrary }: SurveyModalProps) {
+export default function SurveyModal({ isOpen, onClose, onSubmit, initialData, questionLibrary, isSaving = false }: SurveyModalProps) {
     const [formData, setFormData] = useState<Omit<Survey, "survey_id" | "question_count">>(defaultSurveyData);
 
     // UI State for tabs within the modal (Basic Info vs Questions Builder)
@@ -56,7 +57,6 @@ export default function SurveyModal({ isOpen, onClose, onSubmit, initialData, qu
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         onSubmit(formData);
-        onClose();
     };
 
     // --- Question Handlers inside the Survey Builder ---
@@ -130,9 +130,13 @@ export default function SurveyModal({ isOpen, onClose, onSubmit, initialData, qu
                     <button
                         form="survey-form"
                         type="submit"
-                        className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-all shadow-sm shadow-emerald-200"
+                        disabled={isSaving}
+                        className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all shadow-sm shadow-emerald-200"
                     >
-                        Save Survey
+                        {isSaving ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : null}
+                        {isSaving ? "Saving..." : "Save Survey"}
                     </button>
                 </div>
 

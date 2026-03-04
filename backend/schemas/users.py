@@ -20,28 +20,28 @@ class UserCreate(SQLModel):
     password: str = Field(min_length=8, max_length=72)
     user_type: UserType = Field(default=UserType.USER)
 
-    @field_validator('email')
+    @field_validator("email")
     @classmethod
     def validate_email(cls, v):
-        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        email_pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
         if not re.match(email_pattern, v):
-            raise ValueError('Invalid email format')
+            raise ValueError("Invalid email format")
         return v.lower()
 
-    @field_validator('password')
+    @field_validator("password")
     @classmethod
     def validate_password_strength(cls, v):
         if len(v) < 8:
-            raise ValueError('Password must be at least 8 characters long')
-        if not re.search(r'[A-Z]', v):
-            raise ValueError('Password must contain at least one uppercase letter')
-        if not re.search(r'[a-z]', v):
-            raise ValueError('Password must contain at least one lowercase letter')
-        if not re.search(r'\d', v):
-            raise ValueError('Password must contain at least one number')
+            raise ValueError("Password must be at least 8 characters long")
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not re.search(r"[a-z]", v):
+            raise ValueError("Password must contain at least one lowercase letter")
+        if not re.search(r"\d", v):
+            raise ValueError("Password must contain at least one number")
         return hash_password(v)
 
-    @field_validator('user_type', mode='before')
+    @field_validator("user_type", mode="before")
     @classmethod
     def validate_user_type(cls, v):
         if isinstance(v, str):
@@ -57,14 +57,14 @@ class UserPublic(SQLModel):
     created_at: datetime
     updated_at: datetime
 
-    @field_serializer('created_at', 'updated_at')
+    @field_serializer("created_at", "updated_at")
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         if value is None:
             return None
         if value.tzinfo is None:
             value = value.replace(tzinfo=timezone.utc)
         gmt8_time = value.astimezone(GMT8)
-        return gmt8_time.strftime('%Y-%m-%d %H:%M:%S')
+        return gmt8_time.strftime("%Y-%m-%d %H:%M:%S")
 
 
 class UserUpdate(SQLModel):
@@ -73,28 +73,28 @@ class UserUpdate(SQLModel):
     current_password: Optional[str] = Field(default=None, min_length=8, max_length=72)
     password: Optional[str] = Field(default=None, min_length=8, max_length=72)
 
-    @field_validator('email')
+    @field_validator("email")
     @classmethod
     def validate_email(cls, v):
         if v is not None:
-            email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            email_pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
             if not re.match(email_pattern, v):
-                raise ValueError('Invalid email format')
+                raise ValueError("Invalid email format")
             return v.lower()
         return v
 
-    @field_validator('password')
+    @field_validator("password")
     @classmethod
     def validate_password_strength(cls, v):
         if v is not None:
             if len(v) < 8:
-                raise ValueError('Password must be at least 8 characters long')
-            if not re.search(r'[A-Z]', v):
-                raise ValueError('Password must contain at least one uppercase letter')
-            if not re.search(r'[a-z]', v):
-                raise ValueError('Password must contain at least one lowercase letter')
-            if not re.search(r'\d', v):
-                raise ValueError('Password must contain at least one number')
+                raise ValueError("Password must be at least 8 characters long")
+            if not re.search(r"[A-Z]", v):
+                raise ValueError("Password must contain at least one uppercase letter")
+            if not re.search(r"[a-z]", v):
+                raise ValueError("Password must contain at least one lowercase letter")
+            if not re.search(r"\d", v):
+                raise ValueError("Password must contain at least one number")
             return hash_password(v)
         return v
 
@@ -111,8 +111,10 @@ class SuccessResponse(SQLModel):
 
 # ── Safe display models (exclude passwords from responses) ─────────────────
 
+
 class UserCreateSafeDisplay(BaseModel):
     """User creation data for response (no password included)"""
+
     username: str
     email: str
     user_type: str
@@ -120,6 +122,7 @@ class UserCreateSafeDisplay(BaseModel):
 
 class UserUpdateSafeDisplay(BaseModel):
     """User update data for response (no passwords included)"""
+
     user_id: str
     username: Optional[str] = None
     email: Optional[str] = None
@@ -127,9 +130,12 @@ class UserUpdateSafeDisplay(BaseModel):
 
 # ── Batch create ────────────────────────────────────────────────────────────
 
+
 class UserBatchCreateItem(BaseModel):
     index: int = Field(..., description="Index in the request list (0-based)")
-    item: UserCreateSafeDisplay = Field(..., description="The user data submitted (password excluded)")
+    item: UserCreateSafeDisplay = Field(
+        ..., description="The user data submitted (password excluded)"
+    )
     success: bool
     code: str
     message: str
@@ -149,6 +155,7 @@ class UserBatchCreateResponse(BaseModel):
 
 # ── Batch update ────────────────────────────────────────────────────────────
 
+
 class UserBatchUpdateItem(BaseModel):
     user_id: str
     username: Optional[str] = Field(default=None, max_length=50)
@@ -156,28 +163,28 @@ class UserBatchUpdateItem(BaseModel):
     current_password: Optional[str] = Field(default=None, min_length=8, max_length=72)
     password: Optional[str] = Field(default=None, min_length=8, max_length=72)
 
-    @field_validator('email')
+    @field_validator("email")
     @classmethod
     def validate_email(cls, v):
         if v is not None:
-            email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            email_pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
             if not re.match(email_pattern, v):
-                raise ValueError('Invalid email format')
+                raise ValueError("Invalid email format")
             return v.lower()
         return v
 
-    @field_validator('password')
+    @field_validator("password")
     @classmethod
     def validate_password_strength(cls, v):
         if v is not None:
             if len(v) < 8:
-                raise ValueError('Password must be at least 8 characters long')
-            if not re.search(r'[A-Z]', v):
-                raise ValueError('Password must contain at least one uppercase letter')
-            if not re.search(r'[a-z]', v):
-                raise ValueError('Password must contain at least one lowercase letter')
-            if not re.search(r'\d', v):
-                raise ValueError('Password must contain at least one number')
+                raise ValueError("Password must be at least 8 characters long")
+            if not re.search(r"[A-Z]", v):
+                raise ValueError("Password must contain at least one uppercase letter")
+            if not re.search(r"[a-z]", v):
+                raise ValueError("Password must contain at least one lowercase letter")
+            if not re.search(r"\d", v):
+                raise ValueError("Password must contain at least one number")
             return hash_password(v)
         return v
 
@@ -204,6 +211,7 @@ class UserBatchUpdateResponse(BaseModel):
 
 # ── Batch delete ────────────────────────────────────────────────────────────
 
+
 class UserBatchDeleteResult(BaseModel):
     index: int
     user_id: str
@@ -224,6 +232,7 @@ class UserBatchDeleteResponse(BaseModel):
 
 
 # ── Batch restore ───────────────────────────────────────────────────────────
+
 
 class UserBatchRestoreResult(BaseModel):
     index: int

@@ -3,6 +3,7 @@ DB query functions for college_dept domain.
 All session.exec / session.add / session.commit / session.rollback calls live here.
 Routers call these functions; they do NOT contain any select/exec logic themselves.
 """
+
 from datetime import datetime, timezone
 from sqlmodel import Session, select, func
 from sqlalchemy.exc import IntegrityError
@@ -10,11 +11,18 @@ from sqlalchemy.exc import IntegrityError
 from models.college_dept import CollegeDept
 from models.courses import Course
 from schemas.college_dept import (
-    CollegeDeptCreate, CollegeDeptUpdate, CollegeDeptPublic,
-    CollegeDeptBatchCreateItem, CollegeDeptBatchCreateResponse,
-    CollegeDeptBatchUpdateItem, CollegeDeptBatchUpdateResult, CollegeDeptBatchUpdateResponse,
-    CollegeDeptBatchDeleteResult, CollegeDeptBatchDeleteResponse,
-    CollegeDeptBatchRestoreResult, CollegeDeptBatchRestoreResponse,
+    CollegeDeptCreate,
+    CollegeDeptUpdate,
+    CollegeDeptPublic,
+    CollegeDeptBatchCreateItem,
+    CollegeDeptBatchCreateResponse,
+    CollegeDeptBatchUpdateItem,
+    CollegeDeptBatchUpdateResult,
+    CollegeDeptBatchUpdateResponse,
+    CollegeDeptBatchDeleteResult,
+    CollegeDeptBatchDeleteResponse,
+    CollegeDeptBatchRestoreResult,
+    CollegeDeptBatchRestoreResponse,
 )
 from models.response_codes import ErrorCode, SuccessCode
 from models.pagination import PaginationMetadata
@@ -25,6 +33,7 @@ from utils.timezone import get_current_time_gmt8
 # ---------------------------------------------------------------------------
 # ID generation
 # ---------------------------------------------------------------------------
+
 
 def generate_college_dept_id(session: Session) -> str:
     """Generate college_dept_id with auto-increment (format: CLG-000001)"""
@@ -44,20 +53,27 @@ def generate_college_dept_id(session: Session) -> str:
 # Single-record operations
 # ---------------------------------------------------------------------------
 
-def get_college_dept_by_id(session: Session, college_dept_id: str) -> CollegeDept | None:
+
+def get_college_dept_by_id(
+    session: Session, college_dept_id: str
+) -> CollegeDept | None:
     """Fetch a single active college department by its human-readable ID."""
     return session.exec(
         select(CollegeDept).where(
-            (CollegeDept.college_dept_id == college_dept_id.upper()) &
-            (CollegeDept.is_deleted == False)
+            (CollegeDept.college_dept_id == college_dept_id.upper())
+            & (CollegeDept.is_deleted == False)
         )
     ).first()
 
 
-def get_college_dept_by_id_any(session: Session, college_dept_id: str) -> CollegeDept | None:
+def get_college_dept_by_id_any(
+    session: Session, college_dept_id: str
+) -> CollegeDept | None:
     """Fetch a college department by ID regardless of deletion status."""
     return session.exec(
-        select(CollegeDept).where(CollegeDept.college_dept_id == college_dept_id.upper())
+        select(CollegeDept).where(
+            CollegeDept.college_dept_id == college_dept_id.upper()
+        )
     ).first()
 
 
@@ -73,7 +89,9 @@ def create_college_dept(session: Session, data: CollegeDeptCreate) -> CollegeDep
     return new_dept
 
 
-def update_college_dept(session: Session, college_dept: CollegeDept, data: CollegeDeptUpdate) -> CollegeDept:
+def update_college_dept(
+    session: Session, college_dept: CollegeDept, data: CollegeDeptUpdate
+) -> CollegeDept:
     """Apply partial update to a college department and commit."""
     if data.college_dept_abbv is not None:
         college_dept.college_dept_abbv = data.college_dept_abbv
@@ -109,8 +127,8 @@ def has_active_courses(session: Session, college_dept: CollegeDept) -> bool:
     """Return True if this department has at least one active (non-deleted) course."""
     result = session.exec(
         select(Course).where(
-            (Course.college_dept_code == college_dept.college_dept_code) &
-            (Course.is_deleted == False)
+            (Course.college_dept_code == college_dept.college_dept_code)
+            & (Course.is_deleted == False)
         )
     ).first()
     return result is not None
@@ -119,6 +137,7 @@ def has_active_courses(session: Session, college_dept: CollegeDept) -> bool:
 # ---------------------------------------------------------------------------
 # List / pagination
 # ---------------------------------------------------------------------------
+
 
 def get_all_college_depts(
     session: Session,
@@ -143,22 +162,34 @@ def get_all_college_depts(
     if search:
         like = f"%{search}%"
         query = query.where(
-            (CollegeDept.college_dept_abbv.ilike(like)) |
-            (CollegeDept.college_dept_name.ilike(like)) |
-            (CollegeDept.college_dept_desc.ilike(like))
+            (CollegeDept.college_dept_abbv.ilike(like))
+            | (CollegeDept.college_dept_name.ilike(like))
+            | (CollegeDept.college_dept_desc.ilike(like))
         )
 
     total = session.exec(count_q).one()
 
     desc = sort_order.lower() == "desc"
     if sort_by.lower() == "college_dept_abbv":
-        query = query.order_by(CollegeDept.college_dept_abbv.desc() if desc else CollegeDept.college_dept_abbv)
+        query = query.order_by(
+            CollegeDept.college_dept_abbv.desc()
+            if desc
+            else CollegeDept.college_dept_abbv
+        )
     elif sort_by.lower() == "college_dept_name":
-        query = query.order_by(CollegeDept.college_dept_name.desc() if desc else CollegeDept.college_dept_name)
+        query = query.order_by(
+            CollegeDept.college_dept_name.desc()
+            if desc
+            else CollegeDept.college_dept_name
+        )
     elif sort_by.lower() == "deleted_at":
-        query = query.order_by(CollegeDept.deleted_at.desc() if desc else CollegeDept.deleted_at)
+        query = query.order_by(
+            CollegeDept.deleted_at.desc() if desc else CollegeDept.deleted_at
+        )
     else:
-        query = query.order_by(CollegeDept.college_dept_id.desc() if desc else CollegeDept.college_dept_id)
+        query = query.order_by(
+            CollegeDept.college_dept_id.desc() if desc else CollegeDept.college_dept_id
+        )
 
     if limit > 0:
         query = query.offset(offset).limit(limit)
@@ -169,6 +200,7 @@ def get_all_college_depts(
 # ---------------------------------------------------------------------------
 # Batch operations
 # ---------------------------------------------------------------------------
+
 
 def batch_create_college_depts(
     session: Session,
@@ -189,35 +221,60 @@ def batch_create_college_depts(
                 session.flush()
                 session.refresh(new_dept)
 
-                results.append(CollegeDeptBatchCreateItem(
-                    index=index, item=item, success=True,
-                    code=SuccessCode.COLLEGE_DEPT_CREATED.value,
-                    message="College department created successfully",
-                    data=CollegeDeptPublic.model_validate(new_dept)
-                ))
+                results.append(
+                    CollegeDeptBatchCreateItem(
+                        index=index,
+                        item=item,
+                        success=True,
+                        code=SuccessCode.COLLEGE_DEPT_CREATED.value,
+                        message="College department created successfully",
+                        data=CollegeDeptPublic.model_validate(new_dept),
+                    )
+                )
                 successful_count += 1
 
         except IntegrityError as e:
             error_str = str(e).lower()
-            if "ix_college_depts_college_dept_abbv" in error_str or "college_depts_college_dept_abbv_key" in error_str:
+            if (
+                "ix_college_depts_college_dept_abbv" in error_str
+                or "college_depts_college_dept_abbv_key" in error_str
+            ):
                 code = ErrorCode.DUPLICATE_COLLEGE_DEPT_ABBV.value
                 msg = f"College department abbreviation '{item.college_dept_abbv}' already exists"
-            elif "ix_college_depts_college_dept_name" in error_str or "college_depts_college_dept_name_key" in error_str:
+            elif (
+                "ix_college_depts_college_dept_name" in error_str
+                or "college_depts_college_dept_name_key" in error_str
+            ):
                 code = ErrorCode.DUPLICATE_COLLEGE_DEPT_NAME.value
-                msg = f"College department name '{item.college_dept_name}' already exists"
+                msg = (
+                    f"College department name '{item.college_dept_name}' already exists"
+                )
             else:
                 code = ErrorCode.INVALID_INPUT.value
                 msg = "College department creation failed due to constraint violation"
-            results.append(CollegeDeptBatchCreateItem(
-                index=index, item=item, success=False, code=code, message=msg, data=None
-            ))
+            results.append(
+                CollegeDeptBatchCreateItem(
+                    index=index,
+                    item=item,
+                    success=False,
+                    code=code,
+                    message=msg,
+                    data=None,
+                )
+            )
             failed_count += 1
 
         except ValueError as e:
-            results.append(CollegeDeptBatchCreateItem(
-                index=index, item=item, success=False,
-                code=ErrorCode.INVALID_INPUT.value, message=str(e), data=None
-            ))
+            results.append(
+                CollegeDeptBatchCreateItem(
+                    index=index,
+                    item=item,
+                    success=False,
+                    code=ErrorCode.INVALID_INPUT.value,
+                    message=str(e),
+                    data=None,
+                )
+            )
             failed_count += 1
 
     session.commit()
@@ -241,15 +298,22 @@ def batch_update_college_depts(
         try:
             with session.begin_nested():
                 dept = session.exec(
-                    select(CollegeDept).where(CollegeDept.college_dept_id == item.college_dept_id.upper())
+                    select(CollegeDept).where(
+                        CollegeDept.college_dept_id == item.college_dept_id.upper()
+                    )
                 ).first()
 
                 if not dept:
-                    results.append(CollegeDeptBatchUpdateResult(
-                        index=index, college_dept_id=item.college_dept_id, success=False,
-                        code=ErrorCode.COLLEGE_DEPT_NOT_FOUND.value,
-                        message=f"College department '{item.college_dept_id}' not found", data=None
-                    ))
+                    results.append(
+                        CollegeDeptBatchUpdateResult(
+                            index=index,
+                            college_dept_id=item.college_dept_id,
+                            success=False,
+                            code=ErrorCode.COLLEGE_DEPT_NOT_FOUND.value,
+                            message=f"College department '{item.college_dept_id}' not found",
+                            data=None,
+                        )
+                    )
                     failed_count += 1
                     continue
 
@@ -265,36 +329,58 @@ def batch_update_college_depts(
                 session.flush()
                 session.refresh(dept)
 
-                results.append(CollegeDeptBatchUpdateResult(
-                    index=index, college_dept_id=item.college_dept_id, success=True,
-                    code=SuccessCode.COLLEGE_DEPT_UPDATED.value,
-                    message="College department updated successfully",
-                    data=CollegeDeptPublic.model_validate(dept)
-                ))
+                results.append(
+                    CollegeDeptBatchUpdateResult(
+                        index=index,
+                        college_dept_id=item.college_dept_id,
+                        success=True,
+                        code=SuccessCode.COLLEGE_DEPT_UPDATED.value,
+                        message="College department updated successfully",
+                        data=CollegeDeptPublic.model_validate(dept),
+                    )
+                )
                 successful_count += 1
 
         except IntegrityError as e:
             error_str = str(e).lower()
-            if "ix_college_depts_college_dept_abbv" in error_str or "college_depts_college_dept_abbv_key" in error_str:
+            if (
+                "ix_college_depts_college_dept_abbv" in error_str
+                or "college_depts_college_dept_abbv_key" in error_str
+            ):
                 code = ErrorCode.DUPLICATE_COLLEGE_DEPT_ABBV.value
                 msg = "College department abbreviation already in use"
-            elif "ix_college_depts_college_dept_name" in error_str or "college_depts_college_dept_name_key" in error_str:
+            elif (
+                "ix_college_depts_college_dept_name" in error_str
+                or "college_depts_college_dept_name_key" in error_str
+            ):
                 code = ErrorCode.DUPLICATE_COLLEGE_DEPT_NAME.value
                 msg = "College department name already in use"
             else:
                 code = ErrorCode.INVALID_INPUT.value
                 msg = "Update failed due to constraint violation"
-            results.append(CollegeDeptBatchUpdateResult(
-                index=index, college_dept_id=item.college_dept_id, success=False,
-                code=code, message=msg, data=None
-            ))
+            results.append(
+                CollegeDeptBatchUpdateResult(
+                    index=index,
+                    college_dept_id=item.college_dept_id,
+                    success=False,
+                    code=code,
+                    message=msg,
+                    data=None,
+                )
+            )
             failed_count += 1
 
         except ValueError as e:
-            results.append(CollegeDeptBatchUpdateResult(
-                index=index, college_dept_id=item.college_dept_id, success=False,
-                code=ErrorCode.INVALID_INPUT.value, message=str(e), data=None
-            ))
+            results.append(
+                CollegeDeptBatchUpdateResult(
+                    index=index,
+                    college_dept_id=item.college_dept_id,
+                    success=False,
+                    code=ErrorCode.INVALID_INPUT.value,
+                    message=str(e),
+                    data=None,
+                )
+            )
             failed_count += 1
 
     session.commit()
@@ -317,33 +403,47 @@ def batch_delete_college_depts(
     for index, college_dept_id in enumerate(ids):
         try:
             dept = session.exec(
-                select(CollegeDept).where(CollegeDept.college_dept_id == college_dept_id.upper())
+                select(CollegeDept).where(
+                    CollegeDept.college_dept_id == college_dept_id.upper()
+                )
             ).first()
 
             if not dept:
-                results.append(CollegeDeptBatchDeleteResult(
-                    index=index, college_dept_id=college_dept_id, success=False,
-                    code=ErrorCode.COLLEGE_DEPT_NOT_FOUND.value,
-                    message=f"College department '{college_dept_id}' not found"
-                ))
+                results.append(
+                    CollegeDeptBatchDeleteResult(
+                        index=index,
+                        college_dept_id=college_dept_id,
+                        success=False,
+                        code=ErrorCode.COLLEGE_DEPT_NOT_FOUND.value,
+                        message=f"College department '{college_dept_id}' not found",
+                    )
+                )
                 failed_count += 1
                 continue
 
             if dept.is_deleted:
-                results.append(CollegeDeptBatchDeleteResult(
-                    index=index, college_dept_id=college_dept_id, success=False,
-                    code=ErrorCode.ALREADY_DELETED.value,
-                    message="College department is already deleted, cannot delete again"
-                ))
+                results.append(
+                    CollegeDeptBatchDeleteResult(
+                        index=index,
+                        college_dept_id=college_dept_id,
+                        success=False,
+                        code=ErrorCode.ALREADY_DELETED.value,
+                        message="College department is already deleted, cannot delete again",
+                    )
+                )
                 failed_count += 1
                 continue
 
             if has_active_courses(session, dept):
-                results.append(CollegeDeptBatchDeleteResult(
-                    index=index, college_dept_id=college_dept_id, success=False,
-                    code=ErrorCode.CANNOT_DELETE_COLLEGE_DEPT_WITH_ACTIVE_COURSES.value,
-                    message="Cannot delete college department with active courses"
-                ))
+                results.append(
+                    CollegeDeptBatchDeleteResult(
+                        index=index,
+                        college_dept_id=college_dept_id,
+                        success=False,
+                        code=ErrorCode.CANNOT_DELETE_COLLEGE_DEPT_WITH_ACTIVE_COURSES.value,
+                        message="Cannot delete college department with active courses",
+                    )
+                )
                 failed_count += 1
                 continue
 
@@ -352,28 +452,41 @@ def batch_delete_college_depts(
             session.add(dept)
             session.flush()
 
-            results.append(CollegeDeptBatchDeleteResult(
-                index=index, college_dept_id=college_dept_id, success=True,
-                code=SuccessCode.COLLEGE_DEPT_DELETED.value,
-                message="College department deleted successfully"
-            ))
+            results.append(
+                CollegeDeptBatchDeleteResult(
+                    index=index,
+                    college_dept_id=college_dept_id,
+                    success=True,
+                    code=SuccessCode.COLLEGE_DEPT_DELETED.value,
+                    message="College department deleted successfully",
+                )
+            )
             successful_count += 1
 
         except IntegrityError as e:
             session.rollback()
-            results.append(CollegeDeptBatchDeleteResult(
-                index=index, college_dept_id=college_dept_id, success=False,
-                code=ErrorCode.INVALID_INPUT.value,
-                message="Delete failed: Constraint violation or related data exists"
-            ))
+            results.append(
+                CollegeDeptBatchDeleteResult(
+                    index=index,
+                    college_dept_id=college_dept_id,
+                    success=False,
+                    code=ErrorCode.INVALID_INPUT.value,
+                    message="Delete failed: Constraint violation or related data exists",
+                )
+            )
             failed_count += 1
 
         except Exception as e:
             session.rollback()
-            results.append(CollegeDeptBatchDeleteResult(
-                index=index, college_dept_id=college_dept_id, success=False,
-                code=ErrorCode.INVALID_INPUT.value, message=f"Delete failed: {str(e)}"
-            ))
+            results.append(
+                CollegeDeptBatchDeleteResult(
+                    index=index,
+                    college_dept_id=college_dept_id,
+                    success=False,
+                    code=ErrorCode.INVALID_INPUT.value,
+                    message=f"Delete failed: {str(e)}",
+                )
+            )
             failed_count += 1
 
     session.commit()
@@ -396,24 +509,34 @@ def batch_restore_college_depts(
     for index, college_dept_id in enumerate(ids):
         try:
             dept = session.exec(
-                select(CollegeDept).where(CollegeDept.college_dept_id == college_dept_id.upper())
+                select(CollegeDept).where(
+                    CollegeDept.college_dept_id == college_dept_id.upper()
+                )
             ).first()
 
             if not dept:
-                results.append(CollegeDeptBatchRestoreResult(
-                    index=index, college_dept_id=college_dept_id, success=False,
-                    code=ErrorCode.COLLEGE_DEPT_NOT_FOUND.value,
-                    message=f"College department '{college_dept_id}' not found"
-                ))
+                results.append(
+                    CollegeDeptBatchRestoreResult(
+                        index=index,
+                        college_dept_id=college_dept_id,
+                        success=False,
+                        code=ErrorCode.COLLEGE_DEPT_NOT_FOUND.value,
+                        message=f"College department '{college_dept_id}' not found",
+                    )
+                )
                 failed_count += 1
                 continue
 
             if not dept.is_deleted:
-                results.append(CollegeDeptBatchRestoreResult(
-                    index=index, college_dept_id=college_dept_id, success=False,
-                    code=ErrorCode.INVALID_INPUT.value,
-                    message=f"College department '{college_dept_id}' is not deleted"
-                ))
+                results.append(
+                    CollegeDeptBatchRestoreResult(
+                        index=index,
+                        college_dept_id=college_dept_id,
+                        success=False,
+                        code=ErrorCode.INVALID_INPUT.value,
+                        message=f"College department '{college_dept_id}' is not deleted",
+                    )
+                )
                 failed_count += 1
                 continue
 
@@ -422,21 +545,36 @@ def batch_restore_college_depts(
             session.add(dept)
             session.flush()
 
-            results.append(CollegeDeptBatchRestoreResult(
-                index=index, college_dept_id=college_dept_id, success=True,
-                code=SuccessCode.COLLEGE_DEPT_RESTORED.value,
-                message="College department restored successfully"
-            ))
+            results.append(
+                CollegeDeptBatchRestoreResult(
+                    index=index,
+                    college_dept_id=college_dept_id,
+                    success=True,
+                    code=SuccessCode.COLLEGE_DEPT_RESTORED.value,
+                    message="College department restored successfully",
+                )
+            )
             successful_count += 1
 
         except IntegrityError as e:
             session.rollback()
             msg = "Restore failed: Constraint violation or related data issue"
-            results.append(CollegeDeptBatchRestoreResult(
-                index=index, college_dept_id=college_dept_id, success=False,
-                code=ErrorCode.INVALID_INPUT.value, message=msg
-            ))
-            log_integrity_error("college_depts", "batch_restore_college_depts", ErrorCode.INVALID_INPUT.value, msg, str(e))
+            results.append(
+                CollegeDeptBatchRestoreResult(
+                    index=index,
+                    college_dept_id=college_dept_id,
+                    success=False,
+                    code=ErrorCode.INVALID_INPUT.value,
+                    message=msg,
+                )
+            )
+            log_integrity_error(
+                "college_depts",
+                "batch_restore_college_depts",
+                ErrorCode.INVALID_INPUT.value,
+                msg,
+                str(e),
+            )
             failed_count += 1
 
     session.commit()

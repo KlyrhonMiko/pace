@@ -1,19 +1,19 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import {
     User,
     Settings,
     Check,
-    ChevronRight,
     GraduationCap,
-    CalendarDays,
     Lock,
     Clock,
     ArrowRight,
     ArrowLeft,
-    CheckCircle2
+    CheckCircle2,
+    Mail,
+    ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -56,6 +56,8 @@ interface CourseOption {
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const OTP_LENGTH = 6;
+const RESEND_COOLDOWN_SECONDS = 60;
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -70,6 +72,13 @@ function computeAge(birthdate: string): number | string {
     return age >= 0 ? age : "—";
 }
 
+function maskEmail(email: string): string {
+    const [local, domain] = email.split("@");
+    if (!domain) return email;
+    const visible = local.length <= 2 ? local[0] : local.slice(0, 2);
+    return `${visible}${"•".repeat(Math.max(local.length - 2, 1))}@${domain}`;
+}
+
 // ─── Sub-components ────────────────────────────────────────────────────────────
 
 function StepIndicator({ currentStep }: { currentStep: number }) {
@@ -77,11 +86,12 @@ function StepIndicator({ currentStep }: { currentStep: number }) {
         { id: 1, name: "Account", icon: <Settings className="w-4 h-4" /> },
         { id: 2, name: "Personal", icon: <User className="w-4 h-4" /> },
         { id: 3, name: "Academic", icon: <GraduationCap className="w-4 h-4" /> },
+        { id: 4, name: "Verify", icon: <ShieldCheck className="w-4 h-4" /> },
     ];
 
     return (
         <div className="flex items-center justify-center w-full mb-8">
-            <div className="flex items-center w-full max-w-md">
+            <div className="flex items-center w-full max-w-lg">
                 {steps.map((step, idx) => (
                     <div key={step.id} className="flex items-center flex-1 last:flex-none">
                         <div className="flex flex-col items-center relative">
@@ -99,7 +109,7 @@ function StepIndicator({ currentStep }: { currentStep: number }) {
                             </span>
                         </div>
                         {idx < steps.length - 1 && (
-                            <div className="flex-1 h-0.5 mx-4 bg-gray-100 relative overflow-hidden">
+                            <div className="flex-1 h-0.5 mx-3 bg-gray-100 relative overflow-hidden">
                                 <div
                                     className="absolute inset-0 bg-emerald-500 transition-all duration-500 ease-in-out"
                                     style={{ width: currentStep > step.id ? "100%" : "0%" }}
@@ -212,12 +222,89 @@ function SelectField({
     );
 }
 
+// ─── OTP Input Component ───────────────────────────────────────────────────────
+
+function OTPInput({
+    value,
+    onChange,
+    disabled = false,
+}: {
+    value: string[];
+    onChange: (v: string[]) => void;
+    disabled?: boolean;
+}) {
+    const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+    const handleChange = (index: number, char: string) => {
+        if (!/^\d?$/.test(char)) return;
+        const newValue = [...value];
+        newValue[index] = char;
+        onChange(newValue);
+        if (char && index < OTP_LENGTH - 1) {
+            inputRefs.current[index + 1]?.focus();
+        }
+    };
+
+    const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Backspace" && !value[index] && index > 0) {
+            inputRefs.current[index - 1]?.focus();
+        }
+    };
+
+    const handlePaste = (e: React.ClipboardEvent) => {
+        e.preventDefault();
+        const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, OTP_LENGTH);
+        if (!pasted) return;
+        const newValue = [...value];
+        for (let i = 0; i < OTP_LENGTH; i++) {
+            newValue[i] = pasted[i] || "";
+        }
+        onChange(newValue);
+        const focusIndex = Math.min(pasted.length, OTP_LENGTH - 1);
+        inputRefs.current[focusIndex]?.focus();
+    };
+
+    return (
+        <div className="flex gap-3 justify-center" onPaste={handlePaste}>
+            {Array.from({ length: OTP_LENGTH }).map((_, i) => (
+                <input
+                    key={i}
+                    ref={(el) => { inputRefs.current[i] = el; }}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={value[i] || ""}
+                    onChange={(e) => handleChange(i, e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(i, e)}
+                    disabled={disabled}
+                    className={`w-12 h-14 text-center text-xl font-bold rounded-xl border-2 transition-all duration-200 outline-none
+                        ${value[i]
+                            ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                            : "border-gray-200 bg-white text-gray-900"
+                        }
+                        focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10
+                        disabled:opacity-50 disabled:cursor-not-allowed
+                    `}
+                />
+            ))}
+        </div>
+    );
+}
+
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function RegisterPage() {
+    // Steps: 1=Account, 2=Personal, 3=Academic, 4=OTP Verify
     const [step, setStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isComplete, setIsComplete] = useState(false);
+    const [skippedAcademic, setSkippedAcademic] = useState(false);
+
+    // ── OTP States ──
+    const [otpCode, setOtpCode] = useState<string[]>(Array(OTP_LENGTH).fill(""));
+    const [resendCooldown, setResendCooldown] = useState(0);
+    const [isSendingOtp, setIsSendingOtp] = useState(false);
+    const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
 
     // ── Form States ──
     const [account, setAccount] = useState<AccountInfo>({
@@ -280,13 +367,23 @@ export default function RegisterPage() {
         }));
     }, [personal.birthdate]);
 
-    // ── Handlers ──
+    // ── Resend cooldown timer ──
+    useEffect(() => {
+        if (resendCooldown <= 0) return;
+        const timer = setInterval(() => {
+            setResendCooldown((prev) => Math.max(prev - 1, 0));
+        }, 1000);
+        return () => clearInterval(timer);
+    }, [resendCooldown]);
+
+    // ── Validation ──
     const validateStep = (stepNumber: number) => {
         if (stepNumber === 1) {
             if (!account.username.trim()) { toast.error("Username is required"); return false; }
             if (!account.email.trim()) { toast.error("Email is required"); return false; }
             if (!account.email.includes("@")) { toast.error("Please enter a valid email address"); return false; }
             if (!account.password) { toast.error("Password is required"); return false; }
+            if (account.password.length < 8) { toast.error("Password must be at least 8 characters"); return false; }
             if (!account.confirmPassword) { toast.error("Please confirm your password"); return false; }
             if (account.password !== account.confirmPassword) { toast.error("Passwords do not match"); return false; }
         } else if (stepNumber === 2) {
@@ -304,24 +401,6 @@ export default function RegisterPage() {
         return true;
     };
 
-    const nextStep = (e?: React.MouseEvent) => {
-        if (e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-        if (validateStep(step)) {
-            setStep((s) => Math.min(s + 1, 3));
-        }
-    };
-
-    const prevStep = (e?: React.MouseEvent) => {
-        if (e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-        setStep((s) => Math.max(s - 1, 1));
-    };
-
     // ── API helper ──
     const apiCall = useCallback(async (endpoint: string, body: Record<string, unknown>) => {
         const res = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -331,33 +410,68 @@ export default function RegisterPage() {
         });
         const data = await res.json();
         if (!res.ok) {
-            // Backend wraps errors in { detail: { message, code } }
             const detail = data?.detail;
             throw new Error(detail?.message || data?.message || "Request failed");
         }
         return data;
     }, []);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-
-        // If user hits Enter on step 1 or 2, just try to go to next step
-        if (step < 3) {
-            if (validateStep(step)) {
-                setStep((s) => s + 1);
+    // ── OTP Handlers ──
+    const sendOtp = async () => {
+        setIsSendingOtp(true);
+        try {
+            const res = await fetch(`${API_BASE_URL}/otp/send`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: account.email }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                toast.success("Verification code sent to your email!");
+                setResendCooldown(RESEND_COOLDOWN_SECONDS);
+                return true;
+            } else {
+                toast.error(data.message || "Failed to send verification code");
+                return false;
             }
+        } catch {
+            toast.error("Failed to send verification code. Please try again.");
+            return false;
+        } finally {
+            setIsSendingOtp(false);
+        }
+    };
+
+    const handleVerifyAndSubmit = async () => {
+        const code = otpCode.join("");
+        if (code.length !== OTP_LENGTH) {
+            toast.error("Please enter the complete 6-digit code");
             return;
         }
 
-        // Final step validation
-        if (!validateStep(3)) return;
-
-        setIsSubmitting(true);
-
+        setIsVerifyingOtp(true);
         try {
+            // Step 1: Verify OTP
+            const verifyRes = await fetch(`${API_BASE_URL}/otp/verify`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: account.email, otp_code: code }),
+            });
+            const verifyData = await verifyRes.json();
+
+            if (!verifyData.success) {
+                toast.error(verifyData.message || "Invalid verification code");
+                setOtpCode(Array(OTP_LENGTH).fill(""));
+                return;
+            }
+
+            toast.success("Email verified! Creating your account...");
+
+            // Step 2: OTP verified — now commit registration to DB
+            setIsSubmitting(true);
             const computedAge = typeof personal.age === "number" ? personal.age : 0;
 
-            // Step 1: Register alumni + user account
+            // Register alumni + user account
             const registerRes = await apiCall("/alumni/register", {
                 username: account.username,
                 email: account.email,
@@ -373,21 +487,23 @@ export default function RegisterPage() {
 
             const alumniId: string = registerRes.data.alumni_id;
 
-            // Step 2: Create student record
-            await apiCall("/student-records", {
-                student_id: academic.studentId,
-                year_graduated: parseInt(academic.yearGraduated, 10),
-                gwa: parseFloat(academic.gwa),
-                avg_prof_grade: academic.avgProfGrade ? parseFloat(academic.avgProfGrade) : null,
-                avg_elec_grade: academic.avgElecGrade ? parseFloat(academic.avgElecGrade) : null,
-                ojt_grade: academic.ojtGrade ? parseFloat(academic.ojtGrade) : null,
-                leadership_pos: academic.leadershipPos,
-                act_member_pos: academic.activeMemberPos,
-                course_abbv: academic.courseAbbv,
-                alumni_id: alumniId,
-            });
+            // Create student record (if academic info was provided)
+            if (!skippedAcademic) {
+                await apiCall("/student-records", {
+                    student_id: academic.studentId,
+                    year_graduated: parseInt(academic.yearGraduated, 10),
+                    gwa: parseFloat(academic.gwa),
+                    avg_prof_grade: academic.avgProfGrade ? parseFloat(academic.avgProfGrade) : null,
+                    avg_elec_grade: academic.avgElecGrade ? parseFloat(academic.avgElecGrade) : null,
+                    ojt_grade: academic.ojtGrade ? parseFloat(academic.ojtGrade) : null,
+                    leadership_pos: academic.leadershipPos,
+                    act_member_pos: academic.activeMemberPos,
+                    course_abbv: academic.courseAbbv,
+                    alumni_id: alumniId,
+                });
+            }
 
-            // Step 3: Initialize blank alumni skills record
+            // Initialize blank alumni skills record
             try {
                 await apiCall("/alumni-skills", {
                     alumni_id: alumniId,
@@ -396,7 +512,6 @@ export default function RegisterPage() {
                     program_skills: null,
                 });
             } catch {
-                // Non-critical — skills can be filled later
                 console.warn("Alumni skills initialization skipped");
             }
 
@@ -405,50 +520,84 @@ export default function RegisterPage() {
             const message = error instanceof Error ? error.message : "An error occurred during registration.";
             toast.error(message);
         } finally {
+            setIsVerifyingOtp(false);
             setIsSubmitting(false);
+        }
+    };
+
+    const resendOtp = async () => {
+        if (resendCooldown > 0) return;
+        setIsSendingOtp(true);
+        try {
+            const res = await fetch(`${API_BASE_URL}/otp/resend`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: account.email }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                toast.success("New verification code sent!");
+                setResendCooldown(RESEND_COOLDOWN_SECONDS);
+                setOtpCode(Array(OTP_LENGTH).fill(""));
+            } else {
+                toast.error(data.message || "Failed to resend code");
+            }
+        } catch {
+            toast.error("Failed to resend code. Please try again.");
+        } finally {
+            setIsSendingOtp(false);
+        }
+    };
+
+    // ── Step Navigation ──
+    const nextStep = async (e?: React.MouseEvent) => {
+        if (e) { e.preventDefault(); e.stopPropagation(); }
+
+        if (step === 1 && validateStep(1)) {
+            setStep(2);
+        } else if (step === 2 && validateStep(2)) {
+            setStep(3);
+        } else if (step === 3) {
+            // Validated by submit or skip
+            if (validateStep(3)) {
+                // Send OTP and move to verification
+                const sent = await sendOtp();
+                if (sent) {
+                    setSkippedAcademic(false);
+                    setStep(4);
+                }
+            }
         }
     };
 
     const handleSkipAcademic = async () => {
-        setIsSubmitting(true);
-        try {
-            const computedAge = typeof personal.age === "number" ? personal.age : 0;
-
-            // Register alumni + user only (no student record)
-            const registerRes = await apiCall("/alumni/register", {
-                username: account.username,
-                email: account.email,
-                password: account.password,
-                last_name: personal.lastname,
-                first_name: personal.firstname,
-                middle_name: personal.middlename || null,
-                gender: personal.gender,
-                age: computedAge,
-                birthdate: personal.birthdate || null,
-                consent_for_survey_ml: consentForSurveyMl,
-            });
-
-            // Initialize blank alumni skills
-            try {
-                await apiCall("/alumni-skills", {
-                    alumni_id: registerRes.data.alumni_id,
-                    soft_skills_ave: null,
-                    hard_skills_ave: null,
-                    program_skills: null,
-                });
-            } catch {
-                console.warn("Alumni skills initialization skipped");
-            }
-
-            setIsComplete(true);
-        } catch (error) {
-            const message = error instanceof Error ? error.message : "An error occurred during registration.";
-            toast.error(message);
-        } finally {
-            setIsSubmitting(false);
+        // Skip academic, send OTP, go to verification
+        const sent = await sendOtp();
+        if (sent) {
+            setSkippedAcademic(true);
+            setStep(4);
         }
     };
 
+    const prevStep = (e?: React.MouseEvent) => {
+        if (e) { e.preventDefault(); e.stopPropagation(); }
+        if (step === 4) {
+            setStep(3); // Go back to academic
+        } else {
+            setStep((s) => Math.max(s - 1, 1));
+        }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (step === 1) { if (validateStep(1)) setStep(2); return; }
+        if (step === 2) { if (validateStep(2)) setStep(3); return; }
+        if (step === 3) { await nextStep(); return; }
+        if (step === 4) { await handleVerifyAndSubmit(); return; }
+    };
+
+    // ── Success Screen ──
     if (isComplete) {
         return (
             <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
@@ -458,7 +607,7 @@ export default function RegisterPage() {
                     </div>
                     <h1 className="text-2xl font-bold text-slate-900 mb-2">Registration Successful!</h1>
                     <p className="text-slate-500 mb-8">
-                        Welcome to the PLP Alumni community. Your account has been created and is pending verification.
+                        Welcome to the PLP Alumni community. Your account has been created and verified.
                     </p>
                     <Link href="/dashboard/alumni">
                         <Button className="w-full bg-emerald-700 hover:bg-emerald-800 text-white h-12 rounded-xl text-base font-semibold transition-all shadow-lg shadow-emerald-200">
@@ -496,92 +645,48 @@ export default function RegisterPage() {
                         <form onSubmit={handleSubmit} className="mt-12">
                             {/* Step 1: Account Information */}
                             {step === 1 && (
-                                <FormSection
-                                    title="Account Information"
-                                    subtitle="Set up your login credentials"
-                                >
+                                <FormSection title="Account Information" subtitle="Set up your login credentials">
                                     <InputField
-                                        label="Username"
-                                        value={account.username}
+                                        label="Username" value={account.username}
                                         onChange={(v) => setAccount(p => ({ ...p, username: v }))}
-                                        placeholder="jdelacruz2024"
-                                        required
-                                        icon={<User className="w-4 h-4" />}
+                                        placeholder="jdelacruz2024" required icon={<User className="w-4 h-4" />}
                                     />
                                     <InputField
-                                        label="Email"
-                                        value={account.email}
+                                        label="Email" value={account.email}
                                         onChange={(v) => setAccount(p => ({ ...p, email: v }))}
-                                        type="email"
-                                        placeholder="juan.delacruz@email.com"
-                                        required
-                                        icon={<Settings className="w-4 h-4" />}
+                                        type="email" placeholder="juan.delacruz@email.com" required
+                                        icon={<Mail className="w-4 h-4" />}
                                     />
                                     <InputField
-                                        label="Password"
-                                        value={account.password}
+                                        label="Password" value={account.password}
                                         onChange={(v) => setAccount(p => ({ ...p, password: v }))}
-                                        type="password"
-                                        placeholder="••••••••"
-                                        required
-                                        icon={<Lock className="w-4 h-4" />}
+                                        type="password" placeholder="••••••••" required icon={<Lock className="w-4 h-4" />}
                                     />
                                     <InputField
-                                        label="Confirm Password"
-                                        value={account.confirmPassword}
+                                        label="Confirm Password" value={account.confirmPassword}
                                         onChange={(v) => setAccount(p => ({ ...p, confirmPassword: v }))}
-                                        type="password"
-                                        placeholder="••••••••"
-                                        required
-                                        icon={<Lock className="w-4 h-4" />}
+                                        type="password" placeholder="••••••••" required icon={<Lock className="w-4 h-4" />}
                                     />
                                 </FormSection>
                             )}
 
                             {/* Step 2: Personal Information */}
                             {step === 2 && (
-                                <FormSection
-                                    title="Personal Information"
-                                    subtitle="Tell us more about yourself"
-                                >
-                                    <InputField
-                                        label="Firstname"
-                                        value={personal.firstname}
-                                        onChange={(v) => setPersonal(p => ({ ...p, firstname: v }))}
-                                        placeholder="Juan"
-                                        required
-                                    />
-                                    <InputField
-                                        label="Lastname"
-                                        value={personal.lastname}
-                                        onChange={(v) => setPersonal(p => ({ ...p, lastname: v }))}
-                                        placeholder="Dela Cruz"
-                                        required
-                                    />
-                                    <InputField
-                                        label="Middlename"
-                                        value={personal.middlename}
-                                        onChange={(v) => setPersonal(p => ({ ...p, middlename: v }))}
-                                        placeholder="Santos"
-                                    />
-                                    <SelectField
-                                        label="Gender"
-                                        value={personal.gender}
+                                <FormSection title="Personal Information" subtitle="Tell us more about yourself">
+                                    <InputField label="Firstname" value={personal.firstname}
+                                        onChange={(v) => setPersonal(p => ({ ...p, firstname: v }))} placeholder="Juan" required />
+                                    <InputField label="Lastname" value={personal.lastname}
+                                        onChange={(v) => setPersonal(p => ({ ...p, lastname: v }))} placeholder="Dela Cruz" required />
+                                    <InputField label="Middlename" value={personal.middlename}
+                                        onChange={(v) => setPersonal(p => ({ ...p, middlename: v }))} placeholder="Santos" />
+                                    <SelectField label="Gender" value={personal.gender}
                                         onChange={(v) => setPersonal(p => ({ ...p, gender: v }))}
-                                        options={["Male", "Female", "Non-binary", "Prefer not to say"]}
-                                        required
-                                    />
-                                    <InputField
-                                        label="Birthdate"
-                                        type="date"
-                                        value={personal.birthdate}
-                                        onChange={(v) => setPersonal(p => ({ ...p, birthdate: v }))}
-                                        required
-                                    />
+                                        options={["Male", "Female", "Non-binary", "Prefer not to say"]} required />
+                                    <InputField label="Birthdate" type="date" value={personal.birthdate}
+                                        onChange={(v) => setPersonal(p => ({ ...p, birthdate: v }))} required />
                                     <div className="flex flex-col gap-1.5">
                                         <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
-                                            Age
-                                            <span className="text-[10px] font-normal text-gray-400 normal-case tracking-normal">(auto-computed)</span>
+                                            Age <span className="text-[10px] font-normal text-gray-400 normal-case tracking-normal">(auto-computed)</span>
                                         </label>
                                         <div className="w-full rounded-xl border border-gray-200 bg-gray-50 text-sm text-slate-900 px-3.5 py-2.5 h-[42px] flex items-center gap-2">
                                             <Clock className="w-3.5 h-3.5 text-gray-400" />
@@ -589,13 +694,9 @@ export default function RegisterPage() {
                                         </div>
                                     </div>
                                     <div className="md:col-span-2 flex items-center gap-3 pt-2">
-                                        <input
-                                            id="consent"
-                                            type="checkbox"
-                                            checked={consentForSurveyMl}
+                                        <input id="consent" type="checkbox" checked={consentForSurveyMl}
                                             onChange={(e) => setConsentForSurveyMl(e.target.checked)}
-                                            className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                                        />
+                                            className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
                                         <label htmlFor="consent" className="text-xs text-gray-500">
                                             I consent to the use of my data for surveys and machine learning analysis.
                                         </label>
@@ -605,138 +706,140 @@ export default function RegisterPage() {
 
                             {/* Step 3: Academic Information */}
                             {step === 3 && (
-                                <FormSection
-                                    title="Academic Information"
-                                    subtitle="Help us track your career progress"
-                                >
-                                    <InputField
-                                        label="Student ID"
-                                        value={academic.studentId}
-                                        onChange={(v) => setAcademic(p => ({ ...p, studentId: v }))}
-                                        placeholder="2020-00000"
-                                        required
-                                    />
-                                    <InputField
-                                        label="Year Graduated"
-                                        value={academic.yearGraduated}
-                                        onChange={(v) => setAcademic(p => ({ ...p, yearGraduated: v }))}
-                                        placeholder="2024"
-                                        required
-                                    />
-                                    <InputField
-                                        label="GWA/CGPA"
-                                        value={academic.gwa}
-                                        onChange={(v) => setAcademic(p => ({ ...p, gwa: v }))}
-                                        placeholder="1.50"
-                                        required
-                                    />
-                                    <InputField
-                                        label="Avg. Prof Grade"
-                                        value={academic.avgProfGrade}
-                                        onChange={(v) => setAcademic(p => ({ ...p, avgProfGrade: v }))}
-                                        placeholder="1.40"
-                                    />
-                                    <InputField
-                                        label="Avg. Elec Grade"
-                                        value={academic.avgElecGrade}
-                                        onChange={(v) => setAcademic(p => ({ ...p, avgElecGrade: v }))}
-                                        placeholder="1.60"
-                                    />
-                                    <InputField
-                                        label="OJT Grade"
-                                        value={academic.ojtGrade}
-                                        onChange={(v) => setAcademic(p => ({ ...p, ojtGrade: v }))}
-                                        placeholder="95"
-                                        required
-                                    />
-                                    <SelectField
-                                        label="Held Leadership Position?"
+                                <FormSection title="Academic Information" subtitle="Help us track your career progress">
+                                    <InputField label="Student ID" value={academic.studentId}
+                                        onChange={(v) => setAcademic(p => ({ ...p, studentId: v }))} placeholder="2020-00000" required />
+                                    <InputField label="Year Graduated" value={academic.yearGraduated}
+                                        onChange={(v) => setAcademic(p => ({ ...p, yearGraduated: v }))} placeholder="2024" required />
+                                    <InputField label="GWA/CGPA" value={academic.gwa}
+                                        onChange={(v) => setAcademic(p => ({ ...p, gwa: v }))} placeholder="1.50" required />
+                                    <InputField label="Avg. Prof Grade" value={academic.avgProfGrade}
+                                        onChange={(v) => setAcademic(p => ({ ...p, avgProfGrade: v }))} placeholder="1.40" />
+                                    <InputField label="Avg. Elec Grade" value={academic.avgElecGrade}
+                                        onChange={(v) => setAcademic(p => ({ ...p, avgElecGrade: v }))} placeholder="1.60" />
+                                    <InputField label="OJT Grade" value={academic.ojtGrade}
+                                        onChange={(v) => setAcademic(p => ({ ...p, ojtGrade: v }))} placeholder="95" required />
+                                    <SelectField label="Held Leadership Position?"
                                         value={academic.leadershipPos === null ? "" : academic.leadershipPos ? "yes" : "no"}
                                         onChange={(v) => setAcademic(p => ({ ...p, leadershipPos: v === "" ? null : v === "yes" }))}
-                                        options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No" }]}
-                                    />
-                                    <SelectField
-                                        label="Active Org Member?"
+                                        options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No" }]} />
+                                    <SelectField label="Active Org Member?"
                                         value={academic.activeMemberPos === null ? "" : academic.activeMemberPos ? "yes" : "no"}
                                         onChange={(v) => setAcademic(p => ({ ...p, activeMemberPos: v === "" ? null : v === "yes" }))}
-                                        options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No" }]}
-                                    />
-                                    <SelectField
-                                        label="Course"
-                                        value={academic.courseAbbv}
+                                        options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No" }]} />
+                                    <SelectField label="Course" value={academic.courseAbbv}
                                         onChange={(v) => setAcademic(p => ({ ...p, courseAbbv: v }))}
                                         options={courses.map((c) => ({ value: c.course_abbv, label: c.course_name }))}
-                                        required
-                                        className="md:col-span-2"
-                                    />
+                                        required className="md:col-span-2" />
                                 </FormSection>
+                            )}
+
+                            {/* Step 4: OTP Email Verification */}
+                            {step === 4 && (
+                                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                    <div className="text-center">
+                                        <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                            <Mail className="w-8 h-8 text-emerald-600" />
+                                        </div>
+                                        <h2 className="text-xl font-bold text-gray-900">Verify Your Email</h2>
+                                        <p className="text-sm text-gray-500 mt-2">
+                                            We sent a 6-digit code to{" "}
+                                            <span className="font-semibold text-gray-700">{maskEmail(account.email)}</span>
+                                        </p>
+                                    </div>
+
+                                    <div className="py-4">
+                                        <OTPInput value={otpCode} onChange={setOtpCode} disabled={isVerifyingOtp || isSubmitting} />
+                                    </div>
+
+                                    <div className="text-center space-y-3">
+                                        <Button
+                                            type="button"
+                                            onClick={handleVerifyAndSubmit}
+                                            disabled={isVerifyingOtp || isSubmitting || otpCode.join("").length !== OTP_LENGTH}
+                                            className="w-full max-w-xs mx-auto bg-emerald-700 hover:bg-emerald-800 text-white h-12 rounded-xl font-semibold shadow-lg shadow-emerald-200 transition-all disabled:opacity-50"
+                                        >
+                                            {isVerifyingOtp || isSubmitting ? (
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                    {isSubmitting ? "Creating Account..." : "Verifying..."}
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    Verify & Complete Registration
+                                                    <ShieldCheck className="w-4 h-4 ml-2" />
+                                                </>
+                                            )}
+                                        </Button>
+
+                                        <div className="flex items-center justify-center gap-1 text-sm">
+                                            <span className="text-gray-400">Didn&apos;t receive the code?</span>
+                                            {resendCooldown > 0 ? (
+                                                <span className="text-gray-400 font-medium">Resend in {resendCooldown}s</span>
+                                            ) : (
+                                                <button type="button" onClick={resendOtp} disabled={isSendingOtp}
+                                                    className="text-emerald-600 font-semibold hover:underline disabled:opacity-50">
+                                                    {isSendingOtp ? "Sending..." : "Resend Code"}
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
                             )}
 
                             {/* Form Navigation */}
                             <div className="mt-12 pt-8 border-t border-slate-100 flex items-center justify-between">
                                 {step > 1 ? (
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        onClick={prevStep}
-                                        className="text-slate-500 hover:text-slate-700 h-12 px-6 rounded-xl flex items-center gap-2"
-                                    >
-                                        <ArrowLeft className="w-4 h-4" />
-                                        Back
+                                    <Button type="button" variant="ghost" onClick={prevStep}
+                                        disabled={isVerifyingOtp || isSubmitting}
+                                        className="text-slate-500 hover:text-slate-700 h-12 px-6 rounded-xl flex items-center gap-2">
+                                        <ArrowLeft className="w-4 h-4" /> Back
                                     </Button>
                                 ) : (
                                     <Link href="/">
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            className="text-slate-500 hover:text-slate-700 h-12 px-6 rounded-xl"
-                                        >
-                                            Cancel
-                                        </Button>
+                                        <Button type="button" variant="ghost"
+                                            className="text-slate-500 hover:text-slate-700 h-12 px-6 rounded-xl">Cancel</Button>
                                     </Link>
                                 )}
 
                                 <div className="flex items-center gap-3">
                                     {step === 3 && (
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            onClick={handleSkipAcademic}
-                                            disabled={isSubmitting}
-                                            className="text-slate-400 hover:text-slate-600 h-12 px-6 rounded-xl"
-                                        >
-                                            Skip for now
+                                        <Button type="button" variant="ghost" onClick={handleSkipAcademic}
+                                            disabled={isSendingOtp}
+                                            className="text-slate-400 hover:text-slate-600 h-12 px-6 rounded-xl">
+                                            {isSendingOtp ? (
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-4 h-4 border-2 border-slate-300/30 border-t-slate-400 rounded-full animate-spin" />
+                                                    Sending Code...
+                                                </div>
+                                            ) : "Skip for now"}
                                         </Button>
                                     )}
 
-                                    {step < 3 ? (
-                                        <Button
-                                            type="button"
-                                            onClick={nextStep}
-                                            className="bg-emerald-700 hover:bg-emerald-800 text-white h-12 px-8 rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-200 transition-all active:scale-95"
-                                        >
-                                            Next Step
-                                            <ArrowRight className="w-4 h-4" />
+                                    {step < 3 && (
+                                        <Button type="button" onClick={nextStep}
+                                            className="bg-emerald-700 hover:bg-emerald-800 text-white h-12 px-8 rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-200 transition-all active:scale-95">
+                                            Next Step <ArrowRight className="w-4 h-4" />
                                         </Button>
-                                    ) : (
-                                        <Button
-                                            type="submit"
-                                            disabled={isSubmitting}
-                                            className="bg-emerald-700 hover:bg-emerald-800 text-white h-12 px-10 rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-200 transition-all active:scale-95 disabled:opacity-70"
-                                        >
-                                            {isSubmitting ? (
+                                    )}
+
+                                    {step === 3 && (
+                                        <Button type="button" onClick={nextStep} disabled={isSendingOtp}
+                                            className="bg-emerald-700 hover:bg-emerald-800 text-white h-12 px-8 rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-200 transition-all active:scale-95 disabled:opacity-70">
+                                            {isSendingOtp ? (
                                                 <div className="flex items-center gap-2">
                                                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                    Processing...
+                                                    Sending Code...
                                                 </div>
                                             ) : (
                                                 <>
-                                                    Complete Registration
-                                                    <Check className="w-4 h-4" />
+                                                    Next Step <ArrowRight className="w-4 h-4" />
                                                 </>
                                             )}
                                         </Button>
                                     )}
+
+                                    {/* Step 4 has its own verify button in the OTP section above */}
                                 </div>
                             </div>
                         </form>

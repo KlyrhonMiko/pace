@@ -45,7 +45,9 @@ VALID_PROGRAM_SKILL_KEYS = {
 }
 
 
-def _validate_program_skills(v: Optional[Dict[str, float]]) -> Optional[Dict[str, float]]:
+def _validate_program_skills(
+    v: Optional[Dict[str, float]],
+) -> Optional[Dict[str, float]]:
     """Ensure all keys are recognized ML feature names and values are 0–100."""
     if v is None:
         return None
@@ -57,14 +59,17 @@ def _validate_program_skills(v: Optional[Dict[str, float]]) -> Optional[Dict[str
         )
     for key, val in v.items():
         if not (0.0 <= val <= 100.0):
-            raise ValueError(f"Skill value for '{key}' must be between 0 and 100 (got {val})")
+            raise ValueError(
+                f"Skill value for '{key}' must be between 0 and 100 (got {val})"
+            )
     return v
 
 
 # ── Create ────────────────────────────────────────────────────────────────────
 
+
 class AlumniSkillsCreate(SQLModel):
-    alumni_id: str                                 # Human-readable ID; resolved to alumni_code in query
+    alumni_id: str  # Human-readable ID; resolved to alumni_code in query
     soft_skills_ave: Optional[float] = Field(default=None, ge=0, le=100)
     hard_skills_ave: Optional[float] = Field(default=None, ge=0, le=100)
     program_skills: Optional[Dict[str, float]] = None
@@ -82,6 +87,7 @@ class AlumniSkillsCreate(SQLModel):
 
 # ── Update ────────────────────────────────────────────────────────────────────
 
+
 class AlumniSkillsUpdate(SQLModel):
     soft_skills_ave: Optional[float] = Field(default=None, ge=0, le=100)
     hard_skills_ave: Optional[float] = Field(default=None, ge=0, le=100)
@@ -94,6 +100,7 @@ class AlumniSkillsUpdate(SQLModel):
 
 
 # ── Public (read) ─────────────────────────────────────────────────────────────
+
 
 class AlumniSkillsPublic(SQLModel):
     soft_skills_ave: Optional[float]
@@ -114,11 +121,13 @@ class AlumniSkillsPublic(SQLModel):
 
 # ── Safe display (batch result) ───────────────────────────────────────────────
 
+
 class AlumniSkillsSafeDisplay(BaseModel):
     alumni_id: str
 
 
 # ── Batch create ──────────────────────────────────────────────────────────────
+
 
 class AlumniSkillsBatchCreateItem(BaseModel):
     index: int
@@ -141,6 +150,7 @@ class AlumniSkillsBatchCreateResponse(BaseModel):
 
 
 # ── Batch update ──────────────────────────────────────────────────────────────
+
 
 class AlumniSkillsBatchUpdateItem(BaseModel):
     alumni_id: str

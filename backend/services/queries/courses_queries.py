@@ -3,6 +3,7 @@ DB query functions for courses domain.
 All session.exec / session.add / session.commit / session.rollback calls live here.
 Routers call these functions; they do NOT contain any select/exec logic themselves.
 """
+
 from datetime import datetime, timezone
 from sqlmodel import Session, select, func
 from sqlalchemy.exc import IntegrityError
@@ -11,11 +12,18 @@ from models.courses import Course
 from models.college_dept import CollegeDept
 from models.student_records import StudentRecord
 from schemas.courses import (
-    CourseCreate, CourseUpdate, CoursePublic,
-    CourseBatchCreateItem, CourseBatchCreateResponse,
-    CourseBatchUpdateItem, CourseBatchUpdateResult, CourseBatchUpdateResponse,
-    CourseBatchDeleteResult, CourseBatchDeleteResponse,
-    CourseBatchRestoreResult, CourseBatchRestoreResponse,
+    CourseCreate,
+    CourseUpdate,
+    CoursePublic,
+    CourseBatchCreateItem,
+    CourseBatchCreateResponse,
+    CourseBatchUpdateItem,
+    CourseBatchUpdateResult,
+    CourseBatchUpdateResponse,
+    CourseBatchDeleteResult,
+    CourseBatchDeleteResponse,
+    CourseBatchRestoreResult,
+    CourseBatchRestoreResponse,
 )
 from models.response_codes import ErrorCode, SuccessCode
 from utils.logging import log_integrity_error
@@ -26,11 +34,10 @@ from utils.timezone import get_current_time_gmt8
 # ID generation
 # ---------------------------------------------------------------------------
 
+
 def generate_course_id(session: Session) -> str:
     """Generate course_id with auto-increment (format: CRS-000001)"""
-    last = session.exec(
-        select(Course).order_by(Course.course_id.desc())
-    ).first()
+    last = session.exec(select(Course).order_by(Course.course_id.desc())).first()
 
     if last and last.course_id.startswith("CRS-"):
         new_num = int(last.course_id.split("-")[1]) + 1
@@ -43,6 +50,7 @@ def generate_course_id(session: Session) -> str:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def get_college_dept_by_abbv(session: Session, abbv: str) -> CollegeDept | None:
     """Look up a college department by abbreviation."""
@@ -58,12 +66,16 @@ def get_college_dept_by_code(session: Session, college_dept_code) -> CollegeDept
     ).first()
 
 
-def build_course_public(course: Course, college_dept: CollegeDept | None) -> CoursePublic:
+def build_course_public(
+    course: Course, college_dept: CollegeDept | None
+) -> CoursePublic:
     """Build a CoursePublic response, resolving college dept display fields."""
     return CoursePublic(
         **course.model_dump(exclude={"college_dept_code"}),
         college_dept_id=college_dept.college_dept_id if college_dept else "UNKNOWN",
-        college_dept_name=college_dept.college_dept_name if college_dept else "Unknown Department",
+        college_dept_name=college_dept.college_dept_name
+        if college_dept
+        else "Unknown Department",
     )
 
 
@@ -71,8 +83,8 @@ def has_active_student_records(session: Session, course: Course) -> bool:
     """Return True if this course has at least one active student record."""
     result = session.exec(
         select(StudentRecord).where(
-            (StudentRecord.course_code == course.course_code) &
-            (StudentRecord.is_deleted == False)
+            (StudentRecord.course_code == course.course_code)
+            & (StudentRecord.is_deleted == False)
         )
     ).first()
     return result is not None
@@ -82,12 +94,12 @@ def has_active_student_records(session: Session, course: Course) -> bool:
 # Single-record operations
 # ---------------------------------------------------------------------------
 
+
 def get_course_by_id(session: Session, course_id: str) -> Course | None:
     """Fetch a single active course by its human-readable ID."""
     return session.exec(
         select(Course).where(
-            (Course.course_id == course_id.upper()) &
-            (Course.is_deleted == False)
+            (Course.course_id == course_id.upper()) & (Course.is_deleted == False)
         )
     ).first()
 
@@ -117,7 +129,9 @@ def create_course(session: Session, data: CourseCreate) -> tuple[Course, College
     return new_course, college_dept
 
 
-def update_course(session: Session, course: Course, data: CourseUpdate) -> tuple[Course, CollegeDept]:
+def update_course(
+    session: Session, course: Course, data: CourseUpdate
+) -> tuple[Course, CollegeDept]:
     """Apply partial update to a course and commit. Returns (course, college_dept)."""
     college_dept = None
     if data.college_dept_abbv is not None:
@@ -164,6 +178,7 @@ def restore_course(session: Session, course: Course) -> None:
 # List / pagination
 # ---------------------------------------------------------------------------
 
+
 def get_all_courses(
     session: Session,
     limit: int,
@@ -188,9 +203,9 @@ def get_all_courses(
     if search:
         like = f"%{search}%"
         query = query.where(
-            (Course.course_abbv.ilike(like)) |
-            (Course.course_name.ilike(like)) |
-            (Course.course_desc.ilike(like))
+            (Course.course_abbv.ilike(like))
+            | (Course.course_name.ilike(like))
+            | (Course.course_desc.ilike(like))
         )
 
     if college_dept_abbv:
@@ -202,9 +217,13 @@ def get_all_courses(
 
     desc = sort_order.lower() == "desc"
     if sort_by.lower() == "course_abbv":
-        query = query.order_by(Course.course_abbv.desc() if desc else Course.course_abbv)
+        query = query.order_by(
+            Course.course_abbv.desc() if desc else Course.course_abbv
+        )
     elif sort_by.lower() == "course_name":
-        query = query.order_by(Course.course_name.desc() if desc else Course.course_name)
+        query = query.order_by(
+            Course.course_name.desc() if desc else Course.course_name
+        )
     elif sort_by.lower() == "deleted_at":
         query = query.order_by(Course.deleted_at.desc() if desc else Course.deleted_at)
     else:
@@ -226,6 +245,7 @@ def get_all_courses(
 # Batch operations
 # ---------------------------------------------------------------------------
 
+
 def batch_create_courses(
     session: Session,
     items: list[CourseCreate],
@@ -239,12 +259,16 @@ def batch_create_courses(
             with session.begin_nested():
                 college_dept = get_college_dept_by_abbv(session, item.college_dept_abbv)
                 if not college_dept:
-                    results.append(CourseBatchCreateItem(
-                        index=index, item=item, success=False,
-                        code=ErrorCode.COLLEGE_DEPT_NOT_FOUND.value,
-                        message=f"College department '{item.college_dept_abbv}' not found",
-                        data=None
-                    ))
+                    results.append(
+                        CourseBatchCreateItem(
+                            index=index,
+                            item=item,
+                            success=False,
+                            code=ErrorCode.COLLEGE_DEPT_NOT_FOUND.value,
+                            message=f"College department '{item.college_dept_abbv}' not found",
+                            data=None,
+                        )
+                    )
                     failed_count += 1
                     continue
 
@@ -258,35 +282,58 @@ def batch_create_courses(
                 session.flush()
                 session.refresh(new_course)
 
-                results.append(CourseBatchCreateItem(
-                    index=index, item=item, success=True,
-                    code=SuccessCode.COURSE_CREATED.value,
-                    message="Course created successfully",
-                    data=build_course_public(new_course, college_dept)
-                ))
+                results.append(
+                    CourseBatchCreateItem(
+                        index=index,
+                        item=item,
+                        success=True,
+                        code=SuccessCode.COURSE_CREATED.value,
+                        message="Course created successfully",
+                        data=build_course_public(new_course, college_dept),
+                    )
+                )
                 successful_count += 1
 
         except IntegrityError as e:
             error_str = str(e).lower()
-            if "ix_courses_course_abbv" in error_str or "courses_course_abbv_key" in error_str:
+            if (
+                "ix_courses_course_abbv" in error_str
+                or "courses_course_abbv_key" in error_str
+            ):
                 code = ErrorCode.DUPLICATE_COURSE_ABBV.value
                 msg = f"Course abbreviation '{item.course_abbv}' already exists"
-            elif "ix_courses_course_name" in error_str or "courses_course_name_key" in error_str:
+            elif (
+                "ix_courses_course_name" in error_str
+                or "courses_course_name_key" in error_str
+            ):
                 code = ErrorCode.DUPLICATE_COURSE_NAME.value
                 msg = f"Course name '{item.course_name}' already exists"
             else:
                 code = ErrorCode.INVALID_INPUT.value
                 msg = "Course creation failed due to constraint violation"
-            results.append(CourseBatchCreateItem(
-                index=index, item=item, success=False, code=code, message=msg, data=None
-            ))
+            results.append(
+                CourseBatchCreateItem(
+                    index=index,
+                    item=item,
+                    success=False,
+                    code=code,
+                    message=msg,
+                    data=None,
+                )
+            )
             failed_count += 1
 
         except ValueError as e:
-            results.append(CourseBatchCreateItem(
-                index=index, item=item, success=False,
-                code=ErrorCode.INVALID_INPUT.value, message=str(e), data=None
-            ))
+            results.append(
+                CourseBatchCreateItem(
+                    index=index,
+                    item=item,
+                    success=False,
+                    code=ErrorCode.INVALID_INPUT.value,
+                    message=str(e),
+                    data=None,
+                )
+            )
             failed_count += 1
 
     session.commit()
@@ -314,29 +361,42 @@ def batch_update_courses(
                 ).first()
 
                 if not course:
-                    results.append(CourseBatchUpdateResult(
-                        index=index, course_id=item.course_id, success=False,
-                        code=ErrorCode.COURSE_NOT_FOUND.value,
-                        message=f"Course '{item.course_id}' not found", data=None
-                    ))
+                    results.append(
+                        CourseBatchUpdateResult(
+                            index=index,
+                            course_id=item.course_id,
+                            success=False,
+                            code=ErrorCode.COURSE_NOT_FOUND.value,
+                            message=f"Course '{item.course_id}' not found",
+                            data=None,
+                        )
+                    )
                     failed_count += 1
                     continue
 
                 college_dept = None
                 if item.college_dept_abbv is not None:
-                    college_dept = get_college_dept_by_abbv(session, item.college_dept_abbv)
+                    college_dept = get_college_dept_by_abbv(
+                        session, item.college_dept_abbv
+                    )
                     if not college_dept:
-                        results.append(CourseBatchUpdateResult(
-                            index=index, course_id=item.course_id, success=False,
-                            code=ErrorCode.COLLEGE_DEPT_NOT_FOUND.value,
-                            message=f"College department '{item.college_dept_abbv}' not found",
-                            data=None
-                        ))
+                        results.append(
+                            CourseBatchUpdateResult(
+                                index=index,
+                                course_id=item.course_id,
+                                success=False,
+                                code=ErrorCode.COLLEGE_DEPT_NOT_FOUND.value,
+                                message=f"College department '{item.college_dept_abbv}' not found",
+                                data=None,
+                            )
+                        )
                         failed_count += 1
                         continue
                     course.college_dept_code = college_dept.college_dept_code
                 else:
-                    college_dept = get_college_dept_by_code(session, course.college_dept_code)
+                    college_dept = get_college_dept_by_code(
+                        session, course.college_dept_code
+                    )
 
                 if item.course_abbv is not None:
                     course.course_abbv = item.course_abbv
@@ -350,36 +410,58 @@ def batch_update_courses(
                 session.flush()
                 session.refresh(course)
 
-                results.append(CourseBatchUpdateResult(
-                    index=index, course_id=item.course_id, success=True,
-                    code=SuccessCode.COURSE_UPDATED.value,
-                    message="Course updated successfully",
-                    data=build_course_public(course, college_dept)
-                ))
+                results.append(
+                    CourseBatchUpdateResult(
+                        index=index,
+                        course_id=item.course_id,
+                        success=True,
+                        code=SuccessCode.COURSE_UPDATED.value,
+                        message="Course updated successfully",
+                        data=build_course_public(course, college_dept),
+                    )
+                )
                 successful_count += 1
 
         except IntegrityError as e:
             error_str = str(e).lower()
-            if "ix_courses_course_abbv" in error_str or "courses_course_abbv_key" in error_str:
+            if (
+                "ix_courses_course_abbv" in error_str
+                or "courses_course_abbv_key" in error_str
+            ):
                 code = ErrorCode.DUPLICATE_COURSE_ABBV.value
                 msg = "Course abbreviation already in use"
-            elif "ix_courses_course_name" in error_str or "courses_course_name_key" in error_str:
+            elif (
+                "ix_courses_course_name" in error_str
+                or "courses_course_name_key" in error_str
+            ):
                 code = ErrorCode.DUPLICATE_COURSE_NAME.value
                 msg = "Course name already in use"
             else:
                 code = ErrorCode.INVALID_INPUT.value
                 msg = "Update failed due to constraint violation"
-            results.append(CourseBatchUpdateResult(
-                index=index, course_id=item.course_id, success=False,
-                code=code, message=msg, data=None
-            ))
+            results.append(
+                CourseBatchUpdateResult(
+                    index=index,
+                    course_id=item.course_id,
+                    success=False,
+                    code=code,
+                    message=msg,
+                    data=None,
+                )
+            )
             failed_count += 1
 
         except ValueError as e:
-            results.append(CourseBatchUpdateResult(
-                index=index, course_id=item.course_id, success=False,
-                code=ErrorCode.INVALID_INPUT.value, message=str(e), data=None
-            ))
+            results.append(
+                CourseBatchUpdateResult(
+                    index=index,
+                    course_id=item.course_id,
+                    success=False,
+                    code=ErrorCode.INVALID_INPUT.value,
+                    message=str(e),
+                    data=None,
+                )
+            )
             failed_count += 1
 
     session.commit()
@@ -406,29 +488,41 @@ def batch_delete_courses(
             ).first()
 
             if not course:
-                results.append(CourseBatchDeleteResult(
-                    index=index, course_id=course_id, success=False,
-                    code=ErrorCode.COURSE_NOT_FOUND.value,
-                    message=f"Course '{course_id}' not found"
-                ))
+                results.append(
+                    CourseBatchDeleteResult(
+                        index=index,
+                        course_id=course_id,
+                        success=False,
+                        code=ErrorCode.COURSE_NOT_FOUND.value,
+                        message=f"Course '{course_id}' not found",
+                    )
+                )
                 failed_count += 1
                 continue
 
             if course.is_deleted:
-                results.append(CourseBatchDeleteResult(
-                    index=index, course_id=course_id, success=False,
-                    code=ErrorCode.ALREADY_DELETED.value,
-                    message="Course is already deleted, cannot delete again"
-                ))
+                results.append(
+                    CourseBatchDeleteResult(
+                        index=index,
+                        course_id=course_id,
+                        success=False,
+                        code=ErrorCode.ALREADY_DELETED.value,
+                        message="Course is already deleted, cannot delete again",
+                    )
+                )
                 failed_count += 1
                 continue
 
             if has_active_student_records(session, course):
-                results.append(CourseBatchDeleteResult(
-                    index=index, course_id=course_id, success=False,
-                    code=ErrorCode.CANNOT_DELETE_COURSE_WITH_ACTIVE_STUDENT_RECORDS.value,
-                    message="Cannot delete course with active student records"
-                ))
+                results.append(
+                    CourseBatchDeleteResult(
+                        index=index,
+                        course_id=course_id,
+                        success=False,
+                        code=ErrorCode.CANNOT_DELETE_COURSE_WITH_ACTIVE_STUDENT_RECORDS.value,
+                        message="Cannot delete course with active student records",
+                    )
+                )
                 failed_count += 1
                 continue
 
@@ -437,28 +531,41 @@ def batch_delete_courses(
             session.add(course)
             session.flush()
 
-            results.append(CourseBatchDeleteResult(
-                index=index, course_id=course_id, success=True,
-                code=SuccessCode.COURSE_DELETED.value,
-                message="Course deleted successfully"
-            ))
+            results.append(
+                CourseBatchDeleteResult(
+                    index=index,
+                    course_id=course_id,
+                    success=True,
+                    code=SuccessCode.COURSE_DELETED.value,
+                    message="Course deleted successfully",
+                )
+            )
             successful_count += 1
 
         except IntegrityError as e:
             session.rollback()
-            results.append(CourseBatchDeleteResult(
-                index=index, course_id=course_id, success=False,
-                code=ErrorCode.INVALID_INPUT.value,
-                message="Delete failed: Constraint violation or related data exists"
-            ))
+            results.append(
+                CourseBatchDeleteResult(
+                    index=index,
+                    course_id=course_id,
+                    success=False,
+                    code=ErrorCode.INVALID_INPUT.value,
+                    message="Delete failed: Constraint violation or related data exists",
+                )
+            )
             failed_count += 1
 
         except Exception as e:
             session.rollback()
-            results.append(CourseBatchDeleteResult(
-                index=index, course_id=course_id, success=False,
-                code=ErrorCode.INVALID_INPUT.value, message=f"Delete failed: {str(e)}"
-            ))
+            results.append(
+                CourseBatchDeleteResult(
+                    index=index,
+                    course_id=course_id,
+                    success=False,
+                    code=ErrorCode.INVALID_INPUT.value,
+                    message=f"Delete failed: {str(e)}",
+                )
+            )
             failed_count += 1
 
     session.commit()
@@ -485,20 +592,28 @@ def batch_restore_courses(
             ).first()
 
             if not course:
-                results.append(CourseBatchRestoreResult(
-                    index=index, course_id=course_id, success=False,
-                    code=ErrorCode.COURSE_NOT_FOUND.value,
-                    message=f"Course '{course_id}' not found"
-                ))
+                results.append(
+                    CourseBatchRestoreResult(
+                        index=index,
+                        course_id=course_id,
+                        success=False,
+                        code=ErrorCode.COURSE_NOT_FOUND.value,
+                        message=f"Course '{course_id}' not found",
+                    )
+                )
                 failed_count += 1
                 continue
 
             if not course.is_deleted:
-                results.append(CourseBatchRestoreResult(
-                    index=index, course_id=course_id, success=False,
-                    code=ErrorCode.INVALID_INPUT.value,
-                    message=f"Course '{course_id}' is not deleted"
-                ))
+                results.append(
+                    CourseBatchRestoreResult(
+                        index=index,
+                        course_id=course_id,
+                        success=False,
+                        code=ErrorCode.INVALID_INPUT.value,
+                        message=f"Course '{course_id}' is not deleted",
+                    )
+                )
                 failed_count += 1
                 continue
 
@@ -507,21 +622,36 @@ def batch_restore_courses(
             session.add(course)
             session.flush()
 
-            results.append(CourseBatchRestoreResult(
-                index=index, course_id=course_id, success=True,
-                code=SuccessCode.COURSE_RESTORED.value,
-                message="Course restored successfully"
-            ))
+            results.append(
+                CourseBatchRestoreResult(
+                    index=index,
+                    course_id=course_id,
+                    success=True,
+                    code=SuccessCode.COURSE_RESTORED.value,
+                    message="Course restored successfully",
+                )
+            )
             successful_count += 1
 
         except IntegrityError as e:
             session.rollback()
             msg = "Restore failed: Constraint violation or related data issue"
-            results.append(CourseBatchRestoreResult(
-                index=index, course_id=course_id, success=False,
-                code=ErrorCode.INVALID_INPUT.value, message=msg
-            ))
-            log_integrity_error("courses", "batch_restore_courses", ErrorCode.INVALID_INPUT.value, msg, str(e))
+            results.append(
+                CourseBatchRestoreResult(
+                    index=index,
+                    course_id=course_id,
+                    success=False,
+                    code=ErrorCode.INVALID_INPUT.value,
+                    message=msg,
+                )
+            )
+            log_integrity_error(
+                "courses",
+                "batch_restore_courses",
+                ErrorCode.INVALID_INPUT.value,
+                msg,
+                str(e),
+            )
             failed_count += 1
 
     session.commit()

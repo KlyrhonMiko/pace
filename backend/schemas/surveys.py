@@ -40,6 +40,7 @@ class DistributionStatus(str, Enum):
 
 # ── Survey schemas ──────────────────────────────────────────────────────────
 
+
 class SurveyCreate(SQLModel):
     title: str = Field(max_length=255)
     description: Optional[str] = Field(default=None, max_length=2000)
@@ -48,12 +49,12 @@ class SurveyCreate(SQLModel):
     opens_at: Optional[datetime] = None
     closes_at: Optional[datetime] = None
 
-    @field_validator('closes_at')
+    @field_validator("closes_at")
     @classmethod
     def validate_closes_at(cls, v, info):
-        opens_at = info.data.get('opens_at')
+        opens_at = info.data.get("opens_at")
         if opens_at and v and v <= opens_at:
-            raise ValueError('closes_at must be after opens_at')
+            raise ValueError("closes_at must be after opens_at")
         return v
 
 
@@ -65,12 +66,12 @@ class SurveyUpdate(SQLModel):
     opens_at: Optional[datetime] = None
     closes_at: Optional[datetime] = None
 
-    @field_validator('closes_at')
+    @field_validator("closes_at")
     @classmethod
     def validate_closes_at(cls, v, info):
-        opens_at = info.data.get('opens_at')
+        opens_at = info.data.get("opens_at")
         if opens_at and v and v <= opens_at:
-            raise ValueError('closes_at must be after opens_at')
+            raise ValueError("closes_at must be after opens_at")
         return v
 
 
@@ -87,14 +88,14 @@ class SurveyPublic(SQLModel):
     updated_at: datetime
     question_count: int = 0
 
-    @field_serializer('created_at', 'updated_at')
+    @field_serializer("created_at", "updated_at")
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         if value is None:
             return None
         if value.tzinfo is None:
             value = value.replace(tzinfo=timezone.utc)
         gmt8_time = value.astimezone(GMT8)
-        return gmt8_time.strftime('%Y-%m-%d %H:%M:%S')
+        return gmt8_time.strftime("%Y-%m-%d %H:%M:%S")
 
 
 class SurveyQuestionWithDetails(SQLModel):
@@ -116,6 +117,7 @@ class SurveyQuestionReorderRequest(SQLModel):
 
 # ── Survey Response schemas ─────────────────────────────────────────────────
 
+
 class SurveyResponseCreate(SQLModel):
     survey_code: uuid.UUID
     alumni_code: Optional[uuid.UUID] = None
@@ -126,14 +128,14 @@ class SurveyResponsePublic(SQLModel):
     submitted_at: datetime
     is_complete: bool
 
-    @field_serializer('submitted_at')
+    @field_serializer("submitted_at")
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         if value is None:
             return None
         if value.tzinfo is None:
             value = value.replace(tzinfo=timezone.utc)
         gmt8_time = value.astimezone(GMT8)
-        return gmt8_time.strftime('%Y-%m-%d %H:%M:%S')
+        return gmt8_time.strftime("%Y-%m-%d %H:%M:%S")
 
 
 class SurveyAnswerCreate(SQLModel):
@@ -147,7 +149,7 @@ class SurveyAnswerCreate(SQLModel):
     answer_date: Optional[datetime] = None
     answer_bool: Optional[bool] = None
 
-    @field_validator('answer_text', 'answer_choice')
+    @field_validator("answer_text", "answer_choice")
     @classmethod
     def strip_whitespace(cls, v):
         if isinstance(v, str):
@@ -172,6 +174,7 @@ class SurveyAnswerPublic(SQLModel):
 
 # ── Survey Invitation schemas ───────────────────────────────────────────────
 
+
 class SurveyInvitationCreate(SQLModel):
     survey_code: uuid.UUID
     alumni_code: uuid.UUID
@@ -188,14 +191,14 @@ class SurveyInvitationPublic(SQLModel):
     responded_at: Optional[datetime]
     created_at: datetime
 
-    @field_serializer('sent_at', 'opened_at', 'responded_at', 'created_at')
+    @field_serializer("sent_at", "opened_at", "responded_at", "created_at")
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         if value is None:
             return None
         if value.tzinfo is None:
             value = value.replace(tzinfo=timezone.utc)
         gmt8_time = value.astimezone(GMT8)
-        return gmt8_time.strftime('%Y-%m-%d %H:%M:%S')
+        return gmt8_time.strftime("%Y-%m-%d %H:%M:%S")
 
 
 class SurveyInvitationListResponse(SQLModel):
@@ -209,35 +212,38 @@ class SurveyInvitationListResponse(SQLModel):
 
 # ── Distribution schemas ────────────────────────────────────────────────────
 
+
 class SurveyDistributionConfigCreateRequest(SQLModel):
     target_group: DistributionTargetGroup
     filters: Optional[str] = None
     scheduled_send_at: Optional[datetime] = None
 
-    @field_validator('filters', mode='before')
+    @field_validator("filters", mode="before")
     @classmethod
     def validate_filters(cls, v, info):
-        target_group = info.data.get('target_group')
+        target_group = info.data.get("target_group")
         if v is None:
             if target_group != DistributionTargetGroup.ALL_ALUMNI:
-                raise ValueError(f'{target_group} requires filters')
+                raise ValueError(f"{target_group} requires filters")
             return None
         if isinstance(v, str):
             try:
                 parsed = json.loads(v)
             except json.JSONDecodeError:
-                raise ValueError('Filters must be valid JSON')
+                raise ValueError("Filters must be valid JSON")
         else:
             parsed = v
         if target_group == DistributionTargetGroup.SPECIFIC_COURSE:
-            if 'courses' not in parsed or not isinstance(parsed['courses'], list):
-                raise ValueError('SPECIFIC_COURSE requires courses list in filters')
+            if "courses" not in parsed or not isinstance(parsed["courses"], list):
+                raise ValueError("SPECIFIC_COURSE requires courses list in filters")
         elif target_group == DistributionTargetGroup.GRADUATION_YEAR_RANGE:
-            if 'year_min' not in parsed or 'year_max' not in parsed:
-                raise ValueError('GRADUATION_YEAR_RANGE requires year_min and year_max in filters')
+            if "year_min" not in parsed or "year_max" not in parsed:
+                raise ValueError(
+                    "GRADUATION_YEAR_RANGE requires year_min and year_max in filters"
+                )
         elif target_group == DistributionTargetGroup.CUSTOM_LIST:
-            if 'alumni_ids' not in parsed or not isinstance(parsed['alumni_ids'], list):
-                raise ValueError('CUSTOM_LIST requires alumni_ids list in filters')
+            if "alumni_ids" not in parsed or not isinstance(parsed["alumni_ids"], list):
+                raise ValueError("CUSTOM_LIST requires alumni_ids list in filters")
         return json.dumps(parsed) if isinstance(v, dict) else v
 
 
@@ -258,14 +264,14 @@ class SurveyDistributionConfigPublic(SQLModel):
     created_at: datetime
     updated_at: datetime
 
-    @field_serializer('scheduled_send_at', 'sent_at', 'created_at', 'updated_at')
+    @field_serializer("scheduled_send_at", "sent_at", "created_at", "updated_at")
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         if value is None:
             return None
         if value.tzinfo is None:
             value = value.replace(tzinfo=timezone.utc)
         gmt8_time = value.astimezone(GMT8)
-        return gmt8_time.strftime('%Y-%m-%d %H:%M:%S')
+        return gmt8_time.strftime("%Y-%m-%d %H:%M:%S")
 
 
 class DistributionStatsResponse(SQLModel):
@@ -290,8 +296,10 @@ class SurveyListResponse(SQLModel):
 
 # ── Survey Submission schemas (Phase 1.5 — ready, auth-blocked) ─────────────
 
+
 class AnswerItem(SQLModel):
     """One answer record inside a survey submission, keyed by human-readable question_id."""
+
     question_id: str  # e.g. QSTN-000001
     answer_text: Optional[str] = Field(default=None, max_length=5000)
     answer_choice: Optional[str] = Field(default=None, max_length=255)
@@ -304,27 +312,34 @@ class AnswerItem(SQLModel):
 
 class SurveySubmission(SQLModel):
     """Body for POST /surveys/{survey_id}/respond (Phase 1.5, blocked on auth)."""
-    alumni_id: Optional[str] = None  # human-readable e.g. ALM-000001; optional for anonymous
+
+    alumni_id: Optional[str] = (
+        None  # human-readable e.g. ALM-000001; optional for anonymous
+    )
     answers: List[AnswerItem]
 
 
 # ── Results & Analytics schemas (Phase 1.6) ─────────────────────────────────
 
+
 class QuestionSummary(SQLModel):
     """Aggregated statistics for a single question."""
+
     question_id: str
     question_text: str
     question_type: str  # QuestionType value as string to avoid circular imports
     total_answers: int
 
     # MULTIPLE_CHOICE / MULTI_SELECT
-    choice_distribution: Optional[dict] = None  # e.g. {"Employed": 45, "Unemployed": 12}
+    choice_distribution: Optional[dict] = (
+        None  # e.g. {"Employed": 45, "Unemployed": 12}
+    )
 
     # SCALE / NUMBER
     average: Optional[float] = None
     distribution: Optional[dict] = None  # for SCALE e.g. {"1": 3, "2": 5, ...}
-    min_value: Optional[float] = None   # for NUMBER
-    max_value: Optional[float] = None   # for NUMBER
+    min_value: Optional[float] = None  # for NUMBER
+    max_value: Optional[float] = None  # for NUMBER
     median_value: Optional[float] = None  # for NUMBER
 
     # YES_NO
@@ -337,6 +352,7 @@ class QuestionSummary(SQLModel):
 
 class SurveyResultsSummary(SQLModel):
     """Top-level aggregated results for GET /surveys/{id}/results."""
+
     survey_id: str
     title: str
     total_responses: int
@@ -346,29 +362,35 @@ class SurveyResultsSummary(SQLModel):
 
 # ── Export schemas (Phase 1.6) ───────────────────────────────────────────────
 
+
 class SurveyExportResponse(SQLModel):
     """Raw data dump for GET /surveys/{id}/export."""
+
     survey_id: str
     title: str
     total_responses: int
-    responses: List[dict]  # each: {response_id, submitted_at, is_complete, alumni_id?, answers: [...]}
+    responses: List[
+        dict
+    ]  # each: {response_id, submitted_at, is_complete, alumni_id?, answers: [...]}
 
 
 # ── Non-respondent schemas (Phase 1.4B) ─────────────────────────────────────
 
+
 class NonRespondentPublic(SQLModel):
     """Alumni who received an invitation but haven't responded."""
+
     alumni_id: str
     first_name: str
     last_name: str
     invitation_id: str
     sent_at: Optional[datetime] = None
 
-    @field_serializer('sent_at')
+    @field_serializer("sent_at")
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         if value is None:
             return None
         if value.tzinfo is None:
             value = value.replace(tzinfo=timezone.utc)
         gmt8_time = value.astimezone(GMT8)
-        return gmt8_time.strftime('%Y-%m-%d %H:%M:%S')
+        return gmt8_time.strftime("%Y-%m-%d %H:%M:%S")

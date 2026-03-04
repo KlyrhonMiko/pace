@@ -16,18 +16,18 @@ class AlumniCreate(SQLModel):
     consent_for_survey_ml: bool = False
     student_code: Optional[str] = None  # kept Optional for flexible linking
 
-    @field_validator('gender', mode='before')
+    @field_validator("gender", mode="before")
     @classmethod
     def capitalize_gender(cls, v):
         if isinstance(v, str):
             return v.upper()
         return v
 
-    @field_validator('age')
+    @field_validator("age")
     @classmethod
     def validate_age(cls, v):
         if v < 0:
-            raise ValueError('Invalid age')
+            raise ValueError("Invalid age")
         return v
 
 
@@ -43,14 +43,14 @@ class AlumniPublic(SQLModel):
     created_at: datetime
     updated_at: datetime
 
-    @field_serializer('created_at', 'updated_at')
+    @field_serializer("created_at", "updated_at")
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         if value is None:
             return None
         if value.tzinfo is None:
             value = value.replace(tzinfo=timezone.utc)
         gmt8_time = value.astimezone(GMT8)
-        return gmt8_time.strftime('%Y-%m-%d %H:%M:%S')
+        return gmt8_time.strftime("%Y-%m-%d %H:%M:%S")
 
 
 class AlumniUpdate(SQLModel):
@@ -62,16 +62,16 @@ class AlumniUpdate(SQLModel):
     birthdate: Optional[date] = None
     consent_for_survey_ml: Optional[bool] = None
 
-    @field_validator('gender', mode='before')
+    @field_validator("gender", mode="before")
     @classmethod
     def capitalize_gender(cls, v):
         if v is not None and isinstance(v, str):
             return v.upper()
         return v
 
-    @field_validator('age')
+    @field_validator("age")
     @classmethod
     def validate_age(cls, v):
         if v is not None and v < 0:
-            raise ValueError('Invalid age')
+            raise ValueError("Invalid age")
         return v

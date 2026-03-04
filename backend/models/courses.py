@@ -15,7 +15,9 @@ class Course(CourseBase, table=True):
 
     course_id: str = Field(max_length=12, unique=True, index=True)
     course_code: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    college_dept_code: Optional[uuid.UUID] = Field(default=None, foreign_key="college_depts.college_dept_code", ondelete="SET NULL")
+    college_dept_code: Optional[uuid.UUID] = Field(
+        default=None, foreign_key="college_depts.college_dept_code", ondelete="SET NULL"
+    )
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     is_deleted: bool = Field(default=False)

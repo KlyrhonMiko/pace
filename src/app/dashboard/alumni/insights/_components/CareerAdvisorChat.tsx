@@ -36,14 +36,16 @@ function formatMessage(text: string) {
         if (processed.match(/^[\s]*[-•*]\s/)) {
             processed = processed.replace(
                 /^[\s]*[-•*]\s/,
-                '<span class="text-indigo-400 mr-1.5">•</span>'
+                ''
             );
             return (
-                <div
-                    key={i}
-                    className="flex items-start gap-0 pl-2 py-0.5"
-                    dangerouslySetInnerHTML={{ __html: processed }}
-                />
+                <div key={i} className="flex gap-2 py-0.5">
+                    <span className="text-indigo-400 mt-1 flex-shrink-0">•</span>
+                    <span
+                        className="break-words overflow-hidden"
+                        dangerouslySetInnerHTML={{ __html: processed }}
+                    />
+                </div>
             );
         }
 
@@ -52,7 +54,7 @@ function formatMessage(text: string) {
             return (
                 <div
                     key={i}
-                    className="pl-2 py-0.5"
+                    className="pl-2 py-0.5 break-words overflow-hidden"
                     dangerouslySetInnerHTML={{ __html: processed }}
                 />
             );
@@ -66,7 +68,7 @@ function formatMessage(text: string) {
         return (
             <div
                 key={i}
-                className="py-0.5"
+                className="py-0.5 break-words overflow-hidden"
                 dangerouslySetInnerHTML={{ __html: processed }}
             />
         );
@@ -96,15 +98,15 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 
             {/* Bubble */}
             <div
-                className={`flex-1 max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${isUser
+                className={`flex-1 max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed overflow-hidden ${isUser
                     ? "bg-gray-900 text-white rounded-tr-sm"
                     : "bg-gray-50 text-gray-700 border border-gray-100 rounded-tl-sm"
                     }`}
             >
                 {isUser ? (
-                    <p>{message.content}</p>
+                    <p className="break-words whitespace-pre-wrap">{message.content}</p>
                 ) : (
-                    <div className="space-y-0">{formatMessage(message.content)}</div>
+                    <div className="space-y-0 break-words [overflow-wrap:anywhere]">{formatMessage(message.content)}</div>
                 )}
             </div>
         </div>
@@ -196,8 +198,10 @@ export default function CareerAdvisorChat({
 
     const handleRetry = () => {
         clearChat();
-        // clearChat resets hasFailedInit and initRef, so the useEffect will re-trigger
     };
+
+    // Filter out hidden messages for rendering
+    const visibleMessages = messages.filter((m) => !m.hidden);
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -223,7 +227,7 @@ export default function CareerAdvisorChat({
                 </DialogHeader>
 
                 {/* Messages area */}
-                <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+                <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 min-w-0">
                     {/* Initial loading state */}
                     {!isInitialized && isLoading && (
                         <div className="flex flex-col items-center justify-center h-full gap-4">
@@ -270,8 +274,8 @@ export default function CareerAdvisorChat({
                         </div>
                     )}
 
-                    {/* Messages */}
-                    {messages.map((msg) => (
+                    {/* Visible messages only */}
+                    {visibleMessages.map((msg) => (
                         <MessageBubble key={msg.id} message={msg} />
                     ))}
 
@@ -282,15 +286,15 @@ export default function CareerAdvisorChat({
                     {error && !hasFailedInit && (
                         <div className="flex items-start gap-2 p-3 rounded-xl bg-red-50 border border-red-100 text-sm text-red-700">
                             <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                            <div>
+                            <div className="min-w-0">
                                 <p className="font-medium">Something went wrong</p>
-                                <p className="text-xs text-red-600 mt-0.5">{error}</p>
+                                <p className="text-xs text-red-600 mt-0.5 break-words">{error}</p>
                             </div>
                         </div>
                     )}
 
                     {/* Suggestion chips — show after initial analysis */}
-                    {isInitialized && !isLoading && messages.length <= 1 && (
+                    {isInitialized && !isLoading && visibleMessages.length <= 1 && (
                         <div className="space-y-2 pt-2">
                             <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">
                                 Try asking...

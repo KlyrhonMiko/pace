@@ -10,6 +10,7 @@ export interface ChatMessage {
     role: "user" | "assistant";
     content: string;
     timestamp: Date;
+    hidden?: boolean;
 }
 
 interface UseCareerAdvisorReturn {
@@ -37,12 +38,14 @@ export function useCareerAdvisor(
 
     const createMessage = (
         role: "user" | "assistant",
-        content: string
+        content: string,
+        hidden?: boolean
     ): ChatMessage => ({
         id: `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         role,
         content,
         timestamp: new Date(),
+        hidden: hidden || false,
     });
 
     const callAPI = useCallback(
@@ -107,14 +110,15 @@ export function useCareerAdvisor(
 
         const initialPrompt = createMessage(
             "user",
-            "Please analyze my employability insights and give me an overview of my career readiness. Highlight my strongest areas, areas needing improvement, and give me 2-3 specific action items I can start working on right away."
+            "Please analyze my employability insights and give me an overview of my career readiness. Highlight my strongest areas, areas needing improvement, and give me 2-3 specific action items I can start working on right away.",
+            true // hidden — don't show in UI but keep in history for Gemini
         );
 
         try {
             const reply = await callAPI([initialPrompt]);
             const aiMessage = createMessage("assistant", reply);
-            // Don't show the initial prompt in the UI — only show the AI's analysis
-            setMessages([aiMessage]);
+            // Store BOTH the hidden user prompt and AI response so history starts with 'user'
+            setMessages([initialPrompt, aiMessage]);
             setIsInitialized(true);
         } catch (err) {
             const errorMessage =

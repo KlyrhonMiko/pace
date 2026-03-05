@@ -2,8 +2,17 @@
 
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
+import { EmployabilityResult } from "../../_lib/api";
+import AskAIButton from "./AskAIButton";
 
-export default function InsightsHeader() {
+interface InsightsHeaderProps {
+    isDemo?: boolean;
+    predictionData?: EmployabilityResult | null;
+}
+
+export default function InsightsHeader({
+    predictionData,
+}: InsightsHeaderProps) {
     return (
         <div className="rounded-2xl bg-white border border-gray-100 overflow-hidden shadow-sm">
             <div className="px-8 py-6">
@@ -28,6 +37,11 @@ export default function InsightsHeader() {
                             AI-powered analysis of your career readiness and growth areas
                         </p>
                     </div>
+
+                    {/* Ask AI Button */}
+                    {predictionData && (
+                        <AskAIButton insightsData={predictionData} />
+                    )}
                 </div>
             </div>
         </div>

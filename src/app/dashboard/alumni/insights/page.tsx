@@ -63,7 +63,7 @@ export default async function InsightsPage() {
     return (
         <div className="space-y-6">
             {/* Page Header */}
-            <InsightsHeader isDemo={isDemoData} />
+            <InsightsHeader isDemo={isDemoData} predictionData={predictionData} />
 
             {/* Core Metrics — Score Overview + Top Factors */}
             <div className="grid gap-6 lg:grid-cols-5">

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Bot, Send, User, Sparkles, AlertCircle, Loader2, RotateCcw } from "lucide-react";
 
-// ── Quick suggestion chips ─────────────────────────────────────
+// ── Constants ──────────────────────────────────────────────────
 
 const SUGGESTIONS = [
     "What career paths suit my profile?",
@@ -21,56 +21,61 @@ const SUGGESTIONS = [
     "Give me a 90-day improvement plan",
 ];
 
+const AI_GRADIENT = "bg-gradient-to-br from-emerald-500 to-green-600";
+const AI_SHADOW = "shadow-md shadow-emerald-500/20";
+
+// ── Shared avatar ──────────────────────────────────────────────
+
+function ChatAvatar({ variant, size = "sm" }: { variant: "ai" | "user"; size?: "sm" | "lg" }) {
+    const dim = size === "sm" ? "h-8 w-8 rounded-xl" : "h-10 w-10 rounded-xl";
+    const icon = size === "sm" ? "h-4 w-4" : "h-5 w-5";
+
+    if (variant === "user") {
+        return (
+            <div className={`flex items-center justify-center ${dim} bg-gray-900 text-white flex-shrink-0`}>
+                <User className={icon} strokeWidth={2} />
+            </div>
+        );
+    }
+
+    return (
+        <div className={`flex items-center justify-center ${dim} ${AI_GRADIENT} ${AI_SHADOW} text-white flex-shrink-0`}>
+            <Bot className={icon} strokeWidth={2} />
+        </div>
+    );
+}
+
 // ── Markdown-lite renderer ─────────────────────────────────────
 
 function formatMessage(text: string) {
-    // Split text into lines and process basic markdown
     return text.split("\n").map((line, i) => {
-        // Bold text
-        let processed = line.replace(
+        const processed = line.replace(
             /\*\*(.*?)\*\*/g,
             '<strong class="font-semibold">$1</strong>'
         );
 
-        // Bullet points
         if (processed.match(/^[\s]*[-•*]\s/)) {
-            processed = processed.replace(
-                /^[\s]*[-•*]\s/,
-                ''
-            );
             return (
                 <div key={i} className="flex gap-2 py-0.5">
-                    <span className="text-indigo-400 mt-1 flex-shrink-0">•</span>
+                    <span className="text-emerald-500 mt-1 flex-shrink-0">•</span>
                     <span
                         className="break-words overflow-hidden"
-                        dangerouslySetInnerHTML={{ __html: processed }}
+                        dangerouslySetInnerHTML={{ __html: processed.replace(/^[\s]*[-•*]\s/, "") }}
                     />
                 </div>
             );
         }
 
-        // Numbered lists
         if (processed.match(/^[\s]*\d+\.\s/)) {
             return (
-                <div
-                    key={i}
-                    className="pl-2 py-0.5 break-words overflow-hidden"
-                    dangerouslySetInnerHTML={{ __html: processed }}
-                />
+                <div key={i} className="pl-2 py-0.5 break-words overflow-hidden" dangerouslySetInnerHTML={{ __html: processed }} />
             );
         }
 
-        // Empty lines → small spacer
-        if (!processed.trim()) {
-            return <div key={i} className="h-2" />;
-        }
+        if (!processed.trim()) return <div key={i} className="h-2" />;
 
         return (
-            <div
-                key={i}
-                className="py-0.5 break-words overflow-hidden"
-                dangerouslySetInnerHTML={{ __html: processed }}
-            />
+            <div key={i} className="py-0.5 break-words overflow-hidden" dangerouslySetInnerHTML={{ __html: processed }} />
         );
     });
 }
@@ -82,26 +87,14 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 
     return (
         <div className={`flex gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
-            {/* Avatar */}
-            <div
-                className={`flex h-8 w-8 items-center justify-center rounded-xl flex-shrink-0 ${isUser
-                    ? "bg-gray-900 text-white"
-                    : "bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-md shadow-indigo-500/20"
-                    }`}
-            >
-                {isUser ? (
-                    <User className="h-4 w-4" strokeWidth={2} />
-                ) : (
-                    <Bot className="h-4 w-4" strokeWidth={2} />
-                )}
-            </div>
+            <ChatAvatar variant={isUser ? "user" : "ai"} />
 
-            {/* Bubble */}
             <div
-                className={`flex-1 max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed overflow-hidden ${isUser
-                    ? "bg-gray-900 text-white rounded-tr-sm"
-                    : "bg-gray-50 text-gray-700 border border-gray-100 rounded-tl-sm"
-                    }`}
+                className={`flex-1 max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed overflow-hidden ${
+                    isUser
+                        ? "bg-gray-900 text-white rounded-tr-sm"
+                        : "bg-gray-50 text-gray-700 border border-gray-100 rounded-tl-sm"
+                }`}
             >
                 {isUser ? (
                     <p className="break-words whitespace-pre-wrap">{message.content}</p>
@@ -118,14 +111,12 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 function LoadingBubble() {
     return (
         <div className="flex gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-md shadow-indigo-500/20 flex-shrink-0">
-                <Bot className="h-4 w-4" strokeWidth={2} />
-            </div>
+            <ChatAvatar variant="ai" />
             <div className="bg-gray-50 border border-gray-100 rounded-2xl rounded-tl-sm px-4 py-3">
                 <div className="flex items-center gap-1.5">
-                    <div className="h-2 w-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:0ms]" />
-                    <div className="h-2 w-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:150ms]" />
-                    <div className="h-2 w-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:300ms]" />
+                    {[0, 150, 300].map((delay) => (
+                        <div key={delay} className={`h-2 w-2 bg-emerald-400 rounded-full animate-bounce [animation-delay:${delay}ms]`} />
+                    ))}
                 </div>
             </div>
         </div>
@@ -212,7 +203,7 @@ export default function CareerAdvisorChat({
                 {/* Header */}
                 <DialogHeader className="px-6 py-4 border-b border-gray-100 flex-shrink-0">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/25">
+                        <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${AI_GRADIENT} text-white shadow-lg shadow-emerald-500/25`}>
                             <Sparkles className="h-5 w-5" strokeWidth={2} />
                         </div>
                         <div>
@@ -220,7 +211,7 @@ export default function CareerAdvisorChat({
                                 AI Career Advisor
                             </DialogTitle>
                             <DialogDescription className="text-xs text-gray-500 mt-0.5">
-                                Personalized career guidance based on your insights
+                                Powered by Gemini · Personalized career guidance
                             </DialogDescription>
                         </div>
                     </div>
@@ -231,21 +222,12 @@ export default function CareerAdvisorChat({
                     {/* Initial loading state */}
                     {!isInitialized && isLoading && (
                         <div className="flex flex-col items-center justify-center h-full gap-4">
-                            <div className="relative">
-                                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-xl shadow-indigo-500/25">
-                                    <Sparkles
-                                        className="h-8 w-8 animate-pulse"
-                                        strokeWidth={1.5}
-                                    />
-                                </div>
+                            <div className={`flex h-16 w-16 items-center justify-center rounded-2xl ${AI_GRADIENT} text-white shadow-xl shadow-emerald-500/25`}>
+                                <Sparkles className="h-8 w-8 animate-pulse" strokeWidth={1.5} />
                             </div>
                             <div className="text-center">
-                                <p className="text-sm font-medium text-gray-900">
-                                    Analyzing your insights...
-                                </p>
-                                <p className="text-xs text-gray-500 mt-1">
-                                    Preparing personalized career guidance
-                                </p>
+                                <p className="text-sm font-medium text-gray-900">Analyzing your insights...</p>
+                                <p className="text-xs text-gray-500 mt-1">Preparing personalized career guidance</p>
                             </div>
                         </div>
                     )}
@@ -296,17 +278,15 @@ export default function CareerAdvisorChat({
                     {/* Suggestion chips — show after initial analysis */}
                     {isInitialized && !isLoading && visibleMessages.length <= 1 && (
                         <div className="space-y-2 pt-2">
-                            <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">
-                                Try asking...
-                            </p>
+                            <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Try asking...</p>
                             <div className="flex flex-wrap gap-2">
-                                {SUGGESTIONS.map((suggestion) => (
+                                {SUGGESTIONS.map((s) => (
                                     <button
-                                        key={suggestion}
-                                        onClick={() => handleSuggestion(suggestion)}
-                                        className="text-xs px-3 py-1.5 rounded-full bg-white border border-gray-200 text-gray-600 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 transition-all duration-200 cursor-pointer"
+                                        key={s}
+                                        onClick={() => handleSuggestion(s)}
+                                        className="text-xs px-3 py-1.5 rounded-full bg-white border border-gray-200 text-gray-600 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-all duration-200 cursor-pointer"
                                     >
-                                        {suggestion}
+                                        {s}
                                     </button>
                                 ))}
                             </div>
@@ -333,7 +313,7 @@ export default function CareerAdvisorChat({
                                     : "Analyzing your data..."
                             }
                             disabled={!isInitialized || isLoading || hasFailedInit}
-                            className="flex-1 h-10 rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                            className="flex-1 h-10 rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                         />
                         <button
                             onClick={handleSend}

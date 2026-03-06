@@ -49,6 +49,22 @@ function ChatAvatar({ variant, size = "sm" }: { variant: "ai" | "user"; size?: "
 
 function formatMessage(text: string) {
     return text.split("\n").map((line, i) => {
+        // ── Headers ────────────────────────────────────────
+        const headerMatch = line.match(/^(#{1,4})\s+(.*)/);
+        if (headerMatch) {
+            const content = headerMatch[2].replace(
+                /\*\*(.*?)\*\*/g,
+                '<strong class="font-semibold">$1</strong>'
+            );
+            return (
+                <div
+                    key={i}
+                    className="pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-200 mb-1"
+                    dangerouslySetInnerHTML={{ __html: content }}
+                />
+            );
+        }
+
         const processed = line.replace(
             /\*\*(.*?)\*\*/g,
             '<strong class="font-semibold">$1</strong>'

@@ -110,7 +110,7 @@ export function useCareerAdvisor(
 
         const initialPrompt = createMessage(
             "user",
-            "Please analyze my employability insights and give me an overview of my career readiness. Highlight my strongest areas, areas needing improvement, and give me 2-3 specific action items I can start working on right away.",
+            "As a graduate, please analyze my employability insights and give me an overview of where I stand in the job market. Highlight my strongest areas, key areas for growth, and suggest 2-3 specific action items I can start working on right away to strengthen my career prospects.",
             true // hidden — don't show in UI but keep in history for Gemini
         );
 

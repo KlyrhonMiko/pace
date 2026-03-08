@@ -1,10 +1,10 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional, Any
 from sqlmodel import SQLModel, Field, Column
 from sqlalchemy import JSON
 from pydantic import field_serializer, field_validator
-from utils.timezone import get_current_time_gmt8, GMT8
+from utils.timezone import format_datetime_gmt8, get_current_time_gmt8, get_current_year_gmt8
 
 
 # ──────────────────────────────────────────────────────────────
@@ -114,7 +114,7 @@ class EmployabilityInput(SQLModel):
     @field_validator("year_graduated")
     @classmethod
     def validate_year(cls, v: int) -> int:
-        current_year = datetime.now().year
+        current_year = get_current_year_gmt8()
         if v > current_year:
             raise ValueError(
                 f"Year graduated cannot be in the future (max: {current_year})"
@@ -237,9 +237,4 @@ class EmployabilityPredictionRead(SQLModel):
 
     @field_serializer("created_at")
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
-        if value is None:
-            return None
-        if value.tzinfo is None:
-            value = value.replace(tzinfo=timezone.utc)
-        gmt8_time = value.astimezone(GMT8)
-        return gmt8_time.strftime("%Y-%m-%d %H:%M:%S")
+        return format_datetime_gmt8(value)

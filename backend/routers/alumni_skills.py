@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 from sqlalchemy.exc import IntegrityError
 from core.database import get_session
+from core.redis import cache_get_or_set, generate_cache_key, invalidate_cache_namespaces
 from schemas.alumni_skills import (
     AlumniSkillsCreate, AlumniSkillsUpdate, AlumniSkillsPublic,
     AlumniSkillsBatchCreate, AlumniSkillsBatchUpdate,
@@ -18,6 +19,9 @@ from services.queries.alumni_skills_queries import (
 )
 
 router = APIRouter(prefix="/alumni-skills", tags=["alumni-skills"])
+ALUMNI_SKILLS_CACHE_NAMESPACE = "alumni_skills"
+ALUMNI_SKILLS_DETAIL_TTL = 300
+ALUMNI_SKILLS_DETAIL_CACHE_VERSION = "v3"
 
 
 # ---------------------------------------------------------------------------
@@ -31,6 +35,7 @@ def batch_create_alumni_skills_route(
 ):
     """Batch create alumni skill records"""
     response = batch_create_alumni_skills(session, batch_data.items)
+    invalidate_cache_namespaces(ALUMNI_SKILLS_CACHE_NAMESPACE)
     return StandardResponse(
         success=response.failed == 0,
         code=SuccessCode.ALUMNI_SKILLS_BATCH_CREATED.value,
@@ -46,6 +51,7 @@ def batch_update_alumni_skills_route(
 ):
     """Batch update alumni skill records"""
     response = batch_update_alumni_skills(session, batch_data.items)
+    invalidate_cache_namespaces(ALUMNI_SKILLS_CACHE_NAMESPACE)
     return StandardResponse(
         success=response.failed == 0,
         code=SuccessCode.ALUMNI_SKILLS_BATCH_UPDATED.value,
@@ -66,6 +72,7 @@ def create_alumni_skills_route(
     """Create a skills record for an alumni"""
     try:
         skills = create_alumni_skills(session, data)
+        invalidate_cache_namespaces(ALUMNI_SKILLS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
             code=SuccessCode.ALUMNI_SKILLS_CREATED.value,
@@ -114,22 +121,14 @@ def get_alumni_skills_route(
     session: Session = Depends(get_session),
 ):
     """Get the skills record for a specific alumni"""
-    skills = get_alumni_skills_by_alumni_id(session, alumni_id)
-    if not skills:
-        log_error("alumni_skills", "get", ErrorCode.ALUMNI_SKILLS_NOT_FOUND.value, f"Skills record for alumni {alumni_id} not found")
-        raise HTTPException(
-            status_code=404,
-            detail=StandardResponse(
-                success=False,
-                code=ErrorCode.ALUMNI_SKILLS_NOT_FOUND.value,
-                message="Skills record not found for this alumni",
-            ).model_dump(mode="json"),
-        )
-    return StandardResponse(
-        success=True,
-        code=SuccessCode.ALUMNI_SKILLS_RETRIEVED.value,
-        message=f"Skills record for alumni '{alumni_id.upper()}' retrieved successfully",
-        data=AlumniSkillsPublic.model_validate(skills),
+    cache_key = generate_cache_key(
+        f"{ALUMNI_SKILLS_CACHE_NAMESPACE}:detail:{ALUMNI_SKILLS_DETAIL_CACHE_VERSION}",
+        alumni_id=alumni_id,
+    )
+    return cache_get_or_set(
+        cache_key,
+        lambda: _build_alumni_skills_response(session, alumni_id),
+        ttl=ALUMNI_SKILLS_DETAIL_TTL,
     )
 
 
@@ -153,6 +152,7 @@ def update_alumni_skills_route(
         )
     try:
         updated = update_alumni_skills(session, skills, data)
+        invalidate_cache_namespaces(ALUMNI_SKILLS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
             code=SuccessCode.ALUMNI_SKILLS_UPDATED.value,
@@ -190,6 +190,7 @@ def delete_alumni_skills_route(
         )
     try:
         delete_alumni_skills(session, skills)
+        invalidate_cache_namespaces(ALUMNI_SKILLS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
             code=SuccessCode.ALUMNI_SKILLS_DELETED.value,
@@ -205,3 +206,23 @@ def delete_alumni_skills_route(
                 message="Delete failed: Constraint violation or invalid operation",
             ).model_dump(mode="json"),
         )
+
+
+def _build_alumni_skills_response(session: Session, alumni_id: str) -> StandardResponse:
+    skills = get_alumni_skills_by_alumni_id(session, alumni_id)
+    if not skills:
+        log_error("alumni_skills", "get", ErrorCode.ALUMNI_SKILLS_NOT_FOUND.value, f"Skills record for alumni {alumni_id} not found")
+        raise HTTPException(
+            status_code=404,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.ALUMNI_SKILLS_NOT_FOUND.value,
+                message="Skills record not found for this alumni",
+            ).model_dump(mode="json"),
+        )
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.ALUMNI_SKILLS_RETRIEVED.value,
+        message=f"Skills record for alumni '{alumni_id.upper()}' retrieved successfully",
+        data=AlumniSkillsPublic.model_validate(skills),
+    )

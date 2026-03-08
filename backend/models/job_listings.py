@@ -2,6 +2,7 @@ from sqlmodel import SQLModel, Field
 from typing import Optional
 from datetime import datetime
 from enum import Enum
+from utils.timezone import get_current_time_gmt8
 
 class JobType(str, Enum):
     FULL_TIME = "Full-time"
@@ -31,7 +32,7 @@ class JobListingBase(SQLModel):
     salary_min: Optional[int] = None
     salary_max: Optional[int] = None
     raw_salary: Optional[str] = None
-    posted_at: datetime = Field(default_factory=datetime.utcnow)
+    posted_at: datetime = Field(default_factory=get_current_time_gmt8)
     source_api: Optional[str] = None
     external_id: Optional[str] = None
     source_url: Optional[str] = None
@@ -40,8 +41,8 @@ class JobListingBase(SQLModel):
 class JobListing(JobListingBase, table=True):
     __tablename__ = "job_listings"
     id: Optional[int] = Field(default=None, primary_key=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=get_current_time_gmt8)
+    updated_at: datetime = Field(default_factory=get_current_time_gmt8)
 
 class JobListingCreate(JobListingBase):
     pass

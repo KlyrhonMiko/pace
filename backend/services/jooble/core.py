@@ -2,10 +2,6 @@ import httpx
 import math
 import asyncio
 import traceback
-import httpx
-import math
-import asyncio
-import traceback
 from typing import Optional
 from datetime import datetime, timedelta
 
@@ -21,6 +17,7 @@ from core.redis import (
 )
 from models.job_listings import JobListing
 from fastapi import BackgroundTasks
+from utils.timezone import get_current_time_gmt8
 
 from .constants import JOOBLE_API_URL, JOOBLE_BATCH_SIZE
 from .facets import _get_facet_counts
@@ -215,7 +212,7 @@ async def fetch_jobs(
                     salary=salary,
                     start_page=page_num + 1,
                     total_count=total_available,
-                    fetch_start_time=datetime.utcnow(),
+                    fetch_start_time=get_current_time_gmt8(),
                     job_type=job_type,
                     has_salary=has_salary,
                 )
@@ -315,7 +312,7 @@ async def fetch_all_remaining_jobs(
     MAX_JOBS_LIMIT = 5000  # Fetch up to 5000 jobs in background
 
     if fetch_start_time is None:
-        fetch_start_time = datetime.utcnow()
+        fetch_start_time = get_current_time_gmt8()
 
     real_limit = min(total_count, MAX_JOBS_LIMIT)
     total_pages = math.ceil(real_limit / JOOBLE_BATCH_SIZE)

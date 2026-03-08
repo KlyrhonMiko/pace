@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
 from sqlalchemy.exc import IntegrityError
 from core.database import get_session
+from core.redis import cache_get_or_set, generate_cache_key, invalidate_cache_namespaces
 from schemas.courses import (
     CourseCreate, CourseUpdate, CoursePublic,
     CourseBatchCreate, CourseBatchUpdate, CourseBatchDelete, CourseBatchRestore,
@@ -17,6 +18,9 @@ from services.queries.courses_queries import (
 )
 
 router = APIRouter(prefix="/courses", tags=["courses"])
+COURSES_CACHE_NAMESPACE = "courses"
+COURSES_LIST_TTL = 1800
+COURSES_DETAIL_TTL = 1800
 
 
 # ---------------------------------------------------------------------------
@@ -30,6 +34,7 @@ def batch_create_courses_route(
 ):
     """Batch create courses"""
     response = batch_create_courses(session, batch_data.items)
+    invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
         code=SuccessCode.COURSES_BATCH_CREATED.value,
@@ -45,6 +50,7 @@ def batch_update_courses_route(
 ):
     """Batch update courses"""
     response = batch_update_courses(session, batch_data.items)
+    invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
         code=SuccessCode.COURSES_BATCH_UPDATED.value,
@@ -60,6 +66,7 @@ def batch_delete_courses_route(
 ):
     """Batch delete courses"""
     response = batch_delete_courses(session, batch_data.ids)
+    invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
         code=SuccessCode.COURSES_BATCH_DELETED.value,
@@ -75,6 +82,7 @@ def batch_restore_courses_route(
 ):
     """Restore multiple soft-deleted courses"""
     response = batch_restore_courses(session, data.ids)
+    invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
         code=SuccessCode.COURSES_BATCH_RESTORED.value,
@@ -87,7 +95,7 @@ def batch_restore_courses_route(
 # List endpoints
 # ---------------------------------------------------------------------------
 
-@router.get("")
+@router.get("", response_model=StandardResponse)
 def get_all_courses_route(
     limit: int = Query(10, ge=0, description="Records per page (0 = all records)"),
     offset: int = Query(0, ge=0, description="Number of records to skip"),
@@ -99,23 +107,26 @@ def get_all_courses_route(
     session: Session = Depends(get_session)
 ):
     """Get all courses with filtering, searching, and sorting"""
-    courses, total = get_all_courses(
-        session, limit, offset, search, college_dept_abbv, include_deleted, sort_by, sort_order
+    cache_key = generate_cache_key(
+        f"{COURSES_CACHE_NAMESPACE}:list",
+        limit=limit,
+        offset=offset,
+        search=search,
+        college_dept_abbv=college_dept_abbv,
+        include_deleted=include_deleted,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
-    returned = len(courses)
-    pagination = PaginationMetadata(
-        total=total, limit=limit, offset=offset, returned=returned,
-        has_next=(offset + returned) < total if limit > 0 else False
-    )
-    return StandardResponse(
-        success=True,
-        code=SuccessCode.COURSES_RETRIEVED.value,
-        message=f"Retrieved {returned} courses",
-        data={"courses": courses, "pagination": pagination}
+    return cache_get_or_set(
+        cache_key,
+        lambda: _build_courses_list_response(
+            session, limit, offset, search, college_dept_abbv, include_deleted, sort_by, sort_order
+        ),
+        ttl=COURSES_LIST_TTL,
     )
 
 
-@router.get("/deleted/list")
+@router.get("/deleted/list", response_model=PaginatedResponse)
 def get_deleted_courses(
     limit: int = Query(10, ge=0),
     offset: int = Query(0, ge=0),
@@ -125,25 +136,22 @@ def get_deleted_courses(
     session: Session = Depends(get_session)
 ):
     """Get all soft-deleted courses"""
-    courses, total = get_all_courses(
-        session, limit, offset, search, None, include_deleted=True, sort_by=sort_by, sort_order=sort_order
+    cache_key = generate_cache_key(
+        f"{COURSES_CACHE_NAMESPACE}:deleted",
+        limit=limit,
+        offset=offset,
+        search=search,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
-    deleted = [c for c in courses if c.is_deleted]
-    returned = len(courses)
-    pagination = PaginationMetadata(
-        total=total, limit=limit, offset=offset, returned=returned,
-        has_next=(offset + returned) < total if limit > 0 else False
-    )
-    return PaginatedResponse(
-        success=True,
-        code=SuccessCode.COURSES_RETRIEVED.value,
-        message=f"Retrieved {returned} deleted courses",
-        data=courses,
-        pagination=pagination
+    return cache_get_or_set(
+        cache_key,
+        lambda: _build_deleted_courses_response(session, limit, offset, search, sort_by, sort_order),
+        ttl=COURSES_LIST_TTL,
     )
 
 
-@router.get("/all/list")
+@router.get("/all/list", response_model=PaginatedResponse)
 def get_all_courses_including_deleted(
     limit: int = Query(10, ge=0),
     offset: int = Query(0, ge=0),
@@ -154,21 +162,19 @@ def get_all_courses_including_deleted(
     session: Session = Depends(get_session)
 ):
     """Get all courses including soft-deleted"""
-    courses, total = get_all_courses(
-        session, limit, offset, search, college_dept_abbv, include_deleted=True,
-        sort_by=sort_by, sort_order=sort_order
+    cache_key = generate_cache_key(
+        f"{COURSES_CACHE_NAMESPACE}:all",
+        limit=limit,
+        offset=offset,
+        search=search,
+        college_dept_abbv=college_dept_abbv,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
-    returned = len(courses)
-    pagination = PaginationMetadata(
-        total=total, limit=limit, offset=offset, returned=returned,
-        has_next=(offset + returned) < total if limit > 0 else False
-    )
-    return PaginatedResponse(
-        success=True,
-        code=SuccessCode.COURSES_RETRIEVED.value,
-        message=f"Retrieved {returned} courses (including deleted)",
-        data=courses,
-        pagination=pagination
+    return cache_get_or_set(
+        cache_key,
+        lambda: _build_all_courses_response(session, limit, offset, search, college_dept_abbv, sort_by, sort_order),
+        ttl=COURSES_LIST_TTL,
     )
 
 
@@ -184,6 +190,7 @@ def create_course_route(
     """Create a new course"""
     try:
         new_course, college_dept = create_course(session, course_data)
+        invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True,
             code=SuccessCode.COURSE_CREATED.value,
@@ -210,22 +217,14 @@ def create_course_route(
         raise HTTPException(status_code=400, detail=StandardResponse(success=False, code=code, message=msg).model_dump(mode='json'))
 
 
-@router.get("/{course_id}")
+@router.get("/{course_id}", response_model=StandardResponse)
 def get_course(course_id: str, session: Session = Depends(get_session)):
     """Get a specific course by course_id"""
-    course = get_course_by_id(session, course_id)
-    if not course:
-        log_error("courses", "get_course", ErrorCode.COURSE_NOT_FOUND.value, f"Course {course_id} not found")
-        raise HTTPException(status_code=404, detail=StandardResponse(
-            success=False, code=ErrorCode.COURSE_NOT_FOUND.value, message="Course not found"
-        ).model_dump(mode='json'))
-
-    from services.queries.courses_queries import get_college_dept_by_code
-    college_dept = get_college_dept_by_code(session, course.college_dept_code)
-    return StandardResponse(
-        success=True, code=SuccessCode.COURSE_RETRIEVED.value,
-        message=f"Course {course_id} retrieved successfully",
-        data=build_course_public(course, college_dept)
+    cache_key = generate_cache_key(f"{COURSES_CACHE_NAMESPACE}:detail", course_id=course_id)
+    return cache_get_or_set(
+        cache_key,
+        lambda: _build_course_detail_response(session, course_id),
+        ttl=COURSES_DETAIL_TTL,
     )
 
 
@@ -245,6 +244,7 @@ def update_course_route(
 
     try:
         updated_course, college_dept = update_course(session, course, course_data)
+        invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.COURSE_UPDATED.value,
             message="Course updated successfully",
@@ -292,6 +292,7 @@ def delete_course(course_id: str, session: Session = Depends(get_session)):
 
     try:
         soft_delete_course(session, course)
+        invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.COURSE_DELETED.value,
             message=f"Course {course_id} deleted successfully"
@@ -323,6 +324,7 @@ def restore_course_route(course_id: str, session: Session = Depends(get_session)
 
     try:
         restore_course(session, course)
+        invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.COURSE_RESTORED.value,
             message=f"Course {course_id} restored successfully"
@@ -334,3 +336,106 @@ def restore_course_route(course_id: str, session: Session = Depends(get_session)
             success=False, code=ErrorCode.INVALID_INPUT.value,
             message="Restore failed: Constraint violation or invalid operation"
         ).model_dump(mode='json'))
+
+
+def _build_courses_list_response(
+    session: Session,
+    limit: int,
+    offset: int,
+    search: str | None,
+    college_dept_abbv: str | None,
+    include_deleted: bool,
+    sort_by: str,
+    sort_order: str,
+) -> StandardResponse:
+    courses, total = get_all_courses(
+        session, limit, offset, search, college_dept_abbv, include_deleted, sort_by, sort_order
+    )
+    returned = len(courses)
+    pagination = PaginationMetadata(
+        total=total, limit=limit, offset=offset, returned=returned,
+        has_next=(offset + returned) < total if limit > 0 else False
+    )
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.COURSES_RETRIEVED.value,
+        message=f"Retrieved {returned} courses",
+        data={"courses": courses, "pagination": pagination}
+    )
+
+
+def _build_deleted_courses_response(
+    session: Session,
+    limit: int,
+    offset: int,
+    search: str | None,
+    sort_by: str,
+    sort_order: str,
+) -> PaginatedResponse:
+    courses, total = get_all_courses(
+        session,
+        limit,
+        offset,
+        search,
+        None,
+        include_deleted=True,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        deleted_only=True,
+    )
+    returned = len(courses)
+    pagination = PaginationMetadata(
+        total=total, limit=limit, offset=offset, returned=returned,
+        has_next=(offset + returned) < total if limit > 0 else False
+    )
+    return PaginatedResponse(
+        success=True,
+        code=SuccessCode.COURSES_RETRIEVED.value,
+        message=f"Retrieved {returned} deleted courses",
+        data=courses,
+        pagination=pagination
+    )
+
+
+def _build_all_courses_response(
+    session: Session,
+    limit: int,
+    offset: int,
+    search: str | None,
+    college_dept_abbv: str | None,
+    sort_by: str,
+    sort_order: str,
+) -> PaginatedResponse:
+    courses, total = get_all_courses(
+        session, limit, offset, search, college_dept_abbv, include_deleted=True,
+        sort_by=sort_by, sort_order=sort_order
+    )
+    returned = len(courses)
+    pagination = PaginationMetadata(
+        total=total, limit=limit, offset=offset, returned=returned,
+        has_next=(offset + returned) < total if limit > 0 else False
+    )
+    return PaginatedResponse(
+        success=True,
+        code=SuccessCode.COURSES_RETRIEVED.value,
+        message=f"Retrieved {returned} courses (including deleted)",
+        data=courses,
+        pagination=pagination
+    )
+
+
+def _build_course_detail_response(session: Session, course_id: str) -> StandardResponse:
+    course = get_course_by_id(session, course_id)
+    if not course:
+        log_error("courses", "get_course", ErrorCode.COURSE_NOT_FOUND.value, f"Course {course_id} not found")
+        raise HTTPException(status_code=404, detail=StandardResponse(
+            success=False, code=ErrorCode.COURSE_NOT_FOUND.value, message="Course not found"
+        ).model_dump(mode='json'))
+
+    from services.queries.courses_queries import get_college_dept_by_code
+    college_dept = get_college_dept_by_code(session, course.college_dept_code)
+    return StandardResponse(
+        success=True, code=SuccessCode.COURSE_RETRIEVED.value,
+        message=f"Course {course_id} retrieved successfully",
+        data=build_course_public(course, college_dept)
+    )

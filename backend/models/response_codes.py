@@ -2,7 +2,7 @@ from enum import Enum
 from pydantic import BaseModel, Field, field_serializer
 from typing import Optional, Any
 from datetime import datetime
-from utils.timezone import get_current_time_gmt8
+from utils.timezone import format_datetime_gmt8, get_current_time_gmt8
 
 # Response codes for API endpoints
 
@@ -282,8 +282,8 @@ class StandardResponse(BaseModel):
 
     @field_serializer("timestamp")
     def serialize_timestamp(self, value: datetime) -> str:
-        """Serialize timestamp as YYYY-MM-DD HH:MM:SS"""
-        return value.strftime("%Y-%m-%d %H:%M:%S")
+        """Serialize timestamp using the shared GMT+8 display format."""
+        return format_datetime_gmt8(value)
 
 
 class ErrorResponse(BaseModel):

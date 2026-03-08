@@ -2,10 +2,17 @@
 Redis cache management for job listings
 """
 import json
-import redis
+import logging
 import os
-from typing import Optional, Any
-from datetime import timedelta
+from typing import Any, Callable, Optional, TypeVar
+
+import redis
+from fastapi.encoders import jsonable_encoder
+from pydantic import BaseModel
+
+
+logger = logging.getLogger(__name__)
+CacheValue = TypeVar("CacheValue")
 
 # Redis connection
 redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
@@ -16,9 +23,9 @@ try:
     if redis_client is not None:
         # Test connection
         redis_client.ping()
-        print("[CACHE] Redis connected successfully")
+        logger.info("Redis connected successfully")
 except Exception as e:
-    print(f"[CACHE ERROR] Failed to connect to Redis: {e}")
+    logger.warning("Failed to connect to Redis: %s", e)
     redis_client = None
 
 
@@ -55,23 +62,22 @@ def cache_get(key: str) -> Optional[dict]:
         Cached data as dict or None if not found
     """
     if not redis_client:
-        print(f"[CACHE] Redis not connected")
+        logger.debug("Redis not connected; skipping cache read for key '%s'", key)
         return None
     
     try:
         data = redis_client.get(key)
         if data:
-            print(f"[CACHE HIT] {key}")
+            logger.debug("Cache hit for key '%s'", key)
             return json.loads(data) # type: ignore
-        else:
-            print(f"[CACHE MISS] {key}")
+        logger.debug("Cache miss for key '%s'", key)
     except Exception as e:
-        print(f"[CACHE ERROR] Error retrieving cache key '{key}': {e}")
+        logger.warning("Error retrieving cache key '%s': %s", key, e)
     
     return None
 
 
-def cache_set(key: str, data: dict, ttl: int = 3600) -> bool:
+def cache_set(key: str, data: Any, ttl: int = 3600) -> bool:
     """
     Set data in Redis cache
     
@@ -84,21 +90,54 @@ def cache_set(key: str, data: dict, ttl: int = 3600) -> bool:
         True if successful, False otherwise
     """
     if not redis_client:
-        print(f"[CACHE] Redis not connected, cannot cache")
+        logger.debug("Redis not connected; skipping cache write for key '%s'", key)
         return False
     
     try:
+        payload = json.dumps(jsonable_encoder(data), sort_keys=True)
         redis_client.setex(
             key,
             ttl,
-            json.dumps(data)
+            payload
         )
-        print(f"[CACHE SET] {key} (TTL: {ttl}s)")
+        logger.debug("Cache set for key '%s' (TTL: %ss)", key, ttl)
         return True
     except Exception as e:
-        print(f"[CACHE ERROR] Error setting cache key '{key}': {e}")
+        logger.warning("Error setting cache key '%s': %s", key, e)
     
     return False
+
+
+def cache_get_or_set(
+    key: str,
+    fetch_func: Callable[[], CacheValue],
+    ttl: int = 3600,
+    cache_none: bool = False,
+) -> CacheValue:
+    """
+    Read through Redis cache.
+
+    The returned value is JSON-encoded on cache miss so callers receive the same
+    shape on both hits and misses.
+    """
+    cached_data = cache_get(key)
+    if cached_data is not None:
+        refreshed_cached_data = _refresh_cached_timestamp(cached_data)
+        return _restore_cached_response_model(refreshed_cached_data)  # type: ignore[return-value]
+
+    result = fetch_func()
+    encoded_result = jsonable_encoder(result)
+
+    if encoded_result is None and not cache_none:
+        return result
+
+    cache_set(key, encoded_result, ttl=ttl)
+    refreshed_result = _refresh_cached_timestamp(encoded_result)
+
+    if isinstance(result, BaseModel):
+        return result.__class__.model_validate(refreshed_result)  # type: ignore[return-value]
+
+    return _restore_cached_response_model(refreshed_result)  # type: ignore[return-value]
 
 
 def cache_delete(key: str) -> bool:
@@ -118,7 +157,7 @@ def cache_delete(key: str) -> bool:
         redis_client.delete(key)
         return True
     except Exception as e:
-        print(f"Error deleting cache key '{key}': {e}")
+        logger.warning("Error deleting cache key '%s': %s", key, e)
     
     return False
 
@@ -137,13 +176,49 @@ def cache_delete_pattern(pattern: str) -> int:
         return 0
     
     try:
-        keys = redis_client.keys(pattern)
-        if keys:
-            return redis_client.delete(*keys) # type: ignore
+        deleted = 0
+        for key in redis_client.scan_iter(match=pattern, count=100):
+            deleted += redis_client.delete(key)
+        return deleted
     except Exception as e:
-        print(f"Error deleting cache pattern '{pattern}': {e}")
+        logger.warning("Error deleting cache pattern '%s': %s", pattern, e)
     
     return 0
+
+
+def invalidate_cache_namespaces(*namespaces: str) -> int:
+    """Invalidate all cache entries belonging to one or more namespaces."""
+    return sum(cache_delete_pattern(f"{namespace}:*") for namespace in namespaces)
+
+
+def _refresh_cached_timestamp(data: Any) -> Any:
+    """Keep response timestamps fresh even when the payload itself is cached."""
+    if not isinstance(data, dict) or "timestamp" not in data:
+        return data
+
+    from utils.timezone import get_current_time_gmt8
+
+    refreshed_data = dict(data)
+    refreshed_data["timestamp"] = get_current_time_gmt8()
+    return refreshed_data
+
+
+def _restore_cached_response_model(data: Any) -> Any:
+    """Rehydrate cached API envelopes into their response models when possible."""
+    if not isinstance(data, dict):
+        return data
+
+    if {"success", "code", "message", "pagination"}.issubset(data):
+        from models.pagination import PaginatedResponse
+
+        return PaginatedResponse[Any].model_validate(data)
+
+    if {"success", "code", "message"}.issubset(data):
+        from models.response_codes import StandardResponse
+
+        return StandardResponse.model_validate(data)
+
+    return data
 
 
 def cache_invalidate_job_searches() -> int:
@@ -174,18 +249,17 @@ def cache_get_all_jobs() -> Optional[list]:
         List of jobs or None if not cached
     """
     if not redis_client:
-        print(f"[CACHE] Redis not connected")
+        logger.debug("Redis not connected; skipping all_jobs cache read")
         return None
     
     try:
         data = redis_client.get("all_jobs")
         if data:
-            print(f"[CACHE HIT] all_jobs (batch cache)")
+            logger.debug("Cache hit for key 'all_jobs'")
             return json.loads(data) # type: ignore
-        else:
-            print(f"[CACHE MISS] all_jobs (batch cache)")
+        logger.debug("Cache miss for key 'all_jobs'")
     except Exception as e:
-        print(f"[CACHE ERROR] Error retrieving all_jobs: {e}")
+        logger.warning("Error retrieving all_jobs cache: %s", e)
     
     return None
 
@@ -202,18 +276,18 @@ def cache_set_all_jobs(data: list, ttl: int = 21600) -> bool:
         True if successful, False otherwise
     """
     if not redis_client:
-        print(f"[CACHE] Redis not connected, cannot cache all_jobs")
+        logger.debug("Redis not connected; skipping all_jobs cache write")
         return False
     
     try:
         redis_client.setex(
             "all_jobs",
             ttl,
-            json.dumps(data)
+            json.dumps(jsonable_encoder(data), sort_keys=True)
         )
-        print(f"[CACHE SET] all_jobs ({len(data)} jobs, TTL: {ttl}s)")
+        logger.debug("Cache set for key 'all_jobs' (%s jobs, TTL: %ss)", len(data), ttl)
         return True
     except Exception as e:
-        print(f"[CACHE ERROR] Error setting all_jobs: {e}")
+        logger.warning("Error setting all_jobs cache: %s", e)
     
     return False

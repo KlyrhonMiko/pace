@@ -21,8 +21,6 @@ from routers import (
 )
 from core.config import settings
 from models.response_codes import StandardResponse, ErrorCode
-from datetime import datetime
-from utils.timezone import get_current_time_gmt8
 
 app = FastAPI(title="Pasig Alumni and Career Employment (PACE) System", version="1.0.0")
 

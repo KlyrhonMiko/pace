@@ -4,7 +4,6 @@ All session.exec / session.add / session.commit / session.rollback calls live he
 Routers call these functions; they do NOT contain any select/exec logic themselves.
 """
 
-from datetime import datetime, timezone
 from sqlmodel import Session, select, func
 from sqlalchemy.exc import IntegrityError
 
@@ -100,7 +99,7 @@ def update_college_dept(
     if data.college_dept_desc is not None:
         college_dept.college_dept_desc = data.college_dept_desc
 
-    college_dept.updated_at = datetime.now(timezone.utc)
+    college_dept.updated_at = get_current_time_gmt8()
     session.add(college_dept)
     session.commit()
     session.refresh(college_dept)
@@ -147,11 +146,17 @@ def get_all_college_depts(
     include_deleted: bool,
     sort_by: str,
     sort_order: str,
+    deleted_only: bool = False,
 ) -> tuple[list[CollegeDept], int]:
     """
     Return (records, total_count) with filtering, search, sort, and pagination.
     """
-    base_filter = None if include_deleted else (CollegeDept.is_deleted == False)
+    if deleted_only:
+        base_filter = CollegeDept.is_deleted == True
+    elif include_deleted:
+        base_filter = None
+    else:
+        base_filter = CollegeDept.is_deleted == False
 
     query = select(CollegeDept)
     count_q = select(func.count(CollegeDept.college_dept_code))
@@ -324,7 +329,7 @@ def batch_update_college_depts(
                 if item.college_dept_desc is not None:
                     dept.college_dept_desc = item.college_dept_desc
 
-                dept.updated_at = datetime.now(timezone.utc)
+                dept.updated_at = get_current_time_gmt8()
                 session.add(dept)
                 session.flush()
                 session.refresh(dept)

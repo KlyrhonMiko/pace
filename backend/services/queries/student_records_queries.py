@@ -142,8 +142,14 @@ def get_all_student_records(
     include_deleted: bool,
     sort_by: str,
     sort_order: str,
+    deleted_only: bool = False,
 ) -> tuple[list[StudentRecord], int]:
-    base_filter = None if include_deleted else (StudentRecord.is_deleted == False)
+    if deleted_only:
+        base_filter = StudentRecord.is_deleted == True
+    elif include_deleted:
+        base_filter = None
+    else:
+        base_filter = StudentRecord.is_deleted == False
     query = select(StudentRecord)
     count_q = select(func.count(StudentRecord.student_code))
     if base_filter is not None:

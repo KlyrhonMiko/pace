@@ -3,6 +3,7 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
 from core.database import get_session
+from core.redis import cache_get_or_set, generate_cache_key, invalidate_cache_namespaces
 from schemas.surveys import (
     SurveyCreate,
     SurveyUpdate,
@@ -48,6 +49,10 @@ from services.queries.surveys_queries import (
 )
 
 router = APIRouter(prefix="/surveys", tags=["surveys"])
+SURVEYS_CACHE_NAMESPACE = "surveys"
+SURVEYS_LIST_TTL = 300
+SURVEYS_DETAIL_TTL = 300
+SURVEYS_ANALYTICS_TTL = 120
 
 
 @router.post(
@@ -74,6 +79,7 @@ def create_tracer_study_template_route(session: Session = Depends(get_session)):
         question_count = get_survey_question_count(session, survey.survey_code)
         data = SurveyPublic.model_validate(survey).dict()
         data["question_count"] = question_count
+        invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
             code=SuccessCode.SURVEY_CREATED.value,
@@ -113,6 +119,7 @@ def create_survey_route(body: SurveyCreate, session: Session = Depends(get_sessi
                 ).model_dump(mode="json"),
             )
         survey = create_survey(session, body)
+        invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
             code=SuccessCode.SURVEY_CREATED.value,
@@ -142,28 +149,17 @@ def list_surveys_route(
 ):
     """List all surveys with pagination and filtering"""
     try:
-        surveys, total = list_surveys(session, skip, limit, search, status)
-        # Batch fetch all question counts in ONE query instead of N
-        survey_codes = [s.survey_code for s in surveys]
-        counts = get_survey_question_counts_batch(session, survey_codes)
-        survey_data = []
-        for survey in surveys:
-            d = SurveyPublic.model_validate(survey).dict()
-            d["question_count"] = counts.get(survey.survey_code, 0)
-            survey_data.append(d)
-        return StandardResponse(
-            success=True,
-            code=SuccessCode.SURVEYS_RETRIEVED.value,
-            message="Surveys retrieved successfully",
-            data={
-                "surveys": survey_data,
-                "total": total,
-                "count": len(surveys),
-                "offset": skip,
-                "limit": limit,
-                "has_more": (skip + limit) < total,
-            },
-            timestamp=get_current_time_gmt8(),
+        cache_key = generate_cache_key(
+            f"{SURVEYS_CACHE_NAMESPACE}:list",
+            skip=skip,
+            limit=limit,
+            search=search,
+            status=status,
+        )
+        return cache_get_or_set(
+            cache_key,
+            lambda: _build_surveys_list_response(session, skip, limit, search, status),
+            ttl=SURVEYS_LIST_TTL,
         )
     except Exception as e:
         raise HTTPException(
@@ -178,26 +174,11 @@ def list_surveys_route(
 def get_survey_route(survey_id: str, session: Session = Depends(get_session)):
     """Get a survey with all its composed questions"""
     try:
-        survey = get_survey_by_id(session, survey_id)
-        if not survey:
-            raise HTTPException(
-                status_code=404,
-                detail=StandardResponse(
-                    success=False,
-                    code=ErrorCode.SURVEY_NOT_FOUND.value,
-                    message="Survey not found",
-                ).model_dump(mode="json"),
-            )
-        questions = get_survey_questions_with_details(session, survey.survey_code)
-        d = SurveyPublic.model_validate(survey).dict()
-        d["questions"] = [q.dict() for q in questions]
-        d["question_count"] = len(questions)
-        return StandardResponse(
-            success=True,
-            code=SuccessCode.SURVEY_RETRIEVED.value,
-            message="Survey retrieved successfully",
-            data=d,
-            timestamp=get_current_time_gmt8(),
+        cache_key = generate_cache_key(f"{SURVEYS_CACHE_NAMESPACE}:detail", survey_id=survey_id)
+        return cache_get_or_set(
+            cache_key,
+            lambda: _build_survey_detail_response(session, survey_id),
+            ttl=SURVEYS_DETAIL_TTL,
         )
     except HTTPException:
         raise
@@ -227,6 +208,7 @@ def update_survey_route(
                 ).model_dump(mode="json"),
             )
         updated = update_survey(session, survey, body)
+        invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
             code=SuccessCode.SURVEY_UPDATED.value,
@@ -261,6 +243,7 @@ def delete_survey_route(survey_id: str, session: Session = Depends(get_session))
                 ).model_dump(mode="json"),
             )
         soft_delete_survey(session, survey)
+        invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
             code=SuccessCode.SURVEY_DELETED.value,
@@ -294,6 +277,7 @@ def restore_survey_route(survey_id: str, session: Session = Depends(get_session)
                 ).model_dump(mode="json"),
             )
         restored = restore_survey(session, survey)
+        invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
             code=SuccessCode.SURVEY_RESTORED.value,
@@ -351,6 +335,7 @@ def publish_survey(survey_id: str, session: Session = Depends(get_session)):
                 ).model_dump(mode="json"),
             )
         published = set_survey_status(session, survey, SurveyStatus.ACTIVE)
+        invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
             code=SuccessCode.SURVEY_PUBLISHED.value,
@@ -394,6 +379,7 @@ def close_survey(survey_id: str, session: Session = Depends(get_session)):
                 ).model_dump(mode="json"),
             )
         closed = set_survey_status(session, survey, SurveyStatus.CLOSED)
+        invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
             code=SuccessCode.SURVEY_CLOSED.value,
@@ -437,6 +423,7 @@ def reopen_survey(survey_id: str, session: Session = Depends(get_session)):
                 ).model_dump(mode="json"),
             )
         reopened = set_survey_status(session, survey, SurveyStatus.ACTIVE)
+        invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
             code=SuccessCode.SURVEY_REOPENED.value,
@@ -478,6 +465,7 @@ def add_question_to_survey_route(
                 ).model_dump(mode="json"),
             )
         sq = add_question_to_survey(session, survey, body)
+        invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
             code=SuccessCode.SURVEY_QUESTION_ADDED.value,
@@ -553,6 +541,7 @@ def add_questions_batch_route(
                 ).model_dump(mode="json"),
             )
         added, failed = add_questions_batch(session, survey, body)
+        invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         result = {
             "added": len(added),
             "failed": len(failed),
@@ -584,23 +573,11 @@ def add_questions_batch_route(
 def get_survey_questions_route(survey_id: str, session: Session = Depends(get_session)):
     """List all questions in survey ordered by order_index"""
     try:
-        survey = get_survey_by_id(session, survey_id)
-        if not survey:
-            raise HTTPException(
-                status_code=404,
-                detail=StandardResponse(
-                    success=False,
-                    code=ErrorCode.SURVEY_NOT_FOUND.value,
-                    message="Survey not found",
-                ).model_dump(mode="json"),
-            )
-        questions = get_survey_questions_with_details(session, survey.survey_code)
-        return StandardResponse(
-            success=True,
-            code=SuccessCode.SURVEY_QUESTIONS_RETRIEVED.value,
-            message="Survey questions retrieved",
-            data={"questions": [q.dict() for q in questions]},
-            timestamp=get_current_time_gmt8(),
+        cache_key = generate_cache_key(f"{SURVEYS_CACHE_NAMESPACE}:questions", survey_id=survey_id)
+        return cache_get_or_set(
+            cache_key,
+            lambda: _build_survey_questions_response(session, survey_id),
+            ttl=SURVEYS_DETAIL_TTL,
         )
     except HTTPException:
         raise
@@ -630,6 +607,7 @@ def remove_question_from_survey_route(
                 ).model_dump(mode="json"),
             )
         remove_question_from_survey(session, survey, question_id)
+        invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
             code=SuccessCode.SURVEY_QUESTION_REMOVED.value,
@@ -692,6 +670,7 @@ def reorder_survey_questions_route(
                 ).model_dump(mode="json"),
             )
         reorder_survey_questions(session, survey, body.order_map)
+        invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
             code=SuccessCode.SURVEY_QUESTIONS_REORDERED.value,
@@ -741,6 +720,7 @@ def configure_distribution_route(
         existing_existed = (
             get_distribution_config(session, survey.survey_code) is not None
         )
+        invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
             code=SuccessCode.DISTRIBUTION_CONFIG_UPDATED.value
@@ -770,32 +750,11 @@ def get_distribution_config_route(
 ):
     """Get distribution configuration for a survey"""
     try:
-        survey = get_survey_by_id(session, survey_id)
-        if not survey:
-            raise HTTPException(
-                status_code=404,
-                detail=StandardResponse(
-                    success=False,
-                    code=ErrorCode.SURVEY_NOT_FOUND.value,
-                    message="Survey not found",
-                ).model_dump(mode="json"),
-            )
-        config = get_distribution_config(session, survey.survey_code)
-        if not config:
-            raise HTTPException(
-                status_code=404,
-                detail=StandardResponse(
-                    success=False,
-                    code=ErrorCode.DISTRIBUTION_CONFIG_NOT_FOUND.value,
-                    message="Distribution config not found",
-                ).model_dump(mode="json"),
-            )
-        return StandardResponse(
-            success=True,
-            code=SuccessCode.DISTRIBUTION_CONFIG_RETRIEVED.value,
-            message="Distribution config retrieved",
-            data=SurveyDistributionConfigPublic.model_validate(config),
-            timestamp=get_current_time_gmt8(),
+        cache_key = generate_cache_key(f"{SURVEYS_CACHE_NAMESPACE}:distribution_config", survey_id=survey_id)
+        return cache_get_or_set(
+            cache_key,
+            lambda: _build_distribution_config_response(session, survey_id),
+            ttl=SURVEYS_DETAIL_TTL,
         )
     except HTTPException:
         raise
@@ -846,6 +805,7 @@ def update_distribution_config_route(
                 ).model_dump(mode="json"),
             )
         updated = update_distribution_config(session, config, body)
+        invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
             code=SuccessCode.DISTRIBUTION_CONFIG_UPDATED.value,
@@ -917,6 +877,7 @@ def send_distribution_route(survey_id: str, session: Session = Depends(get_sessi
                     message="No eligible alumni found matching the distribution filters",
                 ).model_dump(mode="json"),
             )
+        invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
             code=SuccessCode.DISTRIBUTION_INVITATIONS_SENT.value,
@@ -976,6 +937,7 @@ def send_reminders_route(survey_id: str, session: Session = Depends(get_session)
                 ).model_dump(mode="json"),
             )
         reminder_count, _ = send_survey_reminders(session, survey)
+        invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
             code=SuccessCode.DISTRIBUTION_REMINDERS_SENT.value,
@@ -1001,33 +963,11 @@ def get_distribution_status_route(
 ):
     """Get distribution statistics: total recipients, response rate, sent/responded/pending counts."""
     try:
-        survey = get_survey_by_id(session, survey_id)
-        if not survey:
-            raise HTTPException(
-                status_code=404,
-                detail=StandardResponse(
-                    success=False,
-                    code=ErrorCode.SURVEY_NOT_FOUND.value,
-                    message="Survey not found",
-                ).model_dump(mode="json"),
-            )
-        config = get_distribution_config(session, survey.survey_code)
-        if not config:
-            raise HTTPException(
-                status_code=404,
-                detail=StandardResponse(
-                    success=False,
-                    code=ErrorCode.DISTRIBUTION_CONFIG_NOT_FOUND.value,
-                    message="Distribution config not found",
-                ).model_dump(mode="json"),
-            )
-        stats = get_distribution_stats(session, survey.survey_code, config)
-        return StandardResponse(
-            success=True,
-            code=SuccessCode.DISTRIBUTION_STATUS_RETRIEVED.value,
-            message="Distribution status retrieved",
-            data=stats,
-            timestamp=get_current_time_gmt8(),
+        cache_key = generate_cache_key(f"{SURVEYS_CACHE_NAMESPACE}:distribution_status", survey_id=survey_id)
+        return cache_get_or_set(
+            cache_key,
+            lambda: _build_distribution_status_response(session, survey_id),
+            ttl=SURVEYS_ANALYTICS_TTL,
         )
     except HTTPException:
         raise
@@ -1051,42 +991,16 @@ def get_non_respondents_route(
 ):
     """List alumni who received an invitation but have not yet submitted a response."""
     try:
-        survey = get_survey_by_id(session, survey_id)
-        if not survey:
-            raise HTTPException(
-                status_code=404,
-                detail=StandardResponse(
-                    success=False,
-                    code=ErrorCode.SURVEY_NOT_FOUND.value,
-                    message="Survey not found",
-                ).model_dump(mode="json"),
-            )
-        config = get_distribution_config(session, survey.survey_code)
-        if not config:
-            raise HTTPException(
-                status_code=404,
-                detail=StandardResponse(
-                    success=False,
-                    code=ErrorCode.DISTRIBUTION_CONFIG_NOT_FOUND.value,
-                    message="Distribution config not found",
-                ).model_dump(mode="json"),
-            )
-        non_respondents, total = get_non_respondents(
-            session, survey.survey_code, skip, limit
+        cache_key = generate_cache_key(
+            f"{SURVEYS_CACHE_NAMESPACE}:non_respondents",
+            survey_id=survey_id,
+            skip=skip,
+            limit=limit,
         )
-        return StandardResponse(
-            success=True,
-            code=SuccessCode.DISTRIBUTION_STATUS_RETRIEVED.value,
-            message="Non-respondents retrieved",
-            data={
-                "non_respondents": non_respondents,
-                "total": total,
-                "count": len(non_respondents),
-                "offset": skip,
-                "limit": limit,
-                "has_more": (skip + limit) < total,
-            },
-            timestamp=get_current_time_gmt8(),
+        return cache_get_or_set(
+            cache_key,
+            lambda: _build_non_respondents_response(session, survey_id, skip, limit),
+            ttl=SURVEYS_ANALYTICS_TTL,
         )
     except HTTPException:
         raise
@@ -1112,23 +1026,11 @@ def get_survey_results_route(survey_id: str, session: Session = Depends(get_sess
     SCALE distributions, NUMBER stats, and TEXT samples.
     """
     try:
-        survey = get_survey_by_id(session, survey_id)
-        if not survey:
-            raise HTTPException(
-                status_code=404,
-                detail=StandardResponse(
-                    success=False,
-                    code=ErrorCode.SURVEY_NOT_FOUND.value,
-                    message="Survey not found",
-                ).model_dump(mode="json"),
-            )
-        results = get_survey_results(session, survey)
-        return StandardResponse(
-            success=True,
-            code=SuccessCode.SURVEY_RESULTS_RETRIEVED.value,
-            message="Survey results retrieved",
-            data=results,
-            timestamp=get_current_time_gmt8(),
+        cache_key = generate_cache_key(f"{SURVEYS_CACHE_NAMESPACE}:results", survey_id=survey_id)
+        return cache_get_or_set(
+            cache_key,
+            lambda: _build_survey_results_response(session, survey_id),
+            ttl=SURVEYS_ANALYTICS_TTL,
         )
     except HTTPException:
         raise
@@ -1149,23 +1051,11 @@ def export_survey_route(survey_id: str, session: Session = Depends(get_session))
     For anonymous surveys, respondent identity is omitted.
     """
     try:
-        survey = get_survey_by_id(session, survey_id)
-        if not survey:
-            raise HTTPException(
-                status_code=404,
-                detail=StandardResponse(
-                    success=False,
-                    code=ErrorCode.SURVEY_NOT_FOUND.value,
-                    message="Survey not found",
-                ).model_dump(mode="json"),
-            )
-        export_data = export_survey_responses(session, survey)
-        return StandardResponse(
-            success=True,
-            code=SuccessCode.SURVEY_RESULTS_RETRIEVED.value,
-            message="Survey responses exported",
-            data=export_data,
-            timestamp=get_current_time_gmt8(),
+        cache_key = generate_cache_key(f"{SURVEYS_CACHE_NAMESPACE}:export", survey_id=survey_id)
+        return cache_get_or_set(
+            cache_key,
+            lambda: _build_survey_export_response(session, survey_id),
+            ttl=SURVEYS_ANALYTICS_TTL,
         )
     except HTTPException:
         raise
@@ -1176,3 +1066,161 @@ def export_survey_route(survey_id: str, session: Session = Depends(get_session))
                 success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
             ).model_dump(mode="json"),
         )
+
+
+def _get_required_survey(session: Session, survey_id: str):
+    survey = get_survey_by_id(session, survey_id)
+    if not survey:
+        raise HTTPException(
+            status_code=404,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.SURVEY_NOT_FOUND.value,
+                message="Survey not found",
+            ).model_dump(mode="json"),
+        )
+    return survey
+
+
+def _get_required_distribution_config(session: Session, survey_id: str):
+    survey = _get_required_survey(session, survey_id)
+    config = get_distribution_config(session, survey.survey_code)
+    if not config:
+        raise HTTPException(
+            status_code=404,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.DISTRIBUTION_CONFIG_NOT_FOUND.value,
+                message="Distribution config not found",
+            ).model_dump(mode="json"),
+        )
+    return survey, config
+
+
+def _build_surveys_list_response(
+    session: Session,
+    skip: int,
+    limit: int,
+    search: Optional[str],
+    status: Optional[str],
+) -> StandardResponse:
+    surveys, total = list_surveys(session, skip, limit, search, status)
+    survey_codes = [s.survey_code for s in surveys]
+    counts = get_survey_question_counts_batch(session, survey_codes)
+    survey_data = []
+    for survey in surveys:
+        data = SurveyPublic.model_validate(survey).dict()
+        data["question_count"] = counts.get(survey.survey_code, 0)
+        survey_data.append(data)
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.SURVEYS_RETRIEVED.value,
+        message="Surveys retrieved successfully",
+        data={
+            "surveys": survey_data,
+            "total": total,
+            "count": len(surveys),
+            "offset": skip,
+            "limit": limit,
+            "has_more": (skip + limit) < total,
+        },
+        timestamp=get_current_time_gmt8(),
+    )
+
+
+def _build_survey_detail_response(session: Session, survey_id: str) -> StandardResponse:
+    survey = _get_required_survey(session, survey_id)
+    questions = get_survey_questions_with_details(session, survey.survey_code)
+    data = SurveyPublic.model_validate(survey).dict()
+    data["questions"] = [q.dict() for q in questions]
+    data["question_count"] = len(questions)
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.SURVEY_RETRIEVED.value,
+        message="Survey retrieved successfully",
+        data=data,
+        timestamp=get_current_time_gmt8(),
+    )
+
+
+def _build_survey_questions_response(session: Session, survey_id: str) -> StandardResponse:
+    survey = _get_required_survey(session, survey_id)
+    questions = get_survey_questions_with_details(session, survey.survey_code)
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.SURVEY_QUESTIONS_RETRIEVED.value,
+        message="Survey questions retrieved",
+        data={"questions": [q.dict() for q in questions]},
+        timestamp=get_current_time_gmt8(),
+    )
+
+
+def _build_distribution_config_response(session: Session, survey_id: str) -> StandardResponse:
+    _, config = _get_required_distribution_config(session, survey_id)
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.DISTRIBUTION_CONFIG_RETRIEVED.value,
+        message="Distribution config retrieved",
+        data=SurveyDistributionConfigPublic.model_validate(config),
+        timestamp=get_current_time_gmt8(),
+    )
+
+
+def _build_distribution_status_response(session: Session, survey_id: str) -> StandardResponse:
+    survey, config = _get_required_distribution_config(session, survey_id)
+    stats = get_distribution_stats(session, survey.survey_code, config)
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.DISTRIBUTION_STATUS_RETRIEVED.value,
+        message="Distribution status retrieved",
+        data=stats,
+        timestamp=get_current_time_gmt8(),
+    )
+
+
+def _build_non_respondents_response(
+    session: Session,
+    survey_id: str,
+    skip: int,
+    limit: int,
+) -> StandardResponse:
+    survey, _ = _get_required_distribution_config(session, survey_id)
+    non_respondents, total = get_non_respondents(session, survey.survey_code, skip, limit)
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.DISTRIBUTION_STATUS_RETRIEVED.value,
+        message="Non-respondents retrieved",
+        data={
+            "non_respondents": non_respondents,
+            "total": total,
+            "count": len(non_respondents),
+            "offset": skip,
+            "limit": limit,
+            "has_more": (skip + limit) < total,
+        },
+        timestamp=get_current_time_gmt8(),
+    )
+
+
+def _build_survey_results_response(session: Session, survey_id: str) -> StandardResponse:
+    survey = _get_required_survey(session, survey_id)
+    results = get_survey_results(session, survey)
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.SURVEY_RESULTS_RETRIEVED.value,
+        message="Survey results retrieved",
+        data=results,
+        timestamp=get_current_time_gmt8(),
+    )
+
+
+def _build_survey_export_response(session: Session, survey_id: str) -> StandardResponse:
+    survey = _get_required_survey(session, survey_id)
+    export_data = export_survey_responses(session, survey)
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.SURVEY_RESULTS_RETRIEVED.value,
+        message="Survey responses exported",
+        data=export_data,
+        timestamp=get_current_time_gmt8(),
+    )

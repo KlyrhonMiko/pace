@@ -187,12 +187,18 @@ def get_all_courses(
     include_deleted: bool,
     sort_by: str,
     sort_order: str,
+    deleted_only: bool = False,
 ) -> tuple[list[CoursePublic], int]:
     """
     Return (CoursePublic list, total_count) with filtering, search, sort, pagination.
     Resolves college dept names in one pass.
     """
-    base_filter = None if include_deleted else (Course.is_deleted == False)
+    if deleted_only:
+        base_filter = Course.is_deleted == True
+    elif include_deleted:
+        base_filter = None
+    else:
+        base_filter = Course.is_deleted == False
     query = select(Course)
     count_q = select(func.count(Course.course_code))
     if base_filter is not None:

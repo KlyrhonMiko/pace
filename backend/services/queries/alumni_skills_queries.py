@@ -1,6 +1,8 @@
 """
 DB query functions for alumni_skills domain.
 """
+import uuid
+
 from sqlmodel import Session, select
 from sqlalchemy.exc import IntegrityError
 
@@ -29,13 +31,34 @@ def _resolve_alumni(session: Session, alumni_id: str) -> Alumni | None:
     ).first()
 
 
+def _resolve_alumni_by_code(session: Session, alumni_code: uuid.UUID) -> Alumni | None:
+    return session.exec(
+        select(Alumni).where(
+            (Alumni.alumni_code == alumni_code) &
+            (Alumni.is_deleted == False)
+        )
+    ).first()
+
+
+def _parse_alumni_code(identifier: str) -> uuid.UUID | None:
+    try:
+        return uuid.UUID(str(identifier).strip())
+    except (ValueError, AttributeError, TypeError):
+        return None
+
+
 def get_alumni_skills_by_alumni_id(session: Session, alumni_id: str) -> AlumniSkills | None:
+    alumni_code = _parse_alumni_code(alumni_id)
+    if alumni_code is not None:
+        alumni = _resolve_alumni_by_code(session, alumni_code)
+        if not alumni:
+            return None
+        return get_alumni_skills_by_alumni_code(session, alumni.alumni_code)
+
     alumni = _resolve_alumni(session, alumni_id)
     if not alumni:
         return None
-    return session.exec(
-        select(AlumniSkills).where(AlumniSkills.alumni_code == alumni.alumni_code)
-    ).first()
+    return get_alumni_skills_by_alumni_code(session, alumni.alumni_code)
 
 
 def get_alumni_skills_by_alumni_code(session: Session, alumni_code) -> AlumniSkills | None:

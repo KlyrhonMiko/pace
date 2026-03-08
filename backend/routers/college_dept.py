@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
 from sqlalchemy.exc import IntegrityError
 from core.database import get_session
+from core.redis import cache_get_or_set, generate_cache_key, invalidate_cache_namespaces
 from schemas.college_dept import (
     CollegeDeptCreate, CollegeDeptUpdate, CollegeDeptPublic,
     CollegeDeptBatchCreate, CollegeDeptBatchUpdate, CollegeDeptBatchDelete, CollegeDeptBatchRestore,
@@ -19,6 +20,9 @@ from services.queries.college_dept_queries import (
 )
 
 router = APIRouter(prefix="/college-depts", tags=["college-depts"])
+COLLEGE_DEPTS_CACHE_NAMESPACE = "college_depts"
+COLLEGE_DEPTS_LIST_TTL = 1800
+COLLEGE_DEPTS_DETAIL_TTL = 1800
 
 
 # ---------------------------------------------------------------------------
@@ -32,6 +36,7 @@ def batch_create_college_depts_route(
 ):
     """Batch create college departments"""
     response = batch_create_college_depts(session, batch_data.items)
+    invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
     return StandardResponse(
         success=response.failed == 0,
         code=SuccessCode.COLLEGE_DEPTS_BATCH_CREATED.value,
@@ -47,6 +52,7 @@ def batch_update_college_depts_route(
 ):
     """Batch update college departments"""
     response = batch_update_college_depts(session, batch_data.items)
+    invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
     return StandardResponse(
         success=response.failed == 0,
         code=SuccessCode.COLLEGE_DEPTS_BATCH_UPDATED.value,
@@ -62,6 +68,7 @@ def batch_delete_college_depts_route(
 ):
     """Batch delete college departments"""
     response = batch_delete_college_depts(session, batch_data.ids)
+    invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
     return StandardResponse(
         success=response.failed == 0,
         code=SuccessCode.COLLEGE_DEPTS_BATCH_DELETED.value,
@@ -77,6 +84,7 @@ def batch_restore_college_depts_route(
 ):
     """Restore multiple soft-deleted college departments"""
     response = batch_restore_college_depts(session, data.ids)
+    invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
     return StandardResponse(
         success=response.failed == 0,
         code=SuccessCode.COLLEGE_DEPTS_BATCH_RESTORED.value,
@@ -100,19 +108,21 @@ def get_all_college_depts_route(
     session: Session = Depends(get_session)
 ):
     """Get all college departments with filtering, searching, and sorting"""
-    college_depts, total = get_all_college_depts(
-        session, limit, offset, search, include_deleted, sort_by, sort_order
+    cache_key = generate_cache_key(
+        f"{COLLEGE_DEPTS_CACHE_NAMESPACE}:list",
+        limit=limit,
+        offset=offset,
+        search=search,
+        include_deleted=include_deleted,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
-    returned = len(college_depts)
-    pagination = PaginationMetadata(
-        total=total, limit=limit, offset=offset, returned=returned,
-        has_next=(offset + returned) < total if limit > 0 else False
-    )
-    return StandardResponse(
-        success=True,
-        code=SuccessCode.COLLEGE_DEPTS_RETRIEVED.value,
-        message=f"Retrieved {returned} college departments",
-        data={"college_depts": [CollegeDeptPublic.model_validate(d) for d in college_depts], "pagination": pagination}
+    return cache_get_or_set(
+        cache_key,
+        lambda: _build_college_depts_list_response(
+            session, limit, offset, search, include_deleted, sort_by, sort_order
+        ),
+        ttl=COLLEGE_DEPTS_LIST_TTL,
     )
 
 
@@ -126,22 +136,18 @@ def get_deleted_college_depts(
     session: Session = Depends(get_session)
 ):
     """Get all soft-deleted college departments"""
-    college_depts, total = get_all_college_depts(
-        session, limit, offset, search, include_deleted=True,
-        sort_by=sort_by, sort_order=sort_order
+    cache_key = generate_cache_key(
+        f"{COLLEGE_DEPTS_CACHE_NAMESPACE}:deleted",
+        limit=limit,
+        offset=offset,
+        search=search,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
-    deleted = [d for d in college_depts if d.is_deleted]
-    returned = len(deleted)
-    pagination = PaginationMetadata(
-        total=total, limit=limit, offset=offset, returned=returned,
-        has_next=(offset + returned) < total if limit > 0 else False
-    )
-    return PaginatedResponse(
-        success=True,
-        code=SuccessCode.COLLEGE_DEPTS_RETRIEVED.value,
-        message=f"Retrieved {returned} deleted college departments",
-        data=[CollegeDeptPublic.model_validate(d) for d in deleted],
-        pagination=pagination
+    return cache_get_or_set(
+        cache_key,
+        lambda: _build_deleted_college_depts_response(session, limit, offset, search, sort_by, sort_order),
+        ttl=COLLEGE_DEPTS_LIST_TTL,
     )
 
 
@@ -155,21 +161,18 @@ def get_all_college_depts_including_deleted(
     session: Session = Depends(get_session)
 ):
     """Get all college departments including soft-deleted"""
-    college_depts, total = get_all_college_depts(
-        session, limit, offset, search, include_deleted=True,
-        sort_by=sort_by, sort_order=sort_order
+    cache_key = generate_cache_key(
+        f"{COLLEGE_DEPTS_CACHE_NAMESPACE}:all",
+        limit=limit,
+        offset=offset,
+        search=search,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
-    returned = len(college_depts)
-    pagination = PaginationMetadata(
-        total=total, limit=limit, offset=offset, returned=returned,
-        has_next=(offset + returned) < total if limit > 0 else False
-    )
-    return PaginatedResponse(
-        success=True,
-        code=SuccessCode.COLLEGE_DEPTS_RETRIEVED.value,
-        message=f"Retrieved {returned} college departments (including deleted)",
-        data=[CollegeDeptPublic.model_validate(d) for d in college_depts],
-        pagination=pagination
+    return cache_get_or_set(
+        cache_key,
+        lambda: _build_all_college_depts_response(session, limit, offset, search, sort_by, sort_order),
+        ttl=COLLEGE_DEPTS_LIST_TTL,
     )
 
 
@@ -185,6 +188,7 @@ def create_college_dept_route(
     """Create a new college department"""
     try:
         new_dept = create_college_dept(session, college_dept_data)
+        invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
         return StandardResponse(
             success=True,
             code=SuccessCode.COLLEGE_DEPT_CREATED.value,
@@ -213,16 +217,11 @@ def create_college_dept_route(
 @router.get("/{college_dept_id}")
 def get_college_dept(college_dept_id: str, session: Session = Depends(get_session)):
     """Get a specific college department by college_dept_id"""
-    dept = get_college_dept_by_id(session, college_dept_id)
-    if not dept:
-        log_error("college_depts", "get_college_dept", ErrorCode.COLLEGE_DEPT_NOT_FOUND.value, f"College department {college_dept_id} not found")
-        raise HTTPException(status_code=404, detail=StandardResponse(
-            success=False, code=ErrorCode.COLLEGE_DEPT_NOT_FOUND.value, message="College department not found"
-        ).model_dump(mode='json'))
-    return StandardResponse(
-        success=True, code=SuccessCode.COLLEGE_DEPT_RETRIEVED.value,
-        message=f"College department {college_dept_id} retrieved successfully",
-        data=CollegeDeptPublic.model_validate(dept)
+    cache_key = generate_cache_key(f"{COLLEGE_DEPTS_CACHE_NAMESPACE}:detail", college_dept_id=college_dept_id)
+    return cache_get_or_set(
+        cache_key,
+        lambda: _build_college_dept_detail_response(session, college_dept_id),
+        ttl=COLLEGE_DEPTS_DETAIL_TTL,
     )
 
 
@@ -242,6 +241,7 @@ def update_college_dept_route(
 
     try:
         updated = update_college_dept(session, dept, college_dept_data)
+        invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
         return StandardResponse(
             success=True, code=SuccessCode.COLLEGE_DEPT_UPDATED.value,
             message="College department updated successfully",
@@ -287,6 +287,7 @@ def delete_college_dept(college_dept_id: str, session: Session = Depends(get_ses
 
     try:
         soft_delete_college_dept(session, dept)
+        invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
         return StandardResponse(
             success=True, code=SuccessCode.COLLEGE_DEPT_DELETED.value,
             message=f"College department {college_dept_id} deleted successfully"
@@ -318,6 +319,7 @@ def restore_college_dept_route(college_dept_id: str, session: Session = Depends(
 
     try:
         restore_college_dept(session, dept)
+        invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
         return StandardResponse(
             success=True, code=SuccessCode.COLLEGE_DEPT_RESTORED.value,
             message=f"College department {college_dept_id} restored successfully"
@@ -329,3 +331,100 @@ def restore_college_dept_route(college_dept_id: str, session: Session = Depends(
             success=False, code=ErrorCode.INVALID_INPUT.value,
             message="Restore failed: Constraint violation or invalid operation"
         ).model_dump(mode='json'))
+
+
+def _build_college_depts_list_response(
+    session: Session,
+    limit: int,
+    offset: int,
+    search: str | None,
+    include_deleted: bool,
+    sort_by: str,
+    sort_order: str,
+) -> StandardResponse:
+    college_depts, total = get_all_college_depts(
+        session, limit, offset, search, include_deleted, sort_by, sort_order
+    )
+    returned = len(college_depts)
+    pagination = PaginationMetadata(
+        total=total, limit=limit, offset=offset, returned=returned,
+        has_next=(offset + returned) < total if limit > 0 else False
+    )
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.COLLEGE_DEPTS_RETRIEVED.value,
+        message=f"Retrieved {returned} college departments",
+        data={"college_depts": [CollegeDeptPublic.model_validate(d) for d in college_depts], "pagination": pagination}
+    )
+
+
+def _build_deleted_college_depts_response(
+    session: Session,
+    limit: int,
+    offset: int,
+    search: str | None,
+    sort_by: str,
+    sort_order: str,
+) -> PaginatedResponse:
+    college_depts, total = get_all_college_depts(
+        session,
+        limit,
+        offset,
+        search,
+        include_deleted=True,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        deleted_only=True,
+    )
+    returned = len(college_depts)
+    pagination = PaginationMetadata(
+        total=total, limit=limit, offset=offset, returned=returned,
+        has_next=(offset + returned) < total if limit > 0 else False
+    )
+    return PaginatedResponse(
+        success=True,
+        code=SuccessCode.COLLEGE_DEPTS_RETRIEVED.value,
+        message=f"Retrieved {returned} deleted college departments",
+        data=[CollegeDeptPublic.model_validate(d) for d in college_depts],
+        pagination=pagination
+    )
+
+
+def _build_all_college_depts_response(
+    session: Session,
+    limit: int,
+    offset: int,
+    search: str | None,
+    sort_by: str,
+    sort_order: str,
+) -> PaginatedResponse:
+    college_depts, total = get_all_college_depts(
+        session, limit, offset, search, include_deleted=True,
+        sort_by=sort_by, sort_order=sort_order
+    )
+    returned = len(college_depts)
+    pagination = PaginationMetadata(
+        total=total, limit=limit, offset=offset, returned=returned,
+        has_next=(offset + returned) < total if limit > 0 else False
+    )
+    return PaginatedResponse(
+        success=True,
+        code=SuccessCode.COLLEGE_DEPTS_RETRIEVED.value,
+        message=f"Retrieved {returned} college departments (including deleted)",
+        data=[CollegeDeptPublic.model_validate(d) for d in college_depts],
+        pagination=pagination
+    )
+
+
+def _build_college_dept_detail_response(session: Session, college_dept_id: str) -> StandardResponse:
+    dept = get_college_dept_by_id(session, college_dept_id)
+    if not dept:
+        log_error("college_depts", "get_college_dept", ErrorCode.COLLEGE_DEPT_NOT_FOUND.value, f"College department {college_dept_id} not found")
+        raise HTTPException(status_code=404, detail=StandardResponse(
+            success=False, code=ErrorCode.COLLEGE_DEPT_NOT_FOUND.value, message="College department not found"
+        ).model_dump(mode='json'))
+    return StandardResponse(
+        success=True, code=SuccessCode.COLLEGE_DEPT_RETRIEVED.value,
+        message=f"College department {college_dept_id} retrieved successfully",
+        data=CollegeDeptPublic.model_validate(dept)
+    )

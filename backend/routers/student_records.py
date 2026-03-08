@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
 from sqlalchemy.exc import IntegrityError
 from core.database import get_session
+from core.redis import cache_get_or_set, generate_cache_key, invalidate_cache_namespaces
 from schemas.student_records import (
     StudentRecordCreate, StudentRecordUpdate, StudentRecordPublic,
     StudentRecordBatchCreate, StudentRecordBatchUpdate,
@@ -20,6 +21,9 @@ from services.queries.student_records_queries import (
 )
 
 router = APIRouter(prefix="/student-records", tags=["student-records"])
+STUDENT_RECORDS_CACHE_NAMESPACE = "student_records"
+STUDENT_RECORDS_LIST_TTL = 300
+STUDENT_RECORDS_DETAIL_TTL = 300
 
 
 # ---------------------------------------------------------------------------
@@ -33,6 +37,7 @@ def batch_create_student_records_route(
 ):
     """Batch create student records"""
     response = batch_create_student_records(session, batch_data.items)
+    invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
         code=SuccessCode.STUDENT_RECORDS_BATCH_CREATED.value,
@@ -48,6 +53,7 @@ def batch_update_student_records_route(
 ):
     """Batch update student records"""
     response = batch_update_student_records(session, batch_data.items)
+    invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
         code=SuccessCode.STUDENT_RECORDS_BATCH_UPDATED.value,
@@ -63,6 +69,7 @@ def batch_delete_student_records_route(
 ):
     """Batch delete student records"""
     response = batch_delete_student_records(session, batch_data.ids)
+    invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
         code=SuccessCode.STUDENT_RECORDS_BATCH_DELETED.value,
@@ -78,6 +85,7 @@ def batch_restore_student_records_route(
 ):
     """Restore multiple soft-deleted student records"""
     response = batch_restore_student_records(session, data.ids)
+    invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
         code=SuccessCode.STUDENT_RECORDS_BATCH_RESTORED.value,
@@ -105,20 +113,25 @@ def get_all_student_records_route(
     session: Session = Depends(get_session)
 ):
     """Get all student records with filtering, searching, and sorting"""
-    records, total = get_all_student_records(
-        session, limit, offset, search, year_graduated,
-        min_gwa, max_gwa, course_abbv, include_deleted, sort_by, sort_order
+    cache_key = generate_cache_key(
+        f"{STUDENT_RECORDS_CACHE_NAMESPACE}:list",
+        limit=limit,
+        offset=offset,
+        search=search,
+        year_graduated=year_graduated,
+        min_gwa=min_gwa,
+        max_gwa=max_gwa,
+        course_abbv=course_abbv,
+        include_deleted=include_deleted,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
-    returned = len(records)
-    pagination = PaginationMetadata(
-        total=total, limit=limit, offset=offset, returned=returned,
-        has_next=(offset + returned) < total if limit > 0 else False
-    )
-    return StandardResponse(
-        success=True,
-        code=SuccessCode.STUDENT_RECORDS_RETRIEVED.value,
-        message=f"Retrieved {returned} student records",
-        data={"student_records": [StudentRecordPublic.model_validate(r) for r in records], "pagination": pagination}
+    return cache_get_or_set(
+        cache_key,
+        lambda: _build_student_records_list_response(
+            session, limit, offset, search, year_graduated, min_gwa, max_gwa, course_abbv, include_deleted, sort_by, sort_order
+        ),
+        ttl=STUDENT_RECORDS_LIST_TTL,
     )
 
 
@@ -132,22 +145,18 @@ def get_deleted_student_records(
     session: Session = Depends(get_session)
 ):
     """Get all soft-deleted student records"""
-    records, total = get_all_student_records(
-        session, limit, offset, search, None, None, None, None,
-        include_deleted=True, sort_by=sort_by, sort_order=sort_order
+    cache_key = generate_cache_key(
+        f"{STUDENT_RECORDS_CACHE_NAMESPACE}:deleted",
+        limit=limit,
+        offset=offset,
+        search=search,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
-    deleted = [r for r in records if r.is_deleted]
-    returned = len(deleted)
-    pagination = PaginationMetadata(
-        total=total, limit=limit, offset=offset, returned=returned,
-        has_next=(offset + returned) < total if limit > 0 else False
-    )
-    return PaginatedResponse(
-        success=True,
-        code=SuccessCode.STUDENT_RECORDS_RETRIEVED.value,
-        message=f"Retrieved {returned} deleted student records",
-        data=[StudentRecordPublic.model_validate(r) for r in deleted],
-        pagination=pagination
+    return cache_get_or_set(
+        cache_key,
+        lambda: _build_deleted_student_records_response(session, limit, offset, search, sort_by, sort_order),
+        ttl=STUDENT_RECORDS_LIST_TTL,
     )
 
 
@@ -165,22 +174,24 @@ def get_all_student_records_including_deleted(
     session: Session = Depends(get_session)
 ):
     """Get all student records including soft-deleted"""
-    records, total = get_all_student_records(
-        session, limit, offset, search, year_graduated,
-        min_gwa, max_gwa, course_abbv, include_deleted=True,
-        sort_by=sort_by, sort_order=sort_order
+    cache_key = generate_cache_key(
+        f"{STUDENT_RECORDS_CACHE_NAMESPACE}:all",
+        limit=limit,
+        offset=offset,
+        search=search,
+        year_graduated=year_graduated,
+        min_gwa=min_gwa,
+        max_gwa=max_gwa,
+        course_abbv=course_abbv,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
-    returned = len(records)
-    pagination = PaginationMetadata(
-        total=total, limit=limit, offset=offset, returned=returned,
-        has_next=(offset + returned) < total if limit > 0 else False
-    )
-    return PaginatedResponse(
-        success=True,
-        code=SuccessCode.STUDENT_RECORDS_RETRIEVED.value,
-        message=f"Retrieved {returned} student records (including deleted)",
-        data=[StudentRecordPublic.model_validate(r) for r in records],
-        pagination=pagination
+    return cache_get_or_set(
+        cache_key,
+        lambda: _build_all_student_records_response(
+            session, limit, offset, search, year_graduated, min_gwa, max_gwa, course_abbv, sort_by, sort_order
+        ),
+        ttl=STUDENT_RECORDS_LIST_TTL,
     )
 
 
@@ -196,6 +207,7 @@ def create_student_record_route(
     """Create a new student record linked to an alumni"""
     try:
         new_student = create_student_record(session, student_data)
+        invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True,
             code=SuccessCode.STUDENT_RECORD_CREATED.value,
@@ -233,16 +245,11 @@ def create_student_record_route(
 @router.get("/{student_id}")
 def get_student_record(student_id: str, session: Session = Depends(get_session)):
     """Get a student record by student ID"""
-    student = get_student_by_id(session, student_id)
-    if not student:
-        log_error("student_records", "get", ErrorCode.STUDENT_RECORD_NOT_FOUND.value, f"Student record {student_id} not found")
-        raise HTTPException(status_code=404, detail=StandardResponse(
-            success=False, code=ErrorCode.STUDENT_RECORD_NOT_FOUND.value, message="Student record not found"
-        ).model_dump(mode='json'))
-    return StandardResponse(
-        success=True, code=SuccessCode.STUDENT_RECORD_RETRIEVED.value,
-        message=f"Student record {student_id} retrieved successfully",
-        data=StudentRecordPublic.model_validate(student)
+    cache_key = generate_cache_key(f"{STUDENT_RECORDS_CACHE_NAMESPACE}:detail", student_id=student_id)
+    return cache_get_or_set(
+        cache_key,
+        lambda: _build_student_record_detail_response(session, student_id),
+        ttl=STUDENT_RECORDS_DETAIL_TTL,
     )
 
 
@@ -262,6 +269,7 @@ def update_student_record_route(
 
     try:
         updated = update_student_record(session, student, student_data)
+        invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.STUDENT_RECORD_UPDATED.value,
             message="Student record updated successfully",
@@ -311,6 +319,7 @@ def delete_student_record(student_id: str, session: Session = Depends(get_sessio
 
     try:
         soft_delete_student_record(session, student)
+        invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.STUDENT_RECORD_DELETED.value,
             message=f"Student record {student_id} deleted successfully"
@@ -342,6 +351,7 @@ def restore_student_record_route(student_id: str, session: Session = Depends(get
 
     try:
         restore_student_record(session, student)
+        invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.STUDENT_RECORD_RESTORED.value,
             message=f"Student record {student_id} restored successfully"
@@ -353,3 +363,104 @@ def restore_student_record_route(student_id: str, session: Session = Depends(get
             success=False, code=ErrorCode.INVALID_INPUT.value,
             message="Restore failed: Constraint violation or invalid operation"
         ).model_dump(mode='json'))
+
+
+def _build_student_records_list_response(
+    session: Session,
+    limit: int,
+    offset: int,
+    search: str | None,
+    year_graduated: int | None,
+    min_gwa: float | None,
+    max_gwa: float | None,
+    course_abbv: str | None,
+    include_deleted: bool,
+    sort_by: str,
+    sort_order: str,
+) -> StandardResponse:
+    records, total = get_all_student_records(
+        session, limit, offset, search, year_graduated,
+        min_gwa, max_gwa, course_abbv, include_deleted, sort_by, sort_order
+    )
+    returned = len(records)
+    pagination = PaginationMetadata(
+        total=total, limit=limit, offset=offset, returned=returned,
+        has_next=(offset + returned) < total if limit > 0 else False
+    )
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.STUDENT_RECORDS_RETRIEVED.value,
+        message=f"Retrieved {returned} student records",
+        data={"student_records": [StudentRecordPublic.model_validate(r) for r in records], "pagination": pagination}
+    )
+
+
+def _build_deleted_student_records_response(
+    session: Session,
+    limit: int,
+    offset: int,
+    search: str | None,
+    sort_by: str,
+    sort_order: str,
+) -> PaginatedResponse:
+    records, total = get_all_student_records(
+        session, limit, offset, search, None, None, None, None,
+        include_deleted=True, sort_by=sort_by, sort_order=sort_order, deleted_only=True
+    )
+    returned = len(records)
+    pagination = PaginationMetadata(
+        total=total, limit=limit, offset=offset, returned=returned,
+        has_next=(offset + returned) < total if limit > 0 else False
+    )
+    return PaginatedResponse(
+        success=True,
+        code=SuccessCode.STUDENT_RECORDS_RETRIEVED.value,
+        message=f"Retrieved {returned} deleted student records",
+        data=[StudentRecordPublic.model_validate(r) for r in records],
+        pagination=pagination
+    )
+
+
+def _build_all_student_records_response(
+    session: Session,
+    limit: int,
+    offset: int,
+    search: str | None,
+    year_graduated: int | None,
+    min_gwa: float | None,
+    max_gwa: float | None,
+    course_abbv: str | None,
+    sort_by: str,
+    sort_order: str,
+) -> PaginatedResponse:
+    records, total = get_all_student_records(
+        session, limit, offset, search, year_graduated,
+        min_gwa, max_gwa, course_abbv, include_deleted=True,
+        sort_by=sort_by, sort_order=sort_order
+    )
+    returned = len(records)
+    pagination = PaginationMetadata(
+        total=total, limit=limit, offset=offset, returned=returned,
+        has_next=(offset + returned) < total if limit > 0 else False
+    )
+    return PaginatedResponse(
+        success=True,
+        code=SuccessCode.STUDENT_RECORDS_RETRIEVED.value,
+        message=f"Retrieved {returned} student records (including deleted)",
+        data=[StudentRecordPublic.model_validate(r) for r in records],
+        pagination=pagination
+    )
+
+
+def _build_student_record_detail_response(session: Session, student_id: str) -> StandardResponse:
+    student = get_student_by_id(session, student_id)
+    if not student:
+        log_error("student_records", "get", ErrorCode.STUDENT_RECORD_NOT_FOUND.value, f"Student record {student_id} not found")
+        raise HTTPException(status_code=404, detail=StandardResponse(
+            success=False, code=ErrorCode.STUDENT_RECORD_NOT_FOUND.value, message="Student record not found"
+        ).model_dump(mode='json'))
+    return StandardResponse(
+        success=True, code=SuccessCode.STUDENT_RECORD_RETRIEVED.value,
+        message=f"Student record {student_id} retrieved successfully",
+        data=StudentRecordPublic.model_validate(student)
+    )

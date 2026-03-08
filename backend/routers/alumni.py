@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
 from sqlalchemy.exc import IntegrityError
 from core.database import get_session
+from core.redis import cache_get_or_set, generate_cache_key, invalidate_cache_namespaces
 from schemas.alumni import AlumniUpdate, AlumniPublic
 from schemas.composite import (
     CompleteAlumniRegistration,
@@ -18,6 +19,9 @@ from services.queries.alumni_queries import (
 )
 
 router = APIRouter(prefix="/alumni", tags=["alumni"])
+ALUMNI_CACHE_NAMESPACE = "alumni"
+ALUMNI_LIST_TTL = 300
+ALUMNI_DETAIL_TTL = 300
 
 
 # ---------------------------------------------------------------------------
@@ -48,6 +52,7 @@ def register_complete_alumni_route(
             birthdate=data.birthdate,
             consent_for_survey_ml=data.consent_for_survey_ml,
         )
+        invalidate_cache_namespaces(ALUMNI_CACHE_NAMESPACE, "users")
         return StandardResponse(
             success=True,
             code=SuccessCode.ALUMNI_CREATED.value,
@@ -82,6 +87,7 @@ def batch_register_alumni_route(
 ):
     """Batch create alumni profiles (creates both User and Alumni for each item)"""
     response = batch_register_alumni(session, batch_data.items)
+    invalidate_cache_namespaces(ALUMNI_CACHE_NAMESPACE, "users")
     return StandardResponse(
         success=response.failed == 0,
         code=SuccessCode.ALUMNI_BATCH_REGISTERED.value,
@@ -101,6 +107,7 @@ def batch_update_alumni_route(
 ):
     """Batch update alumni records"""
     response = batch_update_alumni(session, batch_data.items)
+    invalidate_cache_namespaces(ALUMNI_CACHE_NAMESPACE)
     return StandardResponse(
         success=response.failed == 0,
         code=SuccessCode.ALUMNI_BATCH_UPDATED.value,
@@ -116,6 +123,7 @@ def batch_delete_alumni_route(
 ):
     """Batch delete alumni records"""
     response = batch_delete_alumni(session, batch_data.ids)
+    invalidate_cache_namespaces(ALUMNI_CACHE_NAMESPACE)
     return StandardResponse(
         success=response.failed == 0,
         code=SuccessCode.ALUMNI_BATCH_DELETED.value,
@@ -131,6 +139,7 @@ def batch_restore_alumni_route(
 ):
     """Restore multiple soft-deleted alumni"""
     response = batch_restore_alumni(session, data.ids)
+    invalidate_cache_namespaces(ALUMNI_CACHE_NAMESPACE)
     return StandardResponse(
         success=response.failed == 0,
         code=SuccessCode.ALUMNI_BATCH_RESTORED.value,
@@ -155,20 +164,22 @@ def get_all_alumni_route(
     session: Session = Depends(get_session)
 ):
     """Get all alumni records with filtering, searching, and sorting"""
-    alumni_list, total = get_all_alumni(
-        session, limit, offset, search, gender, include_deleted, sort_by, sort_order
+    cache_key = generate_cache_key(
+        f"{ALUMNI_CACHE_NAMESPACE}:list",
+        limit=limit,
+        offset=offset,
+        search=search,
+        gender=gender,
+        include_deleted=include_deleted,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
-    profiles = [build_full_profile(session, a) for a in alumni_list]
-    returned = len(profiles)
-    pagination = PaginationMetadata(
-        total=total, limit=limit, offset=offset, returned=returned,
-        has_next=(offset + returned) < total if limit > 0 else False
-    )
-    return StandardResponse(
-        success=True,
-        code=SuccessCode.ALUMNI_LIST_RETRIEVED.value,
-        message=f"Retrieved {returned} alumni",
-        data={"alumni": profiles, "pagination": pagination}
+    return cache_get_or_set(
+        cache_key,
+        lambda: _build_alumni_list_response(
+            session, limit, offset, search, gender, include_deleted, sort_by, sort_order
+        ),
+        ttl=ALUMNI_LIST_TTL,
     )
 
 
@@ -182,22 +193,18 @@ def get_deleted_alumni(
     session: Session = Depends(get_session)
 ):
     """Get all soft-deleted alumni"""
-    alumni_list, total = get_all_alumni(
-        session, limit, offset, search, None, include_deleted=True,
-        sort_by=sort_by, sort_order=sort_order
+    cache_key = generate_cache_key(
+        f"{ALUMNI_CACHE_NAMESPACE}:deleted",
+        limit=limit,
+        offset=offset,
+        search=search,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
-    deleted = [a for a in alumni_list if a.is_deleted]
-    returned = len(deleted)
-    pagination = PaginationMetadata(
-        total=total, limit=limit, offset=offset, returned=returned,
-        has_next=(offset + returned) < total if limit > 0 else False
-    )
-    return PaginatedResponse(
-        success=True,
-        code=SuccessCode.ALUMNI_LIST_RETRIEVED.value,
-        message=f"Retrieved {returned} deleted alumni",
-        data=[AlumniPublic.model_validate(a) for a in deleted],
-        pagination=pagination
+    return cache_get_or_set(
+        cache_key,
+        lambda: _build_deleted_alumni_response(session, limit, offset, search, sort_by, sort_order),
+        ttl=ALUMNI_LIST_TTL,
     )
 
 
@@ -212,21 +219,19 @@ def get_all_alumni_including_deleted(
     session: Session = Depends(get_session)
 ):
     """Get all alumni including soft-deleted"""
-    alumni_list, total = get_all_alumni(
-        session, limit, offset, search, gender, include_deleted=True,
-        sort_by=sort_by, sort_order=sort_order
+    cache_key = generate_cache_key(
+        f"{ALUMNI_CACHE_NAMESPACE}:all",
+        limit=limit,
+        offset=offset,
+        search=search,
+        gender=gender,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
-    returned = len(alumni_list)
-    pagination = PaginationMetadata(
-        total=total, limit=limit, offset=offset, returned=returned,
-        has_next=(offset + returned) < total if limit > 0 else False
-    )
-    return PaginatedResponse(
-        success=True,
-        code=SuccessCode.ALUMNI_LIST_RETRIEVED.value,
-        message=f"Retrieved {returned} alumni (including deleted)",
-        data=[AlumniPublic.model_validate(a) for a in alumni_list],
-        pagination=pagination
+    return cache_get_or_set(
+        cache_key,
+        lambda: _build_all_alumni_response(session, limit, offset, search, gender, sort_by, sort_order),
+        ttl=ALUMNI_LIST_TTL,
     )
 
 
@@ -237,17 +242,11 @@ def get_all_alumni_including_deleted(
 @router.get("/{alumni_id}")
 def get_alumni(alumni_id: str, session: Session = Depends(get_session)):
     """Get specific alumni by alumni_id with full profile"""
-    alumni = get_alumni_by_id(session, alumni_id)
-    if not alumni:
-        log_error("alumni", "get_alumni", ErrorCode.ALUMNI_NOT_FOUND.value, f"Alumni {alumni_id} not found")
-        raise HTTPException(status_code=404, detail=StandardResponse(
-            success=False, code=ErrorCode.ALUMNI_NOT_FOUND.value, message="Alumni not found"
-        ).model_dump(mode='json'))
-
-    return StandardResponse(
-        success=True, code=SuccessCode.ALUMNI_RETRIEVED.value,
-        message=f"Alumni {alumni_id} retrieved successfully",
-        data=build_full_profile(session, alumni)
+    cache_key = generate_cache_key(f"{ALUMNI_CACHE_NAMESPACE}:detail", alumni_id=alumni_id)
+    return cache_get_or_set(
+        cache_key,
+        lambda: _build_alumni_detail_response(session, alumni_id),
+        ttl=ALUMNI_DETAIL_TTL,
     )
 
 
@@ -267,6 +266,7 @@ def update_alumni_route(
 
     try:
         updated = update_alumni(session, alumni, alumni_data)
+        invalidate_cache_namespaces(ALUMNI_CACHE_NAMESPACE)
         return StandardResponse(
             success=True, code=SuccessCode.ALUMNI_UPDATED.value,
             message=f"Alumni {alumni_id} updated successfully",
@@ -299,6 +299,7 @@ def delete_alumni(alumni_id: str, session: Session = Depends(get_session)):
 
     try:
         soft_delete_alumni(session, alumni)
+        invalidate_cache_namespaces(ALUMNI_CACHE_NAMESPACE)
         return StandardResponse(
             success=True, code=SuccessCode.ALUMNI_DELETED.value,
             message=f"Alumni {alumni_id} deleted successfully"
@@ -330,6 +331,7 @@ def restore_alumni_route(alumni_id: str, session: Session = Depends(get_session)
 
     try:
         restore_alumni(session, alumni)
+        invalidate_cache_namespaces(ALUMNI_CACHE_NAMESPACE)
         return StandardResponse(
             success=True, code=SuccessCode.ALUMNI_RESTORED.value,
             message=f"Alumni {alumni_id} restored successfully"
@@ -341,3 +343,105 @@ def restore_alumni_route(alumni_id: str, session: Session = Depends(get_session)
             success=False, code=ErrorCode.INVALID_INPUT.value,
             message="Restore failed: Constraint violation or invalid operation"
         ).model_dump(mode='json'))
+
+
+def _build_alumni_list_response(
+    session: Session,
+    limit: int,
+    offset: int,
+    search: str | None,
+    gender: str | None,
+    include_deleted: bool,
+    sort_by: str,
+    sort_order: str,
+) -> StandardResponse:
+    alumni_list, total = get_all_alumni(
+        session, limit, offset, search, gender, include_deleted, sort_by, sort_order
+    )
+    profiles = [build_full_profile(session, a) for a in alumni_list]
+    returned = len(profiles)
+    pagination = PaginationMetadata(
+        total=total, limit=limit, offset=offset, returned=returned,
+        has_next=(offset + returned) < total if limit > 0 else False
+    )
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.ALUMNI_LIST_RETRIEVED.value,
+        message=f"Retrieved {returned} alumni",
+        data={"alumni": profiles, "pagination": pagination}
+    )
+
+
+def _build_deleted_alumni_response(
+    session: Session,
+    limit: int,
+    offset: int,
+    search: str | None,
+    sort_by: str,
+    sort_order: str,
+) -> PaginatedResponse:
+    alumni_list, total = get_all_alumni(
+        session,
+        limit,
+        offset,
+        search,
+        None,
+        include_deleted=True,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        deleted_only=True,
+    )
+    returned = len(alumni_list)
+    pagination = PaginationMetadata(
+        total=total, limit=limit, offset=offset, returned=returned,
+        has_next=(offset + returned) < total if limit > 0 else False
+    )
+    return PaginatedResponse(
+        success=True,
+        code=SuccessCode.ALUMNI_LIST_RETRIEVED.value,
+        message=f"Retrieved {returned} deleted alumni",
+        data=[AlumniPublic.model_validate(a) for a in alumni_list],
+        pagination=pagination
+    )
+
+
+def _build_all_alumni_response(
+    session: Session,
+    limit: int,
+    offset: int,
+    search: str | None,
+    gender: str | None,
+    sort_by: str,
+    sort_order: str,
+) -> PaginatedResponse:
+    alumni_list, total = get_all_alumni(
+        session, limit, offset, search, gender, include_deleted=True,
+        sort_by=sort_by, sort_order=sort_order
+    )
+    returned = len(alumni_list)
+    pagination = PaginationMetadata(
+        total=total, limit=limit, offset=offset, returned=returned,
+        has_next=(offset + returned) < total if limit > 0 else False
+    )
+    return PaginatedResponse(
+        success=True,
+        code=SuccessCode.ALUMNI_LIST_RETRIEVED.value,
+        message=f"Retrieved {returned} alumni (including deleted)",
+        data=[AlumniPublic.model_validate(a) for a in alumni_list],
+        pagination=pagination
+    )
+
+
+def _build_alumni_detail_response(session: Session, alumni_id: str) -> StandardResponse:
+    alumni = get_alumni_by_id(session, alumni_id)
+    if not alumni:
+        log_error("alumni", "get_alumni", ErrorCode.ALUMNI_NOT_FOUND.value, f"Alumni {alumni_id} not found")
+        raise HTTPException(status_code=404, detail=StandardResponse(
+            success=False, code=ErrorCode.ALUMNI_NOT_FOUND.value, message="Alumni not found"
+        ).model_dump(mode='json'))
+
+    return StandardResponse(
+        success=True, code=SuccessCode.ALUMNI_RETRIEVED.value,
+        message=f"Alumni {alumni_id} retrieved successfully",
+        data=build_full_profile(session, alumni)
+    )

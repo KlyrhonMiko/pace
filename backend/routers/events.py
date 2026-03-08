@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
 from sqlmodel import Session
 from typing import Optional
 from core.database import get_session
+from core.redis import cache_get_or_set, generate_cache_key, invalidate_cache_namespaces
 from schemas.events import EventCreate, EventUpdate, EventPublic
 from models.response_codes import StandardResponse, ErrorCode, SuccessCode
 from models.pagination import PaginationMetadata
@@ -16,6 +17,9 @@ from services.supabase.supabase_storage import SupabaseStorageService
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/events", tags=["events"])
 storage_service = SupabaseStorageService()
+EVENTS_CACHE_NAMESPACE = "events"
+EVENTS_LIST_TTL = 600
+EVENTS_DETAIL_TTL = 600
 
 
 # ---------------------------------------------------------------------------
@@ -27,6 +31,7 @@ def create_event_route(event_create: EventCreate, session: Session = Depends(get
     """Create a new event"""
     try:
         event = create_event(session, event_create)
+        invalidate_cache_namespaces(EVENTS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True, code=SuccessCode.EVENT_CREATED.value,
             message="Event created successfully",
@@ -55,19 +60,31 @@ def list_events(
 ):
     """List events with pagination, sorting, search, and filtering"""
     try:
-        events, total = get_all_events(
-            session, limit, offset, search, event_type,
-            status, include_deleted, sort_by, sort_order
+        cache_key = generate_cache_key(
+            f"{EVENTS_CACHE_NAMESPACE}:list",
+            limit=limit,
+            offset=offset,
+            search=search,
+            event_type=event_type,
+            status=status,
+            include_deleted=include_deleted,
+            sort_by=sort_by,
+            sort_order=sort_order,
         )
-        returned = len(events)
-        pagination = PaginationMetadata(
-            total=total, limit=limit, offset=offset, returned=returned,
-            has_next=(offset + returned) < total if limit > 0 else False
-        )
-        return StandardResponse(
-            success=True, code=SuccessCode.EVENTS_RETRIEVED.value,
-            message=f"Retrieved {returned} events",
-            data={"events": [EventPublic.model_validate(e) for e in events], "pagination": pagination}
+        return cache_get_or_set(
+            cache_key,
+            lambda: _build_events_list_response(
+                session,
+                limit,
+                offset,
+                search,
+                event_type,
+                status,
+                include_deleted,
+                sort_by,
+                sort_order,
+            ),
+            ttl=EVENTS_LIST_TTL,
         )
     except Exception as e:
         logger.error(f"Error listing events: {e}")
@@ -80,16 +97,11 @@ def list_events(
 def get_event(event_id: str, session: Session = Depends(get_session)):
     """Get a specific event by event_id"""
     try:
-        event = get_active_event_by_id(session, event_id)
-        if not event:
-            raise HTTPException(status_code=404, detail=StandardResponse(
-                success=False, code=ErrorCode.EVENT_NOT_FOUND.value,
-                message=f"Event with ID '{event_id}' not found"
-            ).model_dump(mode='json'))
-        return StandardResponse(
-            success=True, code=SuccessCode.EVENT_RETRIEVED.value,
-            message="Event retrieved successfully",
-            data=EventPublic.model_validate(event)
+        cache_key = generate_cache_key(f"{EVENTS_CACHE_NAMESPACE}:detail", event_id=event_id)
+        return cache_get_or_set(
+            cache_key,
+            lambda: _build_event_detail_response(session, event_id),
+            ttl=EVENTS_DETAIL_TTL,
         )
     except HTTPException:
         raise
@@ -114,6 +126,7 @@ def update_event_route(
                 message="Cannot update a deleted event"
             ).model_dump(mode='json'))
         updated = update_event(session, event, event_update)
+        invalidate_cache_namespaces(EVENTS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True, code=SuccessCode.EVENT_UPDATED.value,
             message="Event updated successfully",
@@ -138,6 +151,7 @@ def delete_event(event_id: str, session: Session = Depends(get_session)):
                 success=False, code=ErrorCode.ALREADY_DELETED.value, message="Event is already deleted"
             ).model_dump(mode='json'))
         soft_delete_event(session, event)
+        invalidate_cache_namespaces(EVENTS_CACHE_NAMESPACE)
         return StandardResponse(success=True, code=SuccessCode.EVENT_DELETED.value, message="Event deleted successfully")
     except HTTPException:
         raise
@@ -158,6 +172,7 @@ def restore_event_route(event_id: str, session: Session = Depends(get_session)):
                 success=False, code=ErrorCode.EVENT_NOT_DELETED.value, message="Event is not deleted"
             ).model_dump(mode='json'))
         restored = restore_event(session, event)
+        invalidate_cache_namespaces(EVENTS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True, code=SuccessCode.EVENT_RESTORED.value,
             message="Event restored successfully",
@@ -205,6 +220,7 @@ async def upload_event_image(
                 ).model_dump(mode='json'))
 
         update_event_image(session, event, image_path)
+        invalidate_cache_namespaces(EVENTS_CACHE_NAMESPACE)
         image_url = storage_service.get_public_url(image_path)
         return StandardResponse(
             success=True, code=SuccessCode.IMAGE_UPLOADED.value,
@@ -237,6 +253,7 @@ async def delete_event_image(event_id: str, session: Session = Depends(get_sessi
             ).model_dump(mode='json'))
 
         clear_event_image(session, event)
+        invalidate_cache_namespaces(EVENTS_CACHE_NAMESPACE)
         return StandardResponse(success=True, code=SuccessCode.IMAGE_DELETED.value, message="Image deleted successfully")
     except HTTPException:
         raise
@@ -251,20 +268,11 @@ async def delete_event_image(event_id: str, session: Session = Depends(get_sessi
 def get_event_image_url(event_id: str, session: Session = Depends(get_session)):
     """Get the public URL for an event's image"""
     try:
-        event = get_event_by_id(session, event_id)
-        if not event.image_path:
-            raise HTTPException(status_code=404, detail=StandardResponse(
-                success=False, code=ErrorCode.IMAGE_NOT_FOUND.value, message="Event has no image"
-            ).model_dump(mode='json'))
-        image_url = storage_service.get_public_url(event.image_path)
-        if not image_url:
-            raise HTTPException(status_code=400, detail=StandardResponse(
-                success=False, code=ErrorCode.IMAGE_URL_FAILED.value, message="Failed to generate image URL"
-            ).model_dump(mode='json'))
-        return StandardResponse(
-            success=True, code=SuccessCode.IMAGE_URL_RETRIEVED.value,
-            message="Image URL retrieved successfully",
-            data={"image_url": image_url}
+        cache_key = generate_cache_key(f"{EVENTS_CACHE_NAMESPACE}:image_url", event_id=event_id)
+        return cache_get_or_set(
+            cache_key,
+            lambda: _build_event_image_url_response(session, event_id),
+            ttl=EVENTS_DETAIL_TTL,
         )
     except HTTPException:
         raise
@@ -273,3 +281,62 @@ def get_event_image_url(event_id: str, session: Session = Depends(get_session)):
         raise HTTPException(status_code=400, detail=StandardResponse(
             success=False, code=ErrorCode.INVALID_INPUT.value, message=f"Failed to get image URL: {e}"
         ).model_dump(mode='json'))
+
+
+def _build_events_list_response(
+    session: Session,
+    limit: int,
+    offset: int,
+    search: str | None,
+    event_type: Optional[str],
+    status: str,
+    include_deleted: bool,
+    sort_by: str,
+    sort_order: str,
+) -> StandardResponse:
+    events, total = get_all_events(
+        session, limit, offset, search, event_type,
+        status, include_deleted, sort_by, sort_order
+    )
+    returned = len(events)
+    pagination = PaginationMetadata(
+        total=total, limit=limit, offset=offset, returned=returned,
+        has_next=(offset + returned) < total if limit > 0 else False
+    )
+    return StandardResponse(
+        success=True, code=SuccessCode.EVENTS_RETRIEVED.value,
+        message=f"Retrieved {returned} events",
+        data={"events": [EventPublic.model_validate(e) for e in events], "pagination": pagination}
+    )
+
+
+def _build_event_detail_response(session: Session, event_id: str) -> StandardResponse:
+    event = get_active_event_by_id(session, event_id)
+    if not event:
+        raise HTTPException(status_code=404, detail=StandardResponse(
+            success=False, code=ErrorCode.EVENT_NOT_FOUND.value,
+            message=f"Event with ID '{event_id}' not found"
+        ).model_dump(mode='json'))
+    return StandardResponse(
+        success=True, code=SuccessCode.EVENT_RETRIEVED.value,
+        message="Event retrieved successfully",
+        data=EventPublic.model_validate(event)
+    )
+
+
+def _build_event_image_url_response(session: Session, event_id: str) -> StandardResponse:
+    event = get_event_by_id(session, event_id)
+    if not event.image_path:
+        raise HTTPException(status_code=404, detail=StandardResponse(
+            success=False, code=ErrorCode.IMAGE_NOT_FOUND.value, message="Event has no image"
+        ).model_dump(mode='json'))
+    image_url = storage_service.get_public_url(event.image_path)
+    if not image_url:
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.IMAGE_URL_FAILED.value, message="Failed to generate image URL"
+        ).model_dump(mode='json'))
+    return StandardResponse(
+        success=True, code=SuccessCode.IMAGE_URL_RETRIEVED.value,
+        message="Image URL retrieved successfully",
+        data={"image_url": image_url}
+    )

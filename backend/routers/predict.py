@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 
 from core.database import get_session
+from core.redis import cache_get_or_set, generate_cache_key, invalidate_cache_namespaces
 from models.employability import (
     EmployabilityInput,
     EmployabilityPrediction,
@@ -19,6 +20,9 @@ from services.machines.random_forest import EmployabilityPredictor
 
 
 router = APIRouter(prefix="/predict", tags=["Employability Prediction"])
+PREDICT_CACHE_NAMESPACE = "predict"
+PREDICT_DETAIL_TTL = 1800
+PREDICT_ALUMNI_TTL = 300
 
 # ── Singleton predictor — loaded once, reused for every request ──
 try:
@@ -90,6 +94,7 @@ def predict_employability(
     db.add(prediction)
     db.commit()
     db.refresh(prediction)
+    invalidate_cache_namespaces(PREDICT_CACHE_NAMESPACE)
 
     return StandardResponse(
         success=True,
@@ -112,6 +117,41 @@ def get_prediction(
     db: Session = Depends(get_session),
 ):
     """Retrieve a stored prediction by its UUID."""
+    cache_key = generate_cache_key(f"{PREDICT_CACHE_NAMESPACE}:detail", prediction_id=str(prediction_id))
+    return cache_get_or_set(
+        cache_key,
+        lambda: _build_prediction_detail_response(db, prediction_id),
+        ttl=PREDICT_DETAIL_TTL,
+    )
+
+
+# ─────────────────────────────────────────────────────────────────
+# GET  /predict/employability/alumni/{alumni_code}
+# ─────────────────────────────────────────────────────────────────
+
+@router.get("/employability/alumni/{alumni_code}")
+def get_alumni_predictions(
+    alumni_code: uuid.UUID,
+    db: Session = Depends(get_session),
+    limit: int = Query(default=10, ge=1, le=50, description="Max results to return"),
+):
+    """Get all predictions linked to a specific alumni, newest first."""
+    cache_key = generate_cache_key(
+        f"{PREDICT_CACHE_NAMESPACE}:alumni",
+        alumni_code=str(alumni_code),
+        limit=limit,
+    )
+    return cache_get_or_set(
+        cache_key,
+        lambda: _build_alumni_predictions_response(db, alumni_code, limit),
+        ttl=PREDICT_ALUMNI_TTL,
+    )
+
+
+def _build_prediction_detail_response(
+    db: Session,
+    prediction_id: uuid.UUID,
+) -> StandardResponse:
     prediction = db.get(EmployabilityPrediction, prediction_id)
 
     if not prediction:
@@ -132,17 +172,11 @@ def get_prediction(
     )
 
 
-# ─────────────────────────────────────────────────────────────────
-# GET  /predict/employability/alumni/{alumni_code}
-# ─────────────────────────────────────────────────────────────────
-
-@router.get("/employability/alumni/{alumni_code}")
-def get_alumni_predictions(
+def _build_alumni_predictions_response(
+    db: Session,
     alumni_code: uuid.UUID,
-    db: Session = Depends(get_session),
-    limit: int = Query(default=10, ge=1, le=50, description="Max results to return"),
-):
-    """Get all predictions linked to a specific alumni, newest first."""
+    limit: int,
+) -> StandardResponse:
     query = (
         select(EmployabilityPrediction)
         .where(EmployabilityPrediction.alumni_code == alumni_code)

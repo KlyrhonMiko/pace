@@ -1,5 +1,9 @@
-from typing import TypeVar, Generic, List
-from pydantic import BaseModel, Field
+from datetime import datetime
+from typing import Generic, List, TypeVar
+
+from pydantic import BaseModel, Field, field_serializer
+
+from utils.timezone import format_datetime_gmt8, get_current_time_gmt8
 
 T = TypeVar('T')
 
@@ -15,5 +19,17 @@ class PaginationMetadata(BaseModel):
 
 class PaginatedResponse(BaseModel, Generic[T]):
     """Generic paginated response wrapper"""
+    success: bool = Field(..., description="Whether the operation was successful")
+    code: str = Field(..., description="Response code")
+    message: str = Field(..., description="Human-readable message")
     data: List[T] = Field(..., description="List of records")
     pagination: PaginationMetadata = Field(..., description="Pagination metadata")
+    timestamp: datetime = Field(
+        default_factory=get_current_time_gmt8,
+        description="Response timestamp in GMT+8",
+    )
+
+    @field_serializer("timestamp")
+    def serialize_timestamp(self, value: datetime) -> str:
+        """Serialize timestamp using the shared GMT+8 display format."""
+        return format_datetime_gmt8(value)

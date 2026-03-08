@@ -146,11 +146,17 @@ def get_all_college_depts(
     include_deleted: bool,
     sort_by: str,
     sort_order: str,
+    deleted_only: bool = False,
 ) -> tuple[list[CollegeDept], int]:
     """
     Return (records, total_count) with filtering, search, sort, and pagination.
     """
-    base_filter = None if include_deleted else (CollegeDept.is_deleted == False)
+    if deleted_only:
+        base_filter = CollegeDept.is_deleted == True
+    elif include_deleted:
+        base_filter = None
+    else:
+        base_filter = CollegeDept.is_deleted == False
 
     query = select(CollegeDept)
     count_q = select(func.count(CollegeDept.college_dept_code))

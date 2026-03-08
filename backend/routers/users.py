@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
 from sqlalchemy.exc import IntegrityError
 from core.database import get_session
+from core.redis import cache_get_or_set, generate_cache_key, invalidate_cache_namespaces
 from schemas.users import (
     UserCreate, UserUpdate, UserPublic,
     UserBatchCreate, UserBatchUpdate, UserBatchDelete, UserBatchRestore,
@@ -18,6 +19,9 @@ from services.queries.users_queries import (
 )
 
 router = APIRouter(prefix="/users", tags=["users"])
+USERS_CACHE_NAMESPACE = "users"
+USERS_LIST_TTL = 300
+USERS_DETAIL_TTL = 300
 
 
 # ---------------------------------------------------------------------------
@@ -31,6 +35,7 @@ def batch_create_users_route(
 ):
     """Batch create users"""
     response = batch_create_users(session, batch_data.items)
+    invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
         code=SuccessCode.USERS_BATCH_CREATED.value,
@@ -46,6 +51,7 @@ def batch_update_users_route(
 ):
     """Batch update users"""
     response = batch_update_users(session, batch_data.items)
+    invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
         code=SuccessCode.USERS_BATCH_UPDATED.value,
@@ -61,6 +67,7 @@ def batch_delete_users_route(
 ):
     """Batch delete users"""
     response = batch_delete_users(session, batch_data.ids)
+    invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
         code=SuccessCode.USERS_BATCH_DELETED.value,
@@ -76,6 +83,7 @@ def batch_restore_users_route(
 ):
     """Restore multiple soft-deleted users"""
     response = batch_restore_users(session, data.ids)
+    invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
         code=SuccessCode.USERS_BATCH_RESTORED.value,
@@ -100,19 +108,22 @@ def get_all_users_route(
     session: Session = Depends(get_session)
 ):
     """Get all users with filtering, searching, and sorting"""
-    users, total = get_all_users(
-        session, limit, offset, search, user_type, include_deleted, sort_by, sort_order
+    cache_key = generate_cache_key(
+        f"{USERS_CACHE_NAMESPACE}:list",
+        limit=limit,
+        offset=offset,
+        search=search,
+        user_type=user_type,
+        include_deleted=include_deleted,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
-    returned = len(users)
-    pagination = PaginationMetadata(
-        total=total, limit=limit, offset=offset, returned=returned,
-        has_next=(offset + returned) < total if limit > 0 else False
-    )
-    return StandardResponse(
-        success=True,
-        code=SuccessCode.USERS_RETRIEVED.value,
-        message=f"Retrieved {returned} users",
-        data={"users": [UserPublic.model_validate(u) for u in users], "pagination": pagination}
+    return cache_get_or_set(
+        cache_key,
+        lambda: _build_users_list_response(
+            session, limit, offset, search, user_type, include_deleted, sort_by, sort_order
+        ),
+        ttl=USERS_LIST_TTL,
     )
 
 
@@ -126,22 +137,18 @@ def get_deleted_users(
     session: Session = Depends(get_session)
 ):
     """Get all soft-deleted users"""
-    users, total = get_all_users(
-        session, limit, offset, search, None, include_deleted=True,
-        sort_by=sort_by, sort_order=sort_order
+    cache_key = generate_cache_key(
+        f"{USERS_CACHE_NAMESPACE}:deleted",
+        limit=limit,
+        offset=offset,
+        search=search,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
-    deleted = [u for u in users if u.is_deleted]
-    returned = len(deleted)
-    pagination = PaginationMetadata(
-        total=total, limit=limit, offset=offset, returned=returned,
-        has_next=(offset + returned) < total if limit > 0 else False
-    )
-    return PaginatedResponse(
-        success=True,
-        code=SuccessCode.USERS_RETRIEVED.value,
-        message=f"Retrieved {returned} deleted users",
-        data=[UserPublic.model_validate(u) for u in deleted],
-        pagination=pagination
+    return cache_get_or_set(
+        cache_key,
+        lambda: _build_deleted_users_response(session, limit, offset, search, sort_by, sort_order),
+        ttl=USERS_LIST_TTL,
     )
 
 
@@ -156,21 +163,19 @@ def get_all_users_including_deleted(
     session: Session = Depends(get_session)
 ):
     """Get all users including soft-deleted"""
-    users, total = get_all_users(
-        session, limit, offset, search, user_type, include_deleted=True,
-        sort_by=sort_by, sort_order=sort_order
+    cache_key = generate_cache_key(
+        f"{USERS_CACHE_NAMESPACE}:all",
+        limit=limit,
+        offset=offset,
+        search=search,
+        user_type=user_type,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
-    returned = len(users)
-    pagination = PaginationMetadata(
-        total=total, limit=limit, offset=offset, returned=returned,
-        has_next=(offset + returned) < total if limit > 0 else False
-    )
-    return PaginatedResponse(
-        success=True,
-        code=SuccessCode.USERS_RETRIEVED.value,
-        message=f"Retrieved {returned} users (including deleted)",
-        data=[UserPublic.model_validate(u) for u in users],
-        pagination=pagination
+    return cache_get_or_set(
+        cache_key,
+        lambda: _build_all_users_response(session, limit, offset, search, user_type, sort_by, sort_order),
+        ttl=USERS_LIST_TTL,
     )
 
 
@@ -186,6 +191,7 @@ def create_user_route(
     """Create a new user account"""
     try:
         new_user = create_user(session, user_data)
+        invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True,
             code=SuccessCode.USER_CREATED.value,
@@ -208,16 +214,11 @@ def create_user_route(
 @router.get("/{user_id}")
 def get_user(user_id: str, session: Session = Depends(get_session)):
     """Get a specific user by user_id"""
-    user = get_user_by_id(session, user_id)
-    if not user:
-        log_error("users", "get_user", ErrorCode.USER_NOT_FOUND.value, f"User {user_id} not found")
-        raise HTTPException(status_code=404, detail=StandardResponse(
-            success=False, code=ErrorCode.USER_NOT_FOUND.value, message="User not found"
-        ).model_dump(mode='json'))
-    return StandardResponse(
-        success=True, code=SuccessCode.USER_RETRIEVED.value,
-        message=f"User {user_id} retrieved successfully",
-        data=UserPublic.model_validate(user)
+    cache_key = generate_cache_key(f"{USERS_CACHE_NAMESPACE}:detail", user_id=user_id)
+    return cache_get_or_set(
+        cache_key,
+        lambda: _build_user_detail_response(session, user_id),
+        ttl=USERS_DETAIL_TTL,
     )
 
 
@@ -251,6 +252,7 @@ def update_user_route(
 
     try:
         updated = update_user(session, user, user_data)
+        invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.USER_UPDATED.value,
             message=f"User {updated.user_id} updated successfully",
@@ -297,6 +299,7 @@ def delete_user(
 
     try:
         soft_delete_user(session, user)
+        invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.USER_DELETED.value,
             message=f"User {user_id} deleted successfully"
@@ -328,6 +331,7 @@ def restore_user_route(user_id: str, session: Session = Depends(get_session)):
 
     try:
         restore_user(session, user)
+        invalidate_cache_namespaces(USERS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True, code=SuccessCode.USER_RESTORED.value,
             message=f"User {user_id} restored successfully"
@@ -339,3 +343,103 @@ def restore_user_route(user_id: str, session: Session = Depends(get_session)):
             success=False, code=ErrorCode.INVALID_INPUT.value,
             message="Restore failed: Constraint violation or invalid operation"
         ).model_dump(mode='json'))
+
+
+def _build_users_list_response(
+    session: Session,
+    limit: int,
+    offset: int,
+    search: str | None,
+    user_type: str | None,
+    include_deleted: bool,
+    sort_by: str,
+    sort_order: str,
+) -> StandardResponse:
+    users, total = get_all_users(
+        session, limit, offset, search, user_type, include_deleted, sort_by, sort_order
+    )
+    returned = len(users)
+    pagination = PaginationMetadata(
+        total=total, limit=limit, offset=offset, returned=returned,
+        has_next=(offset + returned) < total if limit > 0 else False
+    )
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.USERS_RETRIEVED.value,
+        message=f"Retrieved {returned} users",
+        data={"users": [UserPublic.model_validate(u) for u in users], "pagination": pagination}
+    )
+
+
+def _build_deleted_users_response(
+    session: Session,
+    limit: int,
+    offset: int,
+    search: str | None,
+    sort_by: str,
+    sort_order: str,
+) -> PaginatedResponse:
+    users, total = get_all_users(
+        session,
+        limit,
+        offset,
+        search,
+        None,
+        include_deleted=True,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        deleted_only=True,
+    )
+    returned = len(users)
+    pagination = PaginationMetadata(
+        total=total, limit=limit, offset=offset, returned=returned,
+        has_next=(offset + returned) < total if limit > 0 else False
+    )
+    return PaginatedResponse(
+        success=True,
+        code=SuccessCode.USERS_RETRIEVED.value,
+        message=f"Retrieved {returned} deleted users",
+        data=[UserPublic.model_validate(u) for u in users],
+        pagination=pagination
+    )
+
+
+def _build_all_users_response(
+    session: Session,
+    limit: int,
+    offset: int,
+    search: str | None,
+    user_type: str | None,
+    sort_by: str,
+    sort_order: str,
+) -> PaginatedResponse:
+    users, total = get_all_users(
+        session, limit, offset, search, user_type, include_deleted=True,
+        sort_by=sort_by, sort_order=sort_order
+    )
+    returned = len(users)
+    pagination = PaginationMetadata(
+        total=total, limit=limit, offset=offset, returned=returned,
+        has_next=(offset + returned) < total if limit > 0 else False
+    )
+    return PaginatedResponse(
+        success=True,
+        code=SuccessCode.USERS_RETRIEVED.value,
+        message=f"Retrieved {returned} users (including deleted)",
+        data=[UserPublic.model_validate(u) for u in users],
+        pagination=pagination
+    )
+
+
+def _build_user_detail_response(session: Session, user_id: str) -> StandardResponse:
+    user = get_user_by_id(session, user_id)
+    if not user:
+        log_error("users", "get_user", ErrorCode.USER_NOT_FOUND.value, f"User {user_id} not found")
+        raise HTTPException(status_code=404, detail=StandardResponse(
+            success=False, code=ErrorCode.USER_NOT_FOUND.value, message="User not found"
+        ).model_dump(mode='json'))
+    return StandardResponse(
+        success=True, code=SuccessCode.USER_RETRIEVED.value,
+        message=f"User {user_id} retrieved successfully",
+        data=UserPublic.model_validate(user)
+    )

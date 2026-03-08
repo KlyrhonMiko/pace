@@ -11,6 +11,9 @@
 #vscode
 .vscode/
 
+#testing scripts
+.tests/
+
 # dependencies
 /node_modules
 /.pnp

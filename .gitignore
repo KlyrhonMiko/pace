@@ -1,8 +1,13 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 
-#
+# google antigravity agents
 .agents/
+
+# claude code configurations
+/CLAUDE.md
+.claude/
+
 #vscode
 .vscode/
 

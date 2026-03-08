@@ -1,11 +1,11 @@
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional, List
 from enum import Enum
 from sqlmodel import SQLModel, Field, JSON
 from pydantic import field_serializer, field_validator
-from utils.timezone import GMT8
+from utils.timezone import format_datetime_gmt8
 from schemas.questions import QuestionPublic
 
 
@@ -90,12 +90,7 @@ class SurveyPublic(SQLModel):
 
     @field_serializer("created_at", "updated_at")
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
-        if value is None:
-            return None
-        if value.tzinfo is None:
-            value = value.replace(tzinfo=timezone.utc)
-        gmt8_time = value.astimezone(GMT8)
-        return gmt8_time.strftime("%Y-%m-%d %H:%M:%S")
+        return format_datetime_gmt8(value)
 
 
 class SurveyQuestionWithDetails(SQLModel):
@@ -130,12 +125,7 @@ class SurveyResponsePublic(SQLModel):
 
     @field_serializer("submitted_at")
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
-        if value is None:
-            return None
-        if value.tzinfo is None:
-            value = value.replace(tzinfo=timezone.utc)
-        gmt8_time = value.astimezone(GMT8)
-        return gmt8_time.strftime("%Y-%m-%d %H:%M:%S")
+        return format_datetime_gmt8(value)
 
 
 class SurveyAnswerCreate(SQLModel):
@@ -193,12 +183,7 @@ class SurveyInvitationPublic(SQLModel):
 
     @field_serializer("sent_at", "opened_at", "responded_at", "created_at")
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
-        if value is None:
-            return None
-        if value.tzinfo is None:
-            value = value.replace(tzinfo=timezone.utc)
-        gmt8_time = value.astimezone(GMT8)
-        return gmt8_time.strftime("%Y-%m-%d %H:%M:%S")
+        return format_datetime_gmt8(value)
 
 
 class SurveyInvitationListResponse(SQLModel):
@@ -266,12 +251,7 @@ class SurveyDistributionConfigPublic(SQLModel):
 
     @field_serializer("scheduled_send_at", "sent_at", "created_at", "updated_at")
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
-        if value is None:
-            return None
-        if value.tzinfo is None:
-            value = value.replace(tzinfo=timezone.utc)
-        gmt8_time = value.astimezone(GMT8)
-        return gmt8_time.strftime("%Y-%m-%d %H:%M:%S")
+        return format_datetime_gmt8(value)
 
 
 class DistributionStatsResponse(SQLModel):
@@ -388,9 +368,4 @@ class NonRespondentPublic(SQLModel):
 
     @field_serializer("sent_at")
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
-        if value is None:
-            return None
-        if value.tzinfo is None:
-            value = value.replace(tzinfo=timezone.utc)
-        gmt8_time = value.astimezone(GMT8)
-        return gmt8_time.strftime("%Y-%m-%d %H:%M:%S")
+        return format_datetime_gmt8(value)

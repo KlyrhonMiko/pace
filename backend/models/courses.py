@@ -1,7 +1,8 @@
 import uuid
+from datetime import datetime
 from typing import Optional
 from sqlmodel import SQLModel, Field
-from datetime import datetime, timezone
+from utils.timezone import get_current_time_gmt8
 
 
 class CourseBase(SQLModel):
@@ -18,7 +19,7 @@ class Course(CourseBase, table=True):
     college_dept_code: Optional[uuid.UUID] = Field(
         default=None, foreign_key="college_depts.college_dept_code", ondelete="SET NULL"
     )
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=get_current_time_gmt8)
+    updated_at: datetime = Field(default_factory=get_current_time_gmt8)
     is_deleted: bool = Field(default=False)
     deleted_at: Optional[datetime] = Field(default=None)

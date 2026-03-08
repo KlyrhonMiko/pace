@@ -4,7 +4,6 @@ All session.exec / session.add / session.commit / session.rollback calls live he
 Routers call these functions; they do NOT contain any select/exec logic themselves.
 """
 
-from datetime import datetime, timezone
 from sqlmodel import Session, select, func
 from sqlalchemy.exc import IntegrityError
 
@@ -147,7 +146,7 @@ def update_course(
     if data.course_desc is not None:
         course.course_desc = data.course_desc
 
-    course.updated_at = datetime.now(timezone.utc)
+    course.updated_at = get_current_time_gmt8()
     session.add(course)
     session.commit()
     session.refresh(course)
@@ -405,7 +404,7 @@ def batch_update_courses(
                 if item.course_desc is not None:
                     course.course_desc = item.course_desc
 
-                course.updated_at = datetime.now(timezone.utc)
+                course.updated_at = get_current_time_gmt8()
                 session.add(course)
                 session.flush()
                 session.refresh(course)

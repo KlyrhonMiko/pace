@@ -917,16 +917,10 @@ def export_survey_responses(session: Session, survey: Survey) -> dict:
     ).all()
 
     from models.alumni import Alumni
-    from utils.timezone import get_current_time_gmt8
-    from datetime import timezone as _tz
-    from schemas.surveys import GMT8 as _GMT8
+    from utils.timezone import SORTABLE_DATETIME_FORMAT, format_datetime_gmt8
 
     def _fmt(dt):
-        if dt is None:
-            return None
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=_tz.utc)
-        return dt.astimezone(_GMT8).strftime("%Y-%m-%d %H:%M:%S")
+        return format_datetime_gmt8(dt, fmt=SORTABLE_DATETIME_FORMAT)
 
     output_responses = []
     for resp in responses:

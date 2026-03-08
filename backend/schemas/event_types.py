@@ -1,8 +1,8 @@
 from typing import Optional
 from sqlmodel import SQLModel, Field
 from pydantic import field_validator, field_serializer
-from datetime import datetime, timezone
-from utils.timezone import GMT8
+from datetime import datetime
+from utils.timezone import format_datetime_gmt8
 
 
 class EventTypeCreate(SQLModel):
@@ -39,10 +39,5 @@ class EventTypePublic(SQLModel):
 
     @field_serializer("created_at", "updated_at")
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
-        """Convert to GMT+8 and format as YYYY-MM-DD HH:MM:SS without microseconds"""
-        if value is None:
-            return None
-        if value.tzinfo is None:
-            value = value.replace(tzinfo=timezone.utc)
-        gmt8_time = value.astimezone(GMT8)
-        return gmt8_time.strftime("%Y-%m-%d %H:%M:%S")
+        """Convert to GMT+8 and format using the shared datetime display format."""
+        return format_datetime_gmt8(value)

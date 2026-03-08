@@ -1,8 +1,8 @@
+from datetime import date, datetime
 from typing import Optional
-from datetime import datetime, timezone, timedelta, date
 from sqlmodel import SQLModel
 from pydantic import field_serializer
-from utils.timezone import GMT8
+from utils.timezone import format_datetime_gmt8
 
 # Response for alumni full profile
 
@@ -45,10 +45,5 @@ class AlumniFullProfile(SQLModel):
 
     @field_serializer("created_at", "updated_at")
     def serialize_datetime(self, value: datetime) -> str:
-        """Convert to GMT+8 and format as YYYY-MM-DD HH:MM:SS without microseconds"""
-        # Convert UTC datetime to GMT+8
-        if value.tzinfo is None:
-            # Assume it's UTC if no timezone info
-            value = value.replace(tzinfo=timezone.utc)
-        gmt8_time = value.astimezone(GMT8)
-        return gmt8_time.strftime("%Y-%m-%d %H:%M:%S")
+        """Convert to GMT+8 and format using the shared datetime display format."""
+        return format_datetime_gmt8(value)

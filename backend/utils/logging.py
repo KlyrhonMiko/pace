@@ -1,15 +1,16 @@
 import logging
 import logging.handlers
 import os
-from datetime import datetime
 from pathlib import Path
+
+from utils.timezone import get_current_time_gmt8
 
 # Create logs directory if it doesn't exist
 LOGS_DIR = Path(__file__).parent.parent / ".logs"
 LOGS_DIR.mkdir(exist_ok=True)
 
 # Create error log file with date
-LOG_FILE = LOGS_DIR / f"errors_{datetime.now().strftime('%Y-%m-%d')}.log"
+LOG_FILE = LOGS_DIR / f"errors_{get_current_time_gmt8().strftime('%Y-%m-%d')}.log"
 
 
 # Configure logging

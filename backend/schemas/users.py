@@ -1,10 +1,10 @@
 import re
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional, List
 from enum import Enum
 from sqlmodel import SQLModel, Field
 from pydantic import field_serializer, field_validator, BaseModel
-from utils.timezone import GMT8
+from utils.timezone import format_datetime_gmt8
 from utils.auth import hash_password
 
 
@@ -59,12 +59,7 @@ class UserPublic(SQLModel):
 
     @field_serializer("created_at", "updated_at")
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
-        if value is None:
-            return None
-        if value.tzinfo is None:
-            value = value.replace(tzinfo=timezone.utc)
-        gmt8_time = value.astimezone(GMT8)
-        return gmt8_time.strftime("%Y-%m-%d %H:%M:%S")
+        return format_datetime_gmt8(value)
 
 
 class UserUpdate(SQLModel):

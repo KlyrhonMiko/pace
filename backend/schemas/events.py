@@ -1,8 +1,8 @@
-from datetime import datetime, time, timezone
+from datetime import datetime, time
 from typing import Optional
 from sqlmodel import SQLModel, Field
 from pydantic import field_serializer, field_validator
-from utils.timezone import GMT8
+from utils.timezone import format_date_gmt8, format_datetime_gmt8, format_time_value
 
 
 class EventCreate(SQLModel):
@@ -57,27 +57,15 @@ class EventPublic(SQLModel):
 
     @field_serializer("created_at", "updated_at")
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
-        if value is None:
-            return None
-        if value.tzinfo is None:
-            value = value.replace(tzinfo=timezone.utc)
-        gmt8_time = value.astimezone(GMT8)
-        return gmt8_time.strftime("%Y-%m-%d %H:%M:%S")
+        return format_datetime_gmt8(value)
 
     @field_serializer("date")
     def serialize_date(self, value: Optional[datetime]) -> Optional[str]:
-        if value is None:
-            return None
-        if value.tzinfo is None:
-            value = value.replace(tzinfo=timezone.utc)
-        gmt8_time = value.astimezone(GMT8)
-        return gmt8_time.strftime("%Y-%m-%d")
+        return format_date_gmt8(value)
 
     @field_serializer("time_start", "time_end")
     def serialize_time(self, value: Optional[time]) -> Optional[str]:
-        if value is None:
-            return None
-        return value.strftime("%H:%M")
+        return format_time_value(value)
 
 
 class EventRegistrationResponse(SQLModel):
@@ -86,12 +74,7 @@ class EventRegistrationResponse(SQLModel):
 
     @field_serializer("registered_at")
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
-        if value is None:
-            return None
-        if value.tzinfo is None:
-            value = value.replace(tzinfo=timezone.utc)
-        gmt8_time = value.astimezone(GMT8)
-        return gmt8_time.strftime("%Y-%m-%d %H:%M:%S")
+        return format_datetime_gmt8(value)
 
 
 class EventRegistrationRequest(SQLModel):

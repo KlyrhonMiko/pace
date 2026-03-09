@@ -4,7 +4,9 @@ DB query functions for events + event_registration domain.
 
 import logging
 from sqlmodel import Session, select, func
-from models.events import Event, EventRegistration
+from models.events import Event, EventRegistration, EventRegistrantDetails
+from models.alumni import Alumni
+from models.student_records import StudentRecord
 from schemas.events import EventCreate, EventUpdate
 from utils.timezone import get_current_time_gmt8, convert_to_gmt8
 from services.queries.event_types_queries import get_event_type_by_name
@@ -250,11 +252,14 @@ def unregister_user_from_event(session: Session, event: Event, user_code: str) -
 
 def get_event_registrants(
     session: Session, event: Event, limit: int, offset: int
-) -> tuple[list[EventRegistration], int]:
+) -> tuple[list[EventRegistrantDetails], int]:
     query = (
-        select(EventRegistration)
+        select(EventRegistration, Alumni, StudentRecord)
+        .join(Alumni, Alumni.user_code == EventRegistration.user_code, isouter=True)
+        .join(StudentRecord, StudentRecord.alumni_code == Alumni.alumni_code, isouter=True)
         .where(EventRegistration.event_code == event.event_code)
         .where(EventRegistration.is_deleted == False)
+        .order_by(EventRegistration.registered_at.desc())
     )
     total = session.exec(
         select(func.count(EventRegistration.registration_code))
@@ -265,4 +270,20 @@ def get_event_registrants(
     if limit > 0:
         query = query.offset(offset).limit(limit)
 
-    return session.exec(query).all(), total
+    rows = session.exec(query).all()
+    registrants: list[EventRegistrantDetails] = []
+    for registration, alumni, student_record in rows:
+        registrants.append(
+            EventRegistrantDetails(
+                event_id=event.event_id,
+                alumni_id=alumni.alumni_id if alumni else None,
+                last_name=alumni.last_name if alumni else None,
+                first_name=alumni.first_name if alumni else None,
+                middle_name=alumni.middle_name if alumni else None,
+                student_id=student_record.student_id if student_record else None,
+                year_graduated=student_record.year_graduated if student_record else None,
+                registered_at=registration.registered_at,
+            )
+        )
+
+    return registrants, total

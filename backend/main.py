@@ -49,13 +49,11 @@ app.include_router(alumni_skills.router)
 app.include_router(jobs.router)
 app.include_router(event_types.router)
 app.include_router(events.router)
+app.include_router(event_registration.router)
 app.include_router(surveys.router)
 app.include_router(questions.router)
 app.include_router(predict.router)
 app.include_router(otp.router)
-
-# TODO: Add event_registration router once auth and RBAC are implemented
-# app.include_router(event_registration.router)
 
 
 @app.on_event("startup")

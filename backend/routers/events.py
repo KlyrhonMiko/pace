@@ -7,6 +7,7 @@ from core.redis import cache_get_or_set, generate_cache_key, invalidate_cache_na
 from schemas.events import EventCreate, EventUpdate, EventPublic
 from models.response_codes import StandardResponse, ErrorCode, SuccessCode
 from models.pagination import PaginationMetadata
+from utils.rbac import require_authenticated, require_staff_or_admin
 from services.queries.events_queries import (
     generate_event_id, get_event_by_id, get_active_event_by_id,
     create_event, update_event, soft_delete_event, restore_event,
@@ -26,7 +27,12 @@ EVENTS_DETAIL_TTL = 600
 # CRUD
 # ---------------------------------------------------------------------------
 
-@router.post("/", response_model=StandardResponse, status_code=201)
+@router.post(
+    "/",
+    response_model=StandardResponse,
+    status_code=201,
+    dependencies=[Depends(require_staff_or_admin)],
+)
 def create_event_route(event_create: EventCreate, session: Session = Depends(get_session)):
     """Create a new event"""
     try:
@@ -46,7 +52,7 @@ def create_event_route(event_create: EventCreate, session: Session = Depends(get
         ).model_dump(mode='json'))
 
 
-@router.get("/", response_model=StandardResponse)
+@router.get("/", response_model=StandardResponse, dependencies=[Depends(require_authenticated)])
 def list_events(
     limit: int = Query(10, ge=0),
     offset: int = Query(0, ge=0),
@@ -93,7 +99,7 @@ def list_events(
         ).model_dump(mode='json'))
 
 
-@router.get("/{event_id}", response_model=StandardResponse)
+@router.get("/{event_id}", response_model=StandardResponse, dependencies=[Depends(require_authenticated)])
 def get_event(event_id: str, session: Session = Depends(get_session)):
     """Get a specific event by event_id"""
     try:
@@ -112,7 +118,11 @@ def get_event(event_id: str, session: Session = Depends(get_session)):
         ).model_dump(mode='json'))
 
 
-@router.patch("/{event_id}", response_model=StandardResponse)
+@router.patch(
+    "/{event_id}",
+    response_model=StandardResponse,
+    dependencies=[Depends(require_staff_or_admin)],
+)
 def update_event_route(
     event_id: str, event_update: EventUpdate,
     session: Session = Depends(get_session)
@@ -141,7 +151,11 @@ def update_event_route(
         ).model_dump(mode='json'))
 
 
-@router.delete("/{event_id}", response_model=StandardResponse)
+@router.delete(
+    "/{event_id}",
+    response_model=StandardResponse,
+    dependencies=[Depends(require_staff_or_admin)],
+)
 def delete_event(event_id: str, session: Session = Depends(get_session)):
     """Soft delete an event"""
     try:
@@ -162,7 +176,11 @@ def delete_event(event_id: str, session: Session = Depends(get_session)):
         ).model_dump(mode='json'))
 
 
-@router.post("/{event_id}/restore", response_model=StandardResponse)
+@router.post(
+    "/{event_id}/restore",
+    response_model=StandardResponse,
+    dependencies=[Depends(require_staff_or_admin)],
+)
 def restore_event_route(event_id: str, session: Session = Depends(get_session)):
     """Restore a soft-deleted event"""
     try:
@@ -191,7 +209,11 @@ def restore_event_route(event_id: str, session: Session = Depends(get_session)):
 # Image endpoints
 # ---------------------------------------------------------------------------
 
-@router.post("/{event_id}/upload-image", response_model=StandardResponse)
+@router.post(
+    "/{event_id}/upload-image",
+    response_model=StandardResponse,
+    dependencies=[Depends(require_staff_or_admin)],
+)
 async def upload_event_image(
     event_id: str, file: UploadFile = File(...),
     session: Session = Depends(get_session)
@@ -236,7 +258,11 @@ async def upload_event_image(
         ).model_dump(mode='json'))
 
 
-@router.delete("/{event_id}/delete-image", response_model=StandardResponse)
+@router.delete(
+    "/{event_id}/delete-image",
+    response_model=StandardResponse,
+    dependencies=[Depends(require_staff_or_admin)],
+)
 async def delete_event_image(event_id: str, session: Session = Depends(get_session)):
     """Remove the image from an event"""
     try:
@@ -264,7 +290,11 @@ async def delete_event_image(event_id: str, session: Session = Depends(get_sessi
         ).model_dump(mode='json'))
 
 
-@router.get("/{event_id}/image-url", response_model=StandardResponse)
+@router.get(
+    "/{event_id}/image-url",
+    response_model=StandardResponse,
+    dependencies=[Depends(require_authenticated)],
+)
 def get_event_image_url(event_id: str, session: Session = Depends(get_session)):
     """Get the public URL for an event's image"""
     try:

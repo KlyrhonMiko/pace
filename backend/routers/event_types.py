@@ -6,6 +6,8 @@ from core.redis import cache_get_or_set, generate_cache_key, invalidate_cache_na
 from schemas.event_types import EventTypeCreate, EventTypeUpdate, EventTypePublic
 from models.response_codes import ErrorCode, SuccessCode, StandardResponse
 from models.pagination import PaginationMetadata
+from models.auth import CurrentUser
+from utils.rbac import require_admin, require_authenticated
 from utils.logging import log_error, log_integrity_error
 from services.queries.event_types_queries import (
     get_event_type_by_id,
@@ -25,7 +27,9 @@ EVENT_TYPES_DETAIL_TTL = 3600
 
 @router.post("/")
 def create_event_type_route(
-    data: EventTypeCreate, session: Session = Depends(get_session)
+    data: EventTypeCreate,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Create a new event type"""
     try:
@@ -64,6 +68,7 @@ def list_event_types_route(
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
     offset: int = Query(0, ge=0, description="Items to skip"),
     session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
 ):
     """List all event types with pagination and optional filtering"""
     cache_key = generate_cache_key(
@@ -92,7 +97,11 @@ def list_event_types_route(
 
 
 @router.get("/{event_type_id}")
-def get_event_type_route(event_type_id: str, session: Session = Depends(get_session)):
+def get_event_type_route(
+    event_type_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
+):
     """Retrieve a single event type by ID"""
     cache_key = generate_cache_key(f"{EVENT_TYPES_CACHE_NAMESPACE}:detail", event_type_id=event_type_id)
     return cache_get_or_set(
@@ -104,7 +113,10 @@ def get_event_type_route(event_type_id: str, session: Session = Depends(get_sess
 
 @router.patch("/{event_type_id}")
 def update_event_type_route(
-    event_type_id: str, data: EventTypeUpdate, session: Session = Depends(get_session)
+    event_type_id: str,
+    data: EventTypeUpdate,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Update an event type"""
     event_type = get_event_type_by_id(session, event_type_id)
@@ -145,7 +157,9 @@ def update_event_type_route(
 
 @router.delete("/{event_type_id}")
 def delete_event_type_route(
-    event_type_id: str, session: Session = Depends(get_session)
+    event_type_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Soft-delete an event type"""
     event_type = get_event_type_by_id(session, event_type_id)
@@ -169,7 +183,9 @@ def delete_event_type_route(
 
 @router.post("/{event_type_id}/restore")
 def restore_event_type_route(
-    event_type_id: str, session: Session = Depends(get_session)
+    event_type_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Restore a soft-deleted event type"""
     event_type = get_event_type_by_id_any(session, event_type_id)

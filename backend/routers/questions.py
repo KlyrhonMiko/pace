@@ -7,13 +7,18 @@ from core.redis import cache_get_or_set, generate_cache_key, invalidate_cache_na
 from schemas.questions import QuestionCreate, QuestionUpdate, QuestionPublic
 from models.response_codes import StandardResponse, SuccessCode, ErrorCode
 from utils.timezone import get_current_time_gmt8
+from utils.rbac import require_staff_or_admin
 from services.queries.questions_queries import (
     get_question_by_id, get_question_by_id_deleted,
     check_duplicate_question_text, list_questions,
     create_question, update_question, soft_delete_question, restore_question,
 )
 
-router = APIRouter(prefix="/questions", tags=["questions"])
+router = APIRouter(
+    prefix="/questions",
+    tags=["questions"],
+    dependencies=[Depends(require_staff_or_admin)],
+)
 QUESTIONS_CACHE_NAMESPACE = "questions"
 QUESTIONS_LIST_TTL = 900
 QUESTIONS_DETAIL_TTL = 900

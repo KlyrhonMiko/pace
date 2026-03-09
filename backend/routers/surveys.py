@@ -18,6 +18,7 @@ from schemas.surveys import (
 )
 from models.response_codes import StandardResponse, SuccessCode, ErrorCode
 from utils.timezone import get_current_time_gmt8
+from utils.rbac import require_staff_or_admin
 from services.queries.surveys_queries import (
     get_survey_by_id,
     get_deleted_survey_by_id,
@@ -48,7 +49,11 @@ from services.queries.surveys_queries import (
     export_survey_responses,
 )
 
-router = APIRouter(prefix="/surveys", tags=["surveys"])
+router = APIRouter(
+    prefix="/surveys",
+    tags=["surveys"],
+    dependencies=[Depends(require_staff_or_admin)],
+)
 SURVEYS_CACHE_NAMESPACE = "surveys"
 SURVEYS_LIST_TTL = 300
 SURVEYS_DETAIL_TTL = 300

@@ -9,7 +9,10 @@ from schemas.composite import (
     BatchAlumniRegister, BatchAlumniUpdate, BatchAlumniDelete, BatchAlumniRestore,
 )
 from models.response_codes import ErrorCode, SuccessCode, StandardResponse
+from models.auth import CurrentUser
+from models.users import UserType
 from models.pagination import PaginatedResponse, PaginationMetadata
+from utils.rbac import require_admin, require_authenticated, require_staff_or_admin
 from utils.logging import log_error, log_integrity_error
 from services.queries.alumni_queries import (
     get_alumni_by_id, get_alumni_by_id_any,
@@ -22,6 +25,21 @@ router = APIRouter(prefix="/alumni", tags=["alumni"])
 ALUMNI_CACHE_NAMESPACE = "alumni"
 ALUMNI_LIST_TTL = 300
 ALUMNI_DETAIL_TTL = 300
+
+
+def _ensure_alumni_owner_or_staff_plus(current_user: CurrentUser, alumni_user_code: str | None) -> None:
+    if current_user.user_type in {UserType.STAFF.value, UserType.ADMIN.value}:
+        return
+
+    if not current_user.user_code or not alumni_user_code or str(current_user.user_code) != str(alumni_user_code):
+        raise HTTPException(
+            status_code=403,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.FORBIDDEN.value,
+                message="You are only allowed to access your own alumni profile",
+            ).model_dump(mode="json"),
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -83,7 +101,8 @@ def register_complete_alumni_route(
 @router.post("/batch/register")
 def batch_register_alumni_route(
     batch_data: BatchAlumniRegister,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Batch create alumni profiles (creates both User and Alumni for each item)"""
     response = batch_register_alumni(session, batch_data.items)
@@ -103,7 +122,8 @@ def batch_register_alumni_route(
 @router.patch("/batch")
 def batch_update_alumni_route(
     batch_data: BatchAlumniUpdate,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Batch update alumni records"""
     response = batch_update_alumni(session, batch_data.items)
@@ -119,7 +139,8 @@ def batch_update_alumni_route(
 @router.delete("/batch")
 def batch_delete_alumni_route(
     batch_data: BatchAlumniDelete,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Batch delete alumni records"""
     response = batch_delete_alumni(session, batch_data.ids)
@@ -135,7 +156,8 @@ def batch_delete_alumni_route(
 @router.post("/batch/restore")
 def batch_restore_alumni_route(
     data: BatchAlumniRestore,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Restore multiple soft-deleted alumni"""
     response = batch_restore_alumni(session, data.ids)
@@ -161,7 +183,8 @@ def get_all_alumni_route(
     include_deleted: bool = Query(False),
     sort_by: str = Query("alumni_id"),
     sort_order: str = Query("asc"),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
 ):
     """Get all alumni records with filtering, searching, and sorting"""
     cache_key = generate_cache_key(
@@ -190,7 +213,8 @@ def get_deleted_alumni(
     search: str = Query(None),
     sort_by: str = Query("deleted_at"),
     sort_order: str = Query("desc"),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Get all soft-deleted alumni"""
     cache_key = generate_cache_key(
@@ -216,7 +240,8 @@ def get_all_alumni_including_deleted(
     gender: str = Query(None),
     sort_by: str = Query("alumni_id"),
     sort_order: str = Query("asc"),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Get all alumni including soft-deleted"""
     cache_key = generate_cache_key(
@@ -240,8 +265,21 @@ def get_all_alumni_including_deleted(
 # ---------------------------------------------------------------------------
 
 @router.get("/{alumni_id}")
-def get_alumni(alumni_id: str, session: Session = Depends(get_session)):
+def get_alumni(
+    alumni_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
+):
     """Get specific alumni by alumni_id with full profile"""
+    alumni = get_alumni_by_id(session, alumni_id)
+    if not alumni:
+        log_error("alumni", "get_alumni", ErrorCode.ALUMNI_NOT_FOUND.value, f"Alumni {alumni_id} not found")
+        raise HTTPException(status_code=404, detail=StandardResponse(
+            success=False, code=ErrorCode.ALUMNI_NOT_FOUND.value, message="Alumni not found"
+        ).model_dump(mode='json'))
+
+    _ensure_alumni_owner_or_staff_plus(current_user, str(alumni.user_code) if alumni.user_code else None)
+
     cache_key = generate_cache_key(f"{ALUMNI_CACHE_NAMESPACE}:detail", alumni_id=alumni_id)
     return cache_get_or_set(
         cache_key,
@@ -254,7 +292,8 @@ def get_alumni(alumni_id: str, session: Session = Depends(get_session)):
 def update_alumni_route(
     alumni_id: str,
     alumni_data: AlumniUpdate,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
 ):
     """Update alumni information"""
     alumni = get_alumni_by_id_any(session, alumni_id)
@@ -263,6 +302,8 @@ def update_alumni_route(
         raise HTTPException(status_code=404, detail=StandardResponse(
             success=False, code=ErrorCode.ALUMNI_NOT_FOUND.value, message="Alumni not found"
         ).model_dump(mode='json'))
+
+    _ensure_alumni_owner_or_staff_plus(current_user, str(alumni.user_code) if alumni.user_code else None)
 
     try:
         updated = update_alumni(session, alumni, alumni_data)
@@ -282,7 +323,11 @@ def update_alumni_route(
 
 
 @router.delete("/{alumni_id}")
-def delete_alumni(alumni_id: str, session: Session = Depends(get_session)):
+def delete_alumni(
+    alumni_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
+):
     """Delete an alumni record"""
     alumni = get_alumni_by_id_any(session, alumni_id)
     if not alumni:
@@ -314,7 +359,11 @@ def delete_alumni(alumni_id: str, session: Session = Depends(get_session)):
 
 
 @router.post("/{alumni_id}/restore")
-def restore_alumni_route(alumni_id: str, session: Session = Depends(get_session)):
+def restore_alumni_route(
+    alumni_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
+):
     """Restore a soft-deleted alumni record"""
     alumni = get_alumni_by_id_any(session, alumni_id)
     if not alumni:

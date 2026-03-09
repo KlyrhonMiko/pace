@@ -48,3 +48,14 @@ class EventRegistration(SQLModel, table=True):
     event: "Event" = Relationship(back_populates="registrants")
 
 
+class EventRegistrantDetails(SQLModel):
+    event_id: str
+    alumni_id: Optional[str] = None
+    last_name: Optional[str] = None
+    first_name: Optional[str] = None
+    middle_name: Optional[str] = None
+    student_id: Optional[str] = None
+    year_graduated: Optional[int] = None
+    registered_at: datetime
+
+

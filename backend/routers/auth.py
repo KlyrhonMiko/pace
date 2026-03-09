@@ -1,18 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlmodel import Session, select
 from core.database import get_session
 from models.users import User
 from models.auth import LoginRequest, TokenResponse, CurrentUser
 from models.response_codes import ErrorCode, SuccessCode, StandardResponse
-from utils.auth import verify_password, create_access_token, decode_access_token
+from services.queries.transaction_logs_queries import create_transaction_log
+from utils.auth import verify_password, create_access_token, get_current_user
 from utils.logging import log_auth_error
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-security = HTTPBearer()
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=StandardResponse)
 def login(
     credentials: LoginRequest,
     session: Session = Depends(get_session)
@@ -62,6 +61,14 @@ def login(
             "user_code": str(user.user_code)
         }
     )
+
+    create_transaction_log(
+        session,
+        tl_name="USER LOGGED IN",
+        after={"user_id": user.user_id},
+        performed_by=user.user_code,
+    )
+    session.commit()
     
     return StandardResponse(
         success=True,
@@ -76,48 +83,12 @@ def login(
     )
 
 
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-) -> CurrentUser:
-    """
-    Dependency to extract and validate JWT token from Authorization header
-    
-    Usage:
-        @router.get("/protected")
-        def protected_route(current_user: CurrentUser = Depends(get_current_user)):
-            return {"user": current_user.user_id}
-    """
-    token = credentials.credentials
-    
-    try:
-        payload = decode_access_token(token)
-        user_id = payload.get("user_id")
-        user_type = payload.get("user_type")
-        user_code = payload.get("user_code")
-        
-        if not user_id or not user_type:
-            log_auth_error("get_current_user", "UNKNOWN", ErrorCode.INVALID_TOKEN.value, "Invalid token - missing user_id or user_type")
-            raise HTTPException(
-                status_code=401,
-                detail=StandardResponse(
-                    success=False,
-                    code=ErrorCode.INVALID_TOKEN.value,
-                    message="Invalid token"
-                ).model_dump(mode='json')
-            )
-        
-        return CurrentUser(
-            user_id=user_id,
-            user_type=user_type,
-            user_code=user_code
-        )
-    except ValueError as e:
-        log_auth_error("get_current_user", "UNKNOWN", ErrorCode.INVALID_TOKEN.value, f"Invalid token - {str(e)}")
-        raise HTTPException(
-            status_code=401,
-            detail=StandardResponse(
-                success=False,
-                code=ErrorCode.INVALID_TOKEN.value,
-                message=str(e)
-            ).model_dump(mode='json')
-        )
+@router.get("/me", response_model=StandardResponse)
+def get_me(current_user: CurrentUser = Depends(get_current_user)):
+    """Return current authenticated user info from the JWT payload."""
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.CURRENT_USER_RETRIEVED.value,
+        message="Current user retrieved successfully",
+        data=current_user,
+    )

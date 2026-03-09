@@ -1,8 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlmodel import Session
+from sqlmodel import Session, select
 from sqlalchemy.exc import IntegrityError
 from core.database import get_session
 from core.redis import cache_get_or_set, generate_cache_key, invalidate_cache_namespaces
+from models.alumni import Alumni
+from models.auth import CurrentUser
+from models.users import UserType
 from schemas.student_records import (
     StudentRecordCreate, StudentRecordUpdate, StudentRecordPublic,
     StudentRecordBatchCreate, StudentRecordBatchUpdate,
@@ -10,6 +13,7 @@ from schemas.student_records import (
 )
 from models.response_codes import ErrorCode, SuccessCode, StandardResponse
 from models.pagination import PaginatedResponse, PaginationMetadata
+from utils.rbac import require_admin, require_authenticated, require_staff_or_admin
 from utils.logging import log_error, log_integrity_error
 from services.queries.student_records_queries import (
     get_student_by_id, get_student_by_id_any,
@@ -26,6 +30,31 @@ STUDENT_RECORDS_LIST_TTL = 300
 STUDENT_RECORDS_DETAIL_TTL = 300
 
 
+def _ensure_student_owner_or_staff_plus(
+    session: Session,
+    current_user: CurrentUser,
+    student_alumni_code,
+) -> None:
+    if current_user.user_type in {UserType.STAFF.value, UserType.ADMIN.value}:
+        return
+
+    alumni = session.exec(
+        select(Alumni).where(
+            (Alumni.alumni_code == student_alumni_code) & (Alumni.is_deleted == False)
+        )
+    ).first()
+    alumni_user_code = str(alumni.user_code) if alumni and alumni.user_code else None
+    if not current_user.user_code or not alumni_user_code or str(current_user.user_code) != alumni_user_code:
+        raise HTTPException(
+            status_code=403,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.FORBIDDEN.value,
+                message="You are only allowed to access your own student record",
+            ).model_dump(mode="json"),
+        )
+
+
 # ---------------------------------------------------------------------------
 # Batch endpoints (before /{student_id})
 # ---------------------------------------------------------------------------
@@ -33,10 +62,15 @@ STUDENT_RECORDS_DETAIL_TTL = 300
 @router.post("/batch")
 def batch_create_student_records_route(
     batch_data: StudentRecordBatchCreate,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
 ):
     """Batch create student records"""
-    response = batch_create_student_records(session, batch_data.items)
+    response = batch_create_student_records(
+        session,
+        batch_data.items,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
@@ -49,10 +83,15 @@ def batch_create_student_records_route(
 @router.patch("/batch")
 def batch_update_student_records_route(
     batch_data: StudentRecordBatchUpdate,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
 ):
     """Batch update student records"""
-    response = batch_update_student_records(session, batch_data.items)
+    response = batch_update_student_records(
+        session,
+        batch_data.items,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
@@ -65,10 +104,15 @@ def batch_update_student_records_route(
 @router.delete("/batch")
 def batch_delete_student_records_route(
     batch_data: StudentRecordBatchDelete,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Batch delete student records"""
-    response = batch_delete_student_records(session, batch_data.ids)
+    response = batch_delete_student_records(
+        session,
+        batch_data.ids,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
@@ -81,10 +125,15 @@ def batch_delete_student_records_route(
 @router.post("/batch/restore")
 def batch_restore_student_records_route(
     data: StudentRecordBatchRestore,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Restore multiple soft-deleted student records"""
-    response = batch_restore_student_records(session, data.ids)
+    response = batch_restore_student_records(
+        session,
+        data.ids,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
@@ -110,7 +159,8 @@ def get_all_student_records_route(
     include_deleted: bool = Query(False),
     sort_by: str = Query("student_id"),
     sort_order: str = Query("asc"),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
 ):
     """Get all student records with filtering, searching, and sorting"""
     cache_key = generate_cache_key(
@@ -142,7 +192,8 @@ def get_deleted_student_records(
     search: str = Query(None),
     sort_by: str = Query("deleted_at"),
     sort_order: str = Query("desc"),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Get all soft-deleted student records"""
     cache_key = generate_cache_key(
@@ -171,7 +222,8 @@ def get_all_student_records_including_deleted(
     course_abbv: str = Query(None),
     sort_by: str = Query("student_id"),
     sort_order: str = Query("asc"),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Get all student records including soft-deleted"""
     cache_key = generate_cache_key(
@@ -202,11 +254,16 @@ def get_all_student_records_including_deleted(
 @router.post("")
 def create_student_record_route(
     student_data: StudentRecordCreate,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
 ):
     """Create a new student record linked to an alumni"""
     try:
-        new_student = create_student_record(session, student_data)
+        new_student = create_student_record(
+            session,
+            student_data,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True,
@@ -243,8 +300,21 @@ def create_student_record_route(
 
 
 @router.get("/{student_id}")
-def get_student_record(student_id: str, session: Session = Depends(get_session)):
+def get_student_record(
+    student_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
+):
     """Get a student record by student ID"""
+    student = get_student_by_id(session, student_id)
+    if not student:
+        log_error("student_records", "get", ErrorCode.STUDENT_RECORD_NOT_FOUND.value, f"Student record {student_id} not found")
+        raise HTTPException(status_code=404, detail=StandardResponse(
+            success=False, code=ErrorCode.STUDENT_RECORD_NOT_FOUND.value, message="Student record not found"
+        ).model_dump(mode='json'))
+
+    _ensure_student_owner_or_staff_plus(session, current_user, student.alumni_code)
+
     cache_key = generate_cache_key(f"{STUDENT_RECORDS_CACHE_NAMESPACE}:detail", student_id=student_id)
     return cache_get_or_set(
         cache_key,
@@ -257,7 +327,8 @@ def get_student_record(student_id: str, session: Session = Depends(get_session))
 def update_student_record_route(
     student_id: str,
     student_data: StudentRecordUpdate,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
 ):
     """Update a student record"""
     student = get_student_by_id_any(session, student_id)
@@ -268,7 +339,12 @@ def update_student_record_route(
         ).model_dump(mode='json'))
 
     try:
-        updated = update_student_record(session, student, student_data)
+        updated = update_student_record(
+            session,
+            student,
+            student_data,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.STUDENT_RECORD_UPDATED.value,
@@ -302,7 +378,11 @@ def update_student_record_route(
 
 
 @router.delete("/{student_id}")
-def delete_student_record(student_id: str, session: Session = Depends(get_session)):
+def delete_student_record(
+    student_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
+):
     """Delete a student record"""
     student = get_student_by_id_any(session, student_id)
     if not student:
@@ -318,7 +398,7 @@ def delete_student_record(student_id: str, session: Session = Depends(get_sessio
         ).model_dump(mode='json'))
 
     try:
-        soft_delete_student_record(session, student)
+        soft_delete_student_record(session, student, performed_by=current_user.user_code)
         invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.STUDENT_RECORD_DELETED.value,
@@ -334,7 +414,11 @@ def delete_student_record(student_id: str, session: Session = Depends(get_sessio
 
 
 @router.post("/{student_id}/restore")
-def restore_student_record_route(student_id: str, session: Session = Depends(get_session)):
+def restore_student_record_route(
+    student_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
+):
     """Restore a soft-deleted student record"""
     student = get_student_by_id_any(session, student_id)
     if not student:
@@ -350,7 +434,7 @@ def restore_student_record_route(student_id: str, session: Session = Depends(get
         ).model_dump(mode='json'))
 
     try:
-        restore_student_record(session, student)
+        restore_student_record(session, student, performed_by=current_user.user_code)
         invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.STUDENT_RECORD_RESTORED.value,

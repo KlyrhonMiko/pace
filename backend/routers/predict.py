@@ -10,19 +10,44 @@ from sqlmodel import Session, select
 
 from core.database import get_session
 from core.redis import cache_get_or_set, generate_cache_key, invalidate_cache_namespaces
+from models.alumni import Alumni
+from models.auth import CurrentUser
 from models.employability import (
     EmployabilityInput,
     EmployabilityPrediction,
     EmployabilityPredictionRead,
 )
 from models.response_codes import StandardResponse, ErrorCode, SuccessCode
+from models.users import UserType
 from services.machines.random_forest import EmployabilityPredictor
+from utils.rbac import require_authenticated
 
 
 router = APIRouter(prefix="/predict", tags=["Employability Prediction"])
 PREDICT_CACHE_NAMESPACE = "predict"
 PREDICT_DETAIL_TTL = 1800
 PREDICT_ALUMNI_TTL = 300
+
+
+def _resolve_active_alumni(db: Session, alumni_code: uuid.UUID) -> Alumni | None:
+    return db.exec(
+        select(Alumni).where((Alumni.alumni_code == alumni_code) & (Alumni.is_deleted == False))
+    ).first()
+
+
+def _ensure_owner_or_staff_plus(current_user: CurrentUser, alumni_user_code: str | None) -> None:
+    if current_user.user_type in {UserType.STAFF.value, UserType.ADMIN.value}:
+        return
+
+    if not current_user.user_code or not alumni_user_code or str(current_user.user_code) != str(alumni_user_code):
+        raise HTTPException(
+            status_code=403,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.FORBIDDEN.value,
+                message="You are only allowed to access your own prediction records",
+            ).model_dump(mode="json"),
+        )
 
 # ── Singleton predictor — loaded once, reused for every request ──
 try:
@@ -45,6 +70,7 @@ def predict_employability(
         default=None,
         description="Optional alumni UUID to link the prediction to an alumni record",
     ),
+    current_user: CurrentUser = Depends(require_authenticated),
 ):
     """
     Run the dual-model employability prediction.
@@ -65,6 +91,37 @@ def predict_employability(
                 message="ML models are not loaded. Please contact the administrator.",
             ).model_dump(mode="json"),
         )
+
+    if current_user.user_type == UserType.USER.value:
+        if alumni_code is None:
+            alumni = db.exec(
+                select(Alumni).where(
+                    (Alumni.user_code == uuid.UUID(str(current_user.user_code)))
+                    & (Alumni.is_deleted == False)
+                )
+            ).first()
+            if not alumni:
+                raise HTTPException(
+                    status_code=404,
+                    detail=StandardResponse(
+                        success=False,
+                        code=ErrorCode.ALUMNI_NOT_FOUND.value,
+                        message="Alumni profile not found for current user",
+                    ).model_dump(mode="json"),
+                )
+            alumni_code = alumni.alumni_code
+        else:
+            alumni = _resolve_active_alumni(db, alumni_code)
+            if not alumni:
+                raise HTTPException(
+                    status_code=404,
+                    detail=StandardResponse(
+                        success=False,
+                        code=ErrorCode.ALUMNI_NOT_FOUND.value,
+                        message="Alumni not found",
+                    ).model_dump(mode="json"),
+                )
+            _ensure_owner_or_staff_plus(current_user, str(alumni.user_code) if alumni.user_code else None)
 
     # Map API fields → predictor keys and run prediction
     student_dict = input_data.to_predictor_dict()
@@ -115,8 +172,42 @@ def predict_employability(
 def get_prediction(
     prediction_id: uuid.UUID,
     db: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
 ):
     """Retrieve a stored prediction by its UUID."""
+    prediction = db.get(EmployabilityPrediction, prediction_id)
+    if not prediction:
+        raise HTTPException(
+            status_code=404,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.PREDICTION_NOT_FOUND.value,
+                message=f"Prediction with ID '{prediction_id}' not found",
+            ).model_dump(mode="json"),
+        )
+
+    if current_user.user_type == UserType.USER.value:
+        if prediction.alumni_code is None:
+            raise HTTPException(
+                status_code=403,
+                detail=StandardResponse(
+                    success=False,
+                    code=ErrorCode.FORBIDDEN.value,
+                    message="You are not allowed to access this prediction",
+                ).model_dump(mode="json"),
+            )
+        alumni = _resolve_active_alumni(db, prediction.alumni_code)
+        if not alumni:
+            raise HTTPException(
+                status_code=404,
+                detail=StandardResponse(
+                    success=False,
+                    code=ErrorCode.ALUMNI_NOT_FOUND.value,
+                    message="Alumni not found",
+                ).model_dump(mode="json"),
+            )
+        _ensure_owner_or_staff_plus(current_user, str(alumni.user_code) if alumni.user_code else None)
+
     cache_key = generate_cache_key(f"{PREDICT_CACHE_NAMESPACE}:detail", prediction_id=str(prediction_id))
     return cache_get_or_set(
         cache_key,
@@ -134,8 +225,22 @@ def get_alumni_predictions(
     alumni_code: uuid.UUID,
     db: Session = Depends(get_session),
     limit: int = Query(default=10, ge=1, le=50, description="Max results to return"),
+    current_user: CurrentUser = Depends(require_authenticated),
 ):
     """Get all predictions linked to a specific alumni, newest first."""
+    if current_user.user_type == UserType.USER.value:
+        alumni = _resolve_active_alumni(db, alumni_code)
+        if not alumni:
+            raise HTTPException(
+                status_code=404,
+                detail=StandardResponse(
+                    success=False,
+                    code=ErrorCode.ALUMNI_NOT_FOUND.value,
+                    message="Alumni not found",
+                ).model_dump(mode="json"),
+            )
+        _ensure_owner_or_staff_plus(current_user, str(alumni.user_code) if alumni.user_code else None)
+
     cache_key = generate_cache_key(
         f"{PREDICT_CACHE_NAMESPACE}:alumni",
         alumni_code=str(alumni_code),

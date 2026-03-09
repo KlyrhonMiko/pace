@@ -20,6 +20,7 @@ from models.response_codes import ErrorCode, SuccessCode
 from utils.auth import verify_password
 from utils.logging import log_integrity_error
 from utils.timezone import get_current_time_gmt8
+from services.queries.transaction_logs_queries import create_transaction_log
 
 
 # ---------------------------------------------------------------------------
@@ -85,7 +86,11 @@ def _cascade_soft_delete(session: Session, user: User) -> None:
 # Single-record mutations
 # ---------------------------------------------------------------------------
 
-def create_user(session: Session, data: UserCreate) -> User:
+def create_user(
+    session: Session,
+    data: UserCreate,
+    performed_by: str | None = None,
+) -> User:
     """Create a new user and return the persisted record."""
     user_id = generate_user_id(data.user_type, session)
     new_user = User(
@@ -96,12 +101,23 @@ def create_user(session: Session, data: UserCreate) -> User:
         user_type=data.user_type,
     )
     session.add(new_user)
+    create_transaction_log(
+        session,
+        tl_name=f"CREATED user {new_user.user_id}",
+        after=new_user,
+        performed_by=performed_by,
+    )
     session.commit()
     session.refresh(new_user)
     return new_user
 
 
-def update_user(session: Session, user: User, data: UserUpdate) -> User:
+def update_user(
+    session: Session,
+    user: User,
+    data: UserUpdate,
+    performed_by: str | None = None,
+) -> User:
     """Apply a partial update. Password verification is the caller's responsibility."""
     if data.username is not None:
         user.username = data.username
@@ -110,25 +126,51 @@ def update_user(session: Session, user: User, data: UserUpdate) -> User:
     if data.password is not None:
         user.password = data.password   # already hashed by validator
     session.add(user)
+    create_transaction_log(
+        session,
+        tl_name=f"UPDATED user {user.user_id}",
+        after=user,
+        performed_by=performed_by,
+    )
     session.commit()
     session.refresh(user)
     return user
 
 
-def soft_delete_user(session: Session, user: User) -> None:
+def soft_delete_user(
+    session: Session,
+    user: User,
+    performed_by: str | None = None,
+) -> None:
     """Cascade soft-delete a user and all associated records."""
     _cascade_soft_delete(session, user)
     user.is_deleted = True
     user.deleted_at = get_current_time_gmt8()
     session.add(user)
+    create_transaction_log(
+        session,
+        tl_name=f"DELETED user {user.user_id}",
+        after=user,
+        performed_by=performed_by,
+    )
     session.commit()
 
 
-def restore_user(session: Session, user: User) -> None:
+def restore_user(
+    session: Session,
+    user: User,
+    performed_by: str | None = None,
+) -> None:
     """Restore a soft-deleted user."""
     user.is_deleted = False
     user.deleted_at = None
     session.add(user)
+    create_transaction_log(
+        session,
+        tl_name=f"RESTORED user {user.user_id}",
+        after=user,
+        performed_by=performed_by,
+    )
     session.commit()
 
 
@@ -196,6 +238,7 @@ def get_all_users(
 def batch_create_users(
     session: Session,
     items: list[UserCreate],
+    performed_by: str | None = None,
 ) -> UserBatchCreateResponse:
     results = []
     successful_count = 0
@@ -248,6 +291,12 @@ def batch_create_users(
             ))
             failed_count += 1
 
+    create_transaction_log(
+        session,
+        tl_name="BATCH CREATED users",
+        after={"successful": successful_count, "failed": failed_count},
+        performed_by=performed_by,
+    )
     session.commit()
     return UserBatchCreateResponse(
         total_items=len(items),
@@ -260,6 +309,7 @@ def batch_create_users(
 def batch_update_users(
     session: Session,
     items: list[UserBatchUpdateItem],
+    performed_by: str | None = None,
 ) -> UserBatchUpdateResponse:
     results = []
     successful_count = 0
@@ -344,6 +394,12 @@ def batch_update_users(
             ))
             failed_count += 1
 
+    create_transaction_log(
+        session,
+        tl_name="BATCH UPDATED users",
+        after={"successful": successful_count, "failed": failed_count},
+        performed_by=performed_by,
+    )
     session.commit()
     return UserBatchUpdateResponse(
         total_items=len(items),
@@ -356,6 +412,7 @@ def batch_update_users(
 def batch_delete_users(
     session: Session,
     ids: list[str],
+    performed_by: str | None = None,
 ) -> UserBatchDeleteResponse:
     results = []
     successful_count = 0
@@ -411,6 +468,12 @@ def batch_delete_users(
             ))
             failed_count += 1
 
+    create_transaction_log(
+        session,
+        tl_name="BATCH DELETED users",
+        after={"successful": successful_count, "failed": failed_count},
+        performed_by=performed_by,
+    )
     session.commit()
     return UserBatchDeleteResponse(
         total_items=len(ids),
@@ -423,6 +486,7 @@ def batch_delete_users(
 def batch_restore_users(
     session: Session,
     ids: list[str],
+    performed_by: str | None = None,
 ) -> UserBatchRestoreResponse:
     results = []
     successful_count = 0
@@ -471,6 +535,12 @@ def batch_restore_users(
             log_integrity_error("users", "batch_restore_users", ErrorCode.INVALID_INPUT.value, msg, str(e))
             failed_count += 1
 
+    create_transaction_log(
+        session,
+        tl_name="BATCH RESTORED users",
+        after={"successful": successful_count, "failed": failed_count},
+        performed_by=performed_by,
+    )
     session.commit()
     return UserBatchRestoreResponse(
         total_items=len(ids),

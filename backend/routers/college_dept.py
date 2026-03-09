@@ -7,8 +7,10 @@ from schemas.college_dept import (
     CollegeDeptCreate, CollegeDeptUpdate, CollegeDeptPublic,
     CollegeDeptBatchCreate, CollegeDeptBatchUpdate, CollegeDeptBatchDelete, CollegeDeptBatchRestore,
 )
+from models.auth import CurrentUser
 from models.response_codes import ErrorCode, SuccessCode, StandardResponse
 from models.pagination import PaginatedResponse, PaginationMetadata
+from utils.rbac import require_admin, require_authenticated
 from utils.logging import log_error, log_integrity_error
 from services.queries.college_dept_queries import (
     get_college_dept_by_id, get_college_dept_by_id_any,
@@ -32,10 +34,15 @@ COLLEGE_DEPTS_DETAIL_TTL = 1800
 @router.post("/batch")
 def batch_create_college_depts_route(
     batch_data: CollegeDeptBatchCreate,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Batch create college departments"""
-    response = batch_create_college_depts(session, batch_data.items)
+    response = batch_create_college_depts(
+        session,
+        batch_data.items,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
     return StandardResponse(
         success=response.failed == 0,
@@ -48,10 +55,15 @@ def batch_create_college_depts_route(
 @router.patch("/batch")
 def batch_update_college_depts_route(
     batch_data: CollegeDeptBatchUpdate,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Batch update college departments"""
-    response = batch_update_college_depts(session, batch_data.items)
+    response = batch_update_college_depts(
+        session,
+        batch_data.items,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
     return StandardResponse(
         success=response.failed == 0,
@@ -64,10 +76,15 @@ def batch_update_college_depts_route(
 @router.delete("/batch")
 def batch_delete_college_depts_route(
     batch_data: CollegeDeptBatchDelete,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Batch delete college departments"""
-    response = batch_delete_college_depts(session, batch_data.ids)
+    response = batch_delete_college_depts(
+        session,
+        batch_data.ids,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
     return StandardResponse(
         success=response.failed == 0,
@@ -80,10 +97,15 @@ def batch_delete_college_depts_route(
 @router.post("/batch/restore")
 def batch_restore_college_depts_route(
     data: CollegeDeptBatchRestore,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Restore multiple soft-deleted college departments"""
-    response = batch_restore_college_depts(session, data.ids)
+    response = batch_restore_college_depts(
+        session,
+        data.ids,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
     return StandardResponse(
         success=response.failed == 0,
@@ -105,7 +127,8 @@ def get_all_college_depts_route(
     include_deleted: bool = Query(False, description="Include soft-deleted records"),
     sort_by: str = Query("college_dept_id", description="Sort by field (college_dept_id, college_dept_abbv, college_dept_name)"),
     sort_order: str = Query("asc", description="Sort order (asc, desc)"),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
 ):
     """Get all college departments with filtering, searching, and sorting"""
     cache_key = generate_cache_key(
@@ -133,7 +156,8 @@ def get_deleted_college_depts(
     search: str = Query(None),
     sort_by: str = Query("deleted_at"),
     sort_order: str = Query("desc"),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Get all soft-deleted college departments"""
     cache_key = generate_cache_key(
@@ -158,7 +182,8 @@ def get_all_college_depts_including_deleted(
     search: str = Query(None),
     sort_by: str = Query("college_dept_id"),
     sort_order: str = Query("asc"),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Get all college departments including soft-deleted"""
     cache_key = generate_cache_key(
@@ -183,11 +208,16 @@ def get_all_college_depts_including_deleted(
 @router.post("")
 def create_college_dept_route(
     college_dept_data: CollegeDeptCreate,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Create a new college department"""
     try:
-        new_dept = create_college_dept(session, college_dept_data)
+        new_dept = create_college_dept(
+            session,
+            college_dept_data,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
         return StandardResponse(
             success=True,
@@ -215,7 +245,11 @@ def create_college_dept_route(
 
 
 @router.get("/{college_dept_id}")
-def get_college_dept(college_dept_id: str, session: Session = Depends(get_session)):
+def get_college_dept(
+    college_dept_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
+):
     """Get a specific college department by college_dept_id"""
     cache_key = generate_cache_key(f"{COLLEGE_DEPTS_CACHE_NAMESPACE}:detail", college_dept_id=college_dept_id)
     return cache_get_or_set(
@@ -229,7 +263,8 @@ def get_college_dept(college_dept_id: str, session: Session = Depends(get_sessio
 def update_college_dept_route(
     college_dept_id: str,
     college_dept_data: CollegeDeptUpdate,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Update college department information"""
     dept = get_college_dept_by_id_any(session, college_dept_id)
@@ -240,7 +275,12 @@ def update_college_dept_route(
         ).model_dump(mode='json'))
 
     try:
-        updated = update_college_dept(session, dept, college_dept_data)
+        updated = update_college_dept(
+            session,
+            dept,
+            college_dept_data,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
         return StandardResponse(
             success=True, code=SuccessCode.COLLEGE_DEPT_UPDATED.value,
@@ -264,7 +304,11 @@ def update_college_dept_route(
 
 
 @router.delete("/{college_dept_id}")
-def delete_college_dept(college_dept_id: str, session: Session = Depends(get_session)):
+def delete_college_dept(
+    college_dept_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
+):
     """Delete a college department"""
     dept = get_college_dept_by_id_any(session, college_dept_id)
     if not dept:
@@ -286,7 +330,11 @@ def delete_college_dept(college_dept_id: str, session: Session = Depends(get_ses
         ).model_dump(mode='json'))
 
     try:
-        soft_delete_college_dept(session, dept)
+        soft_delete_college_dept(
+            session,
+            dept,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
         return StandardResponse(
             success=True, code=SuccessCode.COLLEGE_DEPT_DELETED.value,
@@ -302,7 +350,11 @@ def delete_college_dept(college_dept_id: str, session: Session = Depends(get_ses
 
 
 @router.post("/{college_dept_id}/restore")
-def restore_college_dept_route(college_dept_id: str, session: Session = Depends(get_session)):
+def restore_college_dept_route(
+    college_dept_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
+):
     """Restore a soft-deleted college department"""
     dept = get_college_dept_by_id_any(session, college_dept_id)
     if not dept:
@@ -318,7 +370,11 @@ def restore_college_dept_route(college_dept_id: str, session: Session = Depends(
         ).model_dump(mode='json'))
 
     try:
-        restore_college_dept(session, dept)
+        restore_college_dept(
+            session,
+            dept,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
         return StandardResponse(
             success=True, code=SuccessCode.COLLEGE_DEPT_RESTORED.value,

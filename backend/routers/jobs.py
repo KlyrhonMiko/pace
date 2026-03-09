@@ -6,6 +6,8 @@ from sqlmodel import Session
 from typing import Optional
 from services.jooble import fetch_jobs, get_recommended_jobs
 from core.database import get_session
+from models.auth import CurrentUser
+from utils.rbac import require_authenticated
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
@@ -14,6 +16,7 @@ router = APIRouter(prefix="/jobs", tags=["Jobs"])
 def recommended_jobs(
     limit: int = Query(3, ge=1, le=10, description="Number of jobs to return"),
     db: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
 ):
     """
     Get recommended jobs from the database cache.
@@ -35,6 +38,7 @@ async def search_jobs(
     salary: Optional[int] = Query(None, description="Minimum salary filter"),
     has_salary: bool = Query(False, description="Filter jobs that have numerical salary"),
     db: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
 ):
     """
     Search for job listings in the Philippines using Jooble API.

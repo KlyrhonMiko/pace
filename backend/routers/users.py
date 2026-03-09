@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlmodel import Session
 from sqlalchemy.exc import IntegrityError
 from core.database import get_session
@@ -8,8 +8,11 @@ from schemas.users import (
     UserBatchCreate, UserBatchUpdate, UserBatchDelete, UserBatchRestore,
 )
 from models.response_codes import ErrorCode, SuccessCode, StandardResponse
+from models.auth import CurrentUser
+from models.users import UserType
 from models.pagination import PaginatedResponse, PaginationMetadata
 from utils.auth import verify_password
+from utils.rbac import require_admin, require_self_or_admin
 from utils.logging import log_error, log_integrity_error, log_auth_error
 from services.queries.users_queries import (
     get_user_by_id, get_user_by_id_any,
@@ -31,10 +34,15 @@ USERS_DETAIL_TTL = 300
 @router.post("/batch")
 def batch_create_users_route(
     batch_data: UserBatchCreate,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Batch create users"""
-    response = batch_create_users(session, batch_data.items)
+    response = batch_create_users(
+        session,
+        batch_data.items,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
@@ -47,10 +55,15 @@ def batch_create_users_route(
 @router.patch("/batch")
 def batch_update_users_route(
     batch_data: UserBatchUpdate,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Batch update users"""
-    response = batch_update_users(session, batch_data.items)
+    response = batch_update_users(
+        session,
+        batch_data.items,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
@@ -63,10 +76,15 @@ def batch_update_users_route(
 @router.delete("/batch")
 def batch_delete_users_route(
     batch_data: UserBatchDelete,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Batch delete users"""
-    response = batch_delete_users(session, batch_data.ids)
+    response = batch_delete_users(
+        session,
+        batch_data.ids,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
@@ -79,10 +97,15 @@ def batch_delete_users_route(
 @router.post("/batch/restore")
 def batch_restore_users_route(
     data: UserBatchRestore,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Restore multiple soft-deleted users"""
-    response = batch_restore_users(session, data.ids)
+    response = batch_restore_users(
+        session,
+        data.ids,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
@@ -105,7 +128,8 @@ def get_all_users_route(
     include_deleted: bool = Query(False),
     sort_by: str = Query("user_id"),
     sort_order: str = Query("asc"),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Get all users with filtering, searching, and sorting"""
     cache_key = generate_cache_key(
@@ -134,7 +158,8 @@ def get_deleted_users(
     search: str = Query(None),
     sort_by: str = Query("deleted_at"),
     sort_order: str = Query("desc"),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Get all soft-deleted users"""
     cache_key = generate_cache_key(
@@ -160,7 +185,8 @@ def get_all_users_including_deleted(
     user_type: str = Query(None),
     sort_by: str = Query("user_id"),
     sort_order: str = Query("asc"),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Get all users including soft-deleted"""
     cache_key = generate_cache_key(
@@ -186,11 +212,16 @@ def get_all_users_including_deleted(
 @router.post("")
 def create_user_route(
     user_data: UserCreate,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Create a new user account"""
     try:
-        new_user = create_user(session, user_data)
+        new_user = create_user(
+            session,
+            user_data,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True,
@@ -212,7 +243,11 @@ def create_user_route(
 
 
 @router.get("/{user_id}")
-def get_user(user_id: str, session: Session = Depends(get_session)):
+def get_user(
+    user_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_self_or_admin),
+):
     """Get a specific user by user_id"""
     cache_key = generate_cache_key(f"{USERS_CACHE_NAMESPACE}:detail", user_id=user_id)
     return cache_get_or_set(
@@ -223,12 +258,26 @@ def get_user(user_id: str, session: Session = Depends(get_session)):
 
 
 @router.patch("/{user_id}")
-def update_user_route(
+async def update_user_route(
     user_id: str,
     user_data: UserUpdate,
-    session: Session = Depends(get_session)
+    request: Request,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_self_or_admin),
 ):
     """Update a user's information. If changing password, current_password is required."""
+    payload = await request.json()
+    restricted_fields = {"user_type", "is_deleted"}
+    if current_user.user_type != UserType.ADMIN.value and restricted_fields.intersection(payload.keys()):
+        raise HTTPException(
+            status_code=403,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.FORBIDDEN.value,
+                message="Only ADMIN can update user_type or is_deleted",
+            ).model_dump(mode="json"),
+        )
+
     user = get_user_by_id_any(session, user_id)
     if not user:
         log_error("users", "update_user", ErrorCode.USER_NOT_FOUND.value, f"User {user_id} not found")
@@ -251,7 +300,12 @@ def update_user_route(
             ).model_dump(mode='json'))
 
     try:
-        updated = update_user(session, user, user_data)
+        updated = update_user(
+            session,
+            user,
+            user_data,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.USER_UPDATED.value,
@@ -275,7 +329,8 @@ def update_user_route(
 def delete_user(
     user_id: str,
     password: str,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Delete a user account (requires password confirmation)"""
     user = get_user_by_id_any(session, user_id)
@@ -298,7 +353,7 @@ def delete_user(
         ).model_dump(mode='json'))
 
     try:
-        soft_delete_user(session, user)
+        soft_delete_user(session, user, performed_by=current_user.user_code)
         invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.USER_DELETED.value,
@@ -314,7 +369,11 @@ def delete_user(
 
 
 @router.post("/{user_id}/restore")
-def restore_user_route(user_id: str, session: Session = Depends(get_session)):
+def restore_user_route(
+    user_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
+):
     """Restore a soft-deleted user"""
     user = get_user_by_id_any(session, user_id)
     if not user:
@@ -330,7 +389,7 @@ def restore_user_route(user_id: str, session: Session = Depends(get_session)):
         ).model_dump(mode='json'))
 
     try:
-        restore_user(session, user)
+        restore_user(session, user, performed_by=current_user.user_code)
         invalidate_cache_namespaces(USERS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True, code=SuccessCode.USER_RESTORED.value,

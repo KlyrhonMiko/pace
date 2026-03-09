@@ -27,6 +27,7 @@ from models.response_codes import ErrorCode, SuccessCode
 from models.pagination import PaginationMetadata
 from utils.logging import log_integrity_error
 from utils.timezone import get_current_time_gmt8
+from services.queries.transaction_logs_queries import create_transaction_log
 
 
 # ---------------------------------------------------------------------------
@@ -76,20 +77,33 @@ def get_college_dept_by_id_any(
     ).first()
 
 
-def create_college_dept(session: Session, data: CollegeDeptCreate) -> CollegeDept:
+def create_college_dept(
+    session: Session,
+    data: CollegeDeptCreate,
+    performed_by: str | None = None,
+) -> CollegeDept:
     """Create a new college department and return the persisted record."""
     college_dept_id = generate_college_dept_id(session)
     college_dept_dict = data.model_dump()
     college_dept_dict["college_dept_id"] = college_dept_id
     new_dept = CollegeDept.model_validate(college_dept_dict)
     session.add(new_dept)
+    create_transaction_log(
+        session,
+        tl_name=f"CREATED college_dept {new_dept.college_dept_id}",
+        after=new_dept,
+        performed_by=performed_by,
+    )
     session.commit()
     session.refresh(new_dept)
     return new_dept
 
 
 def update_college_dept(
-    session: Session, college_dept: CollegeDept, data: CollegeDeptUpdate
+    session: Session,
+    college_dept: CollegeDept,
+    data: CollegeDeptUpdate,
+    performed_by: str | None = None,
 ) -> CollegeDept:
     """Apply partial update to a college department and commit."""
     if data.college_dept_abbv is not None:
@@ -101,24 +115,50 @@ def update_college_dept(
 
     college_dept.updated_at = get_current_time_gmt8()
     session.add(college_dept)
+    create_transaction_log(
+        session,
+        tl_name=f"UPDATED college_dept {college_dept.college_dept_id}",
+        after=college_dept,
+        performed_by=performed_by,
+    )
     session.commit()
     session.refresh(college_dept)
     return college_dept
 
 
-def soft_delete_college_dept(session: Session, college_dept: CollegeDept) -> None:
+def soft_delete_college_dept(
+    session: Session,
+    college_dept: CollegeDept,
+    performed_by: str | None = None,
+) -> None:
     """Soft-delete a college department (sets is_deleted=True)."""
     college_dept.is_deleted = True
     college_dept.deleted_at = get_current_time_gmt8()
     session.add(college_dept)
+    create_transaction_log(
+        session,
+        tl_name=f"DELETED college_dept {college_dept.college_dept_id}",
+        after=college_dept,
+        performed_by=performed_by,
+    )
     session.commit()
 
 
-def restore_college_dept(session: Session, college_dept: CollegeDept) -> None:
+def restore_college_dept(
+    session: Session,
+    college_dept: CollegeDept,
+    performed_by: str | None = None,
+) -> None:
     """Restore a soft-deleted college department."""
     college_dept.is_deleted = False
     college_dept.deleted_at = None
     session.add(college_dept)
+    create_transaction_log(
+        session,
+        tl_name=f"RESTORED college_dept {college_dept.college_dept_id}",
+        after=college_dept,
+        performed_by=performed_by,
+    )
     session.commit()
 
 
@@ -210,6 +250,7 @@ def get_all_college_depts(
 def batch_create_college_depts(
     session: Session,
     items: list[CollegeDeptCreate],
+    performed_by: str | None = None,
 ) -> CollegeDeptBatchCreateResponse:
     results = []
     successful_count = 0
@@ -282,6 +323,12 @@ def batch_create_college_depts(
             )
             failed_count += 1
 
+    create_transaction_log(
+        session,
+        tl_name="BATCH CREATED college_depts",
+        after={"successful": successful_count, "failed": failed_count},
+        performed_by=performed_by,
+    )
     session.commit()
     return CollegeDeptBatchCreateResponse(
         total_items=len(items),
@@ -294,6 +341,7 @@ def batch_create_college_depts(
 def batch_update_college_depts(
     session: Session,
     items: list[CollegeDeptBatchUpdateItem],
+    performed_by: str | None = None,
 ) -> CollegeDeptBatchUpdateResponse:
     results = []
     successful_count = 0
@@ -388,6 +436,12 @@ def batch_update_college_depts(
             )
             failed_count += 1
 
+    create_transaction_log(
+        session,
+        tl_name="BATCH UPDATED college_depts",
+        after={"successful": successful_count, "failed": failed_count},
+        performed_by=performed_by,
+    )
     session.commit()
     return CollegeDeptBatchUpdateResponse(
         total_items=len(items),
@@ -400,6 +454,7 @@ def batch_update_college_depts(
 def batch_delete_college_depts(
     session: Session,
     ids: list[str],
+    performed_by: str | None = None,
 ) -> CollegeDeptBatchDeleteResponse:
     results = []
     successful_count = 0
@@ -494,6 +549,12 @@ def batch_delete_college_depts(
             )
             failed_count += 1
 
+    create_transaction_log(
+        session,
+        tl_name="BATCH DELETED college_depts",
+        after={"successful": successful_count, "failed": failed_count},
+        performed_by=performed_by,
+    )
     session.commit()
     return CollegeDeptBatchDeleteResponse(
         total_items=len(ids),
@@ -506,6 +567,7 @@ def batch_delete_college_depts(
 def batch_restore_college_depts(
     session: Session,
     ids: list[str],
+    performed_by: str | None = None,
 ) -> CollegeDeptBatchRestoreResponse:
     results = []
     successful_count = 0
@@ -582,6 +644,12 @@ def batch_restore_college_depts(
             )
             failed_count += 1
 
+    create_transaction_log(
+        session,
+        tl_name="BATCH RESTORED college_depts",
+        after={"successful": successful_count, "failed": failed_count},
+        performed_by=performed_by,
+    )
     session.commit()
     return CollegeDeptBatchRestoreResponse(
         total_items=len(ids),

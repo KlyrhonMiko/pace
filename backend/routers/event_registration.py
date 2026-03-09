@@ -2,9 +2,11 @@ import logging
 from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlmodel import Session
 from core.database import get_session
-from schemas.events import EventRegistrationRequest, EventRegistrationResponse
+from schemas.events import EventRegistrationResponse
+from models.auth import CurrentUser
 from models.response_codes import StandardResponse, ErrorCode, SuccessCode
 from models.pagination import PaginationMetadata
+from utils.rbac import require_authenticated, require_staff_or_admin
 from services.queries.events_queries import (
     get_event_by_id, get_active_event_by_id,
     register_user_for_event, unregister_user_from_event, get_event_registrants,
@@ -14,11 +16,24 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/events", tags=["event-registration"])
 
 
+def _require_user_code(current_user: CurrentUser) -> str:
+    if not current_user.user_code:
+        raise HTTPException(
+            status_code=401,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.UNAUTHORIZED,
+                message="Authenticated user is missing a user_code",
+            ).model_dump(),
+        )
+    return current_user.user_code
+
+
 @router.post("/{event_id}/register", response_model=StandardResponse)
 async def register_for_event(
     event_id: str,
-    request: EventRegistrationRequest,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
 ):
     """Register a user for an event"""
     try:
@@ -28,7 +43,13 @@ async def register_for_event(
                 success=False, code=ErrorCode.EVENT_NOT_FOUND, message="Event not found"
             ).model_dump())
 
-        register_user_for_event(session, event, request.user_code)
+        user_code = _require_user_code(current_user)
+        register_user_for_event(
+            session,
+            event,
+            user_code,
+            performed_by=current_user.user_code,
+        )
         return StandardResponse(
             success=True, code=SuccessCode.EVENT_REGISTERED,
             message="Successfully registered for event"
@@ -60,13 +81,24 @@ async def register_for_event(
 @router.delete("/{event_id}/unregister", response_model=StandardResponse)
 async def unregister_from_event(
     event_id: str,
-    user_code: str = Query(...),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
 ):
     """Unregister a user from an event"""
     try:
         event = get_event_by_id(session, event_id)
-        unregister_user_from_event(session, event, user_code)
+        if not event:
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.EVENT_NOT_FOUND, message="Event not found"
+            ).model_dump())
+
+        user_code = _require_user_code(current_user)
+        unregister_user_from_event(
+            session,
+            event,
+            user_code,
+            performed_by=current_user.user_code,
+        )
         return StandardResponse(
             success=True, code=SuccessCode.EVENT_UNREGISTERED,
             message="Successfully unregistered from event"
@@ -90,11 +122,17 @@ def get_registrants(
     event_id: str,
     limit: int = Query(10, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
 ):
     """Get list of registrants for an event"""
     try:
         event = get_event_by_id(session, event_id)
+        if not event:
+            raise HTTPException(status_code=404, detail=StandardResponse(
+                success=False, code=ErrorCode.EVENT_NOT_FOUND, message="Event not found"
+            ).model_dump())
+
         registrations, total = get_event_registrants(session, event, limit, offset)
         returned = len(registrations)
         pagination = PaginationMetadata(
@@ -105,7 +143,10 @@ def get_registrants(
             success=True, code=SuccessCode.EVENTS_RETRIEVED,
             message=f"Retrieved {returned} registrants",
             data={
-                "registrants": [EventRegistrationResponse.model_validate(r).model_dump() for r in registrations],
+                "registrants": [
+                    EventRegistrationResponse.model_validate(registration).model_dump()
+                    for registration in registrations
+                ],
                 "pagination": pagination
             }
         )

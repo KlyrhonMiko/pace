@@ -16,8 +16,10 @@ from schemas.surveys import (
     SurveyStatus,
     DistributionStatus,
 )
+from models.auth import CurrentUser
 from models.response_codes import StandardResponse, SuccessCode, ErrorCode
 from utils.timezone import get_current_time_gmt8
+from utils.rbac import require_staff_or_admin
 from services.queries.surveys_queries import (
     get_survey_by_id,
     get_deleted_survey_by_id,
@@ -48,7 +50,11 @@ from services.queries.surveys_queries import (
     export_survey_responses,
 )
 
-router = APIRouter(prefix="/surveys", tags=["surveys"])
+router = APIRouter(
+    prefix="/surveys",
+    tags=["surveys"],
+    dependencies=[Depends(require_staff_or_admin)],
+)
 SURVEYS_CACHE_NAMESPACE = "surveys"
 SURVEYS_LIST_TTL = 300
 SURVEYS_DETAIL_TTL = 300
@@ -105,7 +111,11 @@ def create_tracer_study_template_route(session: Session = Depends(get_session)):
 
 
 @router.post("", response_model=StandardResponse, status_code=201)
-def create_survey_route(body: SurveyCreate, session: Session = Depends(get_session)):
+def create_survey_route(
+    body: SurveyCreate,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
+):
     """Create a new survey (starts in DRAFT). Duplicate titles rejected."""
     try:
         existing = check_duplicate_survey_title(session, body.title)
@@ -118,7 +128,7 @@ def create_survey_route(body: SurveyCreate, session: Session = Depends(get_sessi
                     message=f"Survey with this title already exists (ID: {existing.survey_id})",
                 ).model_dump(mode="json"),
             )
-        survey = create_survey(session, body)
+        survey = create_survey(session, body, performed_by=current_user.user_code)
         invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
@@ -193,7 +203,10 @@ def get_survey_route(survey_id: str, session: Session = Depends(get_session)):
 
 @router.patch("/{survey_id}", response_model=StandardResponse)
 def update_survey_route(
-    survey_id: str, body: SurveyUpdate, session: Session = Depends(get_session)
+    survey_id: str,
+    body: SurveyUpdate,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
 ):
     """Update survey details"""
     try:
@@ -207,7 +220,12 @@ def update_survey_route(
                     message="Survey not found",
                 ).model_dump(mode="json"),
             )
-        updated = update_survey(session, survey, body)
+        updated = update_survey(
+            session,
+            survey,
+            body,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
@@ -229,7 +247,11 @@ def update_survey_route(
 
 
 @router.delete("/{survey_id}", response_model=StandardResponse)
-def delete_survey_route(survey_id: str, session: Session = Depends(get_session)):
+def delete_survey_route(
+    survey_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
+):
     """Soft delete a survey"""
     try:
         survey = get_survey_by_id(session, survey_id)
@@ -242,7 +264,7 @@ def delete_survey_route(survey_id: str, session: Session = Depends(get_session))
                     message="Survey not found",
                 ).model_dump(mode="json"),
             )
-        soft_delete_survey(session, survey)
+        soft_delete_survey(session, survey, performed_by=current_user.user_code)
         invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
@@ -263,7 +285,11 @@ def delete_survey_route(survey_id: str, session: Session = Depends(get_session))
 
 
 @router.post("/{survey_id}/restore", response_model=StandardResponse)
-def restore_survey_route(survey_id: str, session: Session = Depends(get_session)):
+def restore_survey_route(
+    survey_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
+):
     """Restore a soft-deleted survey"""
     try:
         survey = get_deleted_survey_by_id(session, survey_id)
@@ -276,7 +302,11 @@ def restore_survey_route(survey_id: str, session: Session = Depends(get_session)
                     message="Survey not found",
                 ).model_dump(mode="json"),
             )
-        restored = restore_survey(session, survey)
+        restored = restore_survey(
+            session,
+            survey,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
@@ -303,7 +333,11 @@ def restore_survey_route(survey_id: str, session: Session = Depends(get_session)
 
 
 @router.post("/{survey_id}/publish", response_model=StandardResponse)
-def publish_survey(survey_id: str, session: Session = Depends(get_session)):
+def publish_survey(
+    survey_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
+):
     """Publish a survey (DRAFT → ACTIVE)"""
     try:
         survey = get_survey_by_id(session, survey_id)
@@ -334,7 +368,12 @@ def publish_survey(survey_id: str, session: Session = Depends(get_session)):
                     message="Survey has no questions",
                 ).model_dump(mode="json"),
             )
-        published = set_survey_status(session, survey, SurveyStatus.ACTIVE)
+        published = set_survey_status(
+            session,
+            survey,
+            SurveyStatus.ACTIVE,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
@@ -356,7 +395,11 @@ def publish_survey(survey_id: str, session: Session = Depends(get_session)):
 
 
 @router.post("/{survey_id}/close", response_model=StandardResponse)
-def close_survey(survey_id: str, session: Session = Depends(get_session)):
+def close_survey(
+    survey_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
+):
     """Close a survey (ACTIVE → CLOSED)"""
     try:
         survey = get_survey_by_id(session, survey_id)
@@ -378,7 +421,12 @@ def close_survey(survey_id: str, session: Session = Depends(get_session)):
                     message="Survey is already closed",
                 ).model_dump(mode="json"),
             )
-        closed = set_survey_status(session, survey, SurveyStatus.CLOSED)
+        closed = set_survey_status(
+            session,
+            survey,
+            SurveyStatus.CLOSED,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
@@ -400,7 +448,11 @@ def close_survey(survey_id: str, session: Session = Depends(get_session)):
 
 
 @router.post("/{survey_id}/reopen", response_model=StandardResponse)
-def reopen_survey(survey_id: str, session: Session = Depends(get_session)):
+def reopen_survey(
+    survey_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
+):
     """Reopen a survey (CLOSED → ACTIVE)"""
     try:
         survey = get_survey_by_id(session, survey_id)
@@ -422,7 +474,12 @@ def reopen_survey(survey_id: str, session: Session = Depends(get_session)):
                     message="Survey is not closed",
                 ).model_dump(mode="json"),
             )
-        reopened = set_survey_status(session, survey, SurveyStatus.ACTIVE)
+        reopened = set_survey_status(
+            session,
+            survey,
+            SurveyStatus.ACTIVE,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
@@ -450,7 +507,10 @@ def reopen_survey(survey_id: str, session: Session = Depends(get_session)):
 
 @router.post("/{survey_id}/questions", response_model=StandardResponse, status_code=201)
 def add_question_to_survey_route(
-    survey_id: str, body: SurveyQuestionCreate, session: Session = Depends(get_session)
+    survey_id: str,
+    body: SurveyQuestionCreate,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
 ):
     """Add a question from the library to a survey"""
     try:
@@ -464,7 +524,12 @@ def add_question_to_survey_route(
                     message="Survey not found",
                 ).model_dump(mode="json"),
             )
-        sq = add_question_to_survey(session, survey, body)
+        sq = add_question_to_survey(
+            session,
+            survey,
+            body,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
@@ -518,6 +583,7 @@ def add_questions_batch_route(
     survey_id: str,
     body: List[SurveyQuestionCreate],
     session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
 ):
     """Add multiple questions to survey in one batch"""
     try:
@@ -540,7 +606,12 @@ def add_questions_batch_route(
                     message="Can only add questions to DRAFT surveys",
                 ).model_dump(mode="json"),
             )
-        added, failed = add_questions_batch(session, survey, body)
+        added, failed = add_questions_batch(
+            session,
+            survey,
+            body,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         result = {
             "added": len(added),
@@ -592,7 +663,10 @@ def get_survey_questions_route(survey_id: str, session: Session = Depends(get_se
 
 @router.delete("/{survey_id}/questions/{question_id}", response_model=StandardResponse)
 def remove_question_from_survey_route(
-    survey_id: str, question_id: str, session: Session = Depends(get_session)
+    survey_id: str,
+    question_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
 ):
     """Remove a question from survey and reorder remaining"""
     try:
@@ -606,7 +680,12 @@ def remove_question_from_survey_route(
                     message="Survey not found",
                 ).model_dump(mode="json"),
             )
-        remove_question_from_survey(session, survey, question_id)
+        remove_question_from_survey(
+            session,
+            survey,
+            question_id,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
@@ -656,6 +735,7 @@ def reorder_survey_questions_route(
     survey_id: str,
     body: SurveyQuestionReorderRequest,
     session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
 ):
     """Reorder questions in survey"""
     try:
@@ -669,7 +749,12 @@ def reorder_survey_questions_route(
                     message="Survey not found",
                 ).model_dump(mode="json"),
             )
-        reorder_survey_questions(session, survey, body.order_map)
+        reorder_survey_questions(
+            session,
+            survey,
+            body.order_map,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
@@ -703,6 +788,7 @@ def configure_distribution_route(
     survey_id: str,
     body: SurveyDistributionConfigCreateRequest,
     session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
 ):
     """Create or update survey distribution configuration"""
     try:
@@ -716,7 +802,12 @@ def configure_distribution_route(
                     message="Survey not found",
                 ).model_dump(mode="json"),
             )
-        config = configure_distribution(session, survey, body)
+        config = configure_distribution(
+            session,
+            survey,
+            body,
+            performed_by=current_user.user_code,
+        )
         existing_existed = (
             get_distribution_config(session, survey.survey_code) is not None
         )
@@ -772,6 +863,7 @@ def update_distribution_config_route(
     survey_id: str,
     body: SurveyDistributionConfigCreateRequest,
     session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
 ):
     """Update distribution config (only in DRAFT status)"""
     try:
@@ -804,7 +896,12 @@ def update_distribution_config_route(
                     message="Distribution already sent",
                 ).model_dump(mode="json"),
             )
-        updated = update_distribution_config(session, config, body)
+        updated = update_distribution_config(
+            session,
+            config,
+            body,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
@@ -831,7 +928,11 @@ def update_distribution_config_route(
 
 
 @router.post("/{survey_id}/distribution/send", response_model=StandardResponse)
-def send_distribution_route(survey_id: str, session: Session = Depends(get_session)):
+def send_distribution_route(
+    survey_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
+):
     """
     Send invitations to all configured recipients.
     Creates SurveyInvitation records and marks the config as SENT.
@@ -867,7 +968,12 @@ def send_distribution_route(survey_id: str, session: Session = Depends(get_sessi
                     message="Invitations have already been sent for this distribution",
                 ).model_dump(mode="json"),
             )
-        sent_count, _ = send_survey_invitations(session, survey, config)
+        sent_count, _ = send_survey_invitations(
+            session,
+            survey,
+            config,
+            performed_by=current_user.user_code,
+        )
         if sent_count == 0:
             raise HTTPException(
                 status_code=400,
@@ -900,7 +1006,11 @@ def send_distribution_route(survey_id: str, session: Session = Depends(get_sessi
 @router.post(
     "/{survey_id}/distribution/send-reminders", response_model=StandardResponse
 )
-def send_reminders_route(survey_id: str, session: Session = Depends(get_session)):
+def send_reminders_route(
+    survey_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
+):
     """
     Send reminders to alumni who received an invitation but haven't responded yet.
     Re-timestamps their sent_at to indicate a reminder was sent.
@@ -936,7 +1046,11 @@ def send_reminders_route(survey_id: str, session: Session = Depends(get_session)
                     message="Reminders can only be sent after the initial distribution has been sent",
                 ).model_dump(mode="json"),
             )
-        reminder_count, _ = send_survey_reminders(session, survey)
+        reminder_count, _ = send_survey_reminders(
+            session,
+            survey,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,

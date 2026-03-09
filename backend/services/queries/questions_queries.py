@@ -7,6 +7,7 @@ from models.questions import Question
 from schemas.questions import QuestionCreate, QuestionUpdate, QuestionPublic
 from models.response_codes import ErrorCode, SuccessCode
 from utils.timezone import get_current_time_gmt8
+from services.queries.transaction_logs_queries import create_transaction_log
 
 
 def generate_question_id(session: Session) -> str:
@@ -70,7 +71,11 @@ def list_questions(
     return questions, total
 
 
-def create_question(session: Session, data: QuestionCreate) -> Question:
+def create_question(
+    session: Session,
+    data: QuestionCreate,
+    performed_by: str | None = None,
+) -> Question:
     question = Question(
         **data.dict(),
         question_code=uuid.uuid4(),
@@ -79,33 +84,72 @@ def create_question(session: Session, data: QuestionCreate) -> Question:
         updated_at=get_current_time_gmt8()
     )
     session.add(question)
+    create_transaction_log(
+        session,
+        tl_name=f"CREATED question {question.question_id}",
+        after=question,
+        performed_by=performed_by,
+    )
     session.commit()
     session.refresh(question)
     return question
 
 
-def update_question(session: Session, question: Question, data: QuestionUpdate) -> Question:
+def update_question(
+    session: Session,
+    question: Question,
+    data: QuestionUpdate,
+    performed_by: str | None = None,
+) -> Question:
+    before_state = question.model_dump(mode="json")
     update_data = data.dict(exclude_unset=True)
     for key, value in update_data.items():
         setattr(question, key, value)
     question.updated_at = get_current_time_gmt8()
     session.add(question)
+    create_transaction_log(
+        session,
+        tl_name=f"UPDATED question {question.question_id}",
+        before=before_state,
+        after=question,
+        performed_by=performed_by,
+    )
     session.commit()
     session.refresh(question)
     return question
 
 
-def soft_delete_question(session: Session, question: Question) -> None:
+def soft_delete_question(
+    session: Session,
+    question: Question,
+    performed_by: str | None = None,
+) -> None:
     question.is_deleted = True
     question.deleted_at = get_current_time_gmt8()
     session.add(question)
+    create_transaction_log(
+        session,
+        tl_name=f"DELETED question {question.question_id}",
+        after=question,
+        performed_by=performed_by,
+    )
     session.commit()
 
 
-def restore_question(session: Session, question: Question) -> Question:
+def restore_question(
+    session: Session,
+    question: Question,
+    performed_by: str | None = None,
+) -> Question:
     question.is_deleted = False
     question.deleted_at = None
     session.add(question)
+    create_transaction_log(
+        session,
+        tl_name=f"RESTORED question {question.question_id}",
+        after=question,
+        performed_by=performed_by,
+    )
     session.commit()
     session.refresh(question)
     return question

@@ -4,10 +4,13 @@ DB query functions for events + event_registration domain.
 
 import logging
 from sqlmodel import Session, select, func
-from models.events import Event, EventRegistration
+from models.events import Event, EventRegistration, EventRegistrantDetails
+from models.alumni import Alumni
+from models.student_records import StudentRecord
 from schemas.events import EventCreate, EventUpdate
 from utils.timezone import get_current_time_gmt8, convert_to_gmt8
 from services.queries.event_types_queries import get_event_type_by_name
+from services.queries.transaction_logs_queries import create_transaction_log
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +60,11 @@ def get_active_event_by_id(session: Session, event_id: str) -> Event | None:
 # ---------------------------------------------------------------------------
 
 
-def create_event(session: Session, data: EventCreate) -> Event:
+def create_event(
+    session: Session,
+    data: EventCreate,
+    performed_by: str | None = None,
+) -> Event:
     event_id = generate_event_id(session)
 
     # Resolve event_type_code from the provided event_type_name (case-insensitive)
@@ -73,12 +80,24 @@ def create_event(session: Session, data: EventCreate) -> Event:
         event_data["date"] = convert_to_gmt8(event_data["date"])
     event = Event(**event_data)
     session.add(event)
+    create_transaction_log(
+        session,
+        tl_name=f"CREATED event {event.event_id}",
+        after=event,
+        performed_by=performed_by,
+    )
     session.commit()
     session.refresh(event)
     return event
 
 
-def update_event(session: Session, event: Event, data: EventUpdate) -> Event:
+def update_event(
+    session: Session,
+    event: Event,
+    data: EventUpdate,
+    performed_by: str | None = None,
+) -> Event:
+    before_state = event.model_dump(mode="json")
     update_data = data.model_dump(exclude_unset=True)
 
     # Handle event_type_name resolution if provided (case-insensitive)
@@ -96,38 +115,90 @@ def update_event(session: Session, event: Event, data: EventUpdate) -> Event:
         setattr(event, field, value)
     event.updated_at = get_current_time_gmt8()
     session.add(event)
+    create_transaction_log(
+        session,
+        tl_name=f"UPDATED event {event.event_id}",
+        before=before_state,
+        after=event,
+        performed_by=performed_by,
+    )
     session.commit()
     session.refresh(event)
     return event
 
 
-def soft_delete_event(session: Session, event: Event) -> None:
+def soft_delete_event(
+    session: Session,
+    event: Event,
+    performed_by: str | None = None,
+) -> None:
     event.is_deleted = True
     event.deleted_at = get_current_time_gmt8()
     session.add(event)
+    create_transaction_log(
+        session,
+        tl_name=f"DELETED event {event.event_id}",
+        after=event,
+        performed_by=performed_by,
+    )
     session.commit()
 
 
-def restore_event(session: Session, event: Event) -> Event:
+def restore_event(
+    session: Session,
+    event: Event,
+    performed_by: str | None = None,
+) -> Event:
     event.is_deleted = False
     event.deleted_at = None
     session.add(event)
+    create_transaction_log(
+        session,
+        tl_name=f"RESTORED event {event.event_id}",
+        after=event,
+        performed_by=performed_by,
+    )
     session.commit()
     session.refresh(event)
     return event
 
 
-def update_event_image(session: Session, event: Event, image_path: str) -> Event:
+def update_event_image(
+    session: Session,
+    event: Event,
+    image_path: str,
+    performed_by: str | None = None,
+) -> Event:
+    before_state = {"image_path": event.image_path}
     event.image_path = image_path
     session.add(event)
+    create_transaction_log(
+        session,
+        tl_name=f"UPDATED event image {event.event_id}",
+        before=before_state,
+        after={"image_path": event.image_path},
+        performed_by=performed_by,
+    )
     session.commit()
     session.refresh(event)
     return event
 
 
-def clear_event_image(session: Session, event: Event) -> None:
+def clear_event_image(
+    session: Session,
+    event: Event,
+    performed_by: str | None = None,
+) -> None:
+    before_state = {"image_path": event.image_path}
     event.image_path = None
     session.add(event)
+    create_transaction_log(
+        session,
+        tl_name=f"REMOVED event image {event.event_id}",
+        before=before_state,
+        after={"image_path": None},
+        performed_by=performed_by,
+    )
     session.commit()
 
 
@@ -208,7 +279,12 @@ def get_all_events(
 # ---------------------------------------------------------------------------
 
 
-def register_user_for_event(session: Session, event: Event, user_code: str) -> None:
+def register_user_for_event(
+    session: Session,
+    event: Event,
+    user_code: str,
+    performed_by: str | None = None,
+) -> None:
     """Register a user. Raises ValueError on duplicate or full capacity."""
     existing = session.exec(
         select(EventRegistration)
@@ -226,10 +302,21 @@ def register_user_for_event(session: Session, event: Event, user_code: str) -> N
     event.attendees += 1
     session.add(registration)
     session.add(event)
+    create_transaction_log(
+        session,
+        tl_name=f"REGISTERED user for event {event.event_id}",
+        after={"event_id": event.event_id, "user_code": user_code},
+        performed_by=performed_by,
+    )
     session.commit()
 
 
-def unregister_user_from_event(session: Session, event: Event, user_code: str) -> None:
+def unregister_user_from_event(
+    session: Session,
+    event: Event,
+    user_code: str,
+    performed_by: str | None = None,
+) -> None:
     """Soft-delete a registration. Raises ValueError if not found."""
     registration = session.exec(
         select(EventRegistration)
@@ -245,16 +332,25 @@ def unregister_user_from_event(session: Session, event: Event, user_code: str) -
     event.attendees = max(0, event.attendees - 1)
     session.add(registration)
     session.add(event)
+    create_transaction_log(
+        session,
+        tl_name=f"UNREGISTERED user from event {event.event_id}",
+        after={"event_id": event.event_id, "user_code": user_code},
+        performed_by=performed_by,
+    )
     session.commit()
 
 
 def get_event_registrants(
     session: Session, event: Event, limit: int, offset: int
-) -> tuple[list[EventRegistration], int]:
+) -> tuple[list[EventRegistrantDetails], int]:
     query = (
-        select(EventRegistration)
+        select(EventRegistration, Alumni, StudentRecord)
+        .join(Alumni, Alumni.user_code == EventRegistration.user_code, isouter=True)
+        .join(StudentRecord, StudentRecord.alumni_code == Alumni.alumni_code, isouter=True)
         .where(EventRegistration.event_code == event.event_code)
         .where(EventRegistration.is_deleted == False)
+        .order_by(EventRegistration.registered_at.desc())
     )
     total = session.exec(
         select(func.count(EventRegistration.registration_code))
@@ -265,4 +361,20 @@ def get_event_registrants(
     if limit > 0:
         query = query.offset(offset).limit(limit)
 
-    return session.exec(query).all(), total
+    rows = session.exec(query).all()
+    registrants: list[EventRegistrantDetails] = []
+    for registration, alumni, student_record in rows:
+        registrants.append(
+            EventRegistrantDetails(
+                event_id=event.event_id,
+                alumni_id=alumni.alumni_id if alumni else None,
+                last_name=alumni.last_name if alumni else None,
+                first_name=alumni.first_name if alumni else None,
+                middle_name=alumni.middle_name if alumni else None,
+                student_id=student_record.student_id if student_record else None,
+                year_graduated=student_record.year_graduated if student_record else None,
+                registered_at=registration.registered_at,
+            )
+        )
+
+    return registrants, total

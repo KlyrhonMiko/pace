@@ -70,6 +70,12 @@ class EventPublic(SQLModel):
 
 class EventRegistrationResponse(SQLModel):
     event_id: str
+    alumni_id: Optional[str] = None
+    last_name: Optional[str] = None
+    first_name: Optional[str] = None
+    middle_name: Optional[str] = None
+    student_id: Optional[str] = None
+    year_graduated: Optional[int] = None
     registered_at: datetime
 
     @field_serializer("registered_at")

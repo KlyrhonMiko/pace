@@ -16,6 +16,7 @@ from schemas.alumni_skills import (
 )
 from models.response_codes import ErrorCode, SuccessCode
 from utils.timezone import get_current_time_gmt8
+from services.queries.transaction_logs_queries import create_transaction_log
 
 
 # ---------------------------------------------------------------------------
@@ -71,7 +72,11 @@ def get_alumni_skills_by_alumni_code(session: Session, alumni_code) -> AlumniSki
 # Single-record mutations
 # ---------------------------------------------------------------------------
 
-def create_alumni_skills(session: Session, data: AlumniSkillsCreate) -> AlumniSkills:
+def create_alumni_skills(
+    session: Session,
+    data: AlumniSkillsCreate,
+    performed_by: str | None = None,
+) -> AlumniSkills:
     """Resolve alumni_id → alumni_code, then create the AlumniSkills record."""
     alumni = _resolve_alumni(session, data.alumni_id)
     if not alumni:
@@ -89,13 +94,22 @@ def create_alumni_skills(session: Session, data: AlumniSkillsCreate) -> AlumniSk
         program_skills=data.program_skills,
     )
     session.add(skills)
+    create_transaction_log(
+        session,
+        tl_name=f"CREATED alumni_skills {data.alumni_id}",
+        after=skills,
+        performed_by=performed_by,
+    )
     session.commit()
     session.refresh(skills)
     return skills
 
 
 def update_alumni_skills(
-    session: Session, skills: AlumniSkills, data: AlumniSkillsUpdate
+    session: Session,
+    skills: AlumniSkills,
+    data: AlumniSkillsUpdate,
+    performed_by: str | None = None,
 ) -> AlumniSkills:
     if data.soft_skills_ave is not None:
         skills.soft_skills_ave = data.soft_skills_ave
@@ -105,12 +119,28 @@ def update_alumni_skills(
         skills.program_skills = data.program_skills
     skills.updated_at = get_current_time_gmt8()
     session.add(skills)
+    create_transaction_log(
+        session,
+        tl_name="UPDATED alumni_skills",
+        after=skills,
+        performed_by=performed_by,
+    )
     session.commit()
     session.refresh(skills)
     return skills
 
 
-def delete_alumni_skills(session: Session, skills: AlumniSkills) -> None:
+def delete_alumni_skills(
+    session: Session,
+    skills: AlumniSkills,
+    performed_by: str | None = None,
+) -> None:
+    create_transaction_log(
+        session,
+        tl_name="DELETED alumni_skills",
+        before=skills,
+        performed_by=performed_by,
+    )
     session.delete(skills)
     session.commit()
 
@@ -122,6 +152,7 @@ def delete_alumni_skills(session: Session, skills: AlumniSkills) -> None:
 def batch_create_alumni_skills(
     session: Session,
     items: list[AlumniSkillsCreate],
+    performed_by: str | None = None,
 ) -> AlumniSkillsBatchCreateResponse:
     results = []
     successful_count = 0
@@ -189,6 +220,12 @@ def batch_create_alumni_skills(
             ))
             failed_count += 1
 
+    create_transaction_log(
+        session,
+        tl_name="BATCH CREATED alumni_skills",
+        after={"successful": successful_count, "failed": failed_count},
+        performed_by=performed_by,
+    )
     session.commit()
     return AlumniSkillsBatchCreateResponse(
         total_items=len(items),
@@ -201,6 +238,7 @@ def batch_create_alumni_skills(
 def batch_update_alumni_skills(
     session: Session,
     items: list[AlumniSkillsBatchUpdateItem],
+    performed_by: str | None = None,
 ) -> AlumniSkillsBatchUpdateResponse:
     results = []
     successful_count = 0
@@ -255,6 +293,12 @@ def batch_update_alumni_skills(
             ))
             failed_count += 1
 
+    create_transaction_log(
+        session,
+        tl_name="BATCH UPDATED alumni_skills",
+        after={"successful": successful_count, "failed": failed_count},
+        performed_by=performed_by,
+    )
     session.commit()
     return AlumniSkillsBatchUpdateResponse(
         total_items=len(items),

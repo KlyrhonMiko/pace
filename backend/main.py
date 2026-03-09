@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -14,6 +15,7 @@ from routers import (
     event_types,
     events,
     event_registration,
+    transaction_logs,
     surveys,
     questions,
     predict,
@@ -21,6 +23,7 @@ from routers import (
 )
 from core.config import settings
 from models.response_codes import StandardResponse, ErrorCode
+from utils.dev_auth import apply_dev_auth_override
 
 app = FastAPI(title="Pasig Alumni and Career Employment (PACE) System", version="1.0.0")
 
@@ -33,6 +36,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Apply optional development auth bypass before router attachment.
+apply_dev_auth_override(app)
+
 # Include routers
 app.include_router(auth.router)
 app.include_router(users.router)
@@ -44,13 +50,12 @@ app.include_router(alumni_skills.router)
 app.include_router(jobs.router)
 app.include_router(event_types.router)
 app.include_router(events.router)
+app.include_router(event_registration.router)
+app.include_router(transaction_logs.router)
 app.include_router(surveys.router)
 app.include_router(questions.router)
 app.include_router(predict.router)
 app.include_router(otp.router)
-
-# TODO: Add event_registration router once auth and RBAC are implemented
-# app.include_router(event_registration.router)
 
 
 @app.on_event("startup")
@@ -97,6 +102,30 @@ async def validation_exception_handler(request, exc):
     )
 
     return JSONResponse(status_code=400, content=response.model_dump(mode="json"))
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request, exc: HTTPException):
+    """Normalize HTTP errors into the StandardResponse envelope."""
+    if isinstance(exc.detail, dict):
+        # If the route already raised a StandardResponse-like payload, return it directly.
+        if {"success", "code", "message"}.issubset(exc.detail.keys()):
+            return JSONResponse(status_code=exc.status_code, content=exc.detail)
+
+    if exc.status_code in (401, 403):
+        message = exc.detail if isinstance(exc.detail, str) else "Unauthorized"
+        code = ErrorCode.UNAUTHORIZED.value
+        if "expired" in message.lower():
+            code = ErrorCode.TOKEN_EXPIRED.value
+        response = StandardResponse(success=False, code=code, message=message)
+        return JSONResponse(status_code=401, content=response.model_dump(mode="json"))
+
+    fallback = StandardResponse(
+        success=False,
+        code=ErrorCode.INVALID_INPUT.value,
+        message=str(exc.detail) if exc.detail else "Request failed",
+    )
+    return JSONResponse(status_code=exc.status_code, content=fallback.model_dump(mode="json"))
 
 
 @app.get("/")

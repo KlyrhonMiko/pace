@@ -27,6 +27,7 @@ from schemas.courses import (
 from models.response_codes import ErrorCode, SuccessCode
 from utils.logging import log_integrity_error
 from utils.timezone import get_current_time_gmt8
+from services.queries.transaction_logs_queries import create_transaction_log
 
 
 # ---------------------------------------------------------------------------
@@ -110,7 +111,11 @@ def get_course_by_id_any(session: Session, course_id: str) -> Course | None:
     ).first()
 
 
-def create_course(session: Session, data: CourseCreate) -> tuple[Course, CollegeDept]:
+def create_course(
+    session: Session,
+    data: CourseCreate,
+    performed_by: str | None = None,
+) -> tuple[Course, CollegeDept]:
     """Create a new course, returning (course, college_dept) for response building."""
     college_dept = get_college_dept_by_abbv(session, data.college_dept_abbv)
     if not college_dept:
@@ -123,13 +128,22 @@ def create_course(session: Session, data: CourseCreate) -> tuple[Course, College
 
     new_course = Course.model_validate(course_dict)
     session.add(new_course)
+    create_transaction_log(
+        session,
+        tl_name=f"CREATED course {new_course.course_id}",
+        after=new_course,
+        performed_by=performed_by,
+    )
     session.commit()
     session.refresh(new_course)
     return new_course, college_dept
 
 
 def update_course(
-    session: Session, course: Course, data: CourseUpdate
+    session: Session,
+    course: Course,
+    data: CourseUpdate,
+    performed_by: str | None = None,
 ) -> tuple[Course, CollegeDept]:
     """Apply partial update to a course and commit. Returns (course, college_dept)."""
     college_dept = None
@@ -148,6 +162,12 @@ def update_course(
 
     course.updated_at = get_current_time_gmt8()
     session.add(course)
+    create_transaction_log(
+        session,
+        tl_name=f"UPDATED course {course.course_id}",
+        after=course,
+        performed_by=performed_by,
+    )
     session.commit()
     session.refresh(course)
 
@@ -157,19 +177,39 @@ def update_course(
     return course, college_dept
 
 
-def soft_delete_course(session: Session, course: Course) -> None:
+def soft_delete_course(
+    session: Session,
+    course: Course,
+    performed_by: str | None = None,
+) -> None:
     """Soft-delete a course."""
     course.is_deleted = True
     course.deleted_at = get_current_time_gmt8()
     session.add(course)
+    create_transaction_log(
+        session,
+        tl_name=f"DELETED course {course.course_id}",
+        after=course,
+        performed_by=performed_by,
+    )
     session.commit()
 
 
-def restore_course(session: Session, course: Course) -> None:
+def restore_course(
+    session: Session,
+    course: Course,
+    performed_by: str | None = None,
+) -> None:
     """Restore a soft-deleted course."""
     course.is_deleted = False
     course.deleted_at = None
     session.add(course)
+    create_transaction_log(
+        session,
+        tl_name=f"RESTORED course {course.course_id}",
+        after=course,
+        performed_by=performed_by,
+    )
     session.commit()
 
 
@@ -254,6 +294,7 @@ def get_all_courses(
 def batch_create_courses(
     session: Session,
     items: list[CourseCreate],
+    performed_by: str | None = None,
 ) -> CourseBatchCreateResponse:
     results = []
     successful_count = 0
@@ -341,6 +382,12 @@ def batch_create_courses(
             )
             failed_count += 1
 
+    create_transaction_log(
+        session,
+        tl_name="BATCH CREATED courses",
+        after={"successful": successful_count, "failed": failed_count},
+        performed_by=performed_by,
+    )
     session.commit()
     return CourseBatchCreateResponse(
         total_items=len(items),
@@ -353,6 +400,7 @@ def batch_create_courses(
 def batch_update_courses(
     session: Session,
     items: list[CourseBatchUpdateItem],
+    performed_by: str | None = None,
 ) -> CourseBatchUpdateResponse:
     results = []
     successful_count = 0
@@ -469,6 +517,12 @@ def batch_update_courses(
             )
             failed_count += 1
 
+    create_transaction_log(
+        session,
+        tl_name="BATCH UPDATED courses",
+        after={"successful": successful_count, "failed": failed_count},
+        performed_by=performed_by,
+    )
     session.commit()
     return CourseBatchUpdateResponse(
         total_items=len(items),
@@ -481,6 +535,7 @@ def batch_update_courses(
 def batch_delete_courses(
     session: Session,
     ids: list[str],
+    performed_by: str | None = None,
 ) -> CourseBatchDeleteResponse:
     results = []
     successful_count = 0
@@ -573,6 +628,12 @@ def batch_delete_courses(
             )
             failed_count += 1
 
+    create_transaction_log(
+        session,
+        tl_name="BATCH DELETED courses",
+        after={"successful": successful_count, "failed": failed_count},
+        performed_by=performed_by,
+    )
     session.commit()
     return CourseBatchDeleteResponse(
         total_items=len(ids),
@@ -585,6 +646,7 @@ def batch_delete_courses(
 def batch_restore_courses(
     session: Session,
     ids: list[str],
+    performed_by: str | None = None,
 ) -> CourseBatchRestoreResponse:
     results = []
     successful_count = 0
@@ -659,6 +721,12 @@ def batch_restore_courses(
             )
             failed_count += 1
 
+    create_transaction_log(
+        session,
+        tl_name="BATCH RESTORED courses",
+        after={"successful": successful_count, "failed": failed_count},
+        performed_by=performed_by,
+    )
     session.commit()
     return CourseBatchRestoreResponse(
         total_items=len(ids),

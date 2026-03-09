@@ -18,6 +18,7 @@ from schemas.student_records import (
 from models.response_codes import ErrorCode, SuccessCode
 from utils.logging import log_integrity_error
 from utils.timezone import get_current_time_gmt8
+from services.queries.transaction_logs_queries import create_transaction_log
 
 
 # ---------------------------------------------------------------------------
@@ -55,7 +56,11 @@ def _resolve_alumni(session: Session, alumni_id: str) -> Alumni | None:
 # Single-record mutations
 # ---------------------------------------------------------------------------
 
-def create_student_record(session: Session, data: StudentRecordCreate) -> StudentRecord:
+def create_student_record(
+    session: Session,
+    data: StudentRecordCreate,
+    performed_by: str | None = None,
+) -> StudentRecord:
     """Resolve Course + Alumni, create StudentRecord, update alumni.student_code."""
     course = _resolve_course(session, data.course_abbv)
     if not course:
@@ -75,13 +80,22 @@ def create_student_record(session: Session, data: StudentRecordCreate) -> Studen
     session.add(alumni)
     session.flush()
     alumni.student_code = new_student.student_code
+    create_transaction_log(
+        session,
+        tl_name=f"CREATED student_record {new_student.student_id}",
+        after=new_student,
+        performed_by=performed_by,
+    )
     session.commit()
     session.refresh(new_student)
     return new_student
 
 
 def update_student_record(
-    session: Session, student: StudentRecord, data: StudentRecordUpdate
+    session: Session,
+    student: StudentRecord,
+    data: StudentRecordUpdate,
+    performed_by: str | None = None,
 ) -> StudentRecord:
     if data.alumni_id is not None:
         alumni = _resolve_alumni(session, data.alumni_id)
@@ -107,22 +121,48 @@ def update_student_record(
         student.act_member_pos = data.act_member_pos
 
     session.add(student)
+    create_transaction_log(
+        session,
+        tl_name=f"UPDATED student_record {student.student_id}",
+        after=student,
+        performed_by=performed_by,
+    )
     session.commit()
     session.refresh(student)
     return student
 
 
-def soft_delete_student_record(session: Session, student: StudentRecord) -> None:
+def soft_delete_student_record(
+    session: Session,
+    student: StudentRecord,
+    performed_by: str | None = None,
+) -> None:
     student.is_deleted = True
     student.deleted_at = get_current_time_gmt8()
     session.add(student)
+    create_transaction_log(
+        session,
+        tl_name=f"DELETED student_record {student.student_id}",
+        after=student,
+        performed_by=performed_by,
+    )
     session.commit()
 
 
-def restore_student_record(session: Session, student: StudentRecord) -> None:
+def restore_student_record(
+    session: Session,
+    student: StudentRecord,
+    performed_by: str | None = None,
+) -> None:
     student.is_deleted = False
     student.deleted_at = None
     session.add(student)
+    create_transaction_log(
+        session,
+        tl_name=f"RESTORED student_record {student.student_id}",
+        after=student,
+        performed_by=performed_by,
+    )
     session.commit()
 
 
@@ -197,6 +237,7 @@ def get_all_student_records(
 def batch_create_student_records(
     session: Session,
     items: list[StudentRecordCreate],
+    performed_by: str | None = None,
 ) -> StudentRecordBatchCreateResponse:
     results = []
     successful_count = 0
@@ -272,6 +313,12 @@ def batch_create_student_records(
             ))
             failed_count += 1
 
+    create_transaction_log(
+        session,
+        tl_name="BATCH CREATED student_records",
+        after={"successful": successful_count, "failed": failed_count},
+        performed_by=performed_by,
+    )
     session.commit()
     return StudentRecordBatchCreateResponse(
         total_items=len(items),
@@ -284,6 +331,7 @@ def batch_create_student_records(
 def batch_update_student_records(
     session: Session,
     items: list[StudentRecordBatchUpdateItem],
+    performed_by: str | None = None,
 ) -> StudentRecordBatchUpdateResponse:
     results = []
     successful_count = 0
@@ -371,6 +419,12 @@ def batch_update_student_records(
             ))
             failed_count += 1
 
+    create_transaction_log(
+        session,
+        tl_name="BATCH UPDATED student_records",
+        after={"successful": successful_count, "failed": failed_count},
+        performed_by=performed_by,
+    )
     session.commit()
     return StudentRecordBatchUpdateResponse(
         total_items=len(items),
@@ -383,6 +437,7 @@ def batch_update_student_records(
 def batch_delete_student_records(
     session: Session,
     ids: list[str],
+    performed_by: str | None = None,
 ) -> StudentRecordBatchDeleteResponse:
     results = []
     successful_count = 0
@@ -437,6 +492,12 @@ def batch_delete_student_records(
             ))
             failed_count += 1
 
+    create_transaction_log(
+        session,
+        tl_name="BATCH DELETED student_records",
+        after={"successful": successful_count, "failed": failed_count},
+        performed_by=performed_by,
+    )
     session.commit()
     return StudentRecordBatchDeleteResponse(
         total_items=len(ids),
@@ -449,6 +510,7 @@ def batch_delete_student_records(
 def batch_restore_student_records(
     session: Session,
     ids: list[str],
+    performed_by: str | None = None,
 ) -> StudentRecordBatchRestoreResponse:
     results = []
     successful_count = 0
@@ -497,6 +559,12 @@ def batch_restore_student_records(
             log_integrity_error("student_records", "batch_restore", ErrorCode.INVALID_INPUT.value, msg, str(e))
             failed_count += 1
 
+    create_transaction_log(
+        session,
+        tl_name="BATCH RESTORED student_records",
+        after={"successful": successful_count, "failed": failed_count},
+        performed_by=performed_by,
+    )
     session.commit()
     return StudentRecordBatchRestoreResponse(
         total_items=len(ids),

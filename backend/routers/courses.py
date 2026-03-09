@@ -7,8 +7,10 @@ from schemas.courses import (
     CourseCreate, CourseUpdate, CoursePublic,
     CourseBatchCreate, CourseBatchUpdate, CourseBatchDelete, CourseBatchRestore,
 )
+from models.auth import CurrentUser
 from models.response_codes import ErrorCode, SuccessCode, StandardResponse
 from models.pagination import PaginatedResponse, PaginationMetadata
+from utils.rbac import require_admin, require_authenticated
 from utils.logging import log_error, log_integrity_error
 from services.queries.courses_queries import (
     get_course_by_id, get_course_by_id_any,
@@ -30,10 +32,15 @@ COURSES_DETAIL_TTL = 1800
 @router.post("/batch")
 def batch_create_courses_route(
     batch_data: CourseBatchCreate,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Batch create courses"""
-    response = batch_create_courses(session, batch_data.items)
+    response = batch_create_courses(
+        session,
+        batch_data.items,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
@@ -46,10 +53,15 @@ def batch_create_courses_route(
 @router.patch("/batch")
 def batch_update_courses_route(
     batch_data: CourseBatchUpdate,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Batch update courses"""
-    response = batch_update_courses(session, batch_data.items)
+    response = batch_update_courses(
+        session,
+        batch_data.items,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
@@ -62,10 +74,15 @@ def batch_update_courses_route(
 @router.delete("/batch")
 def batch_delete_courses_route(
     batch_data: CourseBatchDelete,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Batch delete courses"""
-    response = batch_delete_courses(session, batch_data.ids)
+    response = batch_delete_courses(
+        session,
+        batch_data.ids,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
@@ -78,10 +95,15 @@ def batch_delete_courses_route(
 @router.post("/batch/restore")
 def batch_restore_courses_route(
     data: CourseBatchRestore,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Restore multiple soft-deleted courses"""
-    response = batch_restore_courses(session, data.ids)
+    response = batch_restore_courses(
+        session,
+        data.ids,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
@@ -104,7 +126,8 @@ def get_all_courses_route(
     include_deleted: bool = Query(False, description="Include soft-deleted records"),
     sort_by: str = Query("course_id", description="Sort by field (course_id, course_abbv, course_name)"),
     sort_order: str = Query("asc", description="Sort order (asc, desc)"),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
 ):
     """Get all courses with filtering, searching, and sorting"""
     cache_key = generate_cache_key(
@@ -133,7 +156,8 @@ def get_deleted_courses(
     search: str = Query(None),
     sort_by: str = Query("deleted_at"),
     sort_order: str = Query("desc"),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Get all soft-deleted courses"""
     cache_key = generate_cache_key(
@@ -159,7 +183,8 @@ def get_all_courses_including_deleted(
     college_dept_abbv: str = Query(None),
     sort_by: str = Query("course_id"),
     sort_order: str = Query("asc"),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Get all courses including soft-deleted"""
     cache_key = generate_cache_key(
@@ -185,11 +210,16 @@ def get_all_courses_including_deleted(
 @router.post("")
 def create_course_route(
     course_data: CourseCreate,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Create a new course"""
     try:
-        new_course, college_dept = create_course(session, course_data)
+        new_course, college_dept = create_course(
+            session,
+            course_data,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True,
@@ -218,7 +248,11 @@ def create_course_route(
 
 
 @router.get("/{course_id}", response_model=StandardResponse)
-def get_course(course_id: str, session: Session = Depends(get_session)):
+def get_course(
+    course_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
+):
     """Get a specific course by course_id"""
     cache_key = generate_cache_key(f"{COURSES_CACHE_NAMESPACE}:detail", course_id=course_id)
     return cache_get_or_set(
@@ -232,7 +266,8 @@ def get_course(course_id: str, session: Session = Depends(get_session)):
 def update_course_route(
     course_id: str,
     course_data: CourseUpdate,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     """Update course information"""
     course = get_course_by_id_any(session, course_id)
@@ -243,7 +278,12 @@ def update_course_route(
         ).model_dump(mode='json'))
 
     try:
-        updated_course, college_dept = update_course(session, course, course_data)
+        updated_course, college_dept = update_course(
+            session,
+            course,
+            course_data,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.COURSE_UPDATED.value,
@@ -269,7 +309,11 @@ def update_course_route(
 
 
 @router.delete("/{course_id}")
-def delete_course(course_id: str, session: Session = Depends(get_session)):
+def delete_course(
+    course_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
+):
     """Delete a course"""
     course = get_course_by_id_any(session, course_id)
     if not course:
@@ -291,7 +335,7 @@ def delete_course(course_id: str, session: Session = Depends(get_session)):
         ).model_dump(mode='json'))
 
     try:
-        soft_delete_course(session, course)
+        soft_delete_course(session, course, performed_by=current_user.user_code)
         invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.COURSE_DELETED.value,
@@ -307,7 +351,11 @@ def delete_course(course_id: str, session: Session = Depends(get_session)):
 
 
 @router.post("/{course_id}/restore")
-def restore_course_route(course_id: str, session: Session = Depends(get_session)):
+def restore_course_route(
+    course_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
+):
     """Restore a soft-deleted course"""
     course = get_course_by_id_any(session, course_id)
     if not course:
@@ -323,7 +371,7 @@ def restore_course_route(course_id: str, session: Session = Depends(get_session)
         ).model_dump(mode='json'))
 
     try:
-        restore_course(session, course)
+        restore_course(session, course, performed_by=current_user.user_code)
         invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.COURSE_RESTORED.value,

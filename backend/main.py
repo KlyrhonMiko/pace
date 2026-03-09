@@ -22,6 +22,7 @@ from routers import (
 )
 from core.config import settings
 from models.response_codes import StandardResponse, ErrorCode
+from utils.dev_auth import apply_dev_auth_override
 
 app = FastAPI(title="Pasig Alumni and Career Employment (PACE) System", version="1.0.0")
 
@@ -33,6 +34,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Apply optional development auth bypass before router attachment.
+apply_dev_auth_override(app)
 
 # Include routers
 app.include_router(auth.router)

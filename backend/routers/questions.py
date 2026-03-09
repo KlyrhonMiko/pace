@@ -5,6 +5,7 @@ from sqlmodel import Session
 from core.database import get_session
 from core.redis import cache_get_or_set, generate_cache_key, invalidate_cache_namespaces
 from schemas.questions import QuestionCreate, QuestionUpdate, QuestionPublic
+from models.auth import CurrentUser
 from models.response_codes import StandardResponse, SuccessCode, ErrorCode
 from utils.timezone import get_current_time_gmt8
 from utils.rbac import require_staff_or_admin
@@ -25,7 +26,11 @@ QUESTIONS_DETAIL_TTL = 900
 
 
 @router.post("", response_model=StandardResponse, status_code=201)
-def create_question_route(body: QuestionCreate, session: Session = Depends(get_session)):
+def create_question_route(
+    body: QuestionCreate,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
+):
     """Create a new question in the library (duplicate text rejected)"""
     try:
         existing = check_duplicate_question_text(session, body.question_text)
@@ -37,7 +42,7 @@ def create_question_route(body: QuestionCreate, session: Session = Depends(get_s
                     message=f"Question with this text already exists (ID: {existing.question_id})"
                 ).model_dump(mode='json')
             )
-        question = create_question(session, body)
+        question = create_question(session, body, performed_by=current_user.user_code)
         invalidate_cache_namespaces(QUESTIONS_CACHE_NAMESPACE, "surveys")
         return StandardResponse(
             success=True, code=SuccessCode.QUESTION_CREATED.value,
@@ -103,7 +108,8 @@ def get_question_route(question_id: str, session: Session = Depends(get_session)
 @router.patch("/{question_id}", response_model=StandardResponse)
 def update_question_route(
     question_id: str, body: QuestionUpdate,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
 ):
     """Update a question"""
     try:
@@ -112,7 +118,12 @@ def update_question_route(
             raise HTTPException(status_code=404, detail=StandardResponse(
                 success=False, code=ErrorCode.QUESTION_NOT_FOUND.value, message="Question not found"
             ).model_dump(mode='json'))
-        updated = update_question(session, question, body)
+        updated = update_question(
+            session,
+            question,
+            body,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(QUESTIONS_CACHE_NAMESPACE, "surveys")
         return StandardResponse(
             success=True, code=SuccessCode.QUESTION_UPDATED.value,
@@ -130,7 +141,11 @@ def update_question_route(
 
 
 @router.delete("/{question_id}", response_model=StandardResponse)
-def delete_question_route(question_id: str, session: Session = Depends(get_session)):
+def delete_question_route(
+    question_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
+):
     """Soft delete a question"""
     try:
         question = get_question_by_id(session, question_id)
@@ -138,7 +153,7 @@ def delete_question_route(question_id: str, session: Session = Depends(get_sessi
             raise HTTPException(status_code=404, detail=StandardResponse(
                 success=False, code=ErrorCode.QUESTION_NOT_FOUND.value, message="Question not found"
             ).model_dump(mode='json'))
-        soft_delete_question(session, question)
+        soft_delete_question(session, question, performed_by=current_user.user_code)
         invalidate_cache_namespaces(QUESTIONS_CACHE_NAMESPACE, "surveys")
         return StandardResponse(
             success=True, code=SuccessCode.QUESTION_DELETED.value,
@@ -155,7 +170,11 @@ def delete_question_route(question_id: str, session: Session = Depends(get_sessi
 
 
 @router.post("/{question_id}/restore", response_model=StandardResponse)
-def restore_question_route(question_id: str, session: Session = Depends(get_session)):
+def restore_question_route(
+    question_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
+):
     """Restore a soft-deleted question"""
     try:
         question = get_question_by_id_deleted(session, question_id)
@@ -163,7 +182,11 @@ def restore_question_route(question_id: str, session: Session = Depends(get_sess
             raise HTTPException(status_code=404, detail=StandardResponse(
                 success=False, code=ErrorCode.QUESTION_NOT_FOUND.value, message="Question not found"
             ).model_dump(mode='json'))
-        restored = restore_question(session, question)
+        restored = restore_question(
+            session,
+            question,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(QUESTIONS_CACHE_NAMESPACE, "surveys")
         return StandardResponse(
             success=True, code=SuccessCode.QUESTION_RESTORED.value,

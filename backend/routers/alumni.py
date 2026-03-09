@@ -105,7 +105,11 @@ def batch_register_alumni_route(
     current_user: CurrentUser = Depends(require_admin),
 ):
     """Batch create alumni profiles (creates both User and Alumni for each item)"""
-    response = batch_register_alumni(session, batch_data.items)
+    response = batch_register_alumni(
+        session,
+        batch_data.items,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(ALUMNI_CACHE_NAMESPACE, "users")
     return StandardResponse(
         success=response.failed == 0,
@@ -126,7 +130,11 @@ def batch_update_alumni_route(
     current_user: CurrentUser = Depends(require_admin),
 ):
     """Batch update alumni records"""
-    response = batch_update_alumni(session, batch_data.items)
+    response = batch_update_alumni(
+        session,
+        batch_data.items,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(ALUMNI_CACHE_NAMESPACE)
     return StandardResponse(
         success=response.failed == 0,
@@ -143,7 +151,11 @@ def batch_delete_alumni_route(
     current_user: CurrentUser = Depends(require_admin),
 ):
     """Batch delete alumni records"""
-    response = batch_delete_alumni(session, batch_data.ids)
+    response = batch_delete_alumni(
+        session,
+        batch_data.ids,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(ALUMNI_CACHE_NAMESPACE)
     return StandardResponse(
         success=response.failed == 0,
@@ -160,7 +172,11 @@ def batch_restore_alumni_route(
     current_user: CurrentUser = Depends(require_admin),
 ):
     """Restore multiple soft-deleted alumni"""
-    response = batch_restore_alumni(session, data.ids)
+    response = batch_restore_alumni(
+        session,
+        data.ids,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(ALUMNI_CACHE_NAMESPACE)
     return StandardResponse(
         success=response.failed == 0,
@@ -189,6 +205,7 @@ def get_all_alumni_route(
     """Get all alumni records with filtering, searching, and sorting"""
     cache_key = generate_cache_key(
         f"{ALUMNI_CACHE_NAMESPACE}:list",
+        user_type=current_user.user_type,
         limit=limit,
         offset=offset,
         search=search,
@@ -280,7 +297,11 @@ def get_alumni(
 
     _ensure_alumni_owner_or_staff_plus(current_user, str(alumni.user_code) if alumni.user_code else None)
 
-    cache_key = generate_cache_key(f"{ALUMNI_CACHE_NAMESPACE}:detail", alumni_id=alumni_id)
+    cache_key = generate_cache_key(
+        f"{ALUMNI_CACHE_NAMESPACE}:detail",
+        alumni_id=alumni_id,
+        user_type=current_user.user_type,
+    )
     return cache_get_or_set(
         cache_key,
         lambda: _build_alumni_detail_response(session, alumni_id),
@@ -306,7 +327,12 @@ def update_alumni_route(
     _ensure_alumni_owner_or_staff_plus(current_user, str(alumni.user_code) if alumni.user_code else None)
 
     try:
-        updated = update_alumni(session, alumni, alumni_data)
+        updated = update_alumni(
+            session,
+            alumni,
+            alumni_data,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(ALUMNI_CACHE_NAMESPACE)
         return StandardResponse(
             success=True, code=SuccessCode.ALUMNI_UPDATED.value,
@@ -343,7 +369,7 @@ def delete_alumni(
         ).model_dump(mode='json'))
 
     try:
-        soft_delete_alumni(session, alumni)
+        soft_delete_alumni(session, alumni, performed_by=current_user.user_code)
         invalidate_cache_namespaces(ALUMNI_CACHE_NAMESPACE)
         return StandardResponse(
             success=True, code=SuccessCode.ALUMNI_DELETED.value,
@@ -379,7 +405,7 @@ def restore_alumni_route(
         ).model_dump(mode='json'))
 
     try:
-        restore_alumni(session, alumni)
+        restore_alumni(session, alumni, performed_by=current_user.user_code)
         invalidate_cache_namespaces(ALUMNI_CACHE_NAMESPACE)
         return StandardResponse(
             success=True, code=SuccessCode.ALUMNI_RESTORED.value,

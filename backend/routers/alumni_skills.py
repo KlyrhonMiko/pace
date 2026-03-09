@@ -77,7 +77,11 @@ def batch_create_alumni_skills_route(
     current_user: CurrentUser = Depends(require_admin),
 ):
     """Batch create alumni skill records"""
-    response = batch_create_alumni_skills(session, batch_data.items)
+    response = batch_create_alumni_skills(
+        session,
+        batch_data.items,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(ALUMNI_SKILLS_CACHE_NAMESPACE)
     return StandardResponse(
         success=response.failed == 0,
@@ -94,7 +98,11 @@ def batch_update_alumni_skills_route(
     current_user: CurrentUser = Depends(require_admin),
 ):
     """Batch update alumni skill records"""
-    response = batch_update_alumni_skills(session, batch_data.items)
+    response = batch_update_alumni_skills(
+        session,
+        batch_data.items,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(ALUMNI_SKILLS_CACHE_NAMESPACE)
     return StandardResponse(
         success=response.failed == 0,
@@ -129,7 +137,11 @@ def create_alumni_skills_route(
     _ensure_alumni_owner_or_staff_plus(current_user, str(alumni.user_code) if alumni.user_code else None)
 
     try:
-        skills = create_alumni_skills(session, data)
+        skills = create_alumni_skills(
+            session,
+            data,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(ALUMNI_SKILLS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
@@ -219,7 +231,12 @@ def update_alumni_skills_route(
             ).model_dump(mode="json"),
         )
     try:
-        updated = update_alumni_skills(session, skills, data)
+        updated = update_alumni_skills(
+            session,
+            skills,
+            data,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(ALUMNI_SKILLS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
@@ -262,7 +279,7 @@ def delete_alumni_skills_route(
             ).model_dump(mode="json"),
         )
     try:
-        delete_alumni_skills(session, skills)
+        delete_alumni_skills(session, skills, performed_by=current_user.user_code)
         invalidate_cache_namespaces(ALUMNI_SKILLS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,

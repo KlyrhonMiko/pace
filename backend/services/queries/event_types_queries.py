@@ -10,6 +10,7 @@ from models.event_types import EventType
 from schemas.event_types import EventTypeCreate, EventTypeUpdate
 from models.pagination import PaginationMetadata
 from utils.timezone import get_current_time_gmt8
+from services.queries.transaction_logs_queries import create_transaction_log
 
 
 # ---------------------------------------------------------------------------
@@ -62,22 +63,39 @@ def get_event_type_by_name(session: Session, event_name: str) -> EventType | Non
     ).first()
 
 
-def create_event_type(session: Session, data: EventTypeCreate) -> EventType:
+def create_event_type(
+    session: Session,
+    data: EventTypeCreate,
+    performed_by: str | None = None,
+) -> EventType:
     """Create a new event type and return the persisted record."""
     event_type_id = generate_event_type_id(session)
     event_type_dict = data.model_dump()
     event_type_dict["event_type_id"] = event_type_id
     new_event_type = EventType.model_validate(event_type_dict)
     session.add(new_event_type)
+    create_transaction_log(
+        session,
+        tl_name=f"CREATED event_type {new_event_type.event_type_id}",
+        after=new_event_type,
+        performed_by=performed_by,
+    )
     session.commit()
     session.refresh(new_event_type)
     return new_event_type
 
 
 def update_event_type(
-    session: Session, event_type: EventType, data: EventTypeUpdate
+    session: Session,
+    event_type: EventType,
+    data: EventTypeUpdate,
+    performed_by: str | None = None,
 ) -> EventType:
     """Apply partial update to an event type and commit."""
+    before_state = {
+        "event_name": event_type.event_name,
+        "is_active": event_type.is_active,
+    }
     if data.event_name is not None:
         event_type.event_name = data.event_name
     if data.is_active is not None:
@@ -85,25 +103,52 @@ def update_event_type(
 
     event_type.updated_at = get_current_time_gmt8()
     session.add(event_type)
+    create_transaction_log(
+        session,
+        tl_name=f"UPDATED event_type {event_type.event_type_id}",
+        before=before_state,
+        after=event_type,
+        performed_by=performed_by,
+    )
     session.commit()
     session.refresh(event_type)
     return event_type
 
 
-def soft_delete_event_type(session: Session, event_type: EventType) -> None:
+def soft_delete_event_type(
+    session: Session,
+    event_type: EventType,
+    performed_by: str | None = None,
+) -> None:
     """Soft-delete an event type (sets is_deleted=True)."""
     event_type.is_deleted = True
     event_type.deleted_at = get_current_time_gmt8()
     session.add(event_type)
+    create_transaction_log(
+        session,
+        tl_name=f"DELETED event_type {event_type.event_type_id}",
+        after=event_type,
+        performed_by=performed_by,
+    )
     session.commit()
 
 
-def restore_event_type(session: Session, event_type: EventType) -> EventType:
+def restore_event_type(
+    session: Session,
+    event_type: EventType,
+    performed_by: str | None = None,
+) -> EventType:
     """Restore a soft-deleted event type."""
     event_type.is_deleted = False
     event_type.deleted_at = None
     event_type.updated_at = get_current_time_gmt8()
     session.add(event_type)
+    create_transaction_log(
+        session,
+        tl_name=f"RESTORED event_type {event_type.event_type_id}",
+        after=event_type,
+        performed_by=performed_by,
+    )
     session.commit()
     session.refresh(event_type)
     return event_type

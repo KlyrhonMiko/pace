@@ -36,7 +36,11 @@ def batch_create_courses_route(
     current_user: CurrentUser = Depends(require_admin),
 ):
     """Batch create courses"""
-    response = batch_create_courses(session, batch_data.items)
+    response = batch_create_courses(
+        session,
+        batch_data.items,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
@@ -53,7 +57,11 @@ def batch_update_courses_route(
     current_user: CurrentUser = Depends(require_admin),
 ):
     """Batch update courses"""
-    response = batch_update_courses(session, batch_data.items)
+    response = batch_update_courses(
+        session,
+        batch_data.items,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
@@ -70,7 +78,11 @@ def batch_delete_courses_route(
     current_user: CurrentUser = Depends(require_admin),
 ):
     """Batch delete courses"""
-    response = batch_delete_courses(session, batch_data.ids)
+    response = batch_delete_courses(
+        session,
+        batch_data.ids,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
@@ -87,7 +99,11 @@ def batch_restore_courses_route(
     current_user: CurrentUser = Depends(require_admin),
 ):
     """Restore multiple soft-deleted courses"""
-    response = batch_restore_courses(session, data.ids)
+    response = batch_restore_courses(
+        session,
+        data.ids,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
@@ -199,7 +215,11 @@ def create_course_route(
 ):
     """Create a new course"""
     try:
-        new_course, college_dept = create_course(session, course_data)
+        new_course, college_dept = create_course(
+            session,
+            course_data,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True,
@@ -258,7 +278,12 @@ def update_course_route(
         ).model_dump(mode='json'))
 
     try:
-        updated_course, college_dept = update_course(session, course, course_data)
+        updated_course, college_dept = update_course(
+            session,
+            course,
+            course_data,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.COURSE_UPDATED.value,
@@ -310,7 +335,7 @@ def delete_course(
         ).model_dump(mode='json'))
 
     try:
-        soft_delete_course(session, course)
+        soft_delete_course(session, course, performed_by=current_user.user_code)
         invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.COURSE_DELETED.value,
@@ -346,7 +371,7 @@ def restore_course_route(
         ).model_dump(mode='json'))
 
     try:
-        restore_course(session, course)
+        restore_course(session, course, performed_by=current_user.user_code)
         invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.COURSE_RESTORED.value,

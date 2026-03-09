@@ -33,7 +33,11 @@ def create_event_type_route(
 ):
     """Create a new event type"""
     try:
-        event_type = create_event_type(session, data)
+        event_type = create_event_type(
+            session,
+            data,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(EVENT_TYPES_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
@@ -129,7 +133,12 @@ def update_event_type_route(
         )
 
     try:
-        updated_event_type = update_event_type(session, event_type, data)
+        updated_event_type = update_event_type(
+            session,
+            event_type,
+            data,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(EVENT_TYPES_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
@@ -171,7 +180,7 @@ def delete_event_type_route(
             data=None,
         )
 
-    soft_delete_event_type(session, event_type)
+    soft_delete_event_type(session, event_type, performed_by=current_user.user_code)
     invalidate_cache_namespaces(EVENT_TYPES_CACHE_NAMESPACE)
     return StandardResponse(
         success=True,
@@ -205,7 +214,11 @@ def restore_event_type_route(
             data=None,
         )
 
-    restored_event_type = restore_event_type(session, event_type)
+    restored_event_type = restore_event_type(
+        session,
+        event_type,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(EVENT_TYPES_CACHE_NAMESPACE)
     return StandardResponse(
         success=True,

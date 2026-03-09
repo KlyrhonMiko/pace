@@ -27,6 +27,7 @@ from schemas.surveys import (
 )
 from schemas.questions import QuestionPublic
 from utils.timezone import get_current_time_gmt8
+from services.queries.transaction_logs_queries import create_transaction_log
 
 
 # ---------------------------------------------------------------------------
@@ -156,7 +157,11 @@ def list_surveys(
     return surveys, total
 
 
-def create_survey(session: Session, data: SurveyCreate) -> Survey:
+def create_survey(
+    session: Session,
+    data: SurveyCreate,
+    performed_by: str | None = None,
+) -> Survey:
     survey = Survey(
         **data.dict(),
         survey_code=uuid.uuid4(),
@@ -166,42 +171,94 @@ def create_survey(session: Session, data: SurveyCreate) -> Survey:
         updated_at=get_current_time_gmt8(),
     )
     session.add(survey)
+    create_transaction_log(
+        session,
+        tl_name=f"CREATED survey {survey.survey_id}",
+        after=survey,
+        performed_by=performed_by,
+    )
     session.commit()
     session.refresh(survey)
     return survey
 
 
-def update_survey(session: Session, survey: Survey, data: SurveyUpdate) -> Survey:
+def update_survey(
+    session: Session,
+    survey: Survey,
+    data: SurveyUpdate,
+    performed_by: str | None = None,
+) -> Survey:
+    before_state = survey.model_dump(mode="json")
     update_data = data.dict(exclude_unset=True)
     for key, value in update_data.items():
         setattr(survey, key, value)
     survey.updated_at = get_current_time_gmt8()
     session.add(survey)
+    create_transaction_log(
+        session,
+        tl_name=f"UPDATED survey {survey.survey_id}",
+        before=before_state,
+        after=survey,
+        performed_by=performed_by,
+    )
     session.commit()
     session.refresh(survey)
     return survey
 
 
-def soft_delete_survey(session: Session, survey: Survey) -> None:
+def soft_delete_survey(
+    session: Session,
+    survey: Survey,
+    performed_by: str | None = None,
+) -> None:
     survey.is_deleted = True
     survey.deleted_at = get_current_time_gmt8()
     session.add(survey)
+    create_transaction_log(
+        session,
+        tl_name=f"DELETED survey {survey.survey_id}",
+        after=survey,
+        performed_by=performed_by,
+    )
     session.commit()
 
 
-def restore_survey(session: Session, survey: Survey) -> Survey:
+def restore_survey(
+    session: Session,
+    survey: Survey,
+    performed_by: str | None = None,
+) -> Survey:
     survey.is_deleted = False
     survey.deleted_at = None
     session.add(survey)
+    create_transaction_log(
+        session,
+        tl_name=f"RESTORED survey {survey.survey_id}",
+        after=survey,
+        performed_by=performed_by,
+    )
     session.commit()
     session.refresh(survey)
     return survey
 
 
-def set_survey_status(session: Session, survey: Survey, status: SurveyStatus) -> Survey:
+def set_survey_status(
+    session: Session,
+    survey: Survey,
+    status: SurveyStatus,
+    performed_by: str | None = None,
+) -> Survey:
+    before_state = {"status": survey.status.value if hasattr(survey.status, "value") else survey.status}
     survey.status = status
     survey.updated_at = get_current_time_gmt8()
     session.add(survey)
+    create_transaction_log(
+        session,
+        tl_name=f"UPDATED survey status {survey.survey_id}",
+        before=before_state,
+        after={"status": status.value if hasattr(status, "value") else status},
+        performed_by=performed_by,
+    )
     session.commit()
     session.refresh(survey)
     return survey
@@ -232,7 +289,10 @@ def get_survey_questions_with_details(
 
 
 def add_question_to_survey(
-    session: Session, survey: Survey, data: SurveyQuestionCreate
+    session: Session,
+    survey: Survey,
+    data: SurveyQuestionCreate,
+    performed_by: str | None = None,
 ) -> SurveyQuestionWithDetails:
     """Raises ValueError on not-found or duplicate."""
     question = session.exec(
@@ -270,6 +330,12 @@ def add_question_to_survey(
         order_index=order_index,
     )
     session.add(sq)
+    create_transaction_log(
+        session,
+        tl_name=f"ADDED question to survey {survey.survey_id}",
+        after={"survey_id": survey.survey_id, "question_id": data.question_id},
+        performed_by=performed_by,
+    )
     session.commit()
     session.refresh(sq)
     return SurveyQuestionWithDetails(
@@ -278,7 +344,10 @@ def add_question_to_survey(
 
 
 def add_questions_batch(
-    session: Session, survey: Survey, items: list[SurveyQuestionCreate]
+    session: Session,
+    survey: Survey,
+    items: list[SurveyQuestionCreate],
+    performed_by: str | None = None,
 ) -> tuple[list[SurveyQuestionWithDetails], list[dict]]:
     max_order = (
         session.exec(
@@ -349,11 +418,22 @@ def add_questions_batch(
             )
 
     session.commit()
+    if added:
+        create_transaction_log(
+            session,
+            tl_name=f"BATCH ADDED questions to survey {survey.survey_id}",
+            after={"survey_id": survey.survey_id, "added": len(added), "failed": len(failed)},
+            performed_by=performed_by,
+        )
+        session.commit()
     return added, failed
 
 
 def remove_question_from_survey(
-    session: Session, survey: Survey, question_id: str
+    session: Session,
+    survey: Survey,
+    question_id: str,
+    performed_by: str | None = None,
 ) -> None:
     """Raises ValueError on not found."""
     question = session.exec(
@@ -393,10 +473,21 @@ def remove_question_from_survey(
         remainder.order_index -= 1
         session.add(remainder)
 
+    create_transaction_log(
+        session,
+        tl_name=f"REMOVED question from survey {survey.survey_id}",
+        after={"survey_id": survey.survey_id, "question_id": question_id},
+        performed_by=performed_by,
+    )
     session.commit()
 
 
-def reorder_survey_questions(session: Session, survey: Survey, order_map: dict) -> None:
+def reorder_survey_questions(
+    session: Session,
+    survey: Survey,
+    order_map: dict,
+    performed_by: str | None = None,
+) -> None:
     """Reorder questions in a survey. order_map: {question_id: new_order_index}
     Uses a two-phase approach to avoid unique constraint violations on (survey_code, order_index).
     """
@@ -441,6 +532,12 @@ def reorder_survey_questions(session: Session, survey: Survey, order_map: dict) 
     for sq, final_order in sqs_to_update:
         sq.order_index = final_order
         session.add(sq)
+    create_transaction_log(
+        session,
+        tl_name=f"REORDERED survey questions {survey.survey_id}",
+        after={"survey_id": survey.survey_id, "order_map": order_map},
+        performed_by=performed_by,
+    )
     session.commit()
 
 
@@ -460,7 +557,10 @@ def get_distribution_config(
 
 
 def configure_distribution(
-    session: Session, survey: Survey, data: SurveyDistributionConfigCreateRequest
+    session: Session,
+    survey: Survey,
+    data: SurveyDistributionConfigCreateRequest,
+    performed_by: str | None = None,
 ) -> SurveyDistributionConfig:
     existing = get_distribution_config(session, survey.survey_code)
     if existing:
@@ -469,6 +569,12 @@ def configure_distribution(
         existing.scheduled_send_at = data.scheduled_send_at
         existing.updated_at = get_current_time_gmt8()
         session.add(existing)
+        create_transaction_log(
+            session,
+            tl_name=f"UPDATED distribution config {survey.survey_id}",
+            after=existing,
+            performed_by=performed_by,
+        )
         session.commit()
         session.refresh(existing)
         return existing
@@ -484,6 +590,12 @@ def configure_distribution(
             updated_at=get_current_time_gmt8(),
         )
         session.add(config)
+        create_transaction_log(
+            session,
+            tl_name=f"CREATED distribution config {survey.survey_id}",
+            after=config,
+            performed_by=performed_by,
+        )
         session.commit()
         session.refresh(config)
         return config
@@ -493,12 +605,21 @@ def update_distribution_config(
     session: Session,
     config: SurveyDistributionConfig,
     data: SurveyDistributionConfigCreateRequest,
+    performed_by: str | None = None,
 ) -> SurveyDistributionConfig:
+    before_state = config.model_dump(mode="json")
     config.target_group = data.target_group
     config.filters = data.filters
     config.scheduled_send_at = data.scheduled_send_at
     config.updated_at = get_current_time_gmt8()
     session.add(config)
+    create_transaction_log(
+        session,
+        tl_name=f"UPDATED distribution config {config.distribution_id}",
+        before=before_state,
+        after=config,
+        performed_by=performed_by,
+    )
     session.commit()
     session.refresh(config)
     return config
@@ -558,7 +679,10 @@ def _resolve_recipients(session: Session, config: SurveyDistributionConfig):
 
 
 def send_survey_invitations(
-    session: Session, survey: Survey, config: SurveyDistributionConfig
+    session: Session,
+    survey: Survey,
+    config: SurveyDistributionConfig,
+    performed_by: str | None = None,
 ) -> tuple[int, list]:
     """
     Create SurveyInvitation records for all resolved recipients.
@@ -620,12 +744,22 @@ def send_survey_invitations(
     ).one()
     config.updated_at = get_current_time_gmt8()
     session.add(config)
+    create_transaction_log(
+        session,
+        tl_name=f"SENT survey invitations {survey.survey_id}",
+        after={"survey_id": survey.survey_id, "sent_count": len(created)},
+        performed_by=performed_by,
+    )
     session.commit()
 
     return len(created), created
 
 
-def send_survey_reminders(session: Session, survey: Survey) -> tuple[int, list]:
+def send_survey_reminders(
+    session: Session,
+    survey: Survey,
+    performed_by: str | None = None,
+) -> tuple[int, list]:
     """
     Identify alumni who received invitations but have not responded, and mark them for reminder.
     Returns (reminder_count, invitation_list_to_remind).
@@ -650,6 +784,12 @@ def send_survey_reminders(session: Session, survey: Survey) -> tuple[int, list]:
         session.add(inv)
 
     if pending_invs:
+        create_transaction_log(
+            session,
+            tl_name=f"SENT survey reminders {survey.survey_id}",
+            after={"survey_id": survey.survey_id, "reminder_count": len(pending_invs)},
+            performed_by=performed_by,
+        )
         session.commit()
 
     return len(pending_invs), pending_invs

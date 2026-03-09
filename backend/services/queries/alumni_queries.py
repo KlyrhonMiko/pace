@@ -21,6 +21,7 @@ from models.response_codes import ErrorCode, SuccessCode
 from utils.auth import hash_password
 from utils.logging import log_integrity_error
 from utils.timezone import get_current_time_gmt8
+from services.queries.transaction_logs_queries import create_transaction_log
 from datetime import date
 
 
@@ -161,6 +162,7 @@ def register_complete_alumni(
     age: int,
     birthdate: date | None = None,
     consent_for_survey_ml: bool = False,
+    performed_by: str | None = None,
 ) -> tuple[User, Alumni]:
     """Create User + Alumni atomically. Returns (new_user, new_alumni)."""
     user_id = generate_user_id(session)
@@ -188,11 +190,22 @@ def register_complete_alumni(
         user_code=new_user.user_code,
     )
     session.add(new_alumni)
+    create_transaction_log(
+        session,
+        tl_name=f"CREATED alumni {new_alumni.alumni_id}",
+        after={"user_id": new_user.user_id, "alumni_id": new_alumni.alumni_id},
+        performed_by=performed_by,
+    )
     session.commit()
     return new_user, new_alumni
 
 
-def update_alumni(session: Session, alumni: Alumni, data: AlumniUpdate) -> Alumni:
+def update_alumni(
+    session: Session,
+    alumni: Alumni,
+    data: AlumniUpdate,
+    performed_by: str | None = None,
+) -> Alumni:
     if data.last_name is not None:
         alumni.last_name = data.last_name
     if data.first_name is not None:
@@ -208,24 +221,50 @@ def update_alumni(session: Session, alumni: Alumni, data: AlumniUpdate) -> Alumn
     if data.consent_for_survey_ml is not None:
         alumni.consent_for_survey_ml = data.consent_for_survey_ml
     session.add(alumni)
+    create_transaction_log(
+        session,
+        tl_name=f"UPDATED alumni {alumni.alumni_id}",
+        after=alumni,
+        performed_by=performed_by,
+    )
     session.commit()
     session.refresh(alumni)
     return alumni
 
 
-def soft_delete_alumni(session: Session, alumni: Alumni) -> None:
+def soft_delete_alumni(
+    session: Session,
+    alumni: Alumni,
+    performed_by: str | None = None,
+) -> None:
     _cascade_soft_delete_alumni(session, alumni)
     alumni.is_deleted = True
     alumni.deleted_at = get_current_time_gmt8()
     session.add(alumni)
+    create_transaction_log(
+        session,
+        tl_name=f"DELETED alumni {alumni.alumni_id}",
+        after=alumni,
+        performed_by=performed_by,
+    )
     session.commit()
 
 
-def restore_alumni(session: Session, alumni: Alumni) -> None:
+def restore_alumni(
+    session: Session,
+    alumni: Alumni,
+    performed_by: str | None = None,
+) -> None:
     _cascade_restore_alumni(session, alumni)
     alumni.is_deleted = False
     alumni.deleted_at = None
     session.add(alumni)
+    create_transaction_log(
+        session,
+        tl_name=f"RESTORED alumni {alumni.alumni_id}",
+        after=alumni,
+        performed_by=performed_by,
+    )
     session.commit()
 
 
@@ -292,6 +331,7 @@ def get_all_alumni(
 def batch_register_alumni(
     session: Session,
     items: list[BatchAlumniRegistrationItem],
+    performed_by: str | None = None,
 ) -> BatchAlumniRegisterResponse:
     results = []
     successful_count = 0
@@ -373,6 +413,12 @@ def batch_register_alumni(
             ))
             failed_count += 1
 
+    create_transaction_log(
+        session,
+        tl_name="BATCH REGISTERED alumni",
+        after={"successful": successful_count, "failed": failed_count},
+        performed_by=performed_by,
+    )
     session.commit()
     return BatchAlumniRegisterResponse(
         total_items=len(items),
@@ -385,6 +431,7 @@ def batch_register_alumni(
 def batch_update_alumni(
     session: Session,
     items: list[BatchAlumniUpdateItem],
+    performed_by: str | None = None,
 ) -> BatchAlumniUpdateResponse:
     results = []
     successful_count = 0
@@ -446,6 +493,12 @@ def batch_update_alumni(
             ))
             failed_count += 1
 
+    create_transaction_log(
+        session,
+        tl_name="BATCH UPDATED alumni",
+        after={"successful": successful_count, "failed": failed_count},
+        performed_by=performed_by,
+    )
     session.commit()
     return BatchAlumniUpdateResponse(
         total_items=len(items),
@@ -458,6 +511,7 @@ def batch_update_alumni(
 def batch_delete_alumni(
     session: Session,
     ids: list[str],
+    performed_by: str | None = None,
 ) -> BatchAlumniDeleteResponse:
     results = []
     successful_count = 0
@@ -513,6 +567,12 @@ def batch_delete_alumni(
             ))
             failed_count += 1
 
+    create_transaction_log(
+        session,
+        tl_name="BATCH DELETED alumni",
+        after={"successful": successful_count, "failed": failed_count},
+        performed_by=performed_by,
+    )
     session.commit()
     return BatchAlumniDeleteResponse(
         total_items=len(ids),
@@ -525,6 +585,7 @@ def batch_delete_alumni(
 def batch_restore_alumni(
     session: Session,
     ids: list[str],
+    performed_by: str | None = None,
 ) -> BatchAlumniRestoreResponse:
     results = []
     successful_count = 0
@@ -574,6 +635,12 @@ def batch_restore_alumni(
             log_integrity_error("alumni", "batch_restore_alumni", ErrorCode.INVALID_INPUT.value, msg, str(e))
             failed_count += 1
 
+    create_transaction_log(
+        session,
+        tl_name="BATCH RESTORED alumni",
+        after={"successful": successful_count, "failed": failed_count},
+        performed_by=performed_by,
+    )
     session.commit()
     return BatchAlumniRestoreResponse(
         total_items=len(ids),

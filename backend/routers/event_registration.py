@@ -44,7 +44,12 @@ async def register_for_event(
             ).model_dump())
 
         user_code = _require_user_code(current_user)
-        register_user_for_event(session, event, user_code)
+        register_user_for_event(
+            session,
+            event,
+            user_code,
+            performed_by=current_user.user_code,
+        )
         return StandardResponse(
             success=True, code=SuccessCode.EVENT_REGISTERED,
             message="Successfully registered for event"
@@ -88,7 +93,12 @@ async def unregister_from_event(
             ).model_dump())
 
         user_code = _require_user_code(current_user)
-        unregister_user_from_event(session, event, user_code)
+        unregister_user_from_event(
+            session,
+            event,
+            user_code,
+            performed_by=current_user.user_code,
+        )
         return StandardResponse(
             success=True, code=SuccessCode.EVENT_UNREGISTERED,
             message="Successfully unregistered from event"

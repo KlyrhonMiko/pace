@@ -38,7 +38,11 @@ def batch_create_college_depts_route(
     current_user: CurrentUser = Depends(require_admin),
 ):
     """Batch create college departments"""
-    response = batch_create_college_depts(session, batch_data.items)
+    response = batch_create_college_depts(
+        session,
+        batch_data.items,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
     return StandardResponse(
         success=response.failed == 0,
@@ -55,7 +59,11 @@ def batch_update_college_depts_route(
     current_user: CurrentUser = Depends(require_admin),
 ):
     """Batch update college departments"""
-    response = batch_update_college_depts(session, batch_data.items)
+    response = batch_update_college_depts(
+        session,
+        batch_data.items,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
     return StandardResponse(
         success=response.failed == 0,
@@ -72,7 +80,11 @@ def batch_delete_college_depts_route(
     current_user: CurrentUser = Depends(require_admin),
 ):
     """Batch delete college departments"""
-    response = batch_delete_college_depts(session, batch_data.ids)
+    response = batch_delete_college_depts(
+        session,
+        batch_data.ids,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
     return StandardResponse(
         success=response.failed == 0,
@@ -89,7 +101,11 @@ def batch_restore_college_depts_route(
     current_user: CurrentUser = Depends(require_admin),
 ):
     """Restore multiple soft-deleted college departments"""
-    response = batch_restore_college_depts(session, data.ids)
+    response = batch_restore_college_depts(
+        session,
+        data.ids,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
     return StandardResponse(
         success=response.failed == 0,
@@ -197,7 +213,11 @@ def create_college_dept_route(
 ):
     """Create a new college department"""
     try:
-        new_dept = create_college_dept(session, college_dept_data)
+        new_dept = create_college_dept(
+            session,
+            college_dept_data,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
         return StandardResponse(
             success=True,
@@ -255,7 +275,12 @@ def update_college_dept_route(
         ).model_dump(mode='json'))
 
     try:
-        updated = update_college_dept(session, dept, college_dept_data)
+        updated = update_college_dept(
+            session,
+            dept,
+            college_dept_data,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
         return StandardResponse(
             success=True, code=SuccessCode.COLLEGE_DEPT_UPDATED.value,
@@ -305,7 +330,11 @@ def delete_college_dept(
         ).model_dump(mode='json'))
 
     try:
-        soft_delete_college_dept(session, dept)
+        soft_delete_college_dept(
+            session,
+            dept,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
         return StandardResponse(
             success=True, code=SuccessCode.COLLEGE_DEPT_DELETED.value,
@@ -341,7 +370,11 @@ def restore_college_dept_route(
         ).model_dump(mode='json'))
 
     try:
-        restore_college_dept(session, dept)
+        restore_college_dept(
+            session,
+            dept,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
         return StandardResponse(
             success=True, code=SuccessCode.COLLEGE_DEPT_RESTORED.value,

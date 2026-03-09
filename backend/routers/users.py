@@ -38,7 +38,11 @@ def batch_create_users_route(
     current_user: CurrentUser = Depends(require_admin),
 ):
     """Batch create users"""
-    response = batch_create_users(session, batch_data.items)
+    response = batch_create_users(
+        session,
+        batch_data.items,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
@@ -55,7 +59,11 @@ def batch_update_users_route(
     current_user: CurrentUser = Depends(require_admin),
 ):
     """Batch update users"""
-    response = batch_update_users(session, batch_data.items)
+    response = batch_update_users(
+        session,
+        batch_data.items,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
@@ -72,7 +80,11 @@ def batch_delete_users_route(
     current_user: CurrentUser = Depends(require_admin),
 ):
     """Batch delete users"""
-    response = batch_delete_users(session, batch_data.ids)
+    response = batch_delete_users(
+        session,
+        batch_data.ids,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
@@ -89,7 +101,11 @@ def batch_restore_users_route(
     current_user: CurrentUser = Depends(require_admin),
 ):
     """Restore multiple soft-deleted users"""
-    response = batch_restore_users(session, data.ids)
+    response = batch_restore_users(
+        session,
+        data.ids,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
@@ -201,7 +217,11 @@ def create_user_route(
 ):
     """Create a new user account"""
     try:
-        new_user = create_user(session, user_data)
+        new_user = create_user(
+            session,
+            user_data,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True,
@@ -280,7 +300,12 @@ async def update_user_route(
             ).model_dump(mode='json'))
 
     try:
-        updated = update_user(session, user, user_data)
+        updated = update_user(
+            session,
+            user,
+            user_data,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.USER_UPDATED.value,
@@ -328,7 +353,7 @@ def delete_user(
         ).model_dump(mode='json'))
 
     try:
-        soft_delete_user(session, user)
+        soft_delete_user(session, user, performed_by=current_user.user_code)
         invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.USER_DELETED.value,
@@ -364,7 +389,7 @@ def restore_user_route(
         ).model_dump(mode='json'))
 
     try:
-        restore_user(session, user)
+        restore_user(session, user, performed_by=current_user.user_code)
         invalidate_cache_namespaces(USERS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True, code=SuccessCode.USER_RESTORED.value,

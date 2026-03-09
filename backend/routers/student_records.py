@@ -66,7 +66,11 @@ def batch_create_student_records_route(
     current_user: CurrentUser = Depends(require_staff_or_admin),
 ):
     """Batch create student records"""
-    response = batch_create_student_records(session, batch_data.items)
+    response = batch_create_student_records(
+        session,
+        batch_data.items,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
@@ -83,7 +87,11 @@ def batch_update_student_records_route(
     current_user: CurrentUser = Depends(require_staff_or_admin),
 ):
     """Batch update student records"""
-    response = batch_update_student_records(session, batch_data.items)
+    response = batch_update_student_records(
+        session,
+        batch_data.items,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
@@ -100,7 +108,11 @@ def batch_delete_student_records_route(
     current_user: CurrentUser = Depends(require_admin),
 ):
     """Batch delete student records"""
-    response = batch_delete_student_records(session, batch_data.ids)
+    response = batch_delete_student_records(
+        session,
+        batch_data.ids,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
@@ -117,7 +129,11 @@ def batch_restore_student_records_route(
     current_user: CurrentUser = Depends(require_admin),
 ):
     """Restore multiple soft-deleted student records"""
-    response = batch_restore_student_records(session, data.ids)
+    response = batch_restore_student_records(
+        session,
+        data.ids,
+        performed_by=current_user.user_code,
+    )
     invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
         success=response.failed == 0,
@@ -243,7 +259,11 @@ def create_student_record_route(
 ):
     """Create a new student record linked to an alumni"""
     try:
-        new_student = create_student_record(session, student_data)
+        new_student = create_student_record(
+            session,
+            student_data,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True,
@@ -319,7 +339,12 @@ def update_student_record_route(
         ).model_dump(mode='json'))
 
     try:
-        updated = update_student_record(session, student, student_data)
+        updated = update_student_record(
+            session,
+            student,
+            student_data,
+            performed_by=current_user.user_code,
+        )
         invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.STUDENT_RECORD_UPDATED.value,
@@ -373,7 +398,7 @@ def delete_student_record(
         ).model_dump(mode='json'))
 
     try:
-        soft_delete_student_record(session, student)
+        soft_delete_student_record(session, student, performed_by=current_user.user_code)
         invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.STUDENT_RECORD_DELETED.value,
@@ -409,7 +434,7 @@ def restore_student_record_route(
         ).model_dump(mode='json'))
 
     try:
-        restore_student_record(session, student)
+        restore_student_record(session, student, performed_by=current_user.user_code)
         invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.STUDENT_RECORD_RESTORED.value,

@@ -4,6 +4,7 @@ from core.database import get_session
 from models.users import User
 from models.auth import LoginRequest, TokenResponse, CurrentUser
 from models.response_codes import ErrorCode, SuccessCode, StandardResponse
+from services.queries.transaction_logs_queries import create_transaction_log
 from utils.auth import verify_password, create_access_token, get_current_user
 from utils.logging import log_auth_error
 
@@ -60,6 +61,14 @@ def login(
             "user_code": str(user.user_code)
         }
     )
+
+    create_transaction_log(
+        session,
+        tl_name="USER LOGGED IN",
+        after={"user_id": user.user_id},
+        performed_by=user.user_code,
+    )
+    session.commit()
     
     return StandardResponse(
         success=True,

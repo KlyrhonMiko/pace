@@ -95,7 +95,7 @@ class StudentRecordCreateSafeDisplay(BaseModel):
 
 
 class StudentRecordUpdateSafeDisplay(BaseModel):
-    student_id: str
+    alumni_id: str
     year_graduated: Optional[int] = None
     gwa: Optional[float] = None
 
@@ -127,7 +127,7 @@ class StudentRecordBatchCreateResponse(BaseModel):
 
 
 class StudentRecordBatchUpdateItem(BaseModel):
-    student_id: str
+    alumni_id: str
     year_graduated: Optional[int] = None
     gwa: Optional[float] = None
     avg_prof_grade: Optional[float] = None
@@ -135,7 +135,6 @@ class StudentRecordBatchUpdateItem(BaseModel):
     ojt_grade: Optional[float] = None
     leadership_pos: Optional[bool] = None
     act_member_pos: Optional[bool] = None
-    alumni_id: Optional[str] = None
 
     @field_validator("year_graduated")
     @classmethod
@@ -183,7 +182,7 @@ class StudentRecordBatchUpdateResponse(BaseModel):
 
 class StudentRecordBatchDeleteResult(BaseModel):
     index: int
-    student_id: str
+    alumni_id: str
     success: bool
     code: str
     message: str
@@ -205,7 +204,7 @@ class StudentRecordBatchDeleteResponse(BaseModel):
 
 class StudentRecordBatchRestoreResult(BaseModel):
     index: int
-    student_id: str
+    alumni_id: str
     success: bool
     code: str
     message: str

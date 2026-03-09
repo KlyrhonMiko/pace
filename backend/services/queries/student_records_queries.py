@@ -25,18 +25,28 @@ from services.queries.transaction_logs_queries import create_transaction_log
 # Single-record lookups
 # ---------------------------------------------------------------------------
 
-def get_student_by_id(session: Session, student_id: str) -> StudentRecord | None:
+def get_student_record_by_alumni_id(
+    session: Session,
+    alumni_id: str,
+) -> StudentRecord | None:
     return session.exec(
-        select(StudentRecord).where(
-            (StudentRecord.student_id == student_id.upper()) &
-            (StudentRecord.is_deleted == False)
+        select(StudentRecord)
+        .join(Alumni, StudentRecord.alumni_code == Alumni.alumni_code)
+        .where(
+            (Alumni.alumni_id == alumni_id.upper())
+            & (StudentRecord.is_deleted == False)
         )
     ).first()
 
 
-def get_student_by_id_any(session: Session, student_id: str) -> StudentRecord | None:
+def get_student_record_by_alumni_id_any(
+    session: Session,
+    alumni_id: str,
+) -> StudentRecord | None:
     return session.exec(
-        select(StudentRecord).where(StudentRecord.student_id == student_id.upper())
+        select(StudentRecord)
+        .join(Alumni, StudentRecord.alumni_code == Alumni.alumni_code)
+        .where(Alumni.alumni_id == alumni_id.upper())
     ).first()
 
 
@@ -339,35 +349,21 @@ def batch_update_student_records(
 
     for index, item in enumerate(items):
         safe = StudentRecordUpdateSafeDisplay(
-            student_id=item.student_id,
+            alumni_id=item.alumni_id,
             year_graduated=item.year_graduated,
             gwa=item.gwa,
         )
         try:
             with session.begin_nested():
-                student = get_student_by_id_any(session, item.student_id)
+                student = get_student_record_by_alumni_id_any(session, item.alumni_id)
                 if not student:
                     results.append(StudentRecordBatchUpdateResult(
                         index=index, item=safe, success=False,
                         code=ErrorCode.STUDENT_RECORD_NOT_FOUND.value,
-                        message=f"Student record '{item.student_id}' not found", data=None,
+                        message=f"Student record for alumni_id '{item.alumni_id}' not found", data=None,
                     ))
                     failed_count += 1
                     continue
-
-                if item.alumni_id is not None:
-                    alumni = _resolve_alumni(session, item.alumni_id)
-                    if not alumni:
-                        results.append(StudentRecordBatchUpdateResult(
-                            index=index, item=safe, success=False,
-                            code=ErrorCode.ALUMNI_NOT_FOUND.value,
-                            message=f"Alumni '{item.alumni_id}' not found", data=None,
-                        ))
-                        failed_count += 1
-                        continue
-                    student.alumni_code = alumni.alumni_code
-                    alumni.student_code = student.student_code
-                    session.add(alumni)
 
                 if item.year_graduated is not None:
                     student.year_graduated = item.year_graduated
@@ -443,21 +439,21 @@ def batch_delete_student_records(
     successful_count = 0
     failed_count = 0
 
-    for index, student_id in enumerate(ids):
+    for index, alumni_id in enumerate(ids):
         try:
-            student = get_student_by_id_any(session, student_id)
+            student = get_student_record_by_alumni_id_any(session, alumni_id)
             if not student:
                 results.append(StudentRecordBatchDeleteResult(
-                    index=index, student_id=student_id, success=False,
+                    index=index, alumni_id=alumni_id, success=False,
                     code=ErrorCode.STUDENT_RECORD_NOT_FOUND.value,
-                    message=f"Student record '{student_id}' not found",
+                    message=f"Student record for alumni_id '{alumni_id}' not found",
                 ))
                 failed_count += 1
                 continue
 
             if student.is_deleted:
                 results.append(StudentRecordBatchDeleteResult(
-                    index=index, student_id=student_id, success=False,
+                    index=index, alumni_id=alumni_id, success=False,
                     code=ErrorCode.ALREADY_DELETED.value,
                     message="Student record is already deleted, cannot delete again",
                 ))
@@ -470,7 +466,7 @@ def batch_delete_student_records(
             session.flush()
 
             results.append(StudentRecordBatchDeleteResult(
-                index=index, student_id=student_id, success=True,
+                index=index, alumni_id=alumni_id, success=True,
                 code=SuccessCode.STUDENT_RECORD_DELETED.value,
                 message="Student record deleted successfully",
             ))
@@ -479,7 +475,7 @@ def batch_delete_student_records(
         except IntegrityError as e:
             session.rollback()
             results.append(StudentRecordBatchDeleteResult(
-                index=index, student_id=student_id, success=False,
+                index=index, alumni_id=alumni_id, success=False,
                 code=ErrorCode.INVALID_INPUT.value,
                 message="Student record deletion failed due to constraint violation",
             ))
@@ -487,7 +483,7 @@ def batch_delete_student_records(
 
         except ValueError as e:
             results.append(StudentRecordBatchDeleteResult(
-                index=index, student_id=student_id, success=False,
+                index=index, alumni_id=alumni_id, success=False,
                 code=ErrorCode.INVALID_INPUT.value, message=str(e),
             ))
             failed_count += 1
@@ -516,23 +512,23 @@ def batch_restore_student_records(
     successful_count = 0
     failed_count = 0
 
-    for index, student_id in enumerate(ids):
+    for index, alumni_id in enumerate(ids):
         try:
-            student = get_student_by_id_any(session, student_id)
+            student = get_student_record_by_alumni_id_any(session, alumni_id)
             if not student:
                 results.append(StudentRecordBatchRestoreResult(
-                    index=index, student_id=student_id, success=False,
+                    index=index, alumni_id=alumni_id, success=False,
                     code=ErrorCode.STUDENT_RECORD_NOT_FOUND.value,
-                    message=f"Student record '{student_id}' not found",
+                    message=f"Student record for alumni_id '{alumni_id}' not found",
                 ))
                 failed_count += 1
                 continue
 
             if not student.is_deleted:
                 results.append(StudentRecordBatchRestoreResult(
-                    index=index, student_id=student_id, success=False,
+                    index=index, alumni_id=alumni_id, success=False,
                     code=ErrorCode.INVALID_INPUT.value,
-                    message=f"Student record '{student_id}' is not deleted",
+                    message=f"Student record for alumni_id '{alumni_id}' is not deleted",
                 ))
                 failed_count += 1
                 continue
@@ -543,7 +539,7 @@ def batch_restore_student_records(
             session.flush()
 
             results.append(StudentRecordBatchRestoreResult(
-                index=index, student_id=student_id, success=True,
+                index=index, alumni_id=alumni_id, success=True,
                 code=SuccessCode.STUDENT_RECORD_RESTORED.value,
                 message="Student record restored successfully",
             ))
@@ -553,7 +549,7 @@ def batch_restore_student_records(
             session.rollback()
             msg = "Restore failed: Constraint violation or related data issue"
             results.append(StudentRecordBatchRestoreResult(
-                index=index, student_id=student_id, success=False,
+                index=index, alumni_id=alumni_id, success=False,
                 code=ErrorCode.INVALID_INPUT.value, message=msg,
             ))
             log_integrity_error("student_records", "batch_restore", ErrorCode.INVALID_INPUT.value, msg, str(e))

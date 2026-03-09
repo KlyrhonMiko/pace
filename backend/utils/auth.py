@@ -2,15 +2,28 @@ import jwt
 from datetime import timedelta
 from typing import Optional
 from passlib.context import CryptContext
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlmodel import Session, select
+from core.config import settings
+from core.database import get_session
+from models.auth import CurrentUser
+from models.response_codes import ErrorCode, StandardResponse
+from models.users import User
 from utils.timezone import get_current_time_utc
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # JWT settings
-SECRET_KEY = "your-secret-key-change-this-in-production"  # TODO: Move to environment variable
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+SECRET_KEY = settings.SECRET_KEY
+ALGORITHM = settings.ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
+
+if not SECRET_KEY:
+    raise RuntimeError("JWT_SECRET_KEY environment variable is not set.")
+
+security = HTTPBearer(auto_error=False)
 
 
 def hash_password(password: str) -> str:
@@ -45,3 +58,74 @@ def decode_access_token(token: str) -> dict:
         raise ValueError("Token has expired")
     except jwt.InvalidTokenError:
         raise ValueError("Invalid token")
+
+
+def get_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    session: Session = Depends(get_session),
+) -> CurrentUser:
+    """Extract current user from JWT and ensure the account is active."""
+    if credentials is None:
+        raise HTTPException(
+            status_code=401,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.UNAUTHORIZED.value,
+                message="Not authenticated",
+            ).model_dump(mode="json"),
+        )
+
+    token = credentials.credentials
+
+    try:
+        payload = decode_access_token(token)
+        user_id = payload.get("user_id")
+        user_type = payload.get("user_type")
+        user_code = payload.get("user_code")
+
+        if not user_id or not user_type:
+            raise HTTPException(
+                status_code=401,
+                detail=StandardResponse(
+                    success=False,
+                    code=ErrorCode.UNAUTHORIZED.value,
+                    message="Invalid token payload",
+                ).model_dump(mode="json"),
+            )
+
+        db_user = session.exec(select(User).where(User.user_id == user_id)).first()
+        if not db_user:
+            raise HTTPException(
+                status_code=401,
+                detail=StandardResponse(
+                    success=False,
+                    code=ErrorCode.UNAUTHORIZED.value,
+                    message="User not found",
+                ).model_dump(mode="json"),
+            )
+
+        if db_user.is_deleted:
+            raise HTTPException(
+                status_code=401,
+                detail=StandardResponse(
+                    success=False,
+                    code=ErrorCode.ACCOUNT_DEACTIVATED.value,
+                    message="Account is deactivated",
+                ).model_dump(mode="json"),
+            )
+
+        return CurrentUser(user_id=user_id, user_type=user_type, user_code=user_code)
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        error_code = (
+            ErrorCode.TOKEN_EXPIRED.value if str(exc) == "Token has expired" else ErrorCode.INVALID_TOKEN.value
+        )
+        raise HTTPException(
+            status_code=401,
+            detail=StandardResponse(
+                success=False,
+                code=error_code,
+                message=str(exc),
+            ).model_dump(mode="json"),
+        )

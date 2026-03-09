@@ -11,9 +11,10 @@ class Settings:
     SUPABASE_URL: str = os.getenv("NEXT_PUBLIC_SUPABASE_URL", "")
     SUPABASE_ANON_KEY: str = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "")
     SUPABASE_SERVICE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
-    ALGORITHM: str = "HS256"
+    SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "")
+    ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
     JOOBLE_API_KEY: str = os.getenv("JOOBLE_API_KEY", "")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     # Gmail OAuth2 settings
     GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "")

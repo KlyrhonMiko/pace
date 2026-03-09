@@ -16,7 +16,7 @@ from models.pagination import PaginatedResponse, PaginationMetadata
 from utils.rbac import require_admin, require_authenticated, require_staff_or_admin
 from utils.logging import log_error, log_integrity_error
 from services.queries.student_records_queries import (
-    get_student_by_id, get_student_by_id_any,
+    get_student_record_by_alumni_id, get_student_record_by_alumni_id_any,
     create_student_record, update_student_record,
     soft_delete_student_record, restore_student_record,
     get_all_student_records,
@@ -56,7 +56,7 @@ def _ensure_student_owner_or_staff_plus(
 
 
 # ---------------------------------------------------------------------------
-# Batch endpoints (before /{student_id})
+# Batch endpoints (before /{alumni_id})
 # ---------------------------------------------------------------------------
 
 @router.post("/batch")
@@ -299,41 +299,46 @@ def create_student_record_route(
         raise HTTPException(status_code=400, detail=StandardResponse(success=False, code=code, message=msg).model_dump(mode='json'))
 
 
-@router.get("/{student_id}")
+@router.get("/{alumni_id}")
 def get_student_record(
-    student_id: str,
+    alumni_id: str,
     session: Session = Depends(get_session),
     current_user: CurrentUser = Depends(require_authenticated),
 ):
-    """Get a student record by student ID"""
-    student = get_student_by_id(session, student_id)
+    """Get a student record by alumni ID"""
+    student = get_student_record_by_alumni_id(session, alumni_id)
     if not student:
-        log_error("student_records", "get", ErrorCode.STUDENT_RECORD_NOT_FOUND.value, f"Student record {student_id} not found")
+        detail = f"Student record for alumni {alumni_id} not found"
+        log_error("student_records", "get", ErrorCode.STUDENT_RECORD_NOT_FOUND.value, detail)
         raise HTTPException(status_code=404, detail=StandardResponse(
             success=False, code=ErrorCode.STUDENT_RECORD_NOT_FOUND.value, message="Student record not found"
         ).model_dump(mode='json'))
 
     _ensure_student_owner_or_staff_plus(session, current_user, student.alumni_code)
 
-    cache_key = generate_cache_key(f"{STUDENT_RECORDS_CACHE_NAMESPACE}:detail", student_id=student_id)
+    cache_key = generate_cache_key(
+        f"{STUDENT_RECORDS_CACHE_NAMESPACE}:detail",
+        alumni=alumni_id,
+    )
     return cache_get_or_set(
         cache_key,
-        lambda: _build_student_record_detail_response(session, student_id),
+        lambda: _build_student_record_detail_response(session, alumni_id),
         ttl=STUDENT_RECORDS_DETAIL_TTL,
     )
 
 
-@router.patch("/{student_id}")
+@router.patch("/{alumni_id}")
 def update_student_record_route(
-    student_id: str,
+    alumni_id: str,
     student_data: StudentRecordUpdate,
     session: Session = Depends(get_session),
     current_user: CurrentUser = Depends(require_staff_or_admin),
 ):
     """Update a student record"""
-    student = get_student_by_id_any(session, student_id)
+    student = get_student_record_by_alumni_id_any(session, alumni_id)
     if not student:
-        log_error("student_records", "update", ErrorCode.STUDENT_RECORD_NOT_FOUND.value, f"Student record {student_id} not found")
+        detail = f"Student record for alumni {alumni_id} not found"
+        log_error("student_records", "update", ErrorCode.STUDENT_RECORD_NOT_FOUND.value, detail)
         raise HTTPException(status_code=404, detail=StandardResponse(
             success=False, code=ErrorCode.STUDENT_RECORD_NOT_FOUND.value, message="Student record not found"
         ).model_dump(mode='json'))
@@ -377,16 +382,17 @@ def update_student_record_route(
         raise HTTPException(status_code=400, detail=StandardResponse(success=False, code=code, message=msg).model_dump(mode='json'))
 
 
-@router.delete("/{student_id}")
+@router.delete("/{alumni_id}")
 def delete_student_record(
-    student_id: str,
+    alumni_id: str,
     session: Session = Depends(get_session),
     current_user: CurrentUser = Depends(require_staff_or_admin),
 ):
     """Delete a student record"""
-    student = get_student_by_id_any(session, student_id)
+    student = get_student_record_by_alumni_id_any(session, alumni_id)
     if not student:
-        log_error("student_records", "delete", ErrorCode.STUDENT_RECORD_NOT_FOUND.value, f"Student record {student_id} not found")
+        detail = f"Student record for alumni {alumni_id} not found"
+        log_error("student_records", "delete", ErrorCode.STUDENT_RECORD_NOT_FOUND.value, detail)
         raise HTTPException(status_code=404, detail=StandardResponse(
             success=False, code=ErrorCode.STUDENT_RECORD_NOT_FOUND.value, message="Student record not found"
         ).model_dump(mode='json'))
@@ -402,7 +408,7 @@ def delete_student_record(
         invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.STUDENT_RECORD_DELETED.value,
-            message=f"Student record {student_id} deleted successfully"
+            message=f"Student record for alumni {alumni_id} deleted successfully"
         )
     except IntegrityError as e:
         session.rollback()
@@ -413,16 +419,17 @@ def delete_student_record(
         ).model_dump(mode='json'))
 
 
-@router.post("/{student_id}/restore")
+@router.post("/{alumni_id}/restore")
 def restore_student_record_route(
-    student_id: str,
+    alumni_id: str,
     session: Session = Depends(get_session),
     current_user: CurrentUser = Depends(require_staff_or_admin),
 ):
     """Restore a soft-deleted student record"""
-    student = get_student_by_id_any(session, student_id)
+    student = get_student_record_by_alumni_id_any(session, alumni_id)
     if not student:
-        log_error("student_records", "restore", ErrorCode.STUDENT_RECORD_NOT_FOUND.value, f"Student record {student_id} not found")
+        detail = f"Student record for alumni {alumni_id} not found"
+        log_error("student_records", "restore", ErrorCode.STUDENT_RECORD_NOT_FOUND.value, detail)
         raise HTTPException(status_code=404, detail=StandardResponse(
             success=False, code=ErrorCode.STUDENT_RECORD_NOT_FOUND.value, message="Student record not found"
         ).model_dump(mode='json'))
@@ -438,7 +445,7 @@ def restore_student_record_route(
         invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.STUDENT_RECORD_RESTORED.value,
-            message=f"Student record {student_id} restored successfully"
+            message=f"Student record for alumni {alumni_id} restored successfully"
         )
     except IntegrityError as e:
         session.rollback()
@@ -536,15 +543,16 @@ def _build_all_student_records_response(
     )
 
 
-def _build_student_record_detail_response(session: Session, student_id: str) -> StandardResponse:
-    student = get_student_by_id(session, student_id)
+def _build_student_record_detail_response(session: Session, alumni_id: str) -> StandardResponse:
+    student = get_student_record_by_alumni_id(session, alumni_id)
     if not student:
-        log_error("student_records", "get", ErrorCode.STUDENT_RECORD_NOT_FOUND.value, f"Student record {student_id} not found")
+        detail = f"Student record for alumni {alumni_id} not found"
+        log_error("student_records", "get", ErrorCode.STUDENT_RECORD_NOT_FOUND.value, detail)
         raise HTTPException(status_code=404, detail=StandardResponse(
             success=False, code=ErrorCode.STUDENT_RECORD_NOT_FOUND.value, message="Student record not found"
         ).model_dump(mode='json'))
     return StandardResponse(
         success=True, code=SuccessCode.STUDENT_RECORD_RETRIEVED.value,
-        message=f"Student record {student_id} retrieved successfully",
+        message=f"Student record for alumni {alumni_id} retrieved successfully",
         data=StudentRecordPublic.model_validate(student)
     )

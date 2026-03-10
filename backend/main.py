@@ -17,6 +17,9 @@ from routers import (
     event_registration,
     transaction_logs,
     surveys,
+    survey_questions,
+    survey_distribution,
+    survey_responses,
     questions,
     predict,
     otp,
@@ -53,6 +56,10 @@ app.include_router(events.router)
 app.include_router(event_registration.router)
 app.include_router(transaction_logs.router)
 app.include_router(surveys.router)
+app.include_router(survey_questions.router)
+app.include_router(survey_distribution.router)
+app.include_router(survey_responses.router)
+app.include_router(survey_responses.respond_router)
 app.include_router(questions.router)
 app.include_router(predict.router)
 app.include_router(otp.router)

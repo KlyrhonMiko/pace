@@ -11,6 +11,7 @@ from schemas.surveys import (
     SurveyQuestionCreate,
     SurveyQuestionWithDetails,
     SurveyQuestionReorderRequest,
+    SurveySubmission,
     SurveyDistributionConfigCreateRequest,
     SurveyDistributionConfigPublic,
     SurveyStatus,
@@ -19,7 +20,7 @@ from schemas.surveys import (
 from models.auth import CurrentUser
 from models.response_codes import StandardResponse, SuccessCode, ErrorCode
 from utils.timezone import get_current_time_gmt8
-from utils.rbac import require_staff_or_admin
+from utils.rbac import require_staff_or_admin, require_authenticated
 from services.queries.surveys_queries import (
     get_survey_by_id,
     get_deleted_survey_by_id,
@@ -45,6 +46,8 @@ from services.queries.surveys_queries import (
     send_survey_reminders,
     get_distribution_stats,
     get_non_respondents,
+    # Phase 1.5
+    submit_survey_response,
     # Phase 1.6
     get_survey_results,
     export_survey_responses,
@@ -487,6 +490,135 @@ def reopen_survey(
             message="Survey reopened successfully",
             data=SurveyPublic.model_validate(reopened),
             timestamp=get_current_time_gmt8(),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail=StandardResponse(
+                success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+            ).model_dump(mode="json"),
+        )
+
+
+# ---------------------------------------------------------------------------
+# Survey response submission (Phase 1.5)
+# Separate router — no require_staff_or_admin so alumni can respond.
+# ---------------------------------------------------------------------------
+
+respond_router = APIRouter(
+    prefix="/surveys",
+    tags=["surveys"],
+)
+
+
+@respond_router.post(
+    "/{survey_id}/respond",
+    response_model=StandardResponse,
+    status_code=201,
+)
+def respond_to_survey(
+    survey_id: str,
+    body: SurveySubmission,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
+):
+    """Submit a response to an active survey. Any authenticated user can respond."""
+    try:
+        survey = get_survey_by_id(session, survey_id)
+        if not survey:
+            raise HTTPException(
+                status_code=404,
+                detail=StandardResponse(
+                    success=False,
+                    code=ErrorCode.SURVEY_NOT_FOUND.value,
+                    message="Survey not found",
+                ).model_dump(mode="json"),
+            )
+
+        # Must be ACTIVE
+        if survey.status != SurveyStatus.ACTIVE:
+            raise HTTPException(
+                status_code=409,
+                detail=StandardResponse(
+                    success=False,
+                    code=ErrorCode.SURVEY_NOT_ACTIVE.value,
+                    message="Survey is not currently active",
+                ).model_dump(mode="json"),
+            )
+
+        # Check closes_at
+        if survey.closes_at and get_current_time_gmt8() > survey.closes_at:
+            raise HTTPException(
+                status_code=409,
+                detail=StandardResponse(
+                    success=False,
+                    code=ErrorCode.SURVEY_CLOSED.value,
+                    message="Survey submission period has ended",
+                ).model_dump(mode="json"),
+            )
+
+        result = submit_survey_response(
+            session,
+            survey,
+            body,
+            performed_by=current_user.user_code,
+        )
+        invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
+        return StandardResponse(
+            success=True,
+            code=SuccessCode.SURVEY_RESPONSE_SUBMITTED.value,
+            message="Survey response submitted successfully",
+            data=result,
+            timestamp=get_current_time_gmt8(),
+        )
+    except ValueError as e:
+        msg = str(e)
+        if msg == "ALUMNI_NOT_FOUND":
+            raise HTTPException(
+                status_code=404,
+                detail=StandardResponse(
+                    success=False,
+                    code=ErrorCode.ALUMNI_NOT_FOUND.value,
+                    message="Alumni not found",
+                ).model_dump(mode="json"),
+            )
+        if msg == "DUPLICATE_RESPONSE":
+            raise HTTPException(
+                status_code=409,
+                detail=StandardResponse(
+                    success=False,
+                    code=ErrorCode.DUPLICATE_RESPONSE.value,
+                    message="You have already responded to this survey",
+                ).model_dump(mode="json"),
+            )
+        if msg.startswith("REQUIRED_QUESTION_MISSING:"):
+            question_id = msg.split(":", 1)[1]
+            raise HTTPException(
+                status_code=400,
+                detail=StandardResponse(
+                    success=False,
+                    code=ErrorCode.INVALID_INPUT.value,
+                    message=f"Required question {question_id} was not answered",
+                ).model_dump(mode="json"),
+            )
+        if msg.startswith("QUESTION_NOT_IN_SURVEY:"):
+            question_id = msg.split(":", 1)[1]
+            raise HTTPException(
+                status_code=400,
+                detail=StandardResponse(
+                    success=False,
+                    code=ErrorCode.INVALID_INPUT.value,
+                    message=f"Question {question_id} is not part of this survey",
+                ).model_dump(mode="json"),
+            )
+        raise HTTPException(
+            status_code=400,
+            detail=StandardResponse(
+                success=False, code=ErrorCode.INVALID_INPUT.value, message=msg
+            ).model_dump(mode="json"),
         )
     except HTTPException:
         raise

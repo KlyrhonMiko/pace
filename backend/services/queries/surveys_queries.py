@@ -23,6 +23,8 @@ from schemas.surveys import (
     SurveyDistributionConfigCreateRequest,
     SurveyDistributionConfigPublic,
     SurveyStatus,
+    SurveyInvitationStatus,
+    DistributionTargetGroup,
     DistributionStatus,
 )
 from schemas.questions import QuestionPublic
@@ -889,6 +891,144 @@ def get_non_respondents(
         )
 
     return result, total
+
+
+# ---------------------------------------------------------------------------
+# Survey response submission (Phase 1.5)
+# ---------------------------------------------------------------------------
+
+
+def submit_survey_response(
+    session: Session,
+    survey: Survey,
+    data,  # schemas.surveys.SurveySubmission
+    performed_by: str | None = None,
+) -> dict:
+    """
+    Create a SurveyResponse + SurveyAnswer rows for an alumni submission.
+
+    Returns dict with response_id and answer_count on success.
+    Raises ValueError for validation failures.
+    """
+    from models.alumni import Alumni
+
+    now = get_current_time_gmt8()
+
+    # 1. Resolve alumni if provided (non-anonymous)
+    alumni_code = None
+    if data.alumni_id:
+        alumni = session.exec(
+            select(Alumni).where(
+                and_(
+                    Alumni.alumni_id == data.alumni_id.upper(),
+                    Alumni.is_deleted == False,
+                )
+            )
+        ).first()
+        if not alumni:
+            raise ValueError("ALUMNI_NOT_FOUND")
+        alumni_code = alumni.alumni_code
+
+    # 2. Duplicate guard (if allow_multiple_responses is False)
+    if not survey.allow_multiple_responses and alumni_code:
+        existing_response = session.exec(
+            select(SurveyResponse).where(
+                and_(
+                    SurveyResponse.survey_code == survey.survey_code,
+                    SurveyResponse.alumni_code == alumni_code,
+                    SurveyResponse.is_deleted == False,
+                )
+            )
+        ).first()
+        if existing_response:
+            raise ValueError("DUPLICATE_RESPONSE")
+
+    # 3. Pre-fetch all survey questions in one query for validation
+    survey_questions = session.exec(
+        select(SurveyQuestion, Question)
+        .join(Question, SurveyQuestion.question_code == Question.question_code)
+        .where(SurveyQuestion.survey_code == survey.survey_code)
+    ).all()
+
+    # Build lookup maps: question_id → (question_code, question)
+    question_map: dict[str, tuple[uuid.UUID, Question]] = {}
+    for sq, q in survey_questions:
+        question_map[q.question_id] = (q.question_code, q)
+
+    # 4. Validate required questions are answered
+    answered_question_ids = {item.question_id for item in data.answers}
+    for q_id, (_, q) in question_map.items():
+        if q.is_required and q_id not in answered_question_ids:
+            raise ValueError(f"REQUIRED_QUESTION_MISSING:{q_id}")
+
+    # 5. Validate all submitted answers reference valid survey questions
+    for item in data.answers:
+        if item.question_id not in question_map:
+            raise ValueError(f"QUESTION_NOT_IN_SURVEY:{item.question_id}")
+
+    # 6. Create SurveyResponse
+    response = SurveyResponse(
+        response_code=uuid.uuid4(),
+        response_id=generate_response_id(session),
+        survey_code=survey.survey_code,
+        alumni_code=alumni_code,
+        submitted_at=now,
+        is_complete=True,
+        is_deleted=False,
+    )
+    session.add(response)
+    session.flush()
+
+    # 7. Create SurveyAnswer rows
+    for item in data.answers:
+        question_code, _ = question_map[item.question_id]
+        answer = SurveyAnswer(
+            answer_code=uuid.uuid4(),
+            response_code=response.response_code,
+            question_code=question_code,
+            answer_text=item.answer_text,
+            answer_choice=item.answer_choice,
+            answer_choices=item.answer_choices,
+            answer_scale=item.answer_scale,
+            answer_number=item.answer_number,
+            answer_date=item.answer_date,
+            answer_bool=item.answer_bool,
+        )
+        session.add(answer)
+
+    # 8. Update invitation status if one exists
+    if alumni_code:
+        invitation = session.exec(
+            select(SurveyInvitation).where(
+                and_(
+                    SurveyInvitation.survey_code == survey.survey_code,
+                    SurveyInvitation.alumni_code == alumni_code,
+                )
+            )
+        ).first()
+        if invitation:
+            invitation.status = SurveyInvitationStatus.RESPONDED
+            invitation.responded_at = now
+            session.add(invitation)
+
+    # 9. Log and commit
+    create_transaction_log(
+        session,
+        tl_name=f"SUBMITTED survey response {survey.survey_id}",
+        after={
+            "survey_id": survey.survey_id,
+            "response_id": response.response_id,
+            "answer_count": len(data.answers),
+        },
+        performed_by=performed_by,
+    )
+    session.commit()
+    session.refresh(response)
+
+    return {
+        "response_id": response.response_id,
+        "answer_count": len(data.answers),
+    }
 
 
 # ---------------------------------------------------------------------------

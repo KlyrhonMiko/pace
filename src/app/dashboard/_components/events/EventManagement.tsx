@@ -1,7 +1,5 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { toast } from "sonner";
 import {
     Clock,
     MapPin,
@@ -25,205 +23,41 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import {
-    fetchEvents,
-    fetchEventTypes,
-    createEvent,
-    updateEvent,
-    deleteEvent,
-    createEventType,
-    uploadEventImage,
-    type Event,
-    type EventType,
     getMonthAbbreviation,
     getDayNumber,
     formatEventDate,
 } from "../../_lib/events";
+import { useEventManagement } from "./useEventManagement";
 
 export default function EventManagement() {
-    const [events, setEvents] = useState<Event[]>([]);
-    const [eventTypes, setEventTypes] = useState<EventType[]>([]);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingEvent, setEditingEvent] = useState<Event | null>(null);
-    const [searchQuery, setSearchQuery] = useState("");
-    const [isAddingNewType, setIsAddingNewType] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
-    const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
-    const [selectedImagePreview, setSelectedImagePreview] = useState<string | null>(null);
-
-    // Form State
-    const [formData, setFormData] = useState({
-        event_name: "",
-        description: "",
-        event_type_name: "Workshop",
-        date: "",
-        time_start: "",
-        time_end: "",
-        location: "",
-        capacity: 0,
-    });
-
-    // Fetch events and event types from backend
-    const loadData = useCallback(async () => {
-        setIsLoading(true);
-        const [eventsResult, types] = await Promise.all([
-            fetchEvents({ limit: 100, sort_by: "date", sort_order: "desc" }),
-            fetchEventTypes(),
-        ]);
-        setEvents(eventsResult.events);
-        setEventTypes(types);
-        setIsLoading(false);
-    }, []);
-
-    useEffect(() => {
-        loadData();
-    }, [loadData]);
-
-    useEffect(() => {
-        return () => {
-            if (selectedImagePreview?.startsWith("blob:")) {
-                URL.revokeObjectURL(selectedImagePreview);
-            }
-        };
-    }, [selectedImagePreview]);
-
-    const availableTypeNames = eventTypes.map(et => et.event_name);
-
-    const openCreateModal = () => {
-        setEditingEvent(null);
-        setFormData({
-            event_name: "",
-            description: "",
-            event_type_name: availableTypeNames[0] ?? "Workshop",
-            date: "",
-            time_start: "",
-            time_end: "",
-            location: "",
-            capacity: 0,
-        });
-        setIsModalOpen(true);
-        setIsAddingNewType(false);
-        setSelectedImageFile(null);
-        setSelectedImagePreview(null);
-    };
-
-    const openUpdateModal = (event: Event) => {
-        setEditingEvent(event);
-        setFormData({
-            event_name: event.event_name,
-            description: event.description,
-            event_type_name: event.event_type,
-            date: event.date,
-            time_start: event.time_start,
-            time_end: event.time_end,
-            location: event.location,
-            capacity: event.capacity,
-        });
-        setIsModalOpen(true);
-        setIsAddingNewType(false);
-        setSelectedImageFile(null);
-        setSelectedImagePreview(null);
-    };
-
-    const handleImageChange = (file: File | null) => {
-        if (!file) {
-            setSelectedImageFile(null);
-            setSelectedImagePreview(null);
-            return;
-        }
-        setSelectedImageFile(file);
-        setSelectedImagePreview(URL.createObjectURL(file));
-    };
-
-    const handleSave = async () => {
-        if (!formData.event_name || !formData.date || !formData.time_start || !formData.time_end) {
-            toast.error("Please fill in all required fields.");
-            return;
-        }
-
-        setIsSaving(true);
-
-        let selectedEventTypeName = formData.event_type_name.trim();
-
-        // If adding a new type, create it first
-        if (isAddingNewType && formData.event_type_name.trim()) {
-            const newType = await createEventType(formData.event_type_name.trim());
-            if (!newType) {
-                toast.error("Failed to create new event type. It may already exist.");
-                setIsSaving(false);
-                return;
-            }
-            selectedEventTypeName = newType.event_name;
-        }
-
-        if (!selectedEventTypeName) {
-            toast.error("Please select a valid event type.");
-            setIsSaving(false);
-            return;
-        }
-
-        const eventPayload = {
-            event_name: formData.event_name,
-            description: formData.description,
-            event_type_name: selectedEventTypeName,
-            date: formData.date,
-            time_start: formData.time_start,
-            time_end: formData.time_end,
-            location: formData.location,
-            capacity: formData.capacity,
-        };
-
-        let success: Event | null;
-        if (editingEvent) {
-            success = await updateEvent(editingEvent.event_id, eventPayload);
-        } else {
-            success = await createEvent(eventPayload);
-        }
-
-        if (success) {
-            if (selectedImageFile) {
-                const imageUploaded = await uploadEventImage(success.event_id, selectedImageFile);
-                if (!imageUploaded) {
-                    toast.warning("Event saved, but image upload failed. You can retry by editing the event.");
-                }
-            }
-            toast.success(editingEvent ? "Event updated successfully." : "Event created successfully.");
-            await loadData();
-            setIsModalOpen(false);
-            setSelectedImageFile(null);
-            setSelectedImagePreview(null);
-        } else {
-            toast.error("Failed to save event. Please try again.");
-        }
-        setIsSaving(false);
-    };
-
-    const [eventToDelete, setEventToDelete] = useState<string | null>(null);
-
-    const handleDeleteClick = (eventId: string) => {
-        setEventToDelete(eventId);
-    };
-
-    const confirmDeleteEvent = async () => {
-        if (eventToDelete !== null) {
-            setIsDeleting(true);
-            const success = await deleteEvent(eventToDelete);
-            if (success) {
-                toast.success("Event deleted successfully.");
-                await loadData();
-            } else {
-                toast.error("Failed to delete event.");
-            }
-            setIsDeleting(false);
-            setEventToDelete(null);
-        }
-    };
-
-    const filteredEvents = events.filter(e =>
-        e.event_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        e.location.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const {
+        // State
+        events,
+        availableTypeNames,
+        isModalOpen,
+        editingEvent,
+        searchQuery,
+        isAddingNewType,
+        isSaving,
+        isDeleting,
+        isLoading,
+        selectedImagePreview,
+        eventToDelete,
+        formData,
+        
+        // Handlers
+        setIsModalOpen,
+        setIsAddingNewType,
+        setFormData,
+        setEventToDelete,
+        handleSearch,
+        openCreateModal,
+        openUpdateModal,
+        handleImageChange,
+        handleSave,
+        handleDeleteClick,
+        confirmDeleteEvent,
+    } = useEventManagement();
 
     return (
         <div className="space-y-6">
@@ -235,7 +69,7 @@ export default function EventManagement() {
                         placeholder="Search events..."
                         className="pl-10 h-11 rounded-xl border-slate-200 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
                         value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onChange={(e) => handleSearch(e.target.value)}
                     />
                 </div>
                 <Button
@@ -269,14 +103,14 @@ export default function EventManagement() {
                                         </div>
                                     </td>
                                 </tr>
-                            ) : filteredEvents.length === 0 ? (
+                            ) : events.length === 0 ? (
                                 <tr>
                                     <td colSpan={4} className="px-6 py-16 text-center text-sm text-slate-400">
                                         No events found.
                                     </td>
                                 </tr>
                             ) : (
-                                filteredEvents.map((event) => (
+                                events.map((event) => (
                                     <tr key={event.event_id} className="hover:bg-slate-50/80 transition-colors group">
                                         <td className="px-6 py-5">
                                             <div className="flex items-center gap-4">
@@ -305,13 +139,13 @@ export default function EventManagement() {
                                         <td className="px-6 py-5">
                                             <div className="flex flex-col gap-1 w-32">
                                                 <div className="flex justify-between text-[10px] uppercase font-bold text-slate-400">
-                                                    <span>{Math.round((event.attendees / event.capacity) * 100)}%</span>
+                                                    <span>{Math.round((event.attendees / (event.capacity || 1)) * 100)}%</span>
                                                     <span>{event.attendees}/{event.capacity}</span>
                                                 </div>
                                                 <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
                                                     <div
                                                         className="h-full bg-emerald-500 rounded-full"
-                                                        style={{ width: `${(event.attendees / event.capacity) * 100}%` }}
+                                                        style={{ width: `${(event.attendees / (event.capacity || 1)) * 100}%` }}
                                                     />
                                                 </div>
                                             </div>
@@ -320,7 +154,7 @@ export default function EventManagement() {
                                             <div className="flex items-center justify-end gap-2">
                                                 <Button
                                                     variant="ghost"
-                                                    size="icon-sm"
+                                                    size="icon"
                                                     onClick={() => openUpdateModal(event)}
                                                     className="text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
                                                 >
@@ -328,7 +162,7 @@ export default function EventManagement() {
                                                 </Button>
                                                 <Button
                                                     variant="ghost"
-                                                    size="icon-sm"
+                                                    size="icon"
                                                     onClick={() => handleDeleteClick(event.event_id)}
                                                     className="text-slate-400 hover:text-red-600 hover:bg-red-50"
                                                 >
@@ -357,11 +191,7 @@ export default function EventManagement() {
                                 {editingEvent ? `Modifying: ${editingEvent.event_id}` : "Fill in the details to schedule a new event."}
                             </p>
                             <button
-                                onClick={() => {
-                                    setIsModalOpen(false);
-                                    setSelectedImageFile(null);
-                                    setSelectedImagePreview(null);
-                                }}
+                                onClick={() => setIsModalOpen(false)}
                                 className="absolute top-6 right-6 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
                             >
                                 <X className="h-5 w-5" />
@@ -530,11 +360,7 @@ export default function EventManagement() {
                         <div className="p-8 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-3">
                             <Button
                                 variant="outline"
-                                onClick={() => {
-                                    setIsModalOpen(false);
-                                    setSelectedImageFile(null);
-                                    setSelectedImagePreview(null);
-                                }}
+                                onClick={() => setIsModalOpen(false)}
                                 className="h-11 px-6 rounded-xl border-slate-200 text-slate-600 font-bold hover:bg-slate-100 transition-all"
                                 disabled={isSaving}
                             >

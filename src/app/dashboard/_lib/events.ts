@@ -168,3 +168,76 @@ export const getDayNumber = (dateStr: string): string => {
     }
     return "00";
 };
+
+// ---------------------------------------------------------------------------
+// High-level Workflows (Orchestration)
+// ---------------------------------------------------------------------------
+
+/**
+ * Orchestrates saving/updating an event including type creation and image upload.
+ */
+export async function saveEventWorkflow(
+    editingEvent: Event | null,
+    formData: {
+        event_name: string;
+        description: string;
+        event_type_name: string;
+        date: string;
+        time_start: string;
+        time_end: string;
+        location: string;
+        capacity: number;
+    },
+    options: {
+        isAddingNewType: boolean;
+        imageFile: File | null;
+    }
+): Promise<{ success: boolean; event?: Event; error?: string; warning?: string }> {
+    try {
+        let selectedEventTypeName = formData.event_type_name.trim();
+
+        // 1. Create new event type if needed
+        if (options.isAddingNewType && selectedEventTypeName) {
+            const newType = await createEventType(selectedEventTypeName);
+            if (!newType) {
+                return { success: false, error: "Failed to create new event type. It may already exist." };
+            }
+            selectedEventTypeName = newType.event_name;
+        }
+
+        if (!selectedEventTypeName) {
+            return { success: false, error: "Please select a valid event type." };
+        }
+
+        const eventPayload = {
+            ...formData,
+            event_type_name: selectedEventTypeName,
+        };
+
+        // 2. Create or Update the event
+        let result: Event | null;
+        if (editingEvent) {
+            result = await updateEvent(editingEvent.event_id, eventPayload);
+        } else {
+            result = await createEvent(eventPayload);
+        }
+
+        if (!result) {
+            return { success: false, error: "Failed to save event. Please try again." };
+        }
+
+        // 3. Upload image if provided
+        let warning: string | undefined;
+        if (options.imageFile) {
+            const imageUploaded = await uploadEventImage(result.event_id, options.imageFile);
+            if (!imageUploaded) {
+                warning = "Event saved, but image upload failed. You can retry by editing the event.";
+            }
+        }
+
+        return { success: true, event: result, warning };
+    } catch (error) {
+        console.error("Event workflow failed:", error);
+        return { success: false, error: "An unexpected error occurred." };
+    }
+}

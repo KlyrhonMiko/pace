@@ -165,6 +165,39 @@ def predict_employability(
 
 
 # ─────────────────────────────────────────────────────────────────
+# GET  /predict/employability/me
+# ─────────────────────────────────────────────────────────────────
+
+@router.get("/employability/me")
+def get_my_predictions(
+    db: Session = Depends(get_session),
+    limit: int = Query(default=10, ge=1, le=50, description="Max results to return"),
+    current_user: CurrentUser = Depends(require_authenticated),
+):
+    """Get all predictions linked to the current authenticated alumni, newest first."""
+    # Find alumni record for the current user
+    alumni = db.exec(
+        select(Alumni).where(
+            (Alumni.user_code == uuid.UUID(str(current_user.user_code)))
+            & (Alumni.is_deleted == False)
+        )
+    ).first()
+
+    if not alumni:
+        raise HTTPException(
+            status_code=404,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.ALUMNI_NOT_FOUND.value,
+                message="Alumni profile not found for current user",
+            ).model_dump(mode="json"),
+        )
+
+    # Use the existing response builder
+    return _build_alumni_predictions_response(db, alumni.alumni_code, limit)
+
+
+# ─────────────────────────────────────────────────────────────────
 # GET  /predict/employability/{prediction_id}
 # ─────────────────────────────────────────────────────────────────
 

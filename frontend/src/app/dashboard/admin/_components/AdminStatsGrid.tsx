@@ -1,89 +1,91 @@
 "use client";
-import { Users, ArrowUp, GraduationCap, Briefcase, Calendar } from "lucide-react";
+
+import { useEffect, useState } from "react";
+import { Users, ArrowUp, GraduationCap, Briefcase, Calendar, Loader2 } from "lucide-react";
+import { fetchAdminStats, AdminStats } from "../../_lib/dashboard";
 
 export default function AdminStatsGrid() {
+    const [stats, setStats] = useState<AdminStats | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        async function loadStats() {
+            const data = await fetchAdminStats();
+            if (data) setStats(data);
+            setLoading(false);
+        }
+        loadStats();
+    }, []);
+
+    if (loading) {
+        return (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 min-h-[140px]">
+                {[...Array(4)].map((_, i) => (
+                    <div key={i} className="animate-pulse rounded-2xl bg-white border border-gray-100 p-5 flex items-center justify-center">
+                        <Loader2 className="h-6 w-6 animate-spin text-gray-300" />
+                    </div>
+                ))}
+            </div>
+        );
+    }
+
+    const statCards = [
+        {
+            label: "Total Users",
+            value: stats?.total_users.toLocaleString() ?? "0",
+            subValue: "+48",
+            icon: Users,
+            color: "emerald",
+            sparkline: [3, 5, 4, 7, 6, 8, 9, 7, 10, 12]
+        },
+        {
+            label: "Verified Alumni",
+            value: stats?.verified_alumni.toLocaleString() ?? "0",
+            subValue: "+32",
+            icon: GraduationCap,
+            color: "blue",
+            sparkline: [4, 6, 5, 8, 7, 9, 8, 10, 9, 11]
+        },
+        {
+            label: "Active Jobs",
+            value: stats?.active_jobs.toLocaleString() ?? "0",
+            subValue: "+12",
+            icon: Briefcase,
+            color: "violet",
+            sparkline: [2, 4, 3, 5, 4, 6, 7, 5, 8, 9]
+        },
+        {
+            label: "Upcoming Events",
+            value: stats?.upcoming_events.toLocaleString() ?? "0",
+            subValue: "+5",
+            icon: Calendar,
+            color: "amber",
+            sparkline: [1, 2, 1, 3, 2, 4, 3, 5, 4, 6]
+        }
+    ];
+
     return (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {/* Total Users */}
-            <div className="group relative rounded-2xl bg-white border border-gray-100 p-5 transition-all duration-300 hover:shadow-lg hover:shadow-emerald-700/5 hover:-translate-y-0.5">
-                <div className="flex items-center justify-between mb-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-700 to-emerald-800 text-white shadow-lg shadow-emerald-700/25">
-                        <Users className="h-5 w-5" strokeWidth={2} />
+            {statCards.map((card, i) => (
+                <div key={i} className="group relative rounded-2xl bg-white border border-gray-100 p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5">
+                    <div className="flex items-center justify-between mb-3">
+                        <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-${card.color}-500 to-${card.color}-600 text-white shadow-lg`}>
+                            <card.icon className="h-5 w-5" strokeWidth={2} />
+                        </div>
+                        <span className={`inline-flex items-center gap-1 text-xs font-bold text-${card.color}-800 bg-${card.color}-50 px-2 py-0.5 rounded-full`}>
+                            <ArrowUp className="h-3 w-3" />
+                            {card.subValue}
+                        </span>
                     </div>
-                    <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full">
-                        <ArrowUp className="h-3 w-3" />
-                        +48
-                    </span>
-                </div>
-                <p className="text-3xl font-extrabold text-gray-900 tracking-tight">1,247</p>
-                <p className="text-xs text-gray-400 mt-1 font-medium">Total Users</p>
-                {/* Mini sparkline */}
-                <div className="flex items-end gap-[3px] mt-3 h-6">
-                    {[3, 5, 4, 7, 6, 8, 9, 7, 10, 12].map((v, i) => (
-                        <div key={i} className="flex-1 rounded-sm bg-emerald-100 group-hover:bg-emerald-200 transition-colors" style={{ height: `${(v / 12) * 100}%` }} />
-                    ))}
-                </div>
-            </div>
-
-            {/* Alumni */}
-            <div className="group relative rounded-2xl bg-white border border-gray-100 p-5 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/5 hover:-translate-y-0.5">
-                <div className="flex items-center justify-between mb-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25">
-                        <GraduationCap className="h-5 w-5" strokeWidth={2} />
+                    <p className="text-3xl font-extrabold text-gray-900 tracking-tight">{card.value}</p>
+                    <p className="text-xs text-gray-400 mt-1 font-medium">{card.label}</p>
+                    <div className="flex items-end gap-[3px] mt-3 h-6">
+                        {card.sparkline.map((v, idx) => (
+                            <div key={idx} className={`flex-1 rounded-sm bg-${card.color}-100 group-hover:bg-${card.color}-200 transition-colors`} style={{ height: `${(v / 12) * 100}%` }} />
+                        ))}
                     </div>
-                    <span className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-                        <ArrowUp className="h-3 w-3" />
-                        +32
-                    </span>
                 </div>
-                <p className="text-3xl font-extrabold text-gray-900 tracking-tight">892</p>
-                <p className="text-xs text-gray-400 mt-1 font-medium">Verified Alumni</p>
-                <div className="flex items-end gap-[3px] mt-3 h-6">
-                    {[4, 6, 5, 8, 7, 9, 8, 10, 9, 11].map((v, i) => (
-                        <div key={i} className="flex-1 rounded-sm bg-blue-100 group-hover:bg-blue-200 transition-colors" style={{ height: `${(v / 12) * 100}%` }} />
-                    ))}
-                </div>
-            </div>
-
-            {/* Active Jobs */}
-            <div className="group relative rounded-2xl bg-white border border-gray-100 p-5 transition-all duration-300 hover:shadow-lg hover:shadow-violet-500/5 hover:-translate-y-0.5">
-                <div className="flex items-center justify-between mb-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-violet-600 text-white shadow-lg shadow-violet-500/25">
-                        <Briefcase className="h-5 w-5" strokeWidth={2} />
-                    </div>
-                    <span className="inline-flex items-center gap-1 text-xs font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full">
-                        <ArrowUp className="h-3 w-3" />
-                        +12
-                    </span>
-                </div>
-                <p className="text-3xl font-extrabold text-gray-900 tracking-tight">156</p>
-                <p className="text-xs text-gray-400 mt-1 font-medium">Active Jobs</p>
-                <div className="flex items-end gap-[3px] mt-3 h-6">
-                    {[2, 4, 3, 5, 4, 6, 7, 5, 8, 9].map((v, i) => (
-                        <div key={i} className="flex-1 rounded-sm bg-violet-100 group-hover:bg-violet-200 transition-colors" style={{ height: `${(v / 10) * 100}%` }} />
-                    ))}
-                </div>
-            </div>
-
-            {/* Events */}
-            <div className="group relative rounded-2xl bg-white border border-gray-100 p-5 transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/5 hover:-translate-y-0.5">
-                <div className="flex items-center justify-between mb-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-500/25">
-                        <Calendar className="h-5 w-5" strokeWidth={2} />
-                    </div>
-                    <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
-                        <ArrowUp className="h-3 w-3" />
-                        +5
-                    </span>
-                </div>
-                <p className="text-3xl font-extrabold text-gray-900 tracking-tight">18</p>
-                <p className="text-xs text-gray-400 mt-1 font-medium">Upcoming Events</p>
-                <div className="flex items-end gap-[3px] mt-3 h-6">
-                    {[1, 2, 1, 3, 2, 4, 3, 5, 4, 6].map((v, i) => (
-                        <div key={i} className="flex-1 rounded-sm bg-amber-100 group-hover:bg-amber-200 transition-colors" style={{ height: `${(v / 7) * 100}%` }} />
-                    ))}
-                </div>
-            </div>
+            ))}
         </div>
     );
 }

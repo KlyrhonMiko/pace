@@ -1,13 +1,13 @@
-import DashboardHeader from "./_components/DashboardHeader";
-import StatsGrid from "./_components/StatsGrid";
-import EmployabilityScore from "./_components/EmployabilityScore";
-import RecommendedJobs from "./jobs/_components/RecommendedJobs";
-import ProfileStrength from "./_components/ProfileStrength";
-import QuickActions from "./_components/QuickActions";
-import UpcomingEvents from "./events/_components/UpcomingEvents";
-import RecentActivity from "./_components/RecentActivity";
+import DashboardHeader from "@/app/dashboard/alumni/_components/DashboardHeader";
+import StatsGrid from "@/app/dashboard/alumni/_components/StatsGrid";
+import EmployabilityScore from "@/app/dashboard/alumni/_components/EmployabilityScore";
+import RecommendedJobs from "@/app/dashboard/alumni/jobs/_components/RecommendedJobs";
+import ProfileStrength from "@/app/dashboard/alumni/_components/ProfileStrength";
+import QuickActions from "@/app/dashboard/alumni/_components/QuickActions";
+import UpcomingEvents from "@/app/dashboard/alumni/events/_components/UpcomingEvents";
+import RecentActivity from "@/app/dashboard/alumni/_components/RecentActivity";
 import { cookies } from "next/headers";
-import { getLatestPrediction, fetchDemoPrediction } from "./_lib/api";
+import { getLatestPrediction, fetchDemoPrediction } from "@/app/dashboard/alumni/_lib/api";
 
 export default async function AlumniDashboard() {
     // 1. Get the session token from cookies

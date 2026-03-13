@@ -22,6 +22,7 @@ from routers import (
     survey_responses,
     questions,
     predict,
+    dashboard,
     otp,
 )
 from core.config import settings
@@ -62,6 +63,7 @@ app.include_router(survey_responses.router)
 app.include_router(survey_responses.respond_router)
 app.include_router(questions.router)
 app.include_router(predict.router)
+app.include_router(dashboard.router)
 app.include_router(otp.router)
 
 

@@ -18,6 +18,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
+import { 
+  fetchCourses, 
+  sendOtp, 
+  resendOtp, 
+  verifyOtp, 
+  registerAlumni, 
+  createStudentRecord, 
+  initializeAlumniSkills,
+  CourseOption 
+} from "./api";
+
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface AccountInfo {
@@ -48,14 +60,8 @@ interface AcademicInfo {
     courseAbbv: string;
 }
 
-interface CourseOption {
-    course_abbv: string;
-    course_name: string;
-}
-
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const OTP_LENGTH = 6;
 const RESEND_COOLDOWN_SECONDS = 60;
 
@@ -338,26 +344,18 @@ export default function RegisterPage() {
     const [courses, setCourses] = useState<CourseOption[]>([]);
     const [consentForSurveyMl, setConsentForSurveyMl] = useState(false);
 
-    // ── Fetch courses on mount ──
     useEffect(() => {
-        async function fetchCourses() {
+        async function loadCourses() {
             try {
-                const res = await fetch(`${API_BASE_URL}/courses/?limit=0`);
-                const result = await res.json();
-                if (result.success && result.data?.courses) {
-                    setCourses(
-                        result.data.courses.map((c: CourseOption) => ({
-                            course_abbv: c.course_abbv,
-                            course_name: c.course_name,
-                        }))
-                    );
-                }
-            } catch {
-                console.error("Failed to fetch courses");
+                const courseData = await fetchCourses();
+                setCourses(courseData);
+            } catch (error) {
+                console.error("Failed to fetch courses", error);
             }
         }
-        fetchCourses();
+        loadCourses();
     }, []);
+
 
     // ── Age auto-compute ──
     useEffect(() => {
@@ -401,46 +399,22 @@ export default function RegisterPage() {
         return true;
     };
 
-    // ── API helper ──
-    const apiCall = useCallback(async (endpoint: string, body: Record<string, unknown>) => {
-        const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-            const detail = data?.detail;
-            throw new Error(detail?.message || data?.message || "Request failed");
-        }
-        return data;
-    }, []);
-
     // ── OTP Handlers ──
-    const sendOtp = async () => {
+    const handleSendOtp = async () => {
         setIsSendingOtp(true);
         try {
-            const res = await fetch(`${API_BASE_URL}/otp/send`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: account.email }),
-            });
-            const data = await res.json();
-            if (data.success) {
-                toast.success("Verification code sent to your email!");
-                setResendCooldown(RESEND_COOLDOWN_SECONDS);
-                return true;
-            } else {
-                toast.error(data.message || "Failed to send verification code");
-                return false;
-            }
-        } catch {
-            toast.error("Failed to send verification code. Please try again.");
+            await sendOtp(account.email);
+            toast.success("Verification code sent to your email!");
+            setResendCooldown(RESEND_COOLDOWN_SECONDS);
+            return true;
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Failed to send code");
             return false;
         } finally {
             setIsSendingOtp(false);
         }
     };
+
 
     const handleVerifyAndSubmit = async () => {
         const code = otpCode.join("");
@@ -452,12 +426,7 @@ export default function RegisterPage() {
         setIsVerifyingOtp(true);
         try {
             // Step 1: Verify OTP
-            const verifyRes = await fetch(`${API_BASE_URL}/otp/verify`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: account.email, otp_code: code }),
-            });
-            const verifyData = await verifyRes.json();
+            const verifyData = await verifyOtp(account.email, code);
 
             if (!verifyData.success) {
                 toast.error(verifyData.message || "Invalid verification code");
@@ -472,7 +441,7 @@ export default function RegisterPage() {
             const computedAge = typeof personal.age === "number" ? personal.age : 0;
 
             // Register alumni + user account
-            const registerRes = await apiCall("/alumni/register", {
+            const registerRes = await registerAlumni({
                 username: account.username,
                 email: account.email,
                 password: account.password,
@@ -489,7 +458,7 @@ export default function RegisterPage() {
 
             // Create student record (if academic info was provided)
             if (!skippedAcademic) {
-                await apiCall("/student-records", {
+                await createStudentRecord({
                     student_id: academic.studentId,
                     year_graduated: parseInt(academic.yearGraduated, 10),
                     gwa: parseFloat(academic.gwa),
@@ -505,49 +474,35 @@ export default function RegisterPage() {
 
             // Initialize blank alumni skills record
             try {
-                await apiCall("/alumni-skills", {
-                    alumni_id: alumniId,
-                    soft_skills_ave: null,
-                    hard_skills_ave: null,
-                    program_skills: null,
-                });
+                await initializeAlumniSkills(alumniId);
             } catch {
-                console.warn("Alumni skills initialization skipped");
+                // Warning already handled in api.ts
             }
 
             setIsComplete(true);
         } catch (error) {
-            const message = error instanceof Error ? error.message : "An error occurred during registration.";
-            toast.error(message);
+            toast.error(error instanceof Error ? error.message : "An error occurred during registration.");
         } finally {
             setIsVerifyingOtp(false);
             setIsSubmitting(false);
         }
     };
 
-    const resendOtp = async () => {
+    const handleResendOtp = async () => {
         if (resendCooldown > 0) return;
         setIsSendingOtp(true);
         try {
-            const res = await fetch(`${API_BASE_URL}/otp/resend`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: account.email }),
-            });
-            const data = await res.json();
-            if (data.success) {
-                toast.success("New verification code sent!");
-                setResendCooldown(RESEND_COOLDOWN_SECONDS);
-                setOtpCode(Array(OTP_LENGTH).fill(""));
-            } else {
-                toast.error(data.message || "Failed to resend code");
-            }
-        } catch {
-            toast.error("Failed to resend code. Please try again.");
+            await resendOtp(account.email);
+            toast.success("New verification code sent!");
+            setResendCooldown(RESEND_COOLDOWN_SECONDS);
+            setOtpCode(Array(OTP_LENGTH).fill(""));
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Failed to resend code");
         } finally {
             setIsSendingOtp(false);
         }
     };
+
 
     // ── Step Navigation ──
     const nextStep = async (e?: React.MouseEvent) => {
@@ -561,7 +516,7 @@ export default function RegisterPage() {
             // Validated by submit or skip
             if (validateStep(3)) {
                 // Send OTP and move to verification
-                const sent = await sendOtp();
+                const sent = await handleSendOtp();
                 if (sent) {
                     setSkippedAcademic(false);
                     setStep(4);
@@ -572,7 +527,7 @@ export default function RegisterPage() {
 
     const handleSkipAcademic = async () => {
         // Skip academic, send OTP, go to verification
-        const sent = await sendOtp();
+        const sent = await handleSendOtp();
         if (sent) {
             setSkippedAcademic(true);
             setStep(4);
@@ -777,7 +732,7 @@ export default function RegisterPage() {
                                             {resendCooldown > 0 ? (
                                                 <span className="text-gray-400 font-medium">Resend in {resendCooldown}s</span>
                                             ) : (
-                                                <button type="button" onClick={resendOtp} disabled={isSendingOtp}
+                                                <button type="button" onClick={handleResendOtp} disabled={isSendingOtp}
                                                     className="text-emerald-600 font-semibold hover:underline disabled:opacity-50">
                                                     {isSendingOtp ? "Sending..." : "Resend Code"}
                                                 </button>

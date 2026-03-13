@@ -1,243 +1,45 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { toast } from "sonner";
 import { ClipboardList, Library, AlertTriangle, Loader2 } from "lucide-react";
-import {
-    type Question,
-    type Survey,
-    fetchQuestions,
-    fetchSurvey,
-    createQuestion as apiCreateQuestion,
-    updateQuestion as apiUpdateQuestion,
-    deleteQuestion as apiDeleteQuestion,
-    fetchSurveys,
-    createSurvey as apiCreateSurvey,
-    updateSurvey as apiUpdateSurvey,
-    deleteSurvey as apiDeleteSurvey,
-    addQuestionsBatch,
-    removeQuestionFromSurvey,
-    reorderSurveyQuestions,
-} from "../../_lib/surveys";
+import { useSurveyManagement } from "./useSurveyManagement";
 import QuestionLibraryView from "./QuestionLibraryView";
 import QuestionModal from "./QuestionModal";
 import SurveysView from "./SurveysView";
 import SurveyModal from "./SurveyModal";
 
 export default function SurveyManagement() {
-    // --- Global State ---
-    const [activeTab, setActiveTab] = useState<'surveys' | 'library'>('surveys');
-    const [isLoading, setIsLoading] = useState(true);
-    const [isSaving, setIsSaving] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
-
-    // --- Survey State ---
-    const [surveys, setSurveys] = useState<Survey[]>([]);
-    const [isSurveyModalOpen, setIsSurveyModalOpen] = useState(false);
-    const [editingSurvey, setEditingSurvey] = useState<Survey | null>(null);
-
-    // --- Question Library State ---
-    const [questionBank, setQuestionBank] = useState<Question[]>([]);
-    const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
-    const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
-
-    // --- Delete Confirmation State ---
-    const [surveyToDelete, setSurveyToDelete] = useState<string | null>(null);
-    const [questionToDelete, setQuestionToDelete] = useState<string | null>(null);
-
-    // --- Load data from backend ---
-    const loadData = useCallback(async () => {
-        setIsLoading(true);
-        const [questionsResult, surveysResult] = await Promise.all([
-            fetchQuestions({ limit: 100 }),
-            fetchSurveys({ limit: 100 }),
-        ]);
-        setQuestionBank(questionsResult.questions);
-        setSurveys(surveysResult.surveys);
-        setIsLoading(false);
-    }, []);
-
-    useEffect(() => {
-        loadData();
-    }, [loadData]);
-
-    // --- Survey Handlers ---
-    const handleCreateSurvey = () => {
-        setEditingSurvey(null);
-        setIsSurveyModalOpen(true);
-    };
-
-    const handleEditSurvey = async (s: Survey) => {
-        // Fetch full survey with questions (list endpoint doesn't include them)
-        const fullSurvey = await fetchSurvey(s.survey_id);
-        setEditingSurvey(fullSurvey ?? s);
-        setIsSurveyModalOpen(true);
-    };
-
-    const handleDeleteSurveyClick = (id: string) => {
-        setSurveyToDelete(id);
-    };
-
-    const confirmDeleteSurvey = async () => {
-        if (surveyToDelete !== null) {
-            setIsDeleting(true);
-            const success = await apiDeleteSurvey(surveyToDelete);
-            if (success) {
-                toast.success("Survey deleted successfully.");
-                await loadData();
-            } else {
-                toast.error("Failed to delete survey.");
-            }
-            setIsDeleting(false);
-            setSurveyToDelete(null);
-        }
-    };
-
-    const handleSaveSurvey = async (sData: Omit<Survey, "survey_id" | "question_count">) => {
-        setIsSaving(true);
-        if (editingSurvey) {
-            // A1: Skip metadata PATCH if nothing changed
-            const metadataChanged =
-                sData.title !== editingSurvey.title ||
-                sData.description !== editingSurvey.description ||
-                sData.is_anonymous !== editingSurvey.is_anonymous ||
-                sData.allow_multiple_responses !== editingSurvey.allow_multiple_responses ||
-                sData.opens_at !== editingSurvey.opens_at ||
-                sData.closes_at !== editingSurvey.closes_at;
-
-            if (metadataChanged) {
-                const updated = await apiUpdateSurvey(editingSurvey.survey_id, {
-                    title: sData.title,
-                    description: sData.description,
-                    is_anonymous: sData.is_anonymous,
-                    allow_multiple_responses: sData.allow_multiple_responses,
-                    opens_at: sData.opens_at,
-                    closes_at: sData.closes_at,
-                });
-                if (!updated) {
-                    toast.error("Failed to update survey metadata.");
-                }
-            }
-
-            // 2. Sync questions: diff for add/remove, then reorder
-            const originalIds = new Set((editingSurvey.questions || []).map(q => q.question_id));
-            const newQuestions = sData.questions || [];
-            const newIds = new Set(newQuestions.map(q => q.question_id));
-
-            // A2: Parallelize deletes with Promise.all instead of serial await
-            const toRemove = [...originalIds].filter(id => !newIds.has(id));
-            if (toRemove.length > 0) {
-                await Promise.all(
-                    toRemove.map(qid => removeQuestionFromSurvey(editingSurvey.survey_id, qid))
-                );
-            }
-
-            // Add questions that are newly added by the user
-            const toAdd = newQuestions.filter(q => !originalIds.has(q.question_id));
-            if (toAdd.length > 0) {
-                const batch = toAdd.map((q) => ({
-                    question_id: q.question_id,
-                    order_index: newQuestions.indexOf(q) + 1,
-                }));
-                await addQuestionsBatch(editingSurvey.survey_id, batch);
-            }
-
-            // 3. Reorder all questions to match the new order
-            if (newQuestions.length > 0) {
-                const orderMap: Record<string, number> = {};
-                newQuestions.forEach((q, idx) => {
-                    orderMap[q.question_id] = idx + 1;
-                });
-                await reorderSurveyQuestions(editingSurvey.survey_id, orderMap);
-            }
-
-            // A3: Optimistic state update instead of full loadData()
-            // Re-fetch only the updated survey for accuracy
-            const refreshed = await fetchSurveys({ limit: 100 });
-            setSurveys(refreshed.surveys);
-            toast.success("Survey updated successfully.");
-            setIsSurveyModalOpen(false);
-        } else {
-            // Create new survey (DRAFT), then attach questions if any
-            const created = await apiCreateSurvey({
-                title: sData.title,
-                description: sData.description,
-                is_anonymous: sData.is_anonymous,
-                allow_multiple_responses: sData.allow_multiple_responses,
-                opens_at: sData.opens_at,
-                closes_at: sData.closes_at,
-            });
-
-            if (created && sData.questions && sData.questions.length > 0) {
-                const batch = sData.questions.map((q, idx) => ({
-                    question_id: q.question_id,
-                    order_index: idx + 1,
-                }));
-                await addQuestionsBatch(created.survey_id, batch);
-            } else if (!created) {
-                toast.error("Failed to create survey.");
-            }
-            if (created) {
-                toast.success("Survey created successfully.");
-            }
-            // For create, do full reload (new survey + question count needs refreshing)
-            await loadData();
-            setIsSurveyModalOpen(false);
-        }
-        setIsSaving(false);
-    };
-
-    // --- Question Library Handlers ---
-    const handleCreateQuestion = () => {
-        setEditingQuestion(null);
-        setIsQuestionModalOpen(true);
-    };
-
-    const handleEditQuestion = (q: Question) => {
-        setEditingQuestion(q);
-        setIsQuestionModalOpen(true);
-    };
-
-    const handleDeleteQuestionClick = (id: string) => {
-        setQuestionToDelete(id);
-    };
-
-    const confirmDeleteQuestion = async () => {
-        if (questionToDelete !== null) {
-            setIsDeleting(true);
-            const success = await apiDeleteQuestion(questionToDelete);
-            if (success) {
-                toast.success("Question deleted successfully.");
-                await loadData();
-            } else {
-                toast.error("Failed to delete question.");
-            }
-            setIsDeleting(false);
-            setQuestionToDelete(null);
-        }
-    };
-
-    const handleSaveQuestion = async (qData: Omit<Question, "question_id">) => {
-        setIsSaving(true);
-        if (editingQuestion) {
-            const updated = await apiUpdateQuestion(editingQuestion.question_id, qData);
-            if (updated) {
-                toast.success("Question updated successfully.");
-            } else {
-                toast.error("Failed to update question.");
-            }
-        } else {
-            const created = await apiCreateQuestion(qData);
-            if (created) {
-                toast.success("Question created successfully.");
-            } else {
-                toast.error("Failed to create question.");
-            }
-        }
-        await loadData();
-        setIsSaving(false);
-        setIsQuestionModalOpen(false);
-    };
+    const {
+        // State
+        activeTab,
+        setActiveTab,
+        isLoading,
+        isSaving,
+        isDeleting,
+        surveys,
+        questionBank,
+        isSurveyModalOpen,
+        isQuestionModalOpen,
+        editingSurvey,
+        editingQuestion,
+        surveyToDelete,
+        questionToDelete,
+        
+        // Handlers
+        handleCreateSurvey,
+        handleEditSurvey,
+        handleDeleteSurveyClick,
+        confirmDeleteSurvey,
+        handleSaveSurvey,
+        handleCreateQuestion,
+        handleEditQuestion,
+        handleDeleteQuestionClick,
+        confirmDeleteQuestion,
+        handleSaveQuestion,
+        setIsSurveyModalOpen,
+        setIsQuestionModalOpen,
+        setSurveyToDelete,
+        setQuestionToDelete,
+    } = useSurveyManagement();
 
     return (
         <div className="space-y-6">

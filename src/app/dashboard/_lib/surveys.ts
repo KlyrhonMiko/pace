@@ -1,7 +1,9 @@
 "use client";
 
+import { apiFetch } from "@/lib/api-client";
+
 // ---------------------------------------------------------------------------
-// Survey & Question types — matches backend schemas exactly
+// Survey & Question types
 // ---------------------------------------------------------------------------
 
 export type QuestionType =
@@ -20,7 +22,7 @@ export interface Question {
     question_text: string;
     question_type: QuestionType;
     is_required: boolean;
-    options?: string;        // JSON string from backend, parse with JSON.parse() for rendering
+    options?: string;
     scale_min?: number;
     scale_max?: number;
     scale_label_min?: string;
@@ -50,10 +52,6 @@ export interface SurveyQuestionWithDetails {
     question: Question;
 }
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
 export const QUESTION_TYPES = [
     { value: 'MULTIPLE_CHOICE', label: 'Multiple Choice (Single Answer)' },
     { value: 'MULTI_SELECT', label: 'Checkboxes (Multiple Answers)' },
@@ -66,37 +64,20 @@ export const QUESTION_TYPES = [
 
 export const SURVEY_STATUSES = ['DRAFT', 'ACTIVE', 'CLOSED', 'ARCHIVED'];
 
-// ---------------------------------------------------------------------------
-// API configuration
-// ---------------------------------------------------------------------------
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-// ---------------------------------------------------------------------------
-// Question API functions
-// ---------------------------------------------------------------------------
-
 export async function fetchQuestions(params?: {
     skip?: number;
     limit?: number;
     search?: string;
     question_type?: string;
 }): Promise<{ questions: Question[]; total: number }> {
+    const searchParams = new URLSearchParams();
+    searchParams.set("skip", String(params?.skip ?? 0));
+    searchParams.set("limit", String(params?.limit ?? 100));
+    if (params?.search) searchParams.set("search", params.search);
+    if (params?.question_type) searchParams.set("question_type", params.question_type);
+
     try {
-        const searchParams = new URLSearchParams();
-        searchParams.set("skip", String(params?.skip ?? 0));
-        searchParams.set("limit", String(params?.limit ?? 100));
-        if (params?.search) searchParams.set("search", params.search);
-        if (params?.question_type) searchParams.set("question_type", params.question_type);
-
-        const res = await fetch(`${API_BASE_URL}/questions?${searchParams}`, {
-            method: "GET",
-            headers: { "Content-Type": "application/json" },
-        });
-
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-
+        const json = await apiFetch<any>(`/questions?${searchParams}`);
         if (json.success && json.data) {
             return {
                 questions: json.data.questions ?? [],
@@ -110,30 +91,12 @@ export async function fetchQuestions(params?: {
     }
 }
 
-export async function createQuestion(data: {
-    question_text: string;
-    question_type: QuestionType;
-    is_required: boolean;
-    options?: string;
-    scale_min?: number;
-    scale_max?: number;
-    scale_label_min?: string;
-    scale_label_max?: string;
-    placeholder?: string;
-}): Promise<Question | null> {
+export async function createQuestion(data: any): Promise<Question | null> {
     try {
-        const res = await fetch(`${API_BASE_URL}/questions`, {
+        const json = await apiFetch<any>("/questions", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(data),
+            body: data,
         });
-
-        if (!res.ok) {
-            const err = await res.json().catch(() => null);
-            console.error("Create question failed:", err);
-            return null;
-        }
-        const json = await res.json();
         return json.success ? json.data : null;
     } catch (error) {
         console.error("Failed to create question:", error);
@@ -141,33 +104,12 @@ export async function createQuestion(data: {
     }
 }
 
-export async function updateQuestion(
-    questionId: string,
-    data: Partial<{
-        question_text: string;
-        question_type: QuestionType;
-        is_required: boolean;
-        options: string;
-        scale_min: number;
-        scale_max: number;
-        scale_label_min: string;
-        scale_label_max: string;
-        placeholder: string;
-    }>
-): Promise<Question | null> {
+export async function updateQuestion(questionId: string, data: any): Promise<Question | null> {
     try {
-        const res = await fetch(`${API_BASE_URL}/questions/${questionId}`, {
+        const json = await apiFetch<any>(`/questions/${questionId}`, {
             method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(data),
+            body: data,
         });
-
-        if (!res.ok) {
-            const err = await res.json().catch(() => null);
-            console.error("Update question failed:", err);
-            return null;
-        }
-        const json = await res.json();
         return json.success ? json.data : null;
     } catch (error) {
         console.error("Failed to update question:", error);
@@ -177,12 +119,9 @@ export async function updateQuestion(
 
 export async function deleteQuestion(questionId: string): Promise<boolean> {
     try {
-        const res = await fetch(`${API_BASE_URL}/questions/${questionId}`, {
+        const json = await apiFetch<any>(`/questions/${questionId}`, {
             method: "DELETE",
-            headers: { "Content-Type": "application/json" },
         });
-        if (!res.ok) return false;
-        const json = await res.json();
         return json.success === true;
     } catch (error) {
         console.error("Failed to delete question:", error);
@@ -190,31 +129,20 @@ export async function deleteQuestion(questionId: string): Promise<boolean> {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Survey API functions
-// ---------------------------------------------------------------------------
-
 export async function fetchSurveys(params?: {
     skip?: number;
     limit?: number;
     search?: string;
     status?: string;
 }): Promise<{ surveys: Survey[]; total: number }> {
+    const searchParams = new URLSearchParams();
+    searchParams.set("skip", String(params?.skip ?? 0));
+    searchParams.set("limit", String(params?.limit ?? 100));
+    if (params?.search) searchParams.set("search", params.search);
+    if (params?.status) searchParams.set("status", params.status);
+
     try {
-        const searchParams = new URLSearchParams();
-        searchParams.set("skip", String(params?.skip ?? 0));
-        searchParams.set("limit", String(params?.limit ?? 100));
-        if (params?.search) searchParams.set("search", params.search);
-        if (params?.status) searchParams.set("status", params.status);
-
-        const res = await fetch(`${API_BASE_URL}/surveys?${searchParams}`, {
-            method: "GET",
-            headers: { "Content-Type": "application/json" },
-        });
-
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-
+        const json = await apiFetch<any>(`/surveys?${searchParams}`);
         if (json.success && json.data) {
             return {
                 surveys: json.data.surveys ?? [],
@@ -230,14 +158,7 @@ export async function fetchSurveys(params?: {
 
 export async function fetchSurvey(surveyId: string): Promise<Survey | null> {
     try {
-        const res = await fetch(`${API_BASE_URL}/surveys/${surveyId}`, {
-            method: "GET",
-            headers: { "Content-Type": "application/json" },
-        });
-
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-
+        const json = await apiFetch<any>(`/surveys/${surveyId}`);
         if (json.success && json.data) {
             const data = json.data;
             // Unwrap SurveyQuestionWithDetails → flat Question[]
@@ -255,27 +176,12 @@ export async function fetchSurvey(surveyId: string): Promise<Survey | null> {
     }
 }
 
-export async function createSurvey(data: {
-    title: string;
-    description?: string;
-    is_anonymous?: boolean;
-    allow_multiple_responses?: boolean;
-    opens_at?: string | null;
-    closes_at?: string | null;
-}): Promise<Survey | null> {
+export async function createSurvey(data: any): Promise<Survey | null> {
     try {
-        const res = await fetch(`${API_BASE_URL}/surveys`, {
+        const json = await apiFetch<any>("/surveys", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(data),
+            body: data,
         });
-
-        if (!res.ok) {
-            const err = await res.json().catch(() => null);
-            console.error("Create survey failed:", err);
-            return null;
-        }
-        const json = await res.json();
         return json.success ? json.data : null;
     } catch (error) {
         console.error("Failed to create survey:", error);
@@ -283,30 +189,12 @@ export async function createSurvey(data: {
     }
 }
 
-export async function updateSurvey(
-    surveyId: string,
-    data: Partial<{
-        title: string;
-        description: string;
-        is_anonymous: boolean;
-        allow_multiple_responses: boolean;
-        opens_at: string | null;
-        closes_at: string | null;
-    }>
-): Promise<Survey | null> {
+export async function updateSurvey(surveyId: string, data: any): Promise<Survey | null> {
     try {
-        const res = await fetch(`${API_BASE_URL}/surveys/${surveyId}`, {
+        const json = await apiFetch<any>(`/surveys/${surveyId}`, {
             method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(data),
+            body: data,
         });
-
-        if (!res.ok) {
-            const err = await res.json().catch(() => null);
-            console.error("Update survey failed:", err);
-            return null;
-        }
-        const json = await res.json();
         return json.success ? json.data : null;
     } catch (error) {
         console.error("Failed to update survey:", error);
@@ -316,12 +204,9 @@ export async function updateSurvey(
 
 export async function deleteSurvey(surveyId: string): Promise<boolean> {
     try {
-        const res = await fetch(`${API_BASE_URL}/surveys/${surveyId}`, {
+        const json = await apiFetch<any>(`/surveys/${surveyId}`, {
             method: "DELETE",
-            headers: { "Content-Type": "application/json" },
         });
-        if (!res.ok) return false;
-        const json = await res.json();
         return json.success === true;
     } catch (error) {
         console.error("Failed to delete survey:", error);
@@ -329,18 +214,11 @@ export async function deleteSurvey(surveyId: string): Promise<boolean> {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Survey status transitions
-// ---------------------------------------------------------------------------
-
 export async function publishSurvey(surveyId: string): Promise<Survey | null> {
     try {
-        const res = await fetch(`${API_BASE_URL}/surveys/${surveyId}/publish`, {
+        const json = await apiFetch<any>(`/surveys/${surveyId}/publish`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
         });
-        if (!res.ok) return null;
-        const json = await res.json();
         return json.success ? json.data : null;
     } catch (error) {
         console.error("Failed to publish survey:", error);
@@ -350,12 +228,9 @@ export async function publishSurvey(surveyId: string): Promise<Survey | null> {
 
 export async function closeSurvey(surveyId: string): Promise<Survey | null> {
     try {
-        const res = await fetch(`${API_BASE_URL}/surveys/${surveyId}/close`, {
+        const json = await apiFetch<any>(`/surveys/${surveyId}/close`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
         });
-        if (!res.ok) return null;
-        const json = await res.json();
         return json.success ? json.data : null;
     } catch (error) {
         console.error("Failed to close survey:", error);
@@ -365,12 +240,9 @@ export async function closeSurvey(surveyId: string): Promise<Survey | null> {
 
 export async function reopenSurvey(surveyId: string): Promise<Survey | null> {
     try {
-        const res = await fetch(`${API_BASE_URL}/surveys/${surveyId}/reopen`, {
+        const json = await apiFetch<any>(`/surveys/${surveyId}/reopen`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
         });
-        if (!res.ok) return null;
-        const json = await res.json();
         return json.success ? json.data : null;
     } catch (error) {
         console.error("Failed to reopen survey:", error);
@@ -378,18 +250,9 @@ export async function reopenSurvey(surveyId: string): Promise<Survey | null> {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Survey-Question association
-// ---------------------------------------------------------------------------
-
 export async function fetchSurveyQuestions(surveyId: string): Promise<SurveyQuestionWithDetails[]> {
     try {
-        const res = await fetch(`${API_BASE_URL}/surveys/${surveyId}/questions`, {
-            method: "GET",
-            headers: { "Content-Type": "application/json" },
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
+        const json = await apiFetch<any>(`/surveys/${surveyId}/questions`);
         if (json.success && json.data) {
             return json.data.questions ?? [];
         }
@@ -405,13 +268,10 @@ export async function addQuestionsBatch(
     questions: { question_id: string; order_index?: number }[]
 ): Promise<boolean> {
     try {
-        const res = await fetch(`${API_BASE_URL}/surveys/${surveyId}/questions/batch`, {
+        const json = await apiFetch<any>(`/surveys/${surveyId}/questions/batch`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(questions),
+            body: questions,
         });
-        if (!res.ok) return false;
-        const json = await res.json();
         return json.success === true;
     } catch (error) {
         console.error("Failed to add questions batch:", error);
@@ -424,12 +284,9 @@ export async function removeQuestionFromSurvey(
     questionId: string
 ): Promise<boolean> {
     try {
-        const res = await fetch(`${API_BASE_URL}/surveys/${surveyId}/questions/${questionId}`, {
+        const json = await apiFetch<any>(`/surveys/${surveyId}/questions/${questionId}`, {
             method: "DELETE",
-            headers: { "Content-Type": "application/json" },
         });
-        if (!res.ok) return false;
-        const json = await res.json();
         return json.success === true;
     } catch (error) {
         console.error("Failed to remove question from survey:", error);
@@ -439,19 +296,110 @@ export async function removeQuestionFromSurvey(
 
 export async function reorderSurveyQuestions(
     surveyId: string,
-    orderMap: Record<string, number> // { question_id: new_order_index }
+    orderMap: Record<string, number>
 ): Promise<boolean> {
     try {
-        const res = await fetch(`${API_BASE_URL}/surveys/${surveyId}/questions/reorder`, {
+        const json = await apiFetch<any>(`/surveys/${surveyId}/questions/reorder`, {
             method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ order_map: orderMap }),
+            body: { order_map: orderMap },
         });
-        if (!res.ok) return false;
-        const json = await res.json();
         return json.success === true;
     } catch (error) {
         console.error("Failed to reorder survey questions:", error);
         return false;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// High-level Workflows (Orchestration)
+// ---------------------------------------------------------------------------
+
+/**
+ * Orchestrates saving/updating a survey including metadata and question syncing.
+ */
+export async function saveSurveyWorkflow(
+    editingSurvey: Survey | null,
+    sData: Omit<Survey, "survey_id" | "question_count">
+): Promise<{ success: boolean; survey?: Survey }> {
+    try {
+        if (editingSurvey) {
+            // 1. Update metadata if changed
+            const metadataChanged =
+                sData.title !== editingSurvey.title ||
+                sData.description !== editingSurvey.description ||
+                sData.is_anonymous !== editingSurvey.is_anonymous ||
+                sData.allow_multiple_responses !== editingSurvey.allow_multiple_responses ||
+                sData.opens_at !== editingSurvey.opens_at ||
+                sData.closes_at !== editingSurvey.closes_at;
+
+            if (metadataChanged) {
+                const updated = await updateSurvey(editingSurvey.survey_id, {
+                    title: sData.title,
+                    description: sData.description,
+                    is_anonymous: sData.is_anonymous,
+                    allow_multiple_responses: sData.allow_multiple_responses,
+                    opens_at: sData.opens_at,
+                    closes_at: sData.closes_at,
+                });
+                if (!updated) return { success: false };
+            }
+
+            // 2. Sync questions: diff for add/remove
+            const originalIds = new Set((editingSurvey.questions || []).map(q => q.question_id));
+            const newQuestions = sData.questions || [];
+            const newIds = new Set(newQuestions.map(q => q.question_id));
+
+            // Deletes
+            const toRemove = [...originalIds].filter(id => !newIds.has(id));
+            if (toRemove.length > 0) {
+                await Promise.all(
+                    toRemove.map(qid => removeQuestionFromSurvey(editingSurvey.survey_id, qid))
+                );
+            }
+
+            // Adds
+            const toAdd = newQuestions.filter(q => !originalIds.has(q.question_id));
+            if (toAdd.length > 0) {
+                const batch = toAdd.map((q) => ({
+                    question_id: q.question_id,
+                    order_index: newQuestions.indexOf(q) + 1,
+                }));
+                await addQuestionsBatch(editingSurvey.survey_id, batch);
+            }
+
+            // 3. Reorder all to match the new UI order
+            if (newQuestions.length > 0) {
+                const orderMap: Record<string, number> = {};
+                newQuestions.forEach((q, idx) => {
+                    orderMap[q.question_id] = idx + 1;
+                });
+                await reorderSurveyQuestions(editingSurvey.survey_id, orderMap);
+            }
+
+            return { success: true };
+        } else {
+            // Create new survey
+            const created = await createSurvey({
+                title: sData.title,
+                description: sData.description,
+                is_anonymous: sData.is_anonymous,
+                allow_multiple_responses: sData.allow_multiple_responses,
+                opens_at: sData.opens_at,
+                closes_at: sData.closes_at,
+            });
+
+            if (created && sData.questions && sData.questions.length > 0) {
+                const batch = sData.questions.map((q, idx) => ({
+                    question_id: q.question_id,
+                    order_index: idx + 1,
+                }));
+                await addQuestionsBatch(created.survey_id, batch);
+            }
+
+            return { success: !!created, survey: created || undefined };
+        }
+    } catch (error) {
+        console.error("Workflow failed:", error);
+        return { success: false };
     }
 }

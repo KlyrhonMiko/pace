@@ -7,20 +7,21 @@ interface ApiOptions extends RequestInit {
 export async function apiFetch<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
   const { body, ...customConfig } = options;
   
-  const headers = {
-    "Content-Type": "application/json",
-    ...customConfig.headers,
-  } as Record<string, string>;
+  const headers = { ...customConfig.headers } as Record<string, string>;
 
   const config: RequestInit = {
     ...customConfig,
-    headers,
   };
 
   if (body) {
-    config.body = JSON.stringify(body);
+    if (body instanceof FormData) {
+      config.body = body;
+    } else {
+      headers["Content-Type"] = "application/json";
+      config.body = JSON.stringify(body);
+    }
   }
-
+  config.headers = headers;
   const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
   
   let data: any;

@@ -8,30 +8,38 @@ import UpcomingEvents from "@/app/dashboard/alumni/events/_components/UpcomingEv
 import RecentActivity from "@/app/dashboard/alumni/_components/RecentActivity";
 import { cookies } from "next/headers";
 import { getLatestPrediction, fetchDemoPrediction } from "@/app/dashboard/alumni/_lib/api";
+import { getMyProfile } from "@/app/dashboard/alumni/profile/_lib/api";
 
 export default async function AlumniDashboard() {
     // 1. Get the session token from cookies
     const cookieStore = await cookies();
-    const token = cookieStore.get('sb-access-token')?.value;
+    const token = cookieStore.get('token')?.value;
 
-    // 2. Fetch the latest employability prediction using the token
+    // 2. Fetch the latest employability prediction and profile data
     let predictionData = null;
     let isDemoData = false;
+    let profileData = null;
 
     if (token) {
-        predictionData = await getLatestPrediction(token);
+        // Parallel fetch for better performance
+        const [prediction, profile] = await Promise.all([
+            getLatestPrediction(token),
+            getMyProfile(token)
+        ]);
+        predictionData = prediction;
+        profileData = profile;
     }
 
     // 3. Fallback to demo prediction if no data exists
     if (!predictionData) {
-        predictionData = await fetchDemoPrediction();
+        predictionData = await fetchDemoPrediction(token);
         isDemoData = true;
     }
 
     return (
         <div className="space-y-5">
             {/* Hero */}
-            <DashboardHeader />
+            <DashboardHeader profile={profileData} />
 
             {/* Employability Score & Stats */}
             <div className="grid gap-5 lg:grid-cols-4">
@@ -50,7 +58,7 @@ export default async function AlumniDashboard() {
 
                 {/* Right Column */}
                 <div className="flex flex-col gap-5 h-full">
-                    <ProfileStrength />
+                    <ProfileStrength percentage={profileData?.profile_completeness} />
                     <QuickActions className="flex-1" />
                 </div>
             </div>

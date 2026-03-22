@@ -1,7 +1,9 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv("../.env.local")
+# Load environment variables from the project root's .env.local
+env_path = os.path.join(os.path.dirname(__file__), "../../.env.local")
+load_dotenv(env_path)
 
 
 class Settings:

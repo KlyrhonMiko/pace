@@ -277,6 +277,54 @@ def get_all_alumni_including_deleted(
     )
 
 
+@router.get("/me", response_model=StandardResponse)
+def get_my_alumni_profile(
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
+):
+    """Get the current authenticated user's alumni profile"""
+    if current_user.user_type != UserType.USER.value:
+        raise HTTPException(
+            status_code=403,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.FORBIDDEN.value,
+                message="Only alumni can access this endpoint"
+            ).model_dump(mode='json')
+        )
+
+    if not current_user.user_code:
+        raise HTTPException(
+            status_code=404,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.ALUMNI_NOT_FOUND.value,
+                message="Alumni profile link not found"
+            ).model_dump(mode='json')
+        )
+
+    # Use the new query service
+    from services.queries.alumni_queries import get_alumni_by_user_code
+    alumni = get_alumni_by_user_code(session, str(current_user.user_code))
+    
+    if not alumni:
+        raise HTTPException(
+            status_code=404,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.ALUMNI_NOT_FOUND.value,
+                message="Alumni profile not found"
+            ).model_dump(mode='json')
+        )
+
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.ALUMNI_RETRIEVED.value,
+        message="Alumni profile retrieved successfully",
+        data=build_full_profile(session, alumni)
+    )
+
+
 # ---------------------------------------------------------------------------
 # Single-record endpoints
 # ---------------------------------------------------------------------------

@@ -7,7 +7,8 @@ from schemas.dashboard import AdminDashboardStats, FacultyDashboardStats, Alumni
 from services.queries.dashboard_queries import (
     get_admin_dashboard_stats,
     get_faculty_dashboard_stats,
-    get_alumni_dashboard_stats
+    get_alumni_dashboard_stats,
+    get_alumni_recent_activity
 )
 from utils.rbac import require_admin, require_staff_or_admin, require_authenticated
 
@@ -53,4 +54,19 @@ def get_alumni_stats(
         code=SuccessCode.USERS_RETRIEVED.value,
         message="Alumni statistics retrieved successfully",
         data=AlumniDashboardStats(**stats)
+    )
+
+@router.get("/alumni/activity", response_model=StandardResponse)
+def get_alumni_activity(
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
+    limit: int = 5
+):
+    """Get recent activity for the current alumni"""
+    activity = get_alumni_recent_activity(session, current_user.user_code, limit)
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.USERS_RETRIEVED.value,
+        message="Alumni activity retrieved successfully",
+        data=activity
     )

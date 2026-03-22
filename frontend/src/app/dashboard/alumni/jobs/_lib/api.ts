@@ -1,6 +1,7 @@
 /**
  * API client for job search using the Jooble API through our backend
  */
+import { apiFetch } from "@/lib/api-client";
 
 const API_BASE_URL = "http://localhost:8000";
 
@@ -49,7 +50,7 @@ export interface JobSearchParams {
 /**
  * Search for jobs using the Jooble API through the backend
  */
-export async function searchJobs(params: JobSearchParams = {}): Promise<JobSearchResponse> {
+export async function searchJobs(params: JobSearchParams = {}, token?: string): Promise<JobSearchResponse> {
     const searchParams = new URLSearchParams();
 
     if (params.keywords) searchParams.set("keywords", params.keywords);
@@ -63,21 +64,19 @@ export async function searchJobs(params: JobSearchParams = {}): Promise<JobSearc
     if (params.has_salary) searchParams.set("has_salary", "true");
 
     try {
-        const response = await fetch(
-            `${API_BASE_URL}/jobs/search?${searchParams.toString()}`,
-            {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            }
-        );
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+        const requestHeaders: Record<string, string> = { "Content-Type": "application/json" };
+        if (authToken) {
+            requestHeaders["Authorization"] = `Bearer ${authToken}`;
         }
 
-        const data: JobSearchResponse = await response.json();
+        const data = await apiFetch<JobSearchResponse>(
+            `/jobs/search?${searchParams.toString()}`,
+            {
+                method: "GET",
+                headers: requestHeaders,
+            }
+        );
         return data;
     } catch (error) {
         console.error("Failed to fetch jobs:", error);
@@ -92,13 +91,17 @@ export async function searchJobs(params: JobSearchParams = {}): Promise<JobSearc
 /**
  * Get recommended jobs
  */
-export async function getRecommendedJobs(limit: number = 3): Promise<JoobleJob[]> {
+export async function getRecommendedJobs(limit: number = 3, token?: string): Promise<JoobleJob[]> {
     try {
-        const response = await fetch(`${API_BASE_URL}/jobs/recommended?limit=${limit}`);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+        const requestHeaders: Record<string, string> = { "Content-Type": "application/json" };
+        if (authToken) {
+            requestHeaders["Authorization"] = `Bearer ${authToken}`;
         }
-        return await response.json();
+
+        return await apiFetch<JoobleJob[]>(`/jobs/recommended?limit=${limit}`, {
+            headers: requestHeaders
+        });
     } catch (error) {
         console.error("Failed to fetch recommended jobs:", error);
         return [];

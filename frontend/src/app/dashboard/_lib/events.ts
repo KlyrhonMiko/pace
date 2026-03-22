@@ -142,6 +142,30 @@ export async function uploadEventImage(eventId: string, file: File): Promise<boo
     }
 }
 
+export async function registerEvent(eventId: string): Promise<boolean> {
+    try {
+        const json = await apiFetch<any>(`/events/${eventId}/register`, {
+            method: "POST",
+        });
+        return json.success === true;
+    } catch (error) {
+        console.error("Failed to register for event:", error);
+        return false;
+    }
+}
+
+export async function unregisterEvent(eventId: string): Promise<boolean> {
+    try {
+        const json = await apiFetch<any>(`/events/${eventId}/unregister`, {
+            method: "DELETE",
+        });
+        return json.success === true;
+    } catch (error) {
+        console.error("Failed to unregister from event:", error);
+        return false;
+    }
+}
+
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 

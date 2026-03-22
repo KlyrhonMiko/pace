@@ -81,7 +81,6 @@ def get_current_user(
         payload = decode_access_token(token)
         user_id = payload.get("user_id")
         user_type = payload.get("user_type")
-        user_code = payload.get("user_code")
 
         if not user_id or not user_type:
             raise HTTPException(
@@ -114,7 +113,11 @@ def get_current_user(
                 ).model_dump(mode="json"),
             )
 
-        return CurrentUser(user_id=user_id, user_type=user_type, user_code=user_code)
+        return CurrentUser(
+            user_id=user_id,
+            user_type=user_type,
+            user_code=str(db_user.user_code) if db_user.user_code else None
+        )
     except HTTPException:
         raise
     except ValueError as exc:

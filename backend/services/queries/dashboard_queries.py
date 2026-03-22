@@ -1,5 +1,4 @@
 from models.events import EventRegistration
-import uuid
 from sqlmodel import Session, select, func
 
 from models.users import User
@@ -60,17 +59,74 @@ def get_faculty_dashboard_stats(session: Session) -> dict:
         "referrals_sent": 23
     }
 
-def get_alumni_dashboard_stats(session: Session, user_code: uuid.UUID) -> dict:
+def get_alumni_dashboard_stats(session: Session, user_code: str) -> dict:
     """
     Fetch statistics specific to an alumni user.
     """
+    from models.student_records import StudentRecord
+    
+    # 1. Fetch data
     registered_events = session.exec(
         select(func.count(EventRegistration.registration_code))
         .where(EventRegistration.user_code == user_code)
     ).one()
+    
+    alumni = session.exec(select(Alumni).where(Alumni.user_code == user_code)).first()
+    student = None
+    if alumni:
+        student = session.exec(select(StudentRecord).where(StudentRecord.alumni_code == alumni.alumni_code)).first()
+        
+    # 2. Calculate completeness
+    completeness = 0
+    if alumni:
+        alumni_fields = [
+            alumni.first_name, alumni.last_name, alumni.gender,
+            alumni.age, alumni.birthdate, alumni.middle_name
+        ]
+        filled_alumni = sum(1 for f in alumni_fields if f is not None and f != "")
+        
+        student_fields = []
+        if student:
+            student_fields = [
+                student.student_id, student.year_graduated, student.gwa,
+                student.course_code, student.avg_prof_grade
+            ]
+        filled_student = sum(1 for f in student_fields if f is not None and f != "")
+        
+        total_fields = len(alumni_fields) + 5
+        total_filled = filled_alumni + filled_student
+        completeness = int((total_filled / total_fields) * 100) if total_fields > 0 else 0
+
     return {
-        "job_applications": 12,        # Placeholder
+        "job_applications": 0,         # Placeholder (Model not found)
         "registered_events": registered_events,
-        "upcoming_interviews": 2,      # Placeholder
-        "profile_completeness": 85     # Placeholder
+        "upcoming_interviews": 0,      # Placeholder (Model not found)
+        "profile_completeness": min(completeness, 100)
     }
+
+def get_alumni_recent_activity(session: Session, user_code: str, limit: int = 5) -> list[dict]:
+    """Get the most recent transaction logs for a specific alumni user."""
+    from models.transaction_logs import TransactionLog
+    
+    # 1. Get the user object to get the UUID (mapping to 'id' which is UUID)
+    user = session.exec(select(User).where(User.user_code == user_code)).first()
+    if not user:
+        return []
+        
+    # 2. Fetch logs performed by this user
+    logs = session.exec(
+        select(TransactionLog)
+        .where(TransactionLog.performed_by == user.user_code)
+        .order_by(TransactionLog.tl_date.desc())
+        .limit(limit)
+    ).all()
+    
+    return [
+        {
+            "id": log.tl_id,
+            "name": log.tl_name,
+            "date": log.tl_date.isoformat(),
+            "type": "update" if "UPDATE" in log.tl_name.upper() else "create" if "CREATE" in log.tl_name.upper() else "action"
+        }
+        for log in logs
+    ]

@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { User, Settings, Check, Pencil, ChevronRight, GraduationCap, CalendarDays, Lock, Clock, Info } from "lucide-react";
+import { User, Settings, Check, Pencil, ChevronRight, GraduationCap, CalendarDays, Lock, Clock, Info, Loader2 } from "lucide-react";
+import { getMyProfile, AlumniProfile } from "./_lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -241,10 +242,10 @@ function ReadOnlyField({
 export default function ProfilePage() {
     // ── Account Info ──
     const [account, setAccount] = useState<AccountInfo>({
-        username: "jdelacruz2024",
+        username: "",
         password: "",
         confirmPassword: "",
-        email: "juan.delacruz@plpasig.edu.ph",
+        email: "",
     });
     const [accountDraft, setAccountDraft] = useState<AccountInfo>(account);
     const [editingAccount, setEditingAccount] = useState(false);
@@ -252,30 +253,91 @@ export default function ProfilePage() {
 
     // ── Personal Info ──
     const [personal, setPersonal] = useState<PersonalInfo>({
-        lastname: "Dela Cruz",
-        firstname: "Juan",
-        middlename: "Santos",
-        gender: "Male",
-        birthdate: "2002-03-15",
-        age: computeAge("2002-03-15"),
+        lastname: "",
+        firstname: "",
+        middlename: "",
+        gender: "",
+        birthdate: "",
+        age: "—",
     });
     const [personalDraft, setPersonalDraft] = useState<PersonalInfo>(personal);
     const [editingPersonal, setEditingPersonal] = useState(false);
     const [personalSaved, setPersonalSaved] = useState(false);
 
     // ── Academic Info ──
-    const [academic] = useState<AcademicInfo>({
-        alumniId: "2020-12345-MN-0",
-        yearGraduated: "2024",
-        gwa: "1.50",
-        avgProfGrade: "1.45",
-        avgElecGrade: "1.52",
-        ojtGrade: "92.5",
-        leadershipPos: "President, BITS Organization",
-        activeMemberPos: "Member, ACM Student Chapter",
-        course: "BS Information Technology",
+    const [academic, setAcademic] = useState<AcademicInfo>({
+        alumniId: "",
+        yearGraduated: "",
+        gwa: "",
+        avgProfGrade: "",
+        avgElecGrade: "",
+        ojtGrade: "",
+        leadershipPos: "",
+        activeMemberPos: "",
+        course: "",
     });
     const [academicSkipped, setAcademicSkipped] = useState(false);
+
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    // ── Fetch Data ──
+    useEffect(() => {
+        async function fetchProfile() {
+            try {
+                const data = await getMyProfile();
+                if (data) {
+                    setAccount({
+                        username: data.username,
+                        password: "",
+                        confirmPassword: "",
+                        email: data.email,
+                    });
+                    setAccountDraft({
+                        username: data.username,
+                        password: "",
+                        confirmPassword: "",
+                        email: data.email,
+                    });
+                    setPersonal({
+                        lastname: data.last_name,
+                        firstname: data.first_name,
+                        middlename: data.middle_name || "",
+                        gender: data.gender,
+                        birthdate: data.birthdate || "",
+                        age: data.age,
+                    });
+                    setPersonalDraft({
+                        lastname: data.last_name,
+                        firstname: data.first_name,
+                        middlename: data.middle_name || "",
+                        gender: data.gender,
+                        birthdate: data.birthdate || "",
+                        age: data.age,
+                    });
+                    setAcademic({
+                        alumniId: data.alumni_id,
+                        yearGraduated: data.year_graduated?.toString() || "—",
+                        gwa: data.gwa?.toString() || "—",
+                        avgProfGrade: data.avg_prof_grade?.toString() || "—",
+                        avgElecGrade: data.avg_elec_grade?.toString() || "—",
+                        ojtGrade: data.ojt_grade?.toString() || "—",
+                        leadershipPos: data.leadership_pos ? "Yes" : "No",
+                        activeMemberPos: data.act_member_pos ? "Yes" : "No",
+                        course: data.course_name || "—",
+                    });
+                } else {
+                    setError("Could not load profile data.");
+                }
+            } catch (err) {
+                console.error("Profile fetch error:", err);
+                setError("An error occurred while loading your profile.");
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        fetchProfile();
+    }, []);
 
 
 
@@ -320,6 +382,33 @@ export default function ProfilePage() {
         `${personal.firstname?.[0] ?? ""}${personal.lastname?.[0] ?? ""}`.toUpperCase() || "—";
 
 
+
+    if (isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+                <Loader2 className="w-10 h-10 text-emerald-600 animate-spin" />
+                <p className="text-gray-500 font-medium animate-pulse">Loading profile...</p>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[400px] gap-4 text-center">
+                <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center">
+                    <Info className="w-8 h-8 text-red-500" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900">Error Loading Profile</h3>
+                <p className="text-gray-500 max-w-xs">{error}</p>
+                <button
+                    onClick={() => window.location.reload()}
+                    className="mt-2 text-emerald-700 font-semibold hover:underline"
+                >
+                    Try refreshing the page
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">

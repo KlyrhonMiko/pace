@@ -5,7 +5,7 @@ import EventFilters from "./_components/EventFilters";
 import EventList from "./_components/EventList";
 import EventsHeader from "./_components/EventsHeader";
 
-import { fetchEvents, fetchEventTypes, type Event } from "../../_lib/events";
+import { fetchEvents, fetchEventTypes, registerEvent, unregisterEvent, type Event } from "../../_lib/events";
 
 export default function EventsPage() {
     const [events, setEvents] = useState<Event[]>([]);
@@ -91,10 +91,56 @@ export default function EventsPage() {
         setCurrentPage(1);
     };
 
-    // Registration toggle — currently a no-op until auth is implemented
-    const handleToggleRegistration = (eventId: string) => {
-        // TODO: Wire to POST /events/{eventId}/register or DELETE once auth is implemented
-        console.log("Registration toggle for:", eventId, "(auth required)");
+    // Registration toggle with optimistic UI update
+    const handleToggleRegistration = async (eventId: string) => {
+        const event = events.find((e) => e.event_id === eventId);
+        if (!event) return;
+
+        const isCurrentlyRegistered = event.is_registered;
+
+        // Optimistic UI update
+        setEvents((prevEvents) =>
+            prevEvents.map((e) => {
+                if (e.event_id === eventId) {
+                    return {
+                        ...e,
+                        is_registered: !isCurrentlyRegistered,
+                        attendees: isCurrentlyRegistered 
+                            ? Math.max(0, e.attendees - 1) 
+                            : e.attendees + 1,
+                    };
+                }
+                return e;
+            })
+        );
+
+        // API call
+        let success = false;
+        if (isCurrentlyRegistered) {
+            success = await unregisterEvent(eventId);
+        } else {
+            success = await registerEvent(eventId);
+        }
+
+        // Revert on failure
+        if (!success) {
+            setEvents((prevEvents) =>
+                prevEvents.map((e) => {
+                    if (e.event_id === eventId) {
+                        return {
+                            ...e,
+                            is_registered: isCurrentlyRegistered,
+                            attendees: isCurrentlyRegistered 
+                                ? e.attendees + 1 
+                                : Math.max(0, e.attendees - 1),
+                        };
+                    }
+                    return e;
+                })
+            );
+            console.error("Failed to toggle event registration");
+            // Optionally, we could show a toast error here
+        }
     };
 
     if (isLoading) {

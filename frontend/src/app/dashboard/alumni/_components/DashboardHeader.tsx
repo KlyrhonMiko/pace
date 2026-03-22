@@ -1,6 +1,20 @@
 "use client";
 
-export default function DashboardHeader() {
+interface DashboardHeaderProps {
+    profile?: {
+        first_name: string;
+        last_name: string;
+        profile_completeness?: number;
+    } | null;
+}
+
+export default function DashboardHeader({ profile }: DashboardHeaderProps) {
+    const firstName = profile?.first_name || "Alumni";
+    const lastName = profile?.last_name || "";
+    const fullName = `${firstName} ${lastName}`.trim();
+    const initials = `${firstName[0] || ""}${lastName[0] || ""}`.toUpperCase() || "??";
+    const completeness = profile?.profile_completeness ?? 0;
+
     return (
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-800 via-emerald-700 to-teal-500 p-6 lg:p-8 text-white">
             {/* Decorative mesh */}
@@ -27,24 +41,25 @@ export default function DashboardHeader() {
                                 cx="40" cy="40" r="34" fill="none"
                                 stroke="white" strokeWidth="5"
                                 strokeLinecap="round"
-                                strokeDasharray={`${0.75 * 2 * Math.PI * 34} ${2 * Math.PI * 34}`}
+                                strokeDasharray={`${(completeness / 100) * 2 * Math.PI * 34} ${2 * Math.PI * 34}`}
+                                className="transition-all duration-1000"
                             />
                         </svg>
                         <div className="absolute inset-0 flex items-center justify-center">
                             <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-lg font-bold">
-                                JD
+                                {initials}
                             </div>
                         </div>
                         <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white text-emerald-800 flex items-center justify-center text-[10px] font-bold shadow-lg">
-                            75%
+                            {completeness}%
                         </div>
                     </div>
 
                     <div>
-                        <p className="text-emerald-100 text-sm font-medium">Good morning,</p>
-                        <h1 className="text-2xl lg:text-3xl font-bold tracking-tight mt-0.5">Juan Dela Cruz</h1>
+                        <p className="text-emerald-100 text-sm font-medium italic">Welcome back,</p>
+                        <h1 className="text-2xl lg:text-3xl font-bold tracking-tight mt-0.5">{fullName}</h1>
                         <p className="text-emerald-100/80 text-sm mt-1.5 max-w-md">
-                            Your career journey is on track. Complete your profile to unlock more opportunities.
+                            Your career journey is on track. {completeness < 100 ? "Complete your profile to unlock more opportunities." : "Your profile is fully optimized."}
                         </p>
                     </div>
                 </div>

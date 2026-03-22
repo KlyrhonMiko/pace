@@ -10,7 +10,7 @@ function getApiBaseUrl(): string {
     return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 }
 
-// ── Response types ─────────────────────────────────────────────
+import { apiFetch } from "@/lib/api-client";
 
 export interface RealisticAssessment {
     prediction: "Employable" | "Not Employable";
@@ -52,22 +52,15 @@ export async function getLatestPrediction(
         const API_BASE_URL = getApiBaseUrl();
         const headers: HeadersInit = { "Content-Type": "application/json" };
         
-        if (token) {
-            headers["Authorization"] = `Bearer ${token}`;
+        const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+        const requestHeaders: Record<string, string> = { "Content-Type": "application/json" };
+        if (authToken) {
+            requestHeaders["Authorization"] = `Bearer ${authToken}`;
         }
 
-        const url = `${API_BASE_URL}/predict/employability/me?limit=1`;
-        
-        const response = await fetch(url, {
-            method: "GET",
-            headers,
+        const json = await apiFetch<any>("/predict/employability/me?limit=1", {
+            headers: requestHeaders
         });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const json = await response.json();
 
         if (json.success && json.data && json.data.length > 0) {
             const latest = json.data[0];
@@ -89,7 +82,7 @@ export async function getLatestPrediction(
 /**
  * Fetch a demo prediction using a sample payload.
  */
-export async function fetchDemoPrediction(): Promise<EmployabilityResult | null> {
+export async function fetchDemoPrediction(token?: string): Promise<EmployabilityResult | null> {
     const demoPayload = {
         cgpa: 1.5,
         average_prof_grade: 92.5,
@@ -117,18 +110,17 @@ export async function fetchDemoPrediction(): Promise<EmployabilityResult | null>
     };
 
     try {
-        const API_BASE_URL = getApiBaseUrl();
-        const response = await fetch(`${API_BASE_URL}/predict/employability`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(demoPayload),
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+        const requestHeaders: Record<string, string> = { "Content-Type": "application/json" };
+        if (authToken) {
+            requestHeaders["Authorization"] = `Bearer ${authToken}`;
         }
 
-        const json = await response.json();
+        const json = await apiFetch<any>("/predict/employability", {
+            method: "POST",
+            headers: requestHeaders,
+            body: demoPayload,
+        });
 
         if (json.success && json.data) {
             // Note: POST returns the new prediction in json.data as an object (not an array like GET)

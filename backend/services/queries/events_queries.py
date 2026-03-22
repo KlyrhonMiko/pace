@@ -347,7 +347,9 @@ def get_event_registrants(
     query = (
         select(EventRegistration, Alumni, StudentRecord)
         .join(Alumni, Alumni.user_code == EventRegistration.user_code, isouter=True)
-        .join(StudentRecord, StudentRecord.alumni_code == Alumni.alumni_code, isouter=True)
+        .join(
+            StudentRecord, StudentRecord.alumni_code == Alumni.alumni_code, isouter=True
+        )
         .where(EventRegistration.event_code == event.event_code)
         .where(EventRegistration.is_deleted == False)
         .order_by(EventRegistration.registered_at.desc())
@@ -372,7 +374,9 @@ def get_event_registrants(
                 first_name=alumni.first_name if alumni else None,
                 middle_name=alumni.middle_name if alumni else None,
                 student_id=student_record.student_id if student_record else None,
-                year_graduated=student_record.year_graduated if student_record else None,
+                year_graduated=student_record.year_graduated
+                if student_record
+                else None,
                 registered_at=registration.registered_at,
             )
         )

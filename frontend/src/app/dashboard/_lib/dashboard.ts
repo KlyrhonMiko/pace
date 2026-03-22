@@ -22,6 +22,14 @@ export interface AlumniStats {
     upcoming_interviews: number;
     profile_completeness: number;
 }
+
+export interface Activity {
+    id: string;
+    name: string;
+    date: string;
+    type: "create" | "update" | "delete" | "action";
+}
+
 /**
  * Fetches statistics for the admin dashboard.
  */
@@ -66,5 +74,21 @@ export async function fetchAlumniStats(): Promise<AlumniStats | null> {
     } catch (error) {
         console.error("Failed to fetch alumni stats:", error);
         return null;
+    }
+}
+
+/**
+ * Fetches recent activity for the alumni dashboard.
+ */
+export async function fetchAlumniActivity(limit: number = 5): Promise<Activity[]> {
+    try {
+        const json = await apiFetch<any>(`/dashboard/alumni/activity?limit=${limit}`);
+        if (json.success && json.data) {
+            return json.data as Activity[];
+        }
+        return [];
+    } catch (error) {
+        console.error("Failed to fetch alumni activity:", error);
+        return [];
     }
 }

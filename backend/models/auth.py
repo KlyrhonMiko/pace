@@ -21,3 +21,10 @@ class CurrentUser(SQLModel):
     user_id: str
     user_type: str
     user_code: Optional[str] = None
+
+
+class ResetPasswordRequest(SQLModel):
+    """Request to reset password using an OTP code"""
+    email: str
+    otp_code: str
+    new_password: str

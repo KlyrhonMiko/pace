@@ -11,7 +11,7 @@ import { Sparkles, ArrowRight } from "lucide-react";
 export default async function InsightsPage() {
     // 1. Get the session token from cookies
     const cookieStore = await cookies();
-    const token = cookieStore.get('sb-access-token')?.value;
+    const token = cookieStore.get('token')?.value;
 
     // 2. Fetch the latest employability prediction using the token
     let predictionData = null;
@@ -23,7 +23,7 @@ export default async function InsightsPage() {
 
     // 3. Fallback to demo prediction if no data exists
     if (!predictionData) {
-        predictionData = await fetchDemoPrediction();
+        predictionData = await fetchDemoPrediction(token);
         isDemoData = true;
     }
 

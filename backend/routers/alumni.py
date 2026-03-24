@@ -325,6 +325,32 @@ def get_my_alumni_profile(
     )
 
 
+@router.get("/activity/me", response_model=StandardResponse)
+def get_my_activity_history(
+    limit: int = Query(10, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
+):
+    """Get the current authenticated user's activity history"""
+    from services.queries.user_activities_queries import get_user_activities
+    from models.user_activities import UserActivityPublic
+
+    activities = get_user_activities(
+        session, 
+        str(current_user.user_code), 
+        limit=limit, 
+        offset=offset
+    )
+    
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.ALUMNI_ACTIVITY_RETRIEVED.value,
+        message="User activity history retrieved successfully",
+        data=[UserActivityPublic.model_validate(act) for act in activities]
+    )
+
+
 # ---------------------------------------------------------------------------
 # Single-record endpoints
 # ---------------------------------------------------------------------------

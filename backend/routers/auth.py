@@ -5,6 +5,7 @@ from models.users import User
 from models.auth import LoginRequest, TokenResponse, CurrentUser, ResetPasswordRequest
 from models.response_codes import ErrorCode, SuccessCode, StandardResponse
 from services.queries.transaction_logs_queries import create_transaction_log
+from services.queries.user_activities_queries import create_user_activity, ActivityType
 from utils.auth import verify_password, create_access_token, get_current_user, hash_password
 from utils.otp import verify_otp
 from utils.logging import log_auth_error
@@ -69,6 +70,12 @@ def login(
         after={"user_id": user.user_id},
         performed_by=user.user_code,
     )
+    create_user_activity(
+        session,
+        user_code=user.user_code,
+        activity_type=ActivityType.LOGIN,
+        description="Logged in to the system"
+    )
     session.commit()
     
     return StandardResponse(
@@ -98,6 +105,12 @@ def logout(
         tl_name="USER LOGGED OUT",
         after={"user_id": current_user.user_id},
         performed_by=current_user.user_code,
+    )
+    create_user_activity(
+        session,
+        user_code=current_user.user_code,
+        activity_type=ActivityType.LOGOUT,
+        description="Logged out of the system"
     )
     session.commit()
     
@@ -169,6 +182,12 @@ def reset_password(
         tl_name="PASSWORD RESET via OTP",
         after={"user_id": user.user_id},
         performed_by=user.user_code,
+    )
+    create_user_activity(
+        session,
+        user_code=user.user_code,
+        activity_type=ActivityType.PASSWORD_RESET,
+        description="Reset password via OTP"
     )
     session.commit()
     

@@ -7,6 +7,7 @@ from .alumni_skills import AlumniSkills
 from .skills import Skills, SkillsList
 from .job_listings import JobListing
 from .transaction_logs import TransactionLog
+from .user_activities import UserActivity
 from .event_types import EventType
 from .events import Event, EventRegistration
 from .questions import Question
@@ -28,6 +29,7 @@ __all__ = [
     "SkillsList",
     "JobListing",
     "TransactionLog",
+    "UserActivity",
     "EventType",
     "Event",
     "EventRegistration",

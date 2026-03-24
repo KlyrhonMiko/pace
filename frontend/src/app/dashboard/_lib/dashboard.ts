@@ -24,10 +24,11 @@ export interface AlumniStats {
 }
 
 export interface Activity {
-    id: string;
-    name: string;
-    date: string;
-    type: "create" | "update" | "delete" | "action";
+    activity_id: string;
+    activity_type: string;
+    description: string;
+    activity_metadata?: any;
+    created_at: string;
 }
 
 /**
@@ -82,7 +83,7 @@ export async function fetchAlumniStats(): Promise<AlumniStats | null> {
  */
 export async function fetchAlumniActivity(limit: number = 5): Promise<Activity[]> {
     try {
-        const json = await apiFetch<any>(`/dashboard/alumni/activity?limit=${limit}`);
+        const json = await apiFetch<any>(`/alumni/activity/me?limit=${limit}`);
         if (json.success && json.data) {
             return json.data as Activity[];
         }

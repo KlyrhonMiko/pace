@@ -23,29 +23,40 @@ export default function RecentActivity() {
         loadActivity();
     }, []);
 
-    const getActivityIcon = (type: string, name: string) => {
-        const n = name.toUpperCase();
+    const getActivityIcon = (type: string, description: string = "") => {
+        const n = description.toUpperCase();
         if (n.includes("REGISTERED") || n.includes("EVENT")) return <CalendarDays className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />;
         if (n.includes("PROFILE") || n.includes("UPDATED")) return <Edit className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />;
-        if (n.includes("APPLICATION") || n.includes("SUBMITTED")) return <Send className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />;
+        if (n.includes("APPLICATION") || n.includes("SUBMITTED") || n.includes("SURVEY")) return <Send className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />;
         if (n.includes("CREATED") || n.includes("JOINED")) return <Sparkles className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />;
         return <Bookmark className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />;
     };
 
-    const getIconBg = (type: string, name: string) => {
-        const n = name.toUpperCase();
+    const getIconBg = (type: string, description: string = "") => {
+        const n = description.toUpperCase();
         if (n.includes("REGISTERED") || n.includes("EVENT")) return "bg-violet-500";
         if (n.includes("PROFILE") || n.includes("UPDATED")) return "bg-blue-500";
-        if (n.includes("APPLICATION") || n.includes("SUBMITTED")) return "bg-emerald-700";
+        if (n.includes("APPLICATION") || n.includes("SUBMITTED") || n.includes("SURVEY")) return "bg-emerald-700";
         if (n.includes("CREATED") || n.includes("JOINED")) return "bg-indigo-500";
         return "bg-amber-500";
     };
 
     const formatTime = (dateStr: string) => {
-        const date = new Date(dateStr);
+        // Handle custom format: "MM/DD/YYYY - HH:mm:ss"
+        let date: Date;
+        if (dateStr.includes(" - ")) {
+            const [datePart, timePart] = dateStr.split(" - ");
+            const [m, d, y] = datePart.split("/").map(Number);
+            const [h, min, s] = timePart.split(":").map(Number);
+            date = new Date(y, m - 1, d, h, min, s);
+        } else {
+            date = new Date(dateStr);
+        }
+
         const now = new Date();
         const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
         
+        if (isNaN(date.getTime())) return "Recent";
         if (diffInHours < 1) return "Just now";
         if (diffInHours < 24) return `${diffInHours}h ago`;
         if (diffInHours < 48) return "Yesterday";
@@ -78,13 +89,13 @@ export default function RecentActivity() {
                     ) : activities.length > 0 ? (
                         activities.map((activity, idx) => (
                             <ActivityItem
-                                key={activity.id || idx}
-                                title={activity.name.replace(/_/g, ' ')}
-                                description={activity.name.includes("UPDATED") ? "Modified your career profile details" : "University platform activity"}
-                                time={formatTime(activity.date)}
-                                iconBg={getIconBg(activity.type, activity.name)}
+                                key={activity.activity_id || idx}
+                                title={activity.description?.replace(/_/g, ' ') || 'Unknown Activity'}
+                                description={activity.description?.includes("UPDATED") ? "Modified your career profile details" : "University platform activity"}
+                                time={formatTime(activity.created_at || new Date().toISOString())}
+                                iconBg={getIconBg(activity.activity_type, activity.description)}
                                 isLast={idx === activities.length - 1}
-                                icon={getActivityIcon(activity.type, activity.name)}
+                                icon={getActivityIcon(activity.activity_type, activity.description)}
                             />
                         ))
                     ) : (

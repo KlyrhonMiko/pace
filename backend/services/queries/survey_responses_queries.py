@@ -15,6 +15,7 @@ from models.questions import Question
 from schemas.surveys import SurveyInvitationStatus
 from utils.timezone import get_current_time_gmt8
 from services.queries.transaction_logs_queries import create_transaction_log
+from services.queries.user_activities_queries import create_user_activity, ActivityType
 
 
 # ---------------------------------------------------------------------------
@@ -161,6 +162,14 @@ def submit_survey_response(
         },
         performed_by=performed_by,
     )
+    if performed_by:
+        create_user_activity(
+            session,
+            user_code=performed_by,
+            activity_type=ActivityType.SUBMIT_SURVEY,
+            description=f"Submitted survey: {survey.title}",
+            activity_metadata={"survey_id": survey.survey_id, "response_id": response.response_id}
+        )
     session.commit()
     session.refresh(response)
 

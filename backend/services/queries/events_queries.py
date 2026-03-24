@@ -11,6 +11,7 @@ from schemas.events import EventCreate, EventUpdate
 from utils.timezone import get_current_time_gmt8, convert_to_gmt8
 from services.queries.event_types_queries import get_event_type_by_name
 from services.queries.transaction_logs_queries import create_transaction_log
+from services.queries.user_activities_queries import create_user_activity, ActivityType
 
 logger = logging.getLogger(__name__)
 
@@ -308,6 +309,13 @@ def register_user_for_event(
         after={"event_id": event.event_id, "user_code": user_code},
         performed_by=performed_by,
     )
+    create_user_activity(
+        session,
+        user_code=user_code,
+        activity_type=ActivityType.REGISTER_FOR_EVENT,
+        description=f"Registered for event: {event.event_name}",
+        activity_metadata={"event_id": event.event_id}
+    )
     session.commit()
 
 
@@ -337,6 +345,13 @@ def unregister_user_from_event(
         tl_name=f"UNREGISTERED user from event {event.event_id}",
         after={"event_id": event.event_id, "user_code": user_code},
         performed_by=performed_by,
+    )
+    create_user_activity(
+        session,
+        user_code=user_code,
+        activity_type=ActivityType.UNREGISTER_FROM_EVENT,
+        description=f"Unregistered from event: {event.event_name}",
+        activity_metadata={"event_id": event.event_id}
     )
     session.commit()
 

@@ -105,28 +105,18 @@ def get_alumni_dashboard_stats(session: Session, user_code: str) -> dict:
     }
 
 def get_alumni_recent_activity(session: Session, user_code: str, limit: int = 5) -> list[dict]:
-    """Get the most recent transaction logs for a specific alumni user."""
-    from models.transaction_logs import TransactionLog
+    """Get the most recent activities for a specific alumni user."""
+    from services.queries.user_activities_queries import get_user_activities
     
-    # 1. Get the user object to get the UUID (mapping to 'id' which is UUID)
-    user = session.exec(select(User).where(User.user_code == user_code)).first()
-    if not user:
-        return []
-        
-    # 2. Fetch logs performed by this user
-    logs = session.exec(
-        select(TransactionLog)
-        .where(TransactionLog.performed_by == user.user_code)
-        .order_by(TransactionLog.tl_date.desc())
-        .limit(limit)
-    ).all()
+    # 1. Fetch activities
+    activities = get_user_activities(session, user_code, limit=limit)
     
     return [
         {
-            "id": log.tl_id,
-            "name": log.tl_name,
-            "date": log.tl_date.isoformat(),
-            "type": "update" if "UPDATE" in log.tl_name.upper() else "create" if "CREATE" in log.tl_name.upper() else "action"
+            "id": act.activity_id,
+            "name": act.description,
+            "date": act.created_at.isoformat(),
+            "type": act.activity_type.value.lower()
         }
-        for log in logs
+        for act in activities
     ]

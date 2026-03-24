@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from core.database import get_session
-from models.users import User
+from models.users import User, UserType
+from models.alumni import Alumni
+from models.staff import Staff
 from models.auth import LoginRequest, TokenResponse, CurrentUser, ResetPasswordRequest
 from models.response_codes import ErrorCode, SuccessCode, StandardResponse
 from services.queries.transaction_logs_queries import create_transaction_log
@@ -78,6 +80,20 @@ def login(
     )
     session.commit()
     
+    first_name = None
+    last_name = None
+    
+    if user.user_type == UserType.USER:
+        alumni = session.exec(select(Alumni).where(Alumni.user_code == user.user_code)).first()
+        if alumni:
+            first_name = alumni.first_name
+            last_name = alumni.last_name
+    elif user.user_type in [UserType.STAFF, UserType.ADMIN]:
+        staff = session.exec(select(Staff).where(Staff.user_code == user.user_code)).first()
+        if staff:
+            first_name = staff.first_name
+            last_name = staff.last_name
+
     return StandardResponse(
         success=True,
         code=SuccessCode.LOGIN_SUCCESSFUL.value,
@@ -86,7 +102,9 @@ def login(
             access_token=token,
             token_type="bearer",
             user_id=user.user_id,
-            user_type=user.user_type.value
+            user_type=user.user_type.value,
+            first_name=first_name,
+            last_name=last_name
         )
     )
 

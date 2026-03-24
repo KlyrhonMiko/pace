@@ -1,20 +1,22 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { toast } from "sonner";
+import { apiFetch } from "@/lib/api-client";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface User {
     user_id: string;
-    last_name: string;
-    first_name: string;
-    middle_name: string;
+    last_name: string | null;
+    first_name: string | null;
+    middle_name: string | null;
     email: string;
     username: string;
-    password: string;
-    user_type: "admin" | "faculty" | "alumni";
-    status: "active" | "inactive";
+    user_type: "USER" | "STAFF" | "ADMIN";
+    is_deleted: boolean;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface UserFormData {
@@ -24,101 +26,11 @@ export interface UserFormData {
     email: string;
     username: string;
     password: string;
-    user_type: "admin" | "faculty" | "alumni";
+    // For STAFF/ADMIN creation
+    gender: string;
+    college_dept_code: string;
+    user_type: "USER" | "STAFF" | "ADMIN";
 }
-
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-
-const MOCK_USERS: User[] = [
-    {
-        user_id: "USR-001",
-        last_name: "Reyes",
-        first_name: "Maria",
-        middle_name: "Santos",
-        email: "maria.reyes@plp.edu.ph",
-        username: "m.reyes",
-        password: "••••••••",
-        user_type: "admin",
-        status: "active",
-    },
-    {
-        user_id: "USR-002",
-        last_name: "Garcia",
-        first_name: "Paolo",
-        middle_name: "Lim",
-        email: "paolo.garcia@plp.edu.ph",
-        username: "p.garcia",
-        password: "••••••••",
-        user_type: "faculty",
-        status: "active",
-    },
-    {
-        user_id: "USR-003",
-        last_name: "Dela Cruz",
-        first_name: "Juan",
-        middle_name: "Mendoza",
-        email: "juan.delacruz@gmail.com",
-        username: "j.delacruz",
-        password: "••••••••",
-        user_type: "alumni",
-        status: "active",
-    },
-    {
-        user_id: "USR-004",
-        last_name: "Santos",
-        first_name: "Ana",
-        middle_name: "Flores",
-        email: "ana.santos@plp.edu.ph",
-        username: "a.santos",
-        password: "••••••••",
-        user_type: "faculty",
-        status: "inactive",
-    },
-    {
-        user_id: "USR-005",
-        last_name: "Villanueva",
-        first_name: "Carlos",
-        middle_name: "",
-        email: "carlos.v@gmail.com",
-        username: "c.villanueva",
-        password: "••••••••",
-        user_type: "alumni",
-        status: "active",
-    },
-    {
-        user_id: "USR-006",
-        last_name: "Bautista",
-        first_name: "Sofia",
-        middle_name: "Tan",
-        email: "sofia.bautista@plp.edu.ph",
-        username: "s.bautista",
-        password: "••••••••",
-        user_type: "admin",
-        status: "active",
-    },
-    {
-        user_id: "USR-007",
-        last_name: "Ramos",
-        first_name: "Miguel",
-        middle_name: "Cruz",
-        email: "miguel.ramos@gmail.com",
-        username: "m.ramos",
-        password: "••••••••",
-        user_type: "alumni",
-        status: "inactive",
-    },
-    {
-        user_id: "USR-008",
-        last_name: "Torres",
-        first_name: "Isabella",
-        middle_name: "Navarro",
-        email: "isabella.torres@plp.edu.ph",
-        username: "i.torres",
-        password: "••••••••",
-        user_type: "faculty",
-        status: "active",
-    },
-];
 
 // ─── Default Form ─────────────────────────────────────────────────────────────
 
@@ -129,14 +41,25 @@ const EMPTY_FORM: UserFormData = {
     email: "",
     username: "",
     password: "",
-    user_type: "alumni",
+    gender: "",
+    college_dept_code: "",
+    user_type: "STAFF",
 };
+
+// ─── Pagination ───────────────────────────────────────────────────────────────
+
+const PAGE_SIZE = 10;
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useUserManagement() {
     // --- Data State ---
-    const [users, setUsers] = useState<User[]>(MOCK_USERS);
+    const [users, setUsers] = useState<User[]>([]);
+    const [total, setTotal] = useState(0);
+    const [isLoading, setIsLoading] = useState(false);
+
+    // --- Pagination ---
+    const [currentPage, setCurrentPage] = useState(0);
 
     // --- UI State ---
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -151,9 +74,60 @@ export function useUserManagement() {
     // --- Form State ---
     const [formData, setFormData] = useState<UserFormData>(EMPTY_FORM);
 
-    // --- Handlers ---
-    const handleSearch = (query: string) => setSearchQuery(query);
+    // --- Fetch Users ---
+    const fetchUsers = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const params = new URLSearchParams({
+                limit: String(PAGE_SIZE),
+                offset: String(currentPage * PAGE_SIZE),
+                sort_by: "user_id",
+                sort_order: "asc",
+            });
+            if (searchQuery) params.set("search", searchQuery);
+            if (filterType !== "all") params.set("user_type", filterType.toUpperCase());
+            if (filterStatus === "inactive") params.set("include_deleted", "true");
 
+            const result = await apiFetch<any>(`/users?${params.toString()}`);
+            if (result.success && result.data?.users) {
+                let fetchedUsers: User[] = result.data.users;
+                // Client-side filter for deleted status when not using include_deleted param
+                if (filterStatus === "inactive") {
+                    fetchedUsers = fetchedUsers.filter((u) => u.is_deleted);
+                } else if (filterStatus === "active") {
+                    fetchedUsers = fetchedUsers.filter((u) => !u.is_deleted);
+                }
+                setUsers(fetchedUsers);
+                setTotal(result.data.pagination?.total ?? fetchedUsers.length);
+            }
+        } catch (error) {
+            toast.error("Failed to load users.");
+        } finally {
+            setIsLoading(false);
+        }
+    }, [currentPage, searchQuery, filterType, filterStatus]);
+
+    useEffect(() => {
+        const timer = setTimeout(() => fetchUsers(), 300);
+        return () => clearTimeout(timer);
+    }, [fetchUsers]);
+
+    const handleSearch = (query: string) => {
+        setSearchQuery(query);
+        setCurrentPage(0);
+    };
+
+    const handleFilterType = (t: string) => {
+        setFilterType(t);
+        setCurrentPage(0);
+    };
+
+    const handleFilterStatus = (s: string) => {
+        setFilterStatus(s);
+        setCurrentPage(0);
+    };
+
+    // --- Modal Handlers ---
     const openCreateModal = useCallback(() => {
         setEditingUser(null);
         setFormData(EMPTY_FORM);
@@ -163,19 +137,21 @@ export function useUserManagement() {
     const openEditModal = useCallback((user: User) => {
         setEditingUser(user);
         setFormData({
-            last_name: user.last_name,
-            first_name: user.first_name,
-            middle_name: user.middle_name,
+            last_name: user.last_name ?? "",
+            first_name: user.first_name ?? "",
+            middle_name: user.middle_name ?? "",
             email: user.email,
             username: user.username,
             password: "",
+            gender: "",
+            college_dept_code: "",
             user_type: user.user_type,
         });
         setIsModalOpen(true);
     }, []);
 
+    // --- Save (Create or Update) ---
     const handleSave = async () => {
-        // Validation
         if (!formData.first_name.trim()) { toast.error("First name is required."); return; }
         if (!formData.last_name.trim()) { toast.error("Last name is required."); return; }
         if (!formData.email.trim()) { toast.error("Email is required."); return; }
@@ -183,51 +159,78 @@ export function useUserManagement() {
         if (!formData.username.trim()) { toast.error("Username is required."); return; }
         if (!editingUser && !formData.password.trim()) { toast.error("Password is required for new users."); return; }
         if (!editingUser && formData.password.length < 8) { toast.error("Password must be at least 8 characters."); return; }
-
-        setIsSaving(true);
-
-        // Simulate API call delay
-        await new Promise((resolve) => setTimeout(resolve, 600));
-
-        if (editingUser) {
-            // Update existing user
-            setUsers((prev) =>
-                prev.map((u) =>
-                    u.user_id === editingUser.user_id
-                        ? {
-                              ...u,
-                              ...formData,
-                              password: formData.password || u.password,
-                          }
-                        : u
-                )
-            );
-            toast.success("User updated successfully.");
-        } else {
-            // Create new user
-            const newUser: User = {
-                user_id: `USR-${String(users.length + 1).padStart(3, "0")}`,
-                ...formData,
-                password: "••••••••",
-                status: "active",
-            };
-            setUsers((prev) => [newUser, ...prev]);
-            toast.success("User created successfully.");
+        if (!editingUser && (formData.user_type === "STAFF" || formData.user_type === "ADMIN")) {
+            if (!formData.gender) { toast.error("Gender is required for staff/admin."); return; }
         }
 
-        setIsSaving(false);
-        setIsModalOpen(false);
+        setIsSaving(true);
+        try {
+            if (editingUser) {
+                // Update auth fields only via PATCH /users/{id}
+                const payload: Record<string, string> = {
+                    username: formData.username,
+                    email: formData.email,
+                };
+                if (formData.password) {
+                    payload.password = formData.password;
+                    // Admin updating another user — no current_password needed at schema level
+                    // We omit current_password to rely on admin RBAC bypass
+                }
+                const result = await apiFetch<any>(`/users/${editingUser.user_id}`, {
+                    method: "PATCH",
+                    body: payload,
+                });
+                if (result.success) {
+                    toast.success("User updated successfully.");
+                    setIsModalOpen(false);
+                    fetchUsers();
+                } else {
+                    toast.error(result.message || "Update failed.");
+                }
+            } else {
+                // Create via POST /staff/register for STAFF/ADMIN
+                const endpoint = "/staff/register";
+                const body = {
+                    username: formData.username,
+                    email: formData.email,
+                    password: formData.password,
+                    user_type: formData.user_type,
+                    first_name: formData.first_name,
+                    last_name: formData.last_name,
+                    middle_name: formData.middle_name || null,
+                    gender: formData.gender || "PREFER_NOT_TO_SAY",
+                    college_dept_code: formData.college_dept_code || null,
+                };
+                const result = await apiFetch<any>(endpoint, {
+                    method: "POST",
+                    body,
+                });
+                if (result.success) {
+                    toast.success("User created successfully.");
+                    setIsModalOpen(false);
+                    fetchUsers();
+                } else {
+                    toast.error(result.message || "Creation failed.");
+                }
+            }
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "An error occurred.");
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const handleClearForm = () => {
         if (editingUser) {
             setFormData({
-                last_name: editingUser.last_name,
-                first_name: editingUser.first_name,
-                middle_name: editingUser.middle_name,
+                last_name: editingUser.last_name ?? "",
+                first_name: editingUser.first_name ?? "",
+                middle_name: editingUser.middle_name ?? "",
                 email: editingUser.email,
                 username: editingUser.username,
                 password: "",
+                gender: "",
+                college_dept_code: "",
                 user_type: editingUser.user_type,
             });
         } else {
@@ -241,49 +244,49 @@ export function useUserManagement() {
 
     const confirmDeactivate = async () => {
         if (!userToDeactivate) return;
-        setIsDeactivating(true);
-
-        // Simulate API call delay
-        await new Promise((resolve) => setTimeout(resolve, 600));
-
-        setUsers((prev) =>
-            prev.map((u) =>
-                u.user_id === userToDeactivate
-                    ? { ...u, status: u.status === "active" ? "inactive" as const : "active" as const }
-                    : u
-            )
-        );
-
         const targetUser = users.find((u) => u.user_id === userToDeactivate);
-        const newStatus = targetUser?.status === "active" ? "deactivated" : "activated";
-        toast.success(`User ${newStatus} successfully.`);
-
-        setIsDeactivating(false);
-        setUserToDeactivate(null);
+        setIsDeactivating(true);
+        try {
+            if (targetUser?.is_deleted) {
+                // Restore
+                const result = await apiFetch<any>(`/users/${userToDeactivate}/restore`, {
+                    method: "POST",
+                });
+                if (result.success) {
+                    toast.success("User restored successfully.");
+                } else {
+                    toast.error(result.message || "Restore failed.");
+                }
+            } else {
+                // Soft deactivate via admin endpoint (no password required)
+                const result = await apiFetch<any>(`/users/${userToDeactivate}/deactivate`, {
+                    method: "POST",
+                });
+                if (result.success) {
+                    toast.success("User deactivated successfully.");
+                } else {
+                    toast.error(result.message || "Deactivation failed.");
+                }
+            }
+            fetchUsers();
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Operation failed.");
+        } finally {
+            setIsDeactivating(false);
+            setUserToDeactivate(null);
+        }
     };
 
-    // --- Filtering ---
-    const filteredUsers = users.filter((u) => {
-        const fullName = `${u.last_name} ${u.first_name} ${u.middle_name}`.toLowerCase();
-        const matchesSearch =
-            fullName.includes(searchQuery.toLowerCase()) ||
-            u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            u.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            u.user_id.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesType = filterType === "all" || u.user_type === filterType;
-        const matchesStatus = filterStatus === "all" || u.status === filterStatus;
-        return matchesSearch && matchesType && matchesStatus;
-    });
-
-    // --- Computed ---
-    const totalUsers = users.length;
-    const activeUsers = users.filter((u) => u.status === "active").length;
+    // computed
+    const totalUsers = total;
+    const activeUsers = users.filter((u) => !u.is_deleted).length;
 
     return {
-        // State
-        users: filteredUsers,
+        users,
+        total,
         totalUsers,
         activeUsers,
+        isLoading,
         isModalOpen,
         editingUser,
         searchQuery,
@@ -293,13 +296,15 @@ export function useUserManagement() {
         isDeactivating,
         userToDeactivate,
         formData,
+        currentPage,
+        pageSize: PAGE_SIZE,
 
-        // Handlers
         setIsModalOpen,
         setFormData,
-        setFilterType,
-        setFilterStatus,
+        setFilterType: handleFilterType,
+        setFilterStatus: handleFilterStatus,
         setUserToDeactivate,
+        setCurrentPage,
         handleSearch,
         openCreateModal,
         openEditModal,
@@ -307,5 +312,6 @@ export function useUserManagement() {
         handleClearForm,
         handleDeactivateClick,
         confirmDeactivate,
+        refetch: fetchUsers,
     };
 }

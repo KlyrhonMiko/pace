@@ -14,6 +14,8 @@ class TokenResponse(SQLModel):
     token_type: str = "bearer"
     user_id: str
     user_type: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
 
 
 class CurrentUser(SQLModel):
@@ -21,6 +23,8 @@ class CurrentUser(SQLModel):
     user_id: str
     user_type: str
     user_code: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
 
 
 class ResetPasswordRequest(SQLModel):

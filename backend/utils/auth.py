@@ -9,7 +9,9 @@ from core.config import settings
 from core.database import get_session
 from models.auth import CurrentUser
 from models.response_codes import ErrorCode, StandardResponse
-from models.users import User
+from models.users import User, UserType
+from models.alumni import Alumni
+from models.staff import Staff
 from utils.timezone import get_current_time_utc
 
 # Password hashing
@@ -113,10 +115,26 @@ def get_current_user(
                 ).model_dump(mode="json"),
             )
 
+        first_name = None
+        last_name = None
+        
+        if db_user.user_type == UserType.USER:
+            alumni = session.exec(select(Alumni).where(Alumni.user_code == db_user.user_code)).first()
+            if alumni:
+                first_name = alumni.first_name
+                last_name = alumni.last_name
+        elif db_user.user_type in [UserType.STAFF, UserType.ADMIN]:
+            staff = session.exec(select(Staff).where(Staff.user_code == db_user.user_code)).first()
+            if staff:
+                first_name = staff.first_name
+                last_name = staff.last_name
+
         return CurrentUser(
             user_id=user_id,
             user_type=user_type,
-            user_code=str(db_user.user_code) if db_user.user_code else None
+            user_code=str(db_user.user_code) if db_user.user_code else None,
+            first_name=first_name,
+            last_name=last_name
         )
     except HTTPException:
         raise

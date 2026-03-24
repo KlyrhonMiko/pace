@@ -16,6 +16,7 @@ from .surveys import (
     SurveyInvitation, SurveyDistributionConfig,
 )
 from .employability import EmployabilityPrediction
+from .staff import Staff
 
 __all__ = [
     # ORM table classes only — schemas live in schemas/
@@ -40,5 +41,6 @@ __all__ = [
     "SurveyAnswer",
     "SurveyInvitation",
     "SurveyDistributionConfig",
-    "EmployabilityPrediction"
+    "EmployabilityPrediction",
+    "Staff"
 ]

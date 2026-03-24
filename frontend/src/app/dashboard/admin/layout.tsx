@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import { LogoutConfirmModal } from "@/components/LogoutConfirmModal";
 
 import {
     Home,
@@ -46,6 +48,8 @@ export default function AdminLayout({
 }) {
     const pathname = usePathname();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+    const { user, logout } = useAuth();
 
     return (
         <div className="flex h-screen w-full bg-gray-50">
@@ -178,23 +182,34 @@ export default function AdminLayout({
                     <div className="flex items-center gap-3 rounded-xl bg-gradient-to-br from-gray-50/80 to-white p-3.5 border border-gray-200/60 shadow-sm hover:shadow-md hover:border-gray-300/60 transition-all duration-200">
                         <div className="relative flex-shrink-0">
                             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-emerald-700 to-emerald-800 text-xs font-bold text-white shadow-md ring-2 ring-white">
-                                AD
+                                {user?.first_name?.[0]}{user?.last_name?.[0]}
                             </div>
                             <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-600 rounded-full ring-2 ring-white shadow-sm" />
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-gray-900 truncate leading-tight">Admin User</p>
+                            <p className="text-sm font-semibold text-gray-900 truncate leading-tight">
+                                {user?.first_name} {user?.last_name}
+                            </p>
                             <p className="text-[11px] text-gray-500 truncate mt-0.5">System Administrator</p>
                         </div>
-                        <Link
-                            href="/"
-                            className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all duration-200 flex-shrink-0"
+
+                        {/* Logout Button */}
+                        <button
+                            onClick={() => setIsLogoutModalOpen(true)}
+                            className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all duration-200 flex-shrink-0 cursor-pointer"
                             title="Sign out"
                         >
                             <LogOut size={18} />
-                        </Link>
+                        </button>
                     </div>
                 </div>
+
+                {/* Logout Confirmation Modal */}
+                <LogoutConfirmModal
+                    isOpen={isLogoutModalOpen}
+                    onClose={() => setIsLogoutModalOpen(false)}
+                    onConfirm={logout}
+                />
             </aside>
 
             {/* Main Content Area */}
@@ -212,7 +227,9 @@ export default function AdminLayout({
                             <DateWidget />
                             <div className="h-8 w-px bg-gray-200 hidden md:block" />
                             <div>
-                                <h1 className="text-base font-semibold text-gray-900">Admin Dashboard</h1>
+                                <h1 className="text-base font-semibold text-gray-900">
+                                    {user?.first_name ? `Welcome back, ${user.first_name}!` : "Admin Dashboard"}
+                                </h1>
                                 <p className="text-xs text-gray-500 hidden sm:block">Manage platform users, content, and analytics</p>
                             </div>
                         </div>

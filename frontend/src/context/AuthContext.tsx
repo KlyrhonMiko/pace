@@ -9,6 +9,8 @@ interface User {
   user_type: string;
   user_code?: string;
   access_token: string;
+  first_name?: string | null;
+  last_name?: string | null;
 }
 
 interface AuthContextType {

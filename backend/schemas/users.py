@@ -54,12 +54,20 @@ class UserPublic(SQLModel):
     username: str
     email: str
     user_type: UserType
+    is_deleted: bool = False
     created_at: datetime
     updated_at: datetime
 
     @field_serializer("created_at", "updated_at")
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         return format_datetime_gmt8(value)
+
+
+class UserWithProfile(UserPublic):
+    """UserPublic with resolved first/last/middle names from Alumni or Staff tables."""
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    middle_name: Optional[str] = None
 
 
 class UserUpdate(SQLModel):

@@ -84,11 +84,11 @@ def build_full_profile(session: Session, alumni: Alumni) -> AlumniFullProfile:
     if student:
         student_fields = [
             student.student_id, student.year_graduated, student.gwa,
-            student.course_code, student.avg_prof_grade
+            student.avg_prof_grade, student.avg_elec_grade, student.ojt_grade
         ]
     filled_student = sum(1 for f in student_fields if f is not None and f != "")
     
-    total_fields = len(alumni_fields) + 5
+    total_fields = 12 # 6 alumni + 6 student
     total_filled = filled_alumni + filled_student
     completeness = int((total_filled / total_fields) * 100) if total_fields > 0 else 0
 
@@ -679,3 +679,24 @@ def batch_restore_alumni(
         failed=failed_count,
         results=results,
     )
+
+
+def calculate_profile_completeness(alumni: Alumni, student: StudentRecord | None) -> int:
+    """Centralized calculation for profile completeness percentage."""
+    alumni_fields = [
+        alumni.first_name, alumni.last_name, alumni.gender,
+        alumni.age, alumni.birthdate, alumni.middle_name
+    ]
+    filled_alumni = sum(1 for f in alumni_fields if f is not None and f != "")
+    
+    student_fields = []
+    if student:
+        student_fields = [
+            student.student_id, student.year_graduated, student.gwa,
+            student.avg_prof_grade, student.avg_elec_grade, student.ojt_grade
+        ]
+    filled_student = sum(1 for f in student_fields if f is not None and f != "")
+    
+    total_fields = 12 # 6 alumni + 6 student
+    total_filled = filled_alumni + filled_student
+    return min(int((total_filled / total_fields) * 100), 100) if total_fields > 0 else 0

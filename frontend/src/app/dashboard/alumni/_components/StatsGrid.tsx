@@ -33,10 +33,10 @@ export default function StatsGrid() {
         {
             label: "Events Registered",
             value: stats?.registered_events.toLocaleString() ?? "0",
-            subValue: "+1",
+            subValue: "Registered",
             icon: Calendar,
             color: "blue",
-            sparkline: [4, 6, 5, 8, 7, 9, 8, 10, 9, 11]
+            sparkline: [4, 5, 6, 7, 8, 9, 10, 11, 10, 12]
         },
         {
             label: "Profile Completeness",

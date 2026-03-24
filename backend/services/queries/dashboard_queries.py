@@ -66,9 +66,10 @@ def get_alumni_dashboard_stats(session: Session, user_code: str) -> dict:
     from models.student_records import StudentRecord
     
     # 1. Fetch data
-    registered_events = session.exec(
+    registrations = session.exec(
         select(func.count(EventRegistration.registration_code))
         .where(EventRegistration.user_code == user_code)
+        .where(EventRegistration.is_deleted == False)
     ).one()
     
     alumni = session.exec(select(Alumni).where(Alumni.user_code == user_code)).first()
@@ -76,32 +77,14 @@ def get_alumni_dashboard_stats(session: Session, user_code: str) -> dict:
     if alumni:
         student = session.exec(select(StudentRecord).where(StudentRecord.alumni_code == alumni.alumni_code)).first()
         
-    # 2. Calculate completeness
-    completeness = 0
-    if alumni:
-        alumni_fields = [
-            alumni.first_name, alumni.last_name, alumni.gender,
-            alumni.age, alumni.birthdate, alumni.middle_name
-        ]
-        filled_alumni = sum(1 for f in alumni_fields if f is not None and f != "")
-        
-        student_fields = []
-        if student:
-            student_fields = [
-                student.student_id, student.year_graduated, student.gwa,
-                student.course_code, student.avg_prof_grade
-            ]
-        filled_student = sum(1 for f in student_fields if f is not None and f != "")
-        
-        total_fields = len(alumni_fields) + 5
-        total_filled = filled_alumni + filled_student
-        completeness = int((total_filled / total_fields) * 100) if total_fields > 0 else 0
+    from services.queries.alumni_queries import calculate_profile_completeness
+    completeness = calculate_profile_completeness(alumni, student) if alumni else 0
 
     return {
         "job_applications": 0,         # Placeholder (Model not found)
-        "registered_events": registered_events,
+        "registered_events": registrations,
         "upcoming_interviews": 0,      # Placeholder (Model not found)
-        "profile_completeness": min(completeness, 100)
+        "profile_completeness": completeness
     }
 
 def get_alumni_recent_activity(session: Session, user_code: str, limit: int = 5) -> list[dict]:

@@ -35,7 +35,7 @@ export async function fetchEvents(params?: {
     offset?: number;
     sort_by?: string;
     sort_order?: string;
-}): Promise<{ events: Event[]; total: number }> {
+}): Promise<{ events: Event[]; total: number; facets: Record<string, number> }> {
     const searchParams = new URLSearchParams();
     searchParams.set("limit", String(params?.limit ?? 10));
     searchParams.set("offset", String(params?.offset ?? 0));
@@ -53,12 +53,13 @@ export async function fetchEvents(params?: {
             return {
                 events: json.data.events ?? [],
                 total: json.data.pagination?.total ?? 0,
+                facets: json.data.facets ?? {},
             };
         }
-        return { events: [], total: 0 };
+        return { events: [], total: 0, facets: {} };
     } catch (error) {
         console.error("Failed to fetch events:", error);
-        return { events: [], total: 0 };
+        return { events: [], total: 0, facets: {} };
     }
 }
 

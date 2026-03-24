@@ -94,66 +94,9 @@ export default function JobListingsPage() {
     // const [error, setError] = useState<string | null>(null); // Removed error state
 
     const [totalApiJobs, setTotalApiJobs] = useState(0);
-    const [facets, setFacets] = useState<{
-        jobTypes: Record<string, number>;
-        workTypes: Record<string, number>;
-        experienceLevels: Record<string, number>;
-    }>({ jobTypes: {}, workTypes: {}, experienceLevels: {} });
+    // Removed facets state as they are no longer displayed in the UI
 
-    // Fetch filter counts for display
-    const fetchFilterCounts = useCallback(async () => {
-        try {
-            // Fetch counts for all job types
-            const jobTypePromises = jobTypes.map(type =>
-                searchJobs({
-                    location: debouncedLocationSearch || "Philippines",
-                    job_type: type,
-                    page: 1,
-                    limit: 1,
-                }).then(res => ({ type, count: res.totalCount }))
-            );
-
-            // Fetch counts for all work types
-            const workTypePromises = workTypes.map(wt =>
-                searchJobs({
-                    location: debouncedLocationSearch || "Philippines",
-                    work_type: wt,
-                    page: 1,
-                    limit: 1,
-                }).then(res => ({ type: wt, count: res.totalCount }))
-            );
-
-            // Fetch counts for all experience levels
-            const expPromises = experienceLevels.map(exp =>
-                searchJobs({
-                    location: debouncedLocationSearch || "Philippines",
-                    experience_level: exp,
-                    page: 1,
-                    limit: 1,
-                }).then(res => ({ type: exp, count: res.totalCount }))
-            );
-
-            const [jobTypeResults, workTypeResults, expResults] = await Promise.all([
-                Promise.all(jobTypePromises),
-                Promise.all(workTypePromises),
-                Promise.all(expPromises),
-            ]);
-
-            const newFacets = {
-                jobTypes: {} as Record<string, number>,
-                workTypes: {} as Record<string, number>,
-                experienceLevels: {} as Record<string, number>,
-            };
-
-            jobTypeResults.forEach(r => newFacets.jobTypes[r.type] = r.count);
-            workTypeResults.forEach(r => newFacets.workTypes[r.type] = r.count);
-            expResults.forEach(r => newFacets.experienceLevels[r.type] = r.count);
-
-            setFacets(newFacets);
-        } catch (error) {
-            console.error("Failed to fetch filter counts:", error);
-        }
-    }, [debouncedLocationSearch]);
+    // Removed fetchFilterCounts as facets are now returned by the main searchJobs call
 
     // Fetch jobs from API
     const fetchJobs = useCallback(async () => {
@@ -181,9 +124,6 @@ export default function JobListingsPage() {
                 const converted = result.jobs.map((job, index) => convertApiJob(job, index));
                 setApiJobs(converted);
                 setTotalApiJobs(result.totalCount);
-                if (result.facets) {
-                    setFacets(result.facets);
-                }
             }
         } catch {
             // setError("Failed to fetch jobs from API");
@@ -200,10 +140,7 @@ export default function JobListingsPage() {
         fetchJobs();
     }, [fetchJobs]);
 
-    // Fetch filter counts only on mount
-    useEffect(() => {
-        fetchFilterCounts();
-    }, [fetchFilterCounts]);
+    // Fetch filter counts removed - facets now handled in fetchJobs
 
     // Debounce salary range updates to prevent layout shift while dragging
     useEffect(() => {
@@ -233,16 +170,7 @@ export default function JobListingsPage() {
         return filtered;
     }, [jobData, salaryRange]);
 
-    // Calculate counts for each filter option
-    const getFilterCounts = (filterType: string, option: string) => {
-        // Use Server-Side Facets if available
-        if (filterType === "type") return facets.jobTypes[option] || 0;
-        if (filterType === "workType") return facets.workTypes[option] || 0;
-        if (filterType === "experience") return facets.experienceLevels[option] || 0;
-
-        // Fallback or specific logic for other fields
-        return 0; // Replace with 0 or keep client logic if needed for others
-    };
+    // Removed getFilterCounts as counts are no longer displayed
 
     const clearFilters = () => {
         setSearchQuery("");
@@ -313,7 +241,6 @@ export default function JobListingsPage() {
                         setTempSalaryRange={setTempSalaryRange}
                         hasSalary={hasSalary}
                         setHasSalary={setHasSalary}
-                        getFilterCounts={getFilterCounts}
                     />
                 </div>
             </div>

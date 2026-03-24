@@ -399,6 +399,7 @@ def get_event_registrants(
     return registrants, total
 
 
+
 def get_user_registration_status(
     session: Session, user_code: str, event_codes: list[int]
 ) -> set[int]:
@@ -413,3 +414,16 @@ def get_user_registration_status(
         .where(EventRegistration.is_deleted == False)
     ).all()
     return set(registrations)
+
+
+def get_event_facets(session: Session) -> dict[str, int]:
+    """Calculate facets (counts per event type) across all active events."""
+    from models.event_types import EventType
+
+    facet_results = session.exec(
+        select(EventType.event_name, func.count(Event.event_code))
+        .join(EventType, Event.event_type_code == EventType.event_type_code)
+        .where(Event.is_deleted == False)
+        .group_by(EventType.event_name)
+    ).all()
+    return {row[0]: row[1] for row in facet_results}

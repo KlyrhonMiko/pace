@@ -5,10 +5,9 @@ from core.database import get_session
 from core.redis import cache_get_or_set, generate_cache_key, invalidate_cache_namespaces
 from schemas.event_types import EventTypeCreate, EventTypeUpdate, EventTypePublic
 from models.response_codes import ErrorCode, SuccessCode, StandardResponse
-from models.pagination import PaginationMetadata
 from models.auth import CurrentUser
 from utils.rbac import require_admin, require_authenticated
-from utils.logging import log_error, log_integrity_error
+from utils.logging import log_integrity_error
 from services.queries.event_types_queries import (
     get_event_type_by_id,
     get_event_type_by_id_any,
@@ -38,7 +37,7 @@ def create_event_type_route(
             data,
             performed_by=current_user.user_code,
         )
-        invalidate_cache_namespaces(EVENT_TYPES_CACHE_NAMESPACE)
+        invalidate_cache_namespaces(EVENT_TYPES_CACHE_NAMESPACE, "events")
         return StandardResponse(
             success=True,
             code=SuccessCode.EVENT_TYPE_CREATED.value,
@@ -139,7 +138,7 @@ def update_event_type_route(
             data,
             performed_by=current_user.user_code,
         )
-        invalidate_cache_namespaces(EVENT_TYPES_CACHE_NAMESPACE)
+        invalidate_cache_namespaces(EVENT_TYPES_CACHE_NAMESPACE, "events")
         return StandardResponse(
             success=True,
             code=SuccessCode.EVENT_TYPE_UPDATED.value,
@@ -181,7 +180,7 @@ def delete_event_type_route(
         )
 
     soft_delete_event_type(session, event_type, performed_by=current_user.user_code)
-    invalidate_cache_namespaces(EVENT_TYPES_CACHE_NAMESPACE)
+    invalidate_cache_namespaces(EVENT_TYPES_CACHE_NAMESPACE, "events")
     return StandardResponse(
         success=True,
         code=SuccessCode.EVENT_TYPE_DELETED.value,
@@ -219,7 +218,7 @@ def restore_event_type_route(
         event_type,
         performed_by=current_user.user_code,
     )
-    invalidate_cache_namespaces(EVENT_TYPES_CACHE_NAMESPACE)
+    invalidate_cache_namespaces(EVENT_TYPES_CACHE_NAMESPACE, "events")
     return StandardResponse(
         success=True,
         code=SuccessCode.EVENT_TYPE_RESTORED.value,

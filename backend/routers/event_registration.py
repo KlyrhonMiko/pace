@@ -2,6 +2,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlmodel import Session
 from core.database import get_session
+from core.redis import cache_delete, generate_cache_key, invalidate_cache_namespaces
 from schemas.events import EventRegistrationResponse
 from models.auth import CurrentUser
 from models.response_codes import StandardResponse, ErrorCode, SuccessCode
@@ -14,6 +15,9 @@ from services.queries.events_queries import (
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/events", tags=["event-registration"])
+ALUMNI_STATS_CACHE_NAMESPACE = "alumni_stats"
+ALUMNI_ACTIVITY_CACHE_NAMESPACE = "alumni_activity"
+EVENTS_CACHE_NAMESPACE = "events"
 
 
 def _require_user_code(current_user: CurrentUser) -> str:
@@ -50,6 +54,13 @@ async def register_for_event(
             user_code,
             performed_by=current_user.user_code,
         )
+        # Invalidate stats, activity, and event cache
+        cache_key_stats = generate_cache_key(ALUMNI_STATS_CACHE_NAMESPACE, user_code=str(user_code))
+        cache_key_activity = generate_cache_key(ALUMNI_ACTIVITY_CACHE_NAMESPACE, user_code=str(user_code))
+        cache_delete(cache_key_stats)
+        cache_delete(cache_key_activity)
+        invalidate_cache_namespaces(EVENTS_CACHE_NAMESPACE)
+
         return StandardResponse(
             success=True, code=SuccessCode.EVENT_REGISTERED,
             message="Successfully registered for event"
@@ -99,6 +110,13 @@ async def unregister_from_event(
             user_code,
             performed_by=current_user.user_code,
         )
+        # Invalidate stats, activity, and event cache
+        cache_key_stats = generate_cache_key(ALUMNI_STATS_CACHE_NAMESPACE, user_code=str(user_code))
+        cache_key_activity = generate_cache_key(ALUMNI_ACTIVITY_CACHE_NAMESPACE, user_code=str(user_code))
+        cache_delete(cache_key_stats)
+        cache_delete(cache_key_activity)
+        invalidate_cache_namespaces(EVENTS_CACHE_NAMESPACE)
+
         return StandardResponse(
             success=True, code=SuccessCode.EVENT_UNREGISTERED,
             message="Successfully unregistered from event"

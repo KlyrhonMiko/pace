@@ -27,24 +27,17 @@ export default function EventsPage() {
         ]);
         setEvents(eventsResult.events);
 
-        // Derive event type counts from the fetched events
-        const counts: Record<string, number> = {};
-        eventsResult.events.forEach(event => {
-            counts[event.event_type] = (counts[event.event_type] || 0) + 1;
-        });
-        // Also include types with 0 events from the event-types table
-        types.forEach(t => {
-            if (!(t.event_name in counts)) {
-                counts[t.event_name] = 0;
-            }
-        });
-        setEventTypeLabels(
-            Object.entries(counts).map(([label, count]) => ({
-                id: label.toLowerCase().replace(/\s+/g, "-"),
-                label,
-                count,
-            }))
-        );
+        // Use facets provided by the backend for accurate counts
+        const facets = eventsResult.facets || {};
+        
+        // Ensure all known types are included, even if they have 0 events
+        const typeLabels = types.map(t => ({
+            id: t.event_type_id,
+            label: t.event_name,
+            count: facets[t.event_name] || 0
+        }));
+
+        setEventTypeLabels(typeLabels);
 
         setIsLoading(false);
     }, []);

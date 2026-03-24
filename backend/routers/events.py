@@ -1,6 +1,6 @@
 import logging
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
-from sqlmodel import Session
+from sqlmodel import Session, select
 from typing import Optional
 from core.database import get_session
 from core.redis import cache_get_or_set, generate_cache_key, invalidate_cache_namespaces
@@ -20,6 +20,7 @@ from services.queries.events_queries import (
     clear_event_image,
     get_all_events,
     get_user_registration_status,
+    get_event_facets,
 )
 from services.supabase.supabase_storage import SupabaseStorageService
 
@@ -523,6 +524,9 @@ def _build_events_list_response(
         public_event.is_registered = e.event_code in registered_event_codes
         event_data.append(public_event)
 
+    # Calculate facets (counts per event type) across all active events
+    facets = get_event_facets(session)
+
     returned = len(events)
     pagination = PaginationMetadata(
         total=total,
@@ -537,6 +541,7 @@ def _build_events_list_response(
         message=f"Retrieved {returned} events",
         data={
             "events": event_data,
+            "facets": facets,
             "pagination": pagination,
         },
     )

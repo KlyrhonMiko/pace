@@ -1,14 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import or_, text
-from sqlmodel import Session, func, select
+from sqlmodel import Session
 
 from core.database import get_session
 from models.auth import CurrentUser
-from models.users import User
 from models.pagination import PaginationMetadata
 from models.response_codes import ErrorCode, StandardResponse
 from models.transaction_logs import TransactionLog
 from utils.rbac import require_admin
+from services.queries.transaction_logs_queries import (
+    get_transaction_logs,
+    lookup_transaction_log_by_id,
+    get_user_by_uuid,
+)
 
 router = APIRouter(prefix="/transaction-logs", tags=["transaction-logs"])
 
@@ -16,7 +19,7 @@ router = APIRouter(prefix="/transaction-logs", tags=["transaction-logs"])
 def _build_transaction_log_payload(session: Session, log: TransactionLog) -> dict:
     performed_by_user_id = None
     if log.performed_by:
-        user = session.get(User, log.performed_by)
+        user = get_user_by_uuid(session, log.performed_by)
         if user:
             performed_by_user_id = user.user_id
 
@@ -48,30 +51,7 @@ def list_transaction_logs(
     """Admin-only paginated transaction log listing with optional search filters."""
     _ = current_user
 
-    logs_stmt = select(TransactionLog)
-    count_stmt = select(func.count()).select_from(TransactionLog)
-
-    if search:
-        normalized_search = search.strip().lower()
-        search_condition = or_(
-            func.lower(TransactionLog.tl_id).contains(normalized_search),
-            func.lower(TransactionLog.tl_name).contains(normalized_search),
-        )
-        logs_stmt = logs_stmt.where(search_condition)
-        count_stmt = count_stmt.where(search_condition)
-
-    if action_type:
-        normalized_action_type = action_type.strip().lower()
-        action_condition = func.lower(TransactionLog.tl_name).contains(normalized_action_type)
-        logs_stmt = logs_stmt.where(action_condition)
-        count_stmt = count_stmt.where(action_condition)
-
-    logs_stmt = logs_stmt.order_by(text("tl_date DESC")).offset(skip)
-    if limit > 0:
-        logs_stmt = logs_stmt.limit(limit)
-
-    logs = session.exec(logs_stmt).all()
-    total = int(session.exec(count_stmt).one() or 0)
+    logs, total = get_transaction_logs(session, skip, limit, search, action_type)
     returned = len(logs)
 
     pagination = PaginationMetadata(
@@ -113,9 +93,7 @@ def get_transaction_log_by_id(
             ).model_dump(mode="json"),
         )
 
-    transaction_log = session.exec(
-        select(TransactionLog).where(TransactionLog.tl_id == normalized_tl_id)
-    ).first()
+    transaction_log = lookup_transaction_log_by_id(session, normalized_tl_id)
     if not transaction_log:
         raise HTTPException(
             status_code=404,

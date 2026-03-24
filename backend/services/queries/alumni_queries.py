@@ -175,6 +175,15 @@ def get_alumni_by_user_code(session: Session, user_code: str) -> Alumni | None:
     ).first()
 
 
+def get_alumni_by_code(session: Session, alumni_code: str) -> Alumni | None:
+    """Retrieve an active alumni record by its UUID code."""
+    return session.exec(
+        select(Alumni).where(
+            (Alumni.alumni_code == alumni_code) & (Alumni.is_deleted == False)
+        )
+    ).first()
+
+
 # ---------------------------------------------------------------------------
 # Single-record mutations
 # ---------------------------------------------------------------------------

@@ -10,7 +10,6 @@ from models.response_codes import StandardResponse, ErrorCode, SuccessCode
 from models.pagination import PaginationMetadata
 from utils.rbac import require_authenticated, require_staff_or_admin
 from services.queries.events_queries import (
-    generate_event_id,
     get_event_by_id,
     get_active_event_by_id,
     create_event,
@@ -20,6 +19,7 @@ from services.queries.events_queries import (
     update_event_image,
     clear_event_image,
     get_all_events,
+    get_user_registration_status,
 )
 from services.supabase.supabase_storage import SupabaseStorageService
 
@@ -90,6 +90,7 @@ def list_events(
     sort_by: str = Query("date", pattern="^(date|attendees|name)$"),
     sort_order: str = Query("asc"),
     session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
 ):
     """List events with pagination, sorting, search, and filtering"""
     try:
@@ -103,6 +104,7 @@ def list_events(
             include_deleted=include_deleted,
             sort_by=sort_by,
             sort_order=sort_order,
+            user_code=str(current_user.user_code),
         )
         return cache_get_or_set(
             cache_key,
@@ -116,6 +118,7 @@ def list_events(
                 include_deleted,
                 sort_by,
                 sort_order,
+                user_code=str(current_user.user_code),
             ),
             ttl=EVENTS_LIST_TTL,
         )
@@ -136,15 +139,23 @@ def list_events(
     response_model=StandardResponse,
     dependencies=[Depends(require_authenticated)],
 )
-def get_event(event_id: str, session: Session = Depends(get_session)):
+def get_event(
+    event_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
+):
     """Get a specific event by event_id"""
     try:
         cache_key = generate_cache_key(
-            f"{EVENTS_CACHE_NAMESPACE}:detail", event_id=event_id
+            f"{EVENTS_CACHE_NAMESPACE}:detail",
+            event_id=event_id,
+            user_code=str(current_user.user_code),
         )
         return cache_get_or_set(
             cache_key,
-            lambda: _build_event_detail_response(session, event_id),
+            lambda: _build_event_detail_response(
+                session, event_id, user_code=str(current_user.user_code)
+            ),
             ttl=EVENTS_DETAIL_TTL,
         )
     except HTTPException:
@@ -484,6 +495,7 @@ def _build_events_list_response(
     include_deleted: bool,
     sort_by: str,
     sort_order: str,
+    user_code: str | None = None,
 ) -> StandardResponse:
     events, total = get_all_events(
         session,
@@ -496,6 +508,21 @@ def _build_events_list_response(
         sort_by,
         sort_order,
     )
+
+    # Populate is_registered for the current user
+    registered_event_codes = set()
+    if user_code and events:
+        event_codes = [e.event_code for e in events]
+        registered_event_codes = get_user_registration_status(
+            session, user_code, event_codes
+        )
+
+    event_data = []
+    for e in events:
+        public_event = EventPublic.model_validate(e)
+        public_event.is_registered = e.event_code in registered_event_codes
+        event_data.append(public_event)
+
     returned = len(events)
     pagination = PaginationMetadata(
         total=total,
@@ -509,13 +536,15 @@ def _build_events_list_response(
         code=SuccessCode.EVENTS_RETRIEVED.value,
         message=f"Retrieved {returned} events",
         data={
-            "events": [EventPublic.model_validate(e) for e in events],
+            "events": event_data,
             "pagination": pagination,
         },
     )
 
 
-def _build_event_detail_response(session: Session, event_id: str) -> StandardResponse:
+def _build_event_detail_response(
+    session: Session, event_id: str, user_code: str | None = None
+) -> StandardResponse:
     event = get_active_event_by_id(session, event_id)
     if not event:
         raise HTTPException(
@@ -526,11 +555,19 @@ def _build_event_detail_response(session: Session, event_id: str) -> StandardRes
                 message=f"Event with ID '{event_id}' not found",
             ).model_dump(mode="json"),
         )
+
+    public_event = EventPublic.model_validate(event)
+    if user_code:
+        registered_codes = get_user_registration_status(
+            session, user_code, [event.event_code]
+        )
+        public_event.is_registered = event.event_code in registered_codes
+
     return StandardResponse(
         success=True,
         code=SuccessCode.EVENT_RETRIEVED.value,
         message="Event retrieved successfully",
-        data=EventPublic.model_validate(event),
+        data=public_event,
     )
 
 

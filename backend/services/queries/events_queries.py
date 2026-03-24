@@ -397,3 +397,19 @@ def get_event_registrants(
         )
 
     return registrants, total
+
+
+def get_user_registration_status(
+    session: Session, user_code: str, event_codes: list[int]
+) -> set[int]:
+    """Returns a set of event_codes the user is registered for."""
+    if not event_codes:
+        return set()
+
+    registrations = session.exec(
+        select(EventRegistration.event_code)
+        .where(EventRegistration.user_code == user_code)
+        .where(EventRegistration.event_code.in_(event_codes))
+        .where(EventRegistration.is_deleted == False)
+    ).all()
+    return set(registrations)

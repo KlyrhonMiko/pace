@@ -71,7 +71,7 @@ app.include_router(otp.router)
 async def startup_event():
     """Startup event"""
     try:
-        print(f"[STARTUP] ✓ Application started - lazy caching enabled")
+        print("[STARTUP] ✓ Application started - lazy caching enabled")
     except Exception as e:
         print(f"[STARTUP] ⚠ Failed to load jobs into cache: {e}")
 

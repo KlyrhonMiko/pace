@@ -320,7 +320,7 @@ def get_my_alumni_profile(
     return StandardResponse(
         success=True,
         code=SuccessCode.ALUMNI_RETRIEVED.value,
-        message="Alumni profile retrieved successfully",
+        message=f"Alumni {alumni.alumni_id} retrieved successfully",
         data=build_full_profile(session, alumni)
     )
 

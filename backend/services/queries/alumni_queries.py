@@ -9,7 +9,7 @@ from models.users import User, UserType
 from models.student_records import StudentRecord
 from models.courses import Course
 from models.responses import AlumniFullProfile
-from schemas.alumni import AlumniUpdate, AlumniPublic
+from schemas.alumni import AlumniUpdate
 from schemas.composite import (
     BatchAlumniRegistrationItem, BatchAlumniRegistrationItemSafeDisplay,
     BatchAlumniRegistrationResult, BatchAlumniRegisterResponse,
@@ -73,6 +73,25 @@ def build_full_profile(session: Session, alumni: Alumni) -> AlumniFullProfile:
             select(User).where(User.user_code == alumni.user_code)
         ).first()
 
+    # Calculate completeness
+    alumni_fields = [
+        alumni.first_name, alumni.last_name, alumni.gender,
+        alumni.age, alumni.birthdate, alumni.middle_name
+    ]
+    filled_alumni = sum(1 for f in alumni_fields if f is not None and f != "")
+    
+    student_fields = []
+    if student:
+        student_fields = [
+            student.student_id, student.year_graduated, student.gwa,
+            student.avg_prof_grade, student.avg_elec_grade, student.ojt_grade
+        ]
+    filled_student = sum(1 for f in student_fields if f is not None and f != "")
+    
+    total_fields = 12 # 6 alumni + 6 student
+    total_filled = filled_alumni + filled_student
+    completeness = int((total_filled / total_fields) * 100) if total_fields > 0 else 0
+
     return AlumniFullProfile(
         alumni_id=alumni.alumni_id,
         last_name=alumni.last_name,
@@ -95,6 +114,7 @@ def build_full_profile(session: Session, alumni: Alumni) -> AlumniFullProfile:
         act_member_pos=student.act_member_pos if student else None,
         course_id=course.course_id if course else None,
         course_name=course.course_name if course else None,
+        profile_completeness=min(completeness, 100),
         created_at=alumni.created_at,
         updated_at=alumni.updated_at,
     )
@@ -119,12 +139,12 @@ def _cascade_restore_alumni(session: Session, alumni: Alumni) -> None:
     student_records = session.exec(
         select(StudentRecord).where(
             (StudentRecord.alumni_code == alumni.alumni_code) &
-            (StudentRecord.is_deleted == True)
+            StudentRecord.is_deleted
         )
     ).all()
     for student in student_records:
-        student.is_deleted = False
-        student.deleted_at = None
+        if student.is_deleted:
+            student.is_deleted = False
         session.add(student)
 
 
@@ -143,6 +163,24 @@ def get_alumni_by_id(session: Session, alumni_id: str) -> Alumni | None:
 def get_alumni_by_id_any(session: Session, alumni_id: str) -> Alumni | None:
     return session.exec(
         select(Alumni).where(Alumni.alumni_id == alumni_id.upper())
+    ).first()
+
+
+def get_alumni_by_user_code(session: Session, user_code: str) -> Alumni | None:
+    """Retrieve an alumni record by the associated user_code."""
+    return session.exec(
+        select(Alumni).where(
+            (Alumni.user_code == user_code) & (Alumni.is_deleted == False)
+        )
+    ).first()
+
+
+def get_alumni_by_code(session: Session, alumni_code: str) -> Alumni | None:
+    """Retrieve an active alumni record by its UUID code."""
+    return session.exec(
+        select(Alumni).where(
+            (Alumni.alumni_code == alumni_code) & (Alumni.is_deleted == False)
+        )
     ).first()
 
 
@@ -478,12 +516,13 @@ def batch_update_alumni(
                 ))
                 successful_count += 1
 
-        except IntegrityError:
+        except IntegrityError as e:
             results.append(BatchAlumniUpdateResult(
                 index=index, alumni_id=item.alumni_id, success=False,
                 code=ErrorCode.INVALID_INPUT.value,
                 message="Alumni update failed due to constraint violation", data=None,
             ))
+            log_integrity_error("alumni", "batch_update_alumni", ErrorCode.INVALID_INPUT.value, "Update failed", str(e))
             failed_count += 1
 
         except ValueError as e:
@@ -558,6 +597,7 @@ def batch_delete_alumni(
                 code=ErrorCode.INVALID_INPUT.value,
                 message="Alumni deletion failed due to constraint violation",
             ))
+            log_integrity_error("alumni", "batch_delete_alumni", ErrorCode.INVALID_INPUT.value, "Delete failed", str(e))
             failed_count += 1
 
         except ValueError as e:
@@ -648,3 +688,24 @@ def batch_restore_alumni(
         failed=failed_count,
         results=results,
     )
+
+
+def calculate_profile_completeness(alumni: Alumni, student: StudentRecord | None) -> int:
+    """Centralized calculation for profile completeness percentage."""
+    alumni_fields = [
+        alumni.first_name, alumni.last_name, alumni.gender,
+        alumni.age, alumni.birthdate, alumni.middle_name
+    ]
+    filled_alumni = sum(1 for f in alumni_fields if f is not None and f != "")
+    
+    student_fields = []
+    if student:
+        student_fields = [
+            student.student_id, student.year_graduated, student.gwa,
+            student.avg_prof_grade, student.avg_elec_grade, student.ojt_grade
+        ]
+    filled_student = sum(1 for f in student_fields if f is not None and f != "")
+    
+    total_fields = 12 # 6 alumni + 6 student
+    total_filled = filled_alumni + filled_student
+    return min(int((total_filled / total_fields) * 100), 100) if total_fields > 0 else 0

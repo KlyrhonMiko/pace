@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlmodel import Session, select
+from sqlmodel import Session
 from sqlalchemy.exc import IntegrityError
 from core.database import get_session
 from core.redis import cache_get_or_set, generate_cache_key, invalidate_cache_namespaces
-from models.alumni import Alumni
 from models.auth import CurrentUser
 from models.users import UserType
 from schemas.student_records import (
@@ -15,6 +14,7 @@ from models.response_codes import ErrorCode, SuccessCode, StandardResponse
 from models.pagination import PaginatedResponse, PaginationMetadata
 from utils.rbac import require_admin, require_authenticated, require_staff_or_admin
 from utils.logging import log_error, log_integrity_error
+from services.queries.alumni_queries import get_alumni_by_code
 from services.queries.student_records_queries import (
     get_student_record_by_alumni_id, get_student_record_by_alumni_id_any,
     create_student_record, update_student_record,
@@ -38,11 +38,7 @@ def _ensure_student_owner_or_staff_plus(
     if current_user.user_type in {UserType.STAFF.value, UserType.ADMIN.value}:
         return
 
-    alumni = session.exec(
-        select(Alumni).where(
-            (Alumni.alumni_code == student_alumni_code) & (Alumni.is_deleted == False)
-        )
-    ).first()
+    alumni = get_alumni_by_code(session, student_alumni_code)
     alumni_user_code = str(alumni.user_code) if alumni and alumni.user_code else None
     if not current_user.user_code or not alumni_user_code or str(current_user.user_code) != alumni_user_code:
         raise HTTPException(

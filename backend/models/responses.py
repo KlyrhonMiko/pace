@@ -39,6 +39,9 @@ class AlumniFullProfile(SQLModel):
     course_id: Optional[str]
     course_name: Optional[str]
 
+    # Metrics
+    profile_completeness: Optional[int] = None
+
     # Timestamps
     created_at: datetime
     updated_at: datetime

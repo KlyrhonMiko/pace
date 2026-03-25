@@ -23,6 +23,12 @@ from services.queries.alumni_queries import (
 
 router = APIRouter(prefix="/alumni", tags=["alumni"])
 ALUMNI_CACHE_NAMESPACE = "alumni"
+ALUMNI_PROFILE_CACHE_NAMESPACE = "alumni_profile"
+ALUMNI_ACTIVITY_CACHE_NAMESPACE = "alumni_activity"
+ALUMNI_STATS_CACHE_NAMESPACE = "alumni_stats"
+
+ALUMNI_PROFILE_TTL = 600 # 10 minutes
+ALUMNI_ACTIVITY_TTL = 30 # 30 seconds
 ALUMNI_LIST_TTL = 300
 ALUMNI_DETAIL_TTL = 300
 
@@ -277,6 +283,98 @@ def get_all_alumni_including_deleted(
     )
 
 
+@router.get("/me", response_model=StandardResponse)
+def get_my_alumni_profile(
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
+):
+    """Get the current authenticated user's alumni profile"""
+    if current_user.user_type != UserType.USER.value:
+        raise HTTPException(
+            status_code=403,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.FORBIDDEN.value,
+                message="Only alumni can access this endpoint"
+            ).model_dump(mode='json')
+        )
+
+    if not current_user.user_code:
+        raise HTTPException(
+            status_code=404,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.ALUMNI_NOT_FOUND.value,
+                message="Alumni profile link not found"
+            ).model_dump(mode='json')
+        )
+
+    # Fetch alumni first
+    from services.queries.alumni_queries import get_alumni_by_user_code
+    alumni = get_alumni_by_user_code(session, str(current_user.user_code))
+    
+    if not alumni:
+        raise HTTPException(
+            status_code=404,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.ALUMNI_NOT_FOUND.value,
+                message="Alumni profile not found"
+            ).model_dump(mode='json')
+        )
+
+    # Caching
+    cache_key = generate_cache_key(
+        ALUMNI_PROFILE_CACHE_NAMESPACE,
+        user_code=str(current_user.user_code)
+    )
+
+    return cache_get_or_set(
+        cache_key,
+        lambda: StandardResponse(
+            success=True,
+            code=SuccessCode.ALUMNI_RETRIEVED.value,
+            message=f"Alumni {alumni.alumni_id} retrieved successfully",
+            data=build_full_profile(session, alumni)
+        ),
+        ttl=ALUMNI_PROFILE_TTL
+    )
+
+
+@router.get("/activity/me", response_model=StandardResponse)
+def get_my_activity_history(
+    limit: int = Query(10, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
+):
+    cache_key = generate_cache_key(
+        ALUMNI_ACTIVITY_CACHE_NAMESPACE,
+        user_code=str(current_user.user_code),
+        limit=limit,
+        offset=offset
+    )
+    
+    from services.queries.user_activities_queries import get_user_activities
+    from models.user_activities import UserActivityPublic
+
+    return cache_get_or_set(
+        cache_key,
+        lambda: StandardResponse(
+            success=True,
+            code=SuccessCode.ALUMNI_ACTIVITY_RETRIEVED.value,
+            message="User activity history retrieved successfully",
+            data=[UserActivityPublic.model_validate(act) for act in get_user_activities(
+                session, 
+                str(current_user.user_code), 
+                limit=limit, 
+                offset=offset
+            )]
+        ),
+        ttl=ALUMNI_ACTIVITY_TTL
+    )
+
+
 # ---------------------------------------------------------------------------
 # Single-record endpoints
 # ---------------------------------------------------------------------------
@@ -334,6 +432,13 @@ def update_alumni_route(
             performed_by=current_user.user_code,
         )
         invalidate_cache_namespaces(ALUMNI_CACHE_NAMESPACE)
+        # User-specific profile and stats cache
+        cache_key_profile = generate_cache_key(ALUMNI_PROFILE_CACHE_NAMESPACE, user_code=str(current_user.user_code))
+        cache_key_stats = generate_cache_key(ALUMNI_STATS_CACHE_NAMESPACE, user_code=str(current_user.user_code))
+        from core.redis import cache_delete
+        cache_delete(cache_key_profile)
+        cache_delete(cache_key_stats)
+
         return StandardResponse(
             success=True, code=SuccessCode.ALUMNI_UPDATED.value,
             message=f"Alumni {alumni_id} updated successfully",

@@ -3,24 +3,19 @@ import math
 import asyncio
 import traceback
 from typing import Optional
-from datetime import datetime, timedelta
-
-from sqlmodel import Session, select, col, or_, func
+from datetime import datetime
+from sqlmodel import Session, select, func
 from core.config import settings
-from core.database import engine
 from core.redis import (
     cache_get,
     cache_set,
     generate_cache_key,
-    cache_invalidate_job_searches,
-    cache_invalidate_recommended,
 )
 from models.job_listings import JobListing
 from fastapi import BackgroundTasks
 from utils.timezone import get_current_time_gmt8
 
 from .constants import JOOBLE_API_URL, JOOBLE_BATCH_SIZE
-from .facets import _get_facet_counts
 from .normalization import _normalize_job_dict
 from .mappers import _map_db_job_to_dict
 
@@ -118,10 +113,10 @@ async def fetch_jobs(
 
     cached_result = cache_get(cache_key)
     if cached_result is not None:
-        print(f"[FETCH_JOBS] ✓ Cache hit! Returning cached results")
+        print("[FETCH_JOBS] ✓ Cache hit! Returning cached results")
         return cached_result
 
-    print(f"[FETCH_JOBS] Cache miss - fetching from Jooble API")
+    print("[FETCH_JOBS] Cache miss - fetching from Jooble API")
 
     # Normalize location
     search_location = location
@@ -266,13 +261,29 @@ async def fetch_jobs(
                     f"[FETCH_JOBS] Filtered by experience_level={experience_level}: {len(normalized_jobs)} jobs remain"
                 )
 
+            # Calculate facets from the full list of normalized jobs
+            facets = {
+                "jobTypes": {},
+                "workTypes": {},
+                "experienceLevels": {}
+            }
+            
+            for j in normalized_jobs:
+                jt = j.get("type") or j.get("job_type") or "Full-time"
+                wt = j.get("work_type") or "On-site"
+                el = j.get("experience_level") or "Not specified"
+                
+                facets["jobTypes"][jt] = facets["jobTypes"].get(jt, 0) + 1
+                facets["workTypes"][wt] = facets["workTypes"].get(wt, 0) + 1
+                facets["experienceLevels"][el] = facets["experienceLevels"].get(el, 0) + 1
+
             # Paginate
             total_count = len(normalized_jobs)
             start_idx = (page - 1) * results_per_page
             end_idx = start_idx + results_per_page
             paginated_jobs = normalized_jobs[start_idx:end_idx]
-
-            result = {"jobs": paginated_jobs, "totalCount": total_count}
+            
+            result = {"jobs": paginated_jobs, "totalCount": total_count, "facets": facets}
 
             # Cache result
             cache_set(cache_key, result, ttl=3600)

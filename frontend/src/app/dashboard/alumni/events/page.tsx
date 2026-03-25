@@ -5,7 +5,7 @@ import EventFilters from "./_components/EventFilters";
 import EventList from "./_components/EventList";
 import EventsHeader from "./_components/EventsHeader";
 
-import { fetchEvents, fetchEventTypes, type Event } from "../../_lib/events";
+import { fetchEvents, fetchEventTypes, registerEvent, unregisterEvent, type Event } from "../../_lib/events";
 
 export default function EventsPage() {
     const [events, setEvents] = useState<Event[]>([]);
@@ -27,24 +27,17 @@ export default function EventsPage() {
         ]);
         setEvents(eventsResult.events);
 
-        // Derive event type counts from the fetched events
-        const counts: Record<string, number> = {};
-        eventsResult.events.forEach(event => {
-            counts[event.event_type] = (counts[event.event_type] || 0) + 1;
-        });
-        // Also include types with 0 events from the event-types table
-        types.forEach(t => {
-            if (!(t.event_name in counts)) {
-                counts[t.event_name] = 0;
-            }
-        });
-        setEventTypeLabels(
-            Object.entries(counts).map(([label, count]) => ({
-                id: label.toLowerCase().replace(/\s+/g, "-"),
-                label,
-                count,
-            }))
-        );
+        // Use facets provided by the backend for accurate counts
+        const facets = eventsResult.facets || {};
+        
+        // Ensure all known types are included, even if they have 0 events
+        const typeLabels = types.map(t => ({
+            id: t.event_type_id,
+            label: t.event_name,
+            count: facets[t.event_name] || 0
+        }));
+
+        setEventTypeLabels(typeLabels);
 
         setIsLoading(false);
     }, []);
@@ -91,10 +84,56 @@ export default function EventsPage() {
         setCurrentPage(1);
     };
 
-    // Registration toggle — currently a no-op until auth is implemented
-    const handleToggleRegistration = (eventId: string) => {
-        // TODO: Wire to POST /events/{eventId}/register or DELETE once auth is implemented
-        console.log("Registration toggle for:", eventId, "(auth required)");
+    // Registration toggle with optimistic UI update
+    const handleToggleRegistration = async (eventId: string) => {
+        const event = events.find((e) => e.event_id === eventId);
+        if (!event) return;
+
+        const isCurrentlyRegistered = event.is_registered;
+
+        // Optimistic UI update
+        setEvents((prevEvents) =>
+            prevEvents.map((e) => {
+                if (e.event_id === eventId) {
+                    return {
+                        ...e,
+                        is_registered: !isCurrentlyRegistered,
+                        attendees: isCurrentlyRegistered 
+                            ? Math.max(0, e.attendees - 1) 
+                            : e.attendees + 1,
+                    };
+                }
+                return e;
+            })
+        );
+
+        // API call
+        let success = false;
+        if (isCurrentlyRegistered) {
+            success = await unregisterEvent(eventId);
+        } else {
+            success = await registerEvent(eventId);
+        }
+
+        // Revert on failure
+        if (!success) {
+            setEvents((prevEvents) =>
+                prevEvents.map((e) => {
+                    if (e.event_id === eventId) {
+                        return {
+                            ...e,
+                            is_registered: isCurrentlyRegistered,
+                            attendees: isCurrentlyRegistered 
+                                ? e.attendees + 1 
+                                : Math.max(0, e.attendees - 1),
+                        };
+                    }
+                    return e;
+                })
+            );
+            console.error("Failed to toggle event registration");
+            // Optionally, we could show a toast error here
+        }
     };
 
     if (isLoading) {

@@ -6,7 +6,7 @@ import uuid
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlmodel import Session, select
+from sqlmodel import Session
 
 from core.database import get_session
 from core.redis import cache_get_or_set, generate_cache_key, invalidate_cache_namespaces
@@ -20,6 +20,13 @@ from models.employability import (
 from models.response_codes import StandardResponse, ErrorCode, SuccessCode
 from models.users import UserType
 from services.machines.random_forest import EmployabilityPredictor
+from services.queries.predict_queries import (
+    get_active_alumni_by_code,
+    get_alumni_by_user_code,
+    get_predictions_by_alumni,
+    save_prediction,
+    get_prediction_by_id,
+)
 from utils.rbac import require_authenticated
 
 
@@ -30,9 +37,7 @@ PREDICT_ALUMNI_TTL = 300
 
 
 def _resolve_active_alumni(db: Session, alumni_code: uuid.UUID) -> Alumni | None:
-    return db.exec(
-        select(Alumni).where((Alumni.alumni_code == alumni_code) & (Alumni.is_deleted == False))
-    ).first()
+    return get_active_alumni_by_code(db, alumni_code)
 
 
 def _ensure_owner_or_staff_plus(current_user: CurrentUser, alumni_user_code: str | None) -> None:
@@ -94,12 +99,7 @@ def predict_employability(
 
     if current_user.user_type == UserType.USER.value:
         if alumni_code is None:
-            alumni = db.exec(
-                select(Alumni).where(
-                    (Alumni.user_code == uuid.UUID(str(current_user.user_code)))
-                    & (Alumni.is_deleted == False)
-                )
-            ).first()
+            alumni = get_alumni_by_user_code(db, uuid.UUID(str(current_user.user_code)))
             if not alumni:
                 raise HTTPException(
                     status_code=404,
@@ -148,9 +148,7 @@ def predict_employability(
         improvement_prediction=result["improvement_roadmap"]["prediction"],
         improvement_probability=result["improvement_roadmap"]["probability"],
     )
-    db.add(prediction)
-    db.commit()
-    db.refresh(prediction)
+    save_prediction(db, prediction)
     invalidate_cache_namespaces(PREDICT_CACHE_NAMESPACE)
 
     return StandardResponse(
@@ -176,12 +174,7 @@ def get_my_predictions(
 ):
     """Get all predictions linked to the current authenticated alumni, newest first."""
     # Find alumni record for the current user
-    alumni = db.exec(
-        select(Alumni).where(
-            (Alumni.user_code == uuid.UUID(str(current_user.user_code)))
-            & (Alumni.is_deleted == False)
-        )
-    ).first()
+    alumni = get_alumni_by_user_code(db, uuid.UUID(str(current_user.user_code)))
 
     if not alumni:
         raise HTTPException(
@@ -193,8 +186,17 @@ def get_my_predictions(
             ).model_dump(mode="json"),
         )
 
-    # Use the existing response builder
-    return _build_alumni_predictions_response(db, alumni.alumni_code, limit)
+    # Cache the result for this specific user
+    cache_key = generate_cache_key(
+        f"{PREDICT_CACHE_NAMESPACE}:me",
+        user_code=str(current_user.user_code),
+        limit=limit,
+    )
+    return cache_get_or_set(
+        cache_key,
+        lambda: _build_alumni_predictions_response(db, alumni.alumni_code, limit),
+        ttl=PREDICT_DETAIL_TTL,
+    )
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -208,7 +210,7 @@ def get_prediction(
     current_user: CurrentUser = Depends(require_authenticated),
 ):
     """Retrieve a stored prediction by its UUID."""
-    prediction = db.get(EmployabilityPrediction, prediction_id)
+    prediction = get_prediction_by_id(db, prediction_id)
     if not prediction:
         raise HTTPException(
             status_code=404,
@@ -290,7 +292,7 @@ def _build_prediction_detail_response(
     db: Session,
     prediction_id: uuid.UUID,
 ) -> StandardResponse:
-    prediction = db.get(EmployabilityPrediction, prediction_id)
+    prediction = get_prediction_by_id(db, prediction_id)
 
     if not prediction:
         raise HTTPException(
@@ -315,13 +317,7 @@ def _build_alumni_predictions_response(
     alumni_code: uuid.UUID,
     limit: int,
 ) -> StandardResponse:
-    query = (
-        select(EmployabilityPrediction)
-        .where(EmployabilityPrediction.alumni_code == alumni_code)
-        .order_by(EmployabilityPrediction.created_at.desc())
-        .limit(limit)
-    )
-    predictions = db.exec(query).all()
+    predictions = get_predictions_by_alumni(db, alumni_code, limit)
 
     data = [
         EmployabilityPredictionRead.model_validate(p).model_dump(mode="json")

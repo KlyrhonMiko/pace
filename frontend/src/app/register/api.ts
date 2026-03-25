@@ -16,6 +16,17 @@ export async function fetchCourses() {
   return [];
 }
 
+export async function fetchCollegeDepts() {
+  const result = await apiFetch<any>("/college-depts/?limit=0");
+  if (result.success && result.data?.college_depts) {
+    return result.data.college_depts.map((d: any) => ({
+      college_dept_code: d.college_dept_code,
+      college_dept_name: d.college_dept_name,
+    }));
+  }
+  return [];
+}
+
 export async function sendOtp(email: string) {
   return apiFetch<any>("/otp/send", {
     method: "POST",
@@ -39,6 +50,13 @@ export async function verifyOtp(email: string, code: string) {
 
 export async function registerAlumni(data: any) {
   return apiFetch<any>("/alumni/register", {
+    method: "POST",
+    body: data,
+  });
+}
+
+export async function registerStaff(data: any) {
+  return apiFetch<any>("/staff/register", {
     method: "POST",
     body: data,
   });

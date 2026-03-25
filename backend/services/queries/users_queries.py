@@ -7,9 +7,10 @@ from sqlalchemy.exc import IntegrityError
 
 from models.users import User
 from models.alumni import Alumni
+from models.staff import Staff
 from models.student_records import StudentRecord
 from schemas.users import (
-    UserType, UserCreate, UserUpdate, UserPublic,
+    UserType, UserCreate, UserUpdate, UserPublic, UserWithProfile,
     UserCreateSafeDisplay, UserUpdateSafeDisplay,
     UserBatchCreateItem, UserBatchCreateResponse,
     UserBatchUpdateItem, UserBatchUpdateResult, UserBatchUpdateResponse,
@@ -229,6 +230,102 @@ def get_all_users(
         query = query.offset(offset).limit(limit)
 
     return session.exec(query).all(), total
+
+
+def get_all_users_with_profile(
+    session: Session,
+    limit: int,
+    offset: int,
+    search: str | None,
+    user_type: str | None,
+    include_deleted: bool,
+    sort_by: str,
+    sort_order: str,
+) -> tuple[list[UserWithProfile], int]:
+    """Return users with names resolved from Alumni/Staff profile tables."""
+    if include_deleted:
+        base_filter = None
+    else:
+        base_filter = User.is_deleted == False
+
+    query = select(User)
+    count_q = select(func.count(User.user_code))
+
+    if base_filter is not None:
+        query = query.where(base_filter)
+        count_q = count_q.where(base_filter)
+
+    if search:
+        like = f"%{search}%"
+        query = query.where(
+            (User.username.ilike(like)) | (User.email.ilike(like))
+        )
+        count_q = count_q.where(
+            (User.username.ilike(like)) | (User.email.ilike(like))
+        )
+
+    if user_type:
+        query = query.where(User.user_type == user_type.upper())
+        count_q = count_q.where(User.user_type == user_type.upper())
+
+    total = session.exec(count_q).one()
+
+    desc = sort_order.lower() == "desc"
+    if sort_by.lower() == "username":
+        query = query.order_by(User.username.desc() if desc else User.username)
+    elif sort_by.lower() == "email":
+        query = query.order_by(User.email.desc() if desc else User.email)
+    elif sort_by.lower() == "created_at":
+        query = query.order_by(User.created_at.desc() if desc else User.created_at)
+    else:
+        query = query.order_by(User.user_id.desc() if desc else User.user_id)
+
+    if limit > 0:
+        query = query.offset(offset).limit(limit)
+
+    users = session.exec(query).all()
+
+    results: list[UserWithProfile] = []
+    for user in users:
+        first_name: str | None = None
+        last_name: str | None = None
+        middle_name: str | None = None
+
+        if user.user_type == UserType.USER:
+            alumni = session.exec(
+                select(Alumni).where(
+                    (Alumni.user_code == user.user_code) & (Alumni.is_deleted == False)
+                )
+            ).first()
+            if alumni:
+                first_name = alumni.first_name
+                last_name = alumni.last_name
+                middle_name = alumni.middle_name
+        else:
+            staff = session.exec(
+                select(Staff).where(
+                    (Staff.user_code == user.user_code) & (Staff.is_deleted == False)
+                )
+            ).first()
+            if staff:
+                first_name = staff.first_name
+                last_name = staff.last_name
+                middle_name = staff.middle_name
+
+        results.append(UserWithProfile(
+            user_id=user.user_id,
+            username=user.username,
+            email=user.email,
+            user_type=user.user_type,
+            is_deleted=user.is_deleted,
+            created_at=user.created_at,
+            updated_at=user.updated_at,
+            first_name=first_name,
+            last_name=last_name,
+            middle_name=middle_name,
+        ))
+
+    return results, total
 
 
 # ---------------------------------------------------------------------------

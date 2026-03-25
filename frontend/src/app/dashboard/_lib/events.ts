@@ -35,7 +35,7 @@ export async function fetchEvents(params?: {
     offset?: number;
     sort_by?: string;
     sort_order?: string;
-}): Promise<{ events: Event[]; total: number }> {
+}): Promise<{ events: Event[]; total: number; facets: Record<string, number> }> {
     const searchParams = new URLSearchParams();
     searchParams.set("limit", String(params?.limit ?? 10));
     searchParams.set("offset", String(params?.offset ?? 0));
@@ -53,12 +53,13 @@ export async function fetchEvents(params?: {
             return {
                 events: json.data.events ?? [],
                 total: json.data.pagination?.total ?? 0,
+                facets: json.data.facets ?? {},
             };
         }
-        return { events: [], total: 0 };
+        return { events: [], total: 0, facets: {} };
     } catch (error) {
         console.error("Failed to fetch events:", error);
-        return { events: [], total: 0 };
+        return { events: [], total: 0, facets: {} };
     }
 }
 
@@ -138,6 +139,30 @@ export async function uploadEventImage(eventId: string, file: File): Promise<boo
         return json.success === true;
     } catch (error) {
         console.error("Failed to upload event image:", error);
+        return false;
+    }
+}
+
+export async function registerEvent(eventId: string): Promise<boolean> {
+    try {
+        const json = await apiFetch<any>(`/events/${eventId}/register`, {
+            method: "POST",
+        });
+        return json.success === true;
+    } catch (error) {
+        console.error("Failed to register for event:", error);
+        return false;
+    }
+}
+
+export async function unregisterEvent(eventId: string): Promise<boolean> {
+    try {
+        const json = await apiFetch<any>(`/events/${eventId}/unregister`, {
+            method: "DELETE",
+        });
+        return json.success === true;
+    } catch (error) {
+        console.error("Failed to unregister from event:", error);
         return false;
     }
 }

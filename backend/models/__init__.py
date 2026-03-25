@@ -7,6 +7,7 @@ from .alumni_skills import AlumniSkills
 from .skills import Skills, SkillsList
 from .job_listings import JobListing
 from .transaction_logs import TransactionLog
+from .user_activities import UserActivity
 from .event_types import EventType
 from .events import Event, EventRegistration
 from .questions import Question
@@ -15,6 +16,7 @@ from .surveys import (
     SurveyInvitation, SurveyDistributionConfig,
 )
 from .employability import EmployabilityPrediction
+from .staff import Staff
 
 __all__ = [
     # ORM table classes only — schemas live in schemas/
@@ -28,6 +30,7 @@ __all__ = [
     "SkillsList",
     "JobListing",
     "TransactionLog",
+    "UserActivity",
     "EventType",
     "Event",
     "EventRegistration",
@@ -38,5 +41,6 @@ __all__ = [
     "SurveyAnswer",
     "SurveyInvitation",
     "SurveyDistributionConfig",
-    "EmployabilityPrediction"
+    "EmployabilityPrediction",
+    "Staff"
 ]

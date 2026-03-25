@@ -24,6 +24,7 @@ from routers import (
     predict,
     dashboard,
     otp,
+    staff,
 )
 from core.config import settings
 from models.response_codes import StandardResponse, ErrorCode
@@ -65,13 +66,14 @@ app.include_router(questions.router)
 app.include_router(predict.router)
 app.include_router(dashboard.router)
 app.include_router(otp.router)
+app.include_router(staff.router)
 
 
 @app.on_event("startup")
 async def startup_event():
     """Startup event"""
     try:
-        print(f"[STARTUP] ✓ Application started - lazy caching enabled")
+        print("[STARTUP] ✓ Application started - lazy caching enabled")
     except Exception as e:
         print(f"[STARTUP] ⚠ Failed to load jobs into cache: {e}")
 

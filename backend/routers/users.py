@@ -17,7 +17,7 @@ from utils.logging import log_error, log_integrity_error, log_auth_error
 from services.queries.users_queries import (
     get_user_by_id, get_user_by_id_any,
     create_user, update_user, soft_delete_user, restore_user,
-    get_all_users,
+    get_all_users, get_all_users_with_profile,
     batch_create_users, batch_update_users, batch_delete_users, batch_restore_users,
 )
 
@@ -131,7 +131,7 @@ def get_all_users_route(
     session: Session = Depends(get_session),
     current_user: CurrentUser = Depends(require_admin),
 ):
-    """Get all users with filtering, searching, and sorting"""
+    """Get all users with filtering, searching, and sorting (names resolved from profile tables)"""
     cache_key = generate_cache_key(
         f"{USERS_CACHE_NAMESPACE}:list",
         limit=limit,
@@ -368,6 +368,50 @@ def delete_user(
         ).model_dump(mode='json'))
 
 
+@router.post("/{user_id}/deactivate")
+def admin_deactivate_user(
+    user_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
+):
+    """Admin-only: soft-delete (deactivate) a user without requiring the target user's password."""
+    user = get_user_by_id_any(session, user_id)
+    if not user:
+        log_error("users", "admin_deactivate_user", ErrorCode.USER_NOT_FOUND.value, f"User {user_id} not found")
+        raise HTTPException(status_code=404, detail=StandardResponse(
+            success=False, code=ErrorCode.USER_NOT_FOUND.value, message="User not found"
+        ).model_dump(mode='json'))
+
+    if user.is_deleted:
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.ALREADY_DELETED.value,
+            message="User is already deactivated"
+        ).model_dump(mode='json'))
+
+    if user.user_code == current_user.user_code:
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.FORBIDDEN.value,
+            message="Cannot deactivate your own account"
+        ).model_dump(mode='json'))
+
+    try:
+        soft_delete_user(session, user, performed_by=current_user.user_code)
+        invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
+        return StandardResponse(
+            success=True, code=SuccessCode.USER_DELETED.value,
+            message=f"User {user_id} deactivated successfully"
+        )
+    except IntegrityError as e:
+        session.rollback()
+        log_integrity_error("users", "admin_deactivate_user", ErrorCode.INVALID_INPUT.value, "Deactivate failed", str(e))
+        raise HTTPException(status_code=400, detail=StandardResponse(
+            success=False, code=ErrorCode.INVALID_INPUT.value,
+            message="Deactivate failed"
+        ).model_dump(mode='json'))
+
+
+
+
 @router.post("/{user_id}/restore")
 def restore_user_route(
     user_id: str,
@@ -390,7 +434,7 @@ def restore_user_route(
 
     try:
         restore_user(session, user, performed_by=current_user.user_code)
-        invalidate_cache_namespaces(USERS_CACHE_NAMESPACE)
+        invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni", "staff")
         return StandardResponse(
             success=True, code=SuccessCode.USER_RESTORED.value,
             message=f"User {user_id} restored successfully"
@@ -414,7 +458,7 @@ def _build_users_list_response(
     sort_by: str,
     sort_order: str,
 ) -> StandardResponse:
-    users, total = get_all_users(
+    users, total = get_all_users_with_profile(
         session, limit, offset, search, user_type, include_deleted, sort_by, sort_order
     )
     returned = len(users)
@@ -426,7 +470,7 @@ def _build_users_list_response(
         success=True,
         code=SuccessCode.USERS_RETRIEVED.value,
         message=f"Retrieved {returned} users",
-        data={"users": [UserPublic.model_validate(u) for u in users], "pagination": pagination}
+        data={"users": [u.model_dump() for u in users], "pagination": pagination}
     )
 
 

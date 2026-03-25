@@ -11,6 +11,7 @@ from schemas.events import EventCreate, EventUpdate
 from utils.timezone import get_current_time_gmt8, convert_to_gmt8
 from services.queries.event_types_queries import get_event_type_by_name
 from services.queries.transaction_logs_queries import create_transaction_log
+from services.queries.user_activities_queries import create_user_activity, ActivityType
 
 logger = logging.getLogger(__name__)
 
@@ -308,6 +309,13 @@ def register_user_for_event(
         after={"event_id": event.event_id, "user_code": user_code},
         performed_by=performed_by,
     )
+    create_user_activity(
+        session,
+        user_code=user_code,
+        activity_type=ActivityType.REGISTER_FOR_EVENT,
+        description=f"Registered for event: {event.event_name}",
+        activity_metadata={"event_id": event.event_id}
+    )
     session.commit()
 
 
@@ -338,6 +346,13 @@ def unregister_user_from_event(
         after={"event_id": event.event_id, "user_code": user_code},
         performed_by=performed_by,
     )
+    create_user_activity(
+        session,
+        user_code=user_code,
+        activity_type=ActivityType.UNREGISTER_FROM_EVENT,
+        description=f"Unregistered from event: {event.event_name}",
+        activity_metadata={"event_id": event.event_id}
+    )
     session.commit()
 
 
@@ -347,7 +362,9 @@ def get_event_registrants(
     query = (
         select(EventRegistration, Alumni, StudentRecord)
         .join(Alumni, Alumni.user_code == EventRegistration.user_code, isouter=True)
-        .join(StudentRecord, StudentRecord.alumni_code == Alumni.alumni_code, isouter=True)
+        .join(
+            StudentRecord, StudentRecord.alumni_code == Alumni.alumni_code, isouter=True
+        )
         .where(EventRegistration.event_code == event.event_code)
         .where(EventRegistration.is_deleted == False)
         .order_by(EventRegistration.registered_at.desc())
@@ -372,9 +389,41 @@ def get_event_registrants(
                 first_name=alumni.first_name if alumni else None,
                 middle_name=alumni.middle_name if alumni else None,
                 student_id=student_record.student_id if student_record else None,
-                year_graduated=student_record.year_graduated if student_record else None,
+                year_graduated=student_record.year_graduated
+                if student_record
+                else None,
                 registered_at=registration.registered_at,
             )
         )
 
     return registrants, total
+
+
+
+def get_user_registration_status(
+    session: Session, user_code: str, event_codes: list[int]
+) -> set[int]:
+    """Returns a set of event_codes the user is registered for."""
+    if not event_codes:
+        return set()
+
+    registrations = session.exec(
+        select(EventRegistration.event_code)
+        .where(EventRegistration.user_code == user_code)
+        .where(EventRegistration.event_code.in_(event_codes))
+        .where(EventRegistration.is_deleted == False)
+    ).all()
+    return set(registrations)
+
+
+def get_event_facets(session: Session) -> dict[str, int]:
+    """Calculate facets (counts per event type) across all active events."""
+    from models.event_types import EventType
+
+    facet_results = session.exec(
+        select(EventType.event_name, func.count(Event.event_code))
+        .join(EventType, Event.event_type_code == EventType.event_type_code)
+        .where(Event.is_deleted == False)
+        .group_by(EventType.event_name)
+    ).all()
+    return {row[0]: row[1] for row in facet_results}

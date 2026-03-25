@@ -1,5 +1,4 @@
 from models.events import EventRegistration
-import uuid
 from sqlmodel import Session, select, func
 
 from models.users import User
@@ -60,17 +59,47 @@ def get_faculty_dashboard_stats(session: Session) -> dict:
         "referrals_sent": 23
     }
 
-def get_alumni_dashboard_stats(session: Session, user_code: uuid.UUID) -> dict:
+def get_alumni_dashboard_stats(session: Session, user_code: str) -> dict:
     """
     Fetch statistics specific to an alumni user.
     """
-    registered_events = session.exec(
+    from models.student_records import StudentRecord
+    
+    # 1. Fetch data
+    registrations = session.exec(
         select(func.count(EventRegistration.registration_code))
         .where(EventRegistration.user_code == user_code)
+        .where(EventRegistration.is_deleted == False)
     ).one()
+    
+    alumni = session.exec(select(Alumni).where(Alumni.user_code == user_code)).first()
+    student = None
+    if alumni:
+        student = session.exec(select(StudentRecord).where(StudentRecord.alumni_code == alumni.alumni_code)).first()
+        
+    from services.queries.alumni_queries import calculate_profile_completeness
+    completeness = calculate_profile_completeness(alumni, student) if alumni else 0
+
     return {
-        "job_applications": 12,        # Placeholder
-        "registered_events": registered_events,
-        "upcoming_interviews": 2,      # Placeholder
-        "profile_completeness": 85     # Placeholder
+        "job_applications": 0,         # Placeholder (Model not found)
+        "registered_events": registrations,
+        "upcoming_interviews": 0,      # Placeholder (Model not found)
+        "profile_completeness": completeness
     }
+
+def get_alumni_recent_activity(session: Session, user_code: str, limit: int = 5) -> list[dict]:
+    """Get the most recent activities for a specific alumni user."""
+    from services.queries.user_activities_queries import get_user_activities
+    
+    # 1. Fetch activities
+    activities = get_user_activities(session, user_code, limit=limit)
+    
+    return [
+        {
+            "id": act.activity_id,
+            "name": act.description,
+            "date": act.created_at.isoformat(),
+            "type": act.activity_type.value.lower()
+        }
+        for act in activities
+    ]

@@ -23,7 +23,6 @@ interface JobFiltersProps {
 
     hasSalary: boolean;
     setHasSalary: (has: boolean) => void;
-    getFilterCounts: (type: string, option: string) => number;
 }
 
 export default function JobFilters({
@@ -42,7 +41,6 @@ export default function JobFilters({
 
     hasSalary,
     setHasSalary,
-    getFilterCounts,
 }: JobFiltersProps) {
 
     const toggleFilter = (filterArray: string[], setFilter: (val: string[]) => void, value: string) => {
@@ -103,26 +101,22 @@ export default function JobFilters({
                     {/* Job Type */}
                     <FilterSection title="Job Type" count={selectedTypes.length || undefined}>
                         <div className="space-y-2">
-                            {jobTypes.map((type) => {
-                                const count = getFilterCounts("type", type);
-                                return (
-                                    <label
-                                        key={type}
-                                        className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors hover:bg-slate-50`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <Checkbox
-                                                checked={selectedTypes.includes(type)}
-                                                onCheckedChange={() => toggleFilter(selectedTypes, setSelectedTypes, type)}
-                                                className="border-slate-300 data-[state=checked]:bg-emerald-700 data-[state=checked]:border-emerald-700"
-                                            />
-                                            <Briefcase className="h-4 w-4 text-slate-400" />
-                                            <span className="text-sm text-slate-700">{type}</span>
-                                        </div>
-                                        <span className="text-xs font-medium text-slate-400">({count})</span>
-                                    </label>
-                                );
-                            })}
+                            {jobTypes.map((type) => (
+                                <label
+                                    key={type}
+                                    className="flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors hover:bg-slate-50"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <Checkbox
+                                            checked={selectedTypes.includes(type)}
+                                            onCheckedChange={() => toggleFilter(selectedTypes, setSelectedTypes, type)}
+                                            className="border-slate-300 data-[state=checked]:bg-emerald-700 data-[state=checked]:border-emerald-700"
+                                        />
+                                        <Briefcase className="h-4 w-4 text-slate-400" />
+                                        <span className="text-sm text-slate-700">{type}</span>
+                                    </div>
+                                </label>
+                            ))}
                         </div>
                     </FilterSection>
 
@@ -130,12 +124,11 @@ export default function JobFilters({
                     <FilterSection title="Work Type" count={selectedWorkTypes.length || undefined}>
                         <div className="space-y-2">
                             {workTypes.map((workType) => {
-                                const count = getFilterCounts("workType", workType);
                                 const IconComponent = workType === "Remote" ? Home : workType === "Hybrid" ? RefreshCw : Building2;
                                 return (
                                     <label
                                         key={workType}
-                                        className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors hover:bg-slate-50`}
+                                        className="flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors hover:bg-slate-50"
                                     >
                                         <div className="flex items-center gap-3">
                                             <Checkbox
@@ -146,7 +139,6 @@ export default function JobFilters({
                                             <IconComponent className="h-4 w-4 text-slate-400" />
                                             <span className="text-sm text-slate-700">{workType}</span>
                                         </div>
-                                        <span className="text-xs font-medium text-slate-400">({count})</span>
                                     </label>
                                 );
                             })}
@@ -156,26 +148,22 @@ export default function JobFilters({
                     {/* Experience Level */}
                     <FilterSection title="Experience Level" count={selectedExperience.length || undefined}>
                         <div className="space-y-2">
-                            {experienceLevels.map((level) => {
-                                const count = getFilterCounts("experience", level);
-                                return (
-                                    <label
-                                        key={level}
-                                        className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors hover:bg-slate-50`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <Checkbox
-                                                checked={selectedExperience.includes(level)}
-                                                onCheckedChange={() => toggleFilter(selectedExperience, setSelectedExperience, level)}
-                                                className="border-slate-300 data-[state=checked]:bg-emerald-700 data-[state=checked]:border-emerald-700"
-                                            />
-                                            <GraduationCap className="h-4 w-4 text-slate-400" />
-                                            <span className="text-sm text-slate-700">{level}</span>
-                                        </div>
-                                        <span className="text-xs font-medium text-slate-400">({count})</span>
-                                    </label>
-                                );
-                            })}
+                            {experienceLevels.map((level) => (
+                                <label
+                                    key={level}
+                                    className="flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors hover:bg-slate-50"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <Checkbox
+                                            checked={selectedExperience.includes(level)}
+                                            onCheckedChange={() => toggleFilter(selectedExperience, setSelectedExperience, level)}
+                                            className="border-slate-300 data-[state=checked]:bg-emerald-700 data-[state=checked]:border-emerald-700"
+                                        />
+                                        <GraduationCap className="h-4 w-4 text-slate-400" />
+                                        <span className="text-sm text-slate-700">{level}</span>
+                                    </div>
+                                </label>
+                            ))}
                         </div>
                     </FilterSection>
 

@@ -1,12 +1,70 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import ActivityItem from "./ActivityItem";
-import { Zap, Send, Edit, CalendarDays, Bookmark } from "lucide-react";
+import { Zap, Send, Edit, CalendarDays, Bookmark, Loader2, Sparkles } from "lucide-react";
+import { fetchAlumniActivity, Activity } from "../../_lib/dashboard";
 
 export default function RecentActivity() {
+    const [activities, setActivities] = useState<Activity[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        async function loadActivity() {
+            try {
+                const data = await fetchAlumniActivity(4);
+                setActivities(data);
+            } catch (error) {
+                console.error("Failed to load activity", error);
+            } finally {
+                setLoading(false);
+            }
+        }
+        loadActivity();
+    }, []);
+
+    const getActivityIcon = (type: string, description: string = "") => {
+        const n = description.toUpperCase();
+        if (n.includes("REGISTERED") || n.includes("EVENT")) return <CalendarDays className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />;
+        if (n.includes("PROFILE") || n.includes("UPDATED")) return <Edit className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />;
+        if (n.includes("APPLICATION") || n.includes("SUBMITTED") || n.includes("SURVEY")) return <Send className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />;
+        if (n.includes("CREATED") || n.includes("JOINED")) return <Sparkles className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />;
+        return <Bookmark className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />;
+    };
+
+    const getIconBg = (type: string, description: string = "") => {
+        const n = description.toUpperCase();
+        if (n.includes("REGISTERED") || n.includes("EVENT")) return "bg-violet-500";
+        if (n.includes("PROFILE") || n.includes("UPDATED")) return "bg-blue-500";
+        if (n.includes("APPLICATION") || n.includes("SUBMITTED") || n.includes("SURVEY")) return "bg-emerald-700";
+        if (n.includes("CREATED") || n.includes("JOINED")) return "bg-indigo-500";
+        return "bg-amber-500";
+    };
+
+    const formatTime = (dateStr: string) => {
+        // Handle custom format: "MM/DD/YYYY - HH:mm:ss"
+        let date: Date;
+        if (dateStr.includes(" - ")) {
+            const [datePart, timePart] = dateStr.split(" - ");
+            const [m, d, y] = datePart.split("/").map(Number);
+            const [h, min, s] = timePart.split(":").map(Number);
+            date = new Date(y, m - 1, d, h, min, s);
+        } else {
+            date = new Date(dateStr);
+        }
+
+        const now = new Date();
+        const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+        
+        if (isNaN(date.getTime())) return "Recent";
+        if (diffInHours < 1) return "Just now";
+        if (diffInHours < 24) return `${diffInHours}h ago`;
+        if (diffInHours < 48) return "Yesterday";
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+
     return (
         <div className="group/card rounded-2xl bg-white border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-blue-100/30 hover:border-blue-100/60 h-full flex flex-col">
-            {/* Decorative top gradient bar */}
-
-
             <div className="p-6">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
@@ -16,51 +74,37 @@ export default function RecentActivity() {
                         </div>
                         <div>
                             <h2 className="text-base font-bold text-gray-900">Recent Activity</h2>
-                            <p className="text-xs text-gray-500">Your latest updates &amp; actions</p>
+                            <p className="text-xs text-gray-500">Your latest university updates</p>
                         </div>
                     </div>
-
                 </div>
 
                 {/* Activity Timeline */}
                 <div className="space-y-0">
-                    <ActivityItem
-                        title="Application Submitted"
-                        description="Junior Developer at Accenture Philippines"
-                        time="2h ago"
-                        iconBg="bg-emerald-700"
-                        icon={
-                            <Send className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />
-                        }
-                    />
-                    <ActivityItem
-                        title="Profile Updated"
-                        description="Added new skills: React, TypeScript"
-                        time="Yesterday"
-                        iconBg="bg-blue-500"
-                        icon={
-                            <Edit className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />
-                        }
-                    />
-                    <ActivityItem
-                        title="Interview Scheduled"
-                        description="Globe Telecom - Feb 18 at 10:00 AM"
-                        time="2d ago"
-                        iconBg="bg-violet-500"
-                        icon={
-                            <CalendarDays className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />
-                        }
-                    />
-                    <ActivityItem
-                        title="Job Saved"
-                        description="Technical Support at DITO Telecommunity"
-                        time="3d ago"
-                        iconBg="bg-amber-500"
-                        isLast={true}
-                        icon={
-                            <Bookmark className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />
-                        }
-                    />
+                    {loading ? (
+                        <div className="flex flex-col items-center justify-center py-10 gap-3 text-gray-400">
+                            <Loader2 className="h-6 w-6 animate-spin" />
+                            <p className="text-xs">Fetching life stream...</p>
+                        </div>
+                    ) : activities.length > 0 ? (
+                        activities.map((activity, idx) => (
+                            <ActivityItem
+                                key={activity.activity_id || idx}
+                                title={activity.description?.replace(/_/g, ' ') || 'Unknown Activity'}
+                                description={activity.description?.includes("UPDATED") ? "Modified your career profile details" : "University platform activity"}
+                                time={formatTime(activity.created_at || new Date().toISOString())}
+                                iconBg={getIconBg(activity.activity_type, activity.description)}
+                                isLast={idx === activities.length - 1}
+                                icon={getActivityIcon(activity.activity_type, activity.description)}
+                            />
+                        ))
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-10 px-4 text-center rounded-xl bg-gray-50 border border-dashed border-gray-200">
+                            <Zap className="h-8 w-8 text-gray-300 mb-2" />
+                            <p className="text-sm font-medium text-gray-500">No recent activity</p>
+                            <p className="text-xs text-gray-400 mt-1">Updates will appear as you interact with the platform.</p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

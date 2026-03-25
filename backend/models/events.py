@@ -57,5 +57,3 @@ class EventRegistrantDetails(SQLModel):
     student_id: Optional[str] = None
     year_graduated: Optional[int] = None
     registered_at: datetime
-
-

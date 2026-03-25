@@ -1,3 +1,4 @@
+import uuid
 from typing import Optional, List
 from sqlmodel import SQLModel, Field
 from pydantic import field_validator, field_serializer, BaseModel
@@ -50,10 +51,11 @@ class CollegeDeptUpdate(SQLModel):
 
 
 class CollegeDeptPublic(SQLModel):
+    college_dept_code: uuid.UUID
+    college_dept_id: str
     college_dept_abbv: str
     college_dept_name: str
     college_dept_desc: Optional[str]
-    college_dept_id: str
     created_at: datetime
     updated_at: datetime
 

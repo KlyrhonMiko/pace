@@ -7,7 +7,7 @@ import QuickActions from "@/app/dashboard/alumni/_components/QuickActions";
 import UpcomingEvents from "@/app/dashboard/alumni/events/_components/UpcomingEvents";
 import RecentActivity from "@/app/dashboard/alumni/_components/RecentActivity";
 import { cookies } from "next/headers";
-import { getLatestPrediction, fetchDemoPrediction } from "@/app/dashboard/alumni/_lib/api";
+import { getLatestPrediction } from "@/app/dashboard/alumni/_lib/api";
 import { getMyProfile } from "@/app/dashboard/alumni/profile/_lib/api";
 
 export default async function AlumniDashboard() {
@@ -17,7 +17,6 @@ export default async function AlumniDashboard() {
 
     // 2. Fetch the latest employability prediction and profile data
     let predictionData = null;
-    let isDemoData = false;
     let profileData = null;
 
     if (token) {
@@ -30,12 +29,6 @@ export default async function AlumniDashboard() {
         profileData = profile;
     }
 
-    // 3. Fallback to demo prediction if no data exists
-    if (!predictionData) {
-        predictionData = await fetchDemoPrediction(token);
-        isDemoData = true;
-    }
-
     return (
         <div className="space-y-5">
             {/* Hero */}
@@ -44,7 +37,7 @@ export default async function AlumniDashboard() {
             {/* Employability Score & Stats */}
             <div className="grid gap-5 lg:grid-cols-4">
                 <div className="lg:col-span-2 flex flex-col">
-                    <EmployabilityScore data={predictionData} isDemo={isDemoData} />
+                    <EmployabilityScore data={predictionData} />
                 </div>
                 <div className="lg:col-span-2 flex flex-col">
                     <StatsGrid />

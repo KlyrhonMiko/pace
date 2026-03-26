@@ -35,16 +35,14 @@ export default function StatsGrid() {
             value: stats?.registered_events.toLocaleString() ?? "0",
             subValue: "Registered",
             icon: Calendar,
-            color: "blue",
-            sparkline: [4, 5, 6, 7, 8, 9, 10, 11, 10, 12]
+            color: "blue"
         },
         {
             label: "Profile Completeness",
             value: `${stats?.profile_completeness ?? 0}%`,
             subValue: "Good",
             icon: UserCheck,
-            color: "amber",
-            sparkline: [1, 2, 1, 3, 2, 4, 3, 5, 4, 6]
+            color: "amber"
         }
     ];
 
@@ -65,11 +63,7 @@ export default function StatsGrid() {
                         <p className="text-3xl font-extrabold text-gray-900 tracking-tight">{card.value}</p>
                         <p className="text-xs text-gray-400 mt-1 font-medium">{card.label}</p>
                     </div>
-                    <div className="flex items-end gap-[3px] mt-3 h-6">
-                        {card.sparkline.map((v, idx) => (
-                            <div key={idx} className={`flex-1 rounded-sm bg-${card.color}-100 group-hover:bg-${card.color}-200 transition-colors`} style={{ height: `${(v / 12) * 100}%` }} />
-                        ))}
-                    </div>
+
                 </div>
             ))}
         </div>

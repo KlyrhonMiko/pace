@@ -472,12 +472,8 @@ export default function RegisterPage() {
                 });
             }
 
-            // Initialize blank alumni skills record
-            try {
-                await initializeAlumniSkills(alumniId);
-            } catch {
-                // Warning already handled in api.ts
-            }
+            // Skip automatic skills initialization during registration as per request
+            setIsComplete(true);
 
             setIsComplete(true);
         } catch (error) {

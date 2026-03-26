@@ -108,10 +108,8 @@ function MetricBar({
 
 export default function EmployabilityScore({
     data,
-    isDemo = false,
 }: {
     data: EmployabilityResult | null;
-    isDemo?: boolean;
 }) {
     if (!data) {
         return (
@@ -215,11 +213,7 @@ export default function EmployabilityScore({
                     </div>
 
                     <div className="flex items-center gap-2">
-                        {isDemo && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-600 ring-1 ring-amber-200/80">
-                                Demo
-                            </span>
-                        )}
+
                         <Link
                             href="/dashboard/alumni/insights"
                             className="text-[11px] font-semibold text-gray-500 hover:text-gray-900 transition-all duration-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 ring-1 ring-gray-100/60 hover:ring-gray-200"

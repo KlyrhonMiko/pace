@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -40,7 +40,13 @@ export default function AlumniLayout({
     const pathname = usePathname();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+    const [mounted, setMounted] = useState(false);
     const { user, logout } = useAuth();
+
+    // Fix hydration mismatch: only render user-dependent content after mount
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     return (
         <div className="flex h-screen w-full bg-gray-50">
@@ -181,7 +187,7 @@ export default function AlumniLayout({
                         {/* Avatar */}
                         <div className="relative flex-shrink-0">
                             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-emerald-700 to-emerald-800 text-xs font-bold text-white shadow-md ring-2 ring-white">
-                                {user?.first_name?.[0]}{user?.last_name?.[0]}
+                                {mounted ? (user?.first_name?.[0] || "") + (user?.last_name?.[0] || "") : ""}
                             </div>
                             {/* Online status indicator */}
                             <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-600 rounded-full ring-2 ring-white shadow-sm" />
@@ -190,7 +196,7 @@ export default function AlumniLayout({
                         {/* User Info */}
                         <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-gray-900 truncate leading-tight">
-                                {user?.first_name} {user?.last_name}
+                                {mounted ? `${user?.first_name || ""} ${user?.last_name || ""}` : "Loading..."}
                             </p>
                             <p className="text-[11px] text-gray-500 truncate mt-0.5">Alumni Profile</p>
                         </div>
@@ -231,7 +237,9 @@ export default function AlumniLayout({
                             <DateWidget />
                             <div className="h-8 w-px bg-gray-200 hidden md:block" />
                             <div>
-                                <h1 className="text-base font-semibold text-gray-900">Welcome back, {user?.first_name}!</h1>
+                                <h1 className="text-base font-semibold text-gray-900">
+                                    {mounted ? `Welcome back, ${user?.first_name || "Alumni"}!` : "Welcome back!"}
+                                </h1>
                                 <p className="text-xs text-gray-500 hidden sm:block">Here&apos;s what&apos;s happening with your career journey</p>
                             </div>
                         </div>

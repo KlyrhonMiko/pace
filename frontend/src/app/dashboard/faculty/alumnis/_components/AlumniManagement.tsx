@@ -1,5 +1,7 @@
 "use client";
 
+import { Fragment } from "react";
+
 import {
     Plus,
     Search,
@@ -66,6 +68,8 @@ export default function AlumniManagement() {
         alumniToDelete,
         expandedRows,
         formData,
+        isLoading,
+        error,
 
         setIsModalOpen,
         setFormData,
@@ -73,12 +77,12 @@ export default function AlumniManagement() {
         setFilterCourse,
         setAlumniToDelete,
         handleSearch,
-        openCreateModal,
         openEditModal,
         handleSave,
         handleDeleteClick,
         confirmDelete,
         toggleExpand,
+        fetchAlumni,
     } = useAlumniManagement();
 
     return (
@@ -117,18 +121,23 @@ export default function AlumniManagement() {
                         </SelectContent>
                     </Select>
                 </div>
-                <Button
-                    onClick={openCreateModal}
-                    className="w-full sm:w-auto h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-2 px-6 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
-                >
-                    <Plus className="h-5 w-5" strokeWidth={2.5} />
-                    Add Alumni
-                </Button>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={fetchAlumni}
+                        className="h-11 w-11 rounded-xl border border-slate-200 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
+                        disabled={isLoading}
+                        title="Refresh data"
+                    >
+                        <Loader2 className={`h-5 w-5 ${isLoading ? "animate-spin" : ""}`} />
+                    </Button>
+                </div>
             </div>
 
             {/* Alumni Table */}
-            <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-                <div className="overflow-x-auto">
+            <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm min-h-[400px] flex flex-col">
+                <div className="overflow-x-auto flex-1">
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-slate-50/50 border-bottom border-slate-200">
@@ -141,11 +150,51 @@ export default function AlumniManagement() {
                                 <th className="px-4 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {alumni.length === 0 ? (
+                        <tbody className="divide-y divide-slate-100 relative">
+                            {isLoading ? (
                                 <tr>
-                                    <td colSpan={7} className="px-6 py-16 text-center text-sm text-slate-400">
-                                        No alumni records found.
+                                    <td colSpan={7} className="px-6 py-32 text-center">
+                                        <div className="flex flex-col items-center gap-4">
+                                            <div className="relative">
+                                                <div className="h-12 w-12 rounded-full border-4 border-emerald-100 border-t-emerald-600 animate-spin" />
+                                                <div className="absolute inset-0 flex items-center justify-center">
+                                                    <div className="h-6 w-6 rounded-full bg-emerald-50" />
+                                                </div>
+                                            </div>
+                                            <p className="text-sm font-bold text-slate-500 uppercase tracking-widest animate-pulse">Fetching alumni records...</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ) : error ? (
+                                <tr>
+                                    <td colSpan={7} className="px-6 py-32 text-center">
+                                        <div className="flex flex-col items-center gap-4">
+                                            <div className="h-16 w-16 rounded-full bg-red-50 flex items-center justify-center text-red-600 shadow-inner">
+                                                <AlertTriangle className="h-8 w-8" />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <p className="text-base font-bold text-slate-900">Oops! Something went wrong</p>
+                                                <p className="text-sm text-slate-500 max-w-xs mx-auto">{error}</p>
+                                            </div>
+                                            <Button 
+                                                variant="outline" 
+                                                onClick={fetchAlumni}
+                                                className="mt-2 rounded-xl border-slate-200 hover:bg-slate-50 font-bold px-6"
+                                            >
+                                                Try Refreshing
+                                            </Button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ) : alumni.length === 0 ? (
+                                <tr>
+                                    <td colSpan={7} className="px-6 py-32 text-center">
+                                        <div className="flex flex-col items-center gap-4 opacity-40">
+                                            <div className="h-16 w-16 rounded-3xl bg-slate-100 flex items-center justify-center">
+                                                <User className="h-8 w-8 text-slate-400" />
+                                            </div>
+                                            <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">No alumni records found.</p>
+                                        </div>
                                     </td>
                                 </tr>
                             ) : (
@@ -153,7 +202,7 @@ export default function AlumniManagement() {
                                     const isExpanded = expandedRows.has(record.alumni_id);
                                     const hasStudent = record.student !== null;
                                     return (
-                                        <>
+                                        <Fragment key={record.alumni_id}>
                                             <tr
                                                 key={record.alumni_id}
                                                 className={`hover:bg-slate-50/80 transition-colors group ${isExpanded ? "bg-slate-50/50" : ""}`}
@@ -262,7 +311,7 @@ export default function AlumniManagement() {
                                                     </td>
                                                 </tr>
                                             )}
-                                        </>
+                                        </Fragment>
                                     );
                                 })
                             )}
@@ -278,12 +327,12 @@ export default function AlumniManagement() {
                         {/* Modal Header */}
                         <div className="bg-gradient-to-r from-emerald-800 to-teal-700 p-8 text-white relative">
                             <h2 className="text-2xl font-extrabold tracking-tight">
-                                {editingAlumni ? "Edit Alumni Record" : "Add New Alumni"}
+                                Edit Alumni Record
                             </h2>
                             <p className="text-emerald-100/80 text-sm mt-1">
                                 {editingAlumni
                                     ? `Modifying: ${editingAlumni.alumni_id}`
-                                    : "Fill in the details to register a new alumni."}
+                                    : "Update alumni information."}
                             </p>
                             <button
                                 onClick={() => setIsModalOpen(false)}

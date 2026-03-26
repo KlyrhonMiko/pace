@@ -14,6 +14,38 @@ export interface FacultyStats {
     events_organized: number;
     placement_rate: number;
     referrals_sent: number;
+    avg_offers: number;
+    avg_package: number;
+    top_sector: string;
+    placement_distribution: {
+        employed: number;
+        interviewing: number;
+        searching: number;
+    };
+}
+
+export interface AlumniProgressItem {
+    name: string;
+    course: string;
+    status: string;
+    company: string | null;
+    initials: string;
+}
+
+export interface FacultyActivity {
+    id: string;
+    description: string;
+    type: string;
+    created_at: string;
+}
+
+export interface MentoringSessionItem {
+    id: string;
+    title: string;
+    student: string;
+    time: string;
+    location: string;
+    status: string;
 }
 
 export interface AlumniStats {
@@ -75,6 +107,54 @@ export async function fetchAlumniStats(): Promise<AlumniStats | null> {
     } catch (error) {
         console.error("Failed to fetch alumni stats:", error);
         return null;
+    }
+}
+
+/**
+ * Fetches recent alumni progress for the faculty dashboard.
+ */
+export async function fetchFacultyAlumniProgress(): Promise<AlumniProgressItem[]> {
+    try {
+        const json = await apiFetch<any>("/dashboard/faculty/progress");
+        if (json.success && json.data) {
+            return json.data as AlumniProgressItem[];
+        }
+        return [];
+    } catch (error) {
+        console.error("Failed to fetch faculty alumni progress:", error);
+        return [];
+    }
+}
+
+/**
+ * Fetches general alumni activity for the faculty dashboard.
+ */
+export async function fetchFacultyActivity(): Promise<FacultyActivity[]> {
+    try {
+        const json = await apiFetch<any>("/dashboard/faculty/activity");
+        if (json.success && json.data) {
+            return json.data as FacultyActivity[];
+        }
+        return [];
+    } catch (error) {
+        console.error("Failed to fetch faculty activity:", error);
+        return [];
+    }
+}
+
+/**
+ * Fetches upcoming mentoring sessions for the faculty dashboard.
+ */
+export async function fetchFacultySessions(): Promise<MentoringSessionItem[]> {
+    try {
+        const json = await apiFetch<any>("/dashboard/faculty/sessions");
+        if (json.success && json.data) {
+            return json.data as MentoringSessionItem[];
+        }
+        return [];
+    } catch (error) {
+        console.error("Failed to fetch faculty sessions:", error);
+        return [];
     }
 }
 

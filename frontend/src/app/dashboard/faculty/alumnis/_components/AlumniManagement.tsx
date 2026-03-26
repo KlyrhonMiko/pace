@@ -14,6 +14,7 @@ import {
     ChevronDown,
     ChevronRight,
     User,
+    Briefcase,
 } from "lucide-react";
 import { Button } from "../../../../../components/ui/button";
 import { Input } from "../../../../../components/ui/input";
@@ -37,6 +38,23 @@ function GenderBadge({ gender }: { gender: string }) {
     return (
         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${c.bg} ${c.text} ${c.border}`}>
             {gender}
+        </span>
+    );
+}
+
+// ─── Employment Status Badge ──────────────────────────────────────────────────
+
+function EmploymentStatusBadge({ status }: { status: string | null }) {
+    const config: Record<string, { bg: string; text: string; border: string }> = {
+        Employed: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200/60" },
+        Interviewing: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200/60" },
+        Searching: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200/60" },
+        "Not Looking": { bg: "bg-slate-50", text: "text-slate-600", border: "border-slate-200/60" },
+    };
+    const c = config[status ?? "Searching"] ?? { bg: "bg-slate-50", text: "text-slate-600", border: "border-slate-200/60" };
+    return (
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${c.bg} ${c.text} ${c.border}`}>
+            {status ?? "Unknown"}
         </span>
     );
 }
@@ -287,25 +305,46 @@ export default function AlumniManagement() {
                                                 </td>
                                             </tr>
 
-                                            {/* Expanded Student Details */}
+                                            {/* Expanded employment + Student Details */}
                                             {isExpanded && hasStudent && (
                                                 <tr key={`${record.alumni_id}-details`} className="bg-gradient-to-r from-emerald-50/40 to-teal-50/30">
                                                     <td colSpan={7} className="px-6 py-5">
-                                                        <div className="ml-10">
-                                                            <div className="flex items-center gap-2 mb-4">
-                                                                <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700">
-                                                                    <User className="h-3.5 w-3.5" />
+                                                        <div className="ml-10 space-y-5">
+                                                            {/* Employment Details */}
+                                                            <div>
+                                                                <div className="flex items-center gap-2 mb-3">
+                                                                    <div className="p-1.5 rounded-lg bg-blue-100 text-blue-700">
+                                                                        <Briefcase className="h-3.5 w-3.5" />
+                                                                    </div>
+                                                                    <span className="text-xs font-bold text-blue-800 uppercase tracking-wider">Employment Details</span>
                                                                 </div>
-                                                                <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider">Student Details</span>
+                                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
+                                                                    <div className="flex flex-col">
+                                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</span>
+                                                                        <EmploymentStatusBadge status={record.employment_status} />
+                                                                    </div>
+                                                                    <StudentDetailRow label="Sector" value={record.employment_sector} />
+                                                                    <StudentDetailRow label="Salary Package" value={record.salary_package !== null ? `₱${record.salary_package?.toLocaleString()}` : null} />
+                                                                    <StudentDetailRow label="Offers Received" value={record.offers_received} />
+                                                                </div>
                                                             </div>
-                                                            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-5">
-                                                                <StudentDetailRow label="Student ID" value={record.student!.student_id} />
-                                                                <StudentDetailRow label="Course" value={record.student!.course} />
-                                                                <StudentDetailRow label="Year Graduated" value={record.student!.year_graduated} />
-                                                                <StudentDetailRow label="GWA" value={record.student!.gwa.toFixed(2)} />
-                                                                <StudentDetailRow label="Avg Prof Grade" value={record.student!.avg_prof_grade?.toFixed(2) ?? null} />
-                                                                <StudentDetailRow label="Avg Elec Grade" value={record.student!.avg_elec_grade?.toFixed(2) ?? null} />
-                                                                <StudentDetailRow label="OJT Grade" value={record.student!.ojt_grade} />
+                                                            {/* Student Details */}
+                                                            <div>
+                                                                <div className="flex items-center gap-2 mb-3">
+                                                                    <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700">
+                                                                        <User className="h-3.5 w-3.5" />
+                                                                    </div>
+                                                                    <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider">Student Details</span>
+                                                                </div>
+                                                                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-5">
+                                                                    <StudentDetailRow label="Student ID" value={record.student!.student_id} />
+                                                                    <StudentDetailRow label="Course" value={record.student!.course} />
+                                                                    <StudentDetailRow label="Year Graduated" value={record.student!.year_graduated} />
+                                                                    <StudentDetailRow label="GWA" value={record.student!.gwa.toFixed(2)} />
+                                                                    <StudentDetailRow label="Avg Prof Grade" value={record.student!.avg_prof_grade?.toFixed(2) ?? null} />
+                                                                    <StudentDetailRow label="Avg Elec Grade" value={record.student!.avg_elec_grade?.toFixed(2) ?? null} />
+                                                                    <StudentDetailRow label="OJT Grade" value={record.student!.ojt_grade} />
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </td>
@@ -344,6 +383,63 @@ export default function AlumniManagement() {
 
                         {/* Modal Body */}
                         <div className="p-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                            {/* Employment Info Section */}
+                            <div className="mb-6">
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                    <div className="w-5 h-px bg-slate-200" />
+                                    Employment Information
+                                    <div className="flex-1 h-px bg-slate-200" />
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Employment Status</label>
+                                        <Select
+                                            value={formData.employment_status}
+                                            onValueChange={(value: string) => setFormData({ ...formData, employment_status: value })}
+                                        >
+                                            <SelectTrigger className="h-11 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 font-medium">
+                                                <SelectValue placeholder="Select status" />
+                                            </SelectTrigger>
+                                            <SelectContent className="rounded-xl border-slate-200 z-[110]">
+                                                <SelectItem value="Employed">Employed</SelectItem>
+                                                <SelectItem value="Interviewing">Interviewing</SelectItem>
+                                                <SelectItem value="Searching">Searching</SelectItem>
+                                                <SelectItem value="Not Looking">Not Looking</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Industry / Sector</label>
+                                        <Input
+                                            placeholder="e.g. Information Technology"
+                                            value={formData.employment_sector}
+                                            onChange={(e) => setFormData({ ...formData, employment_sector: e.target.value })}
+                                            className="h-11 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all font-medium"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Salary Package (₱)</label>
+                                        <Input
+                                            type="number"
+                                            placeholder="e.g. 25000"
+                                            value={formData.salary_package}
+                                            onChange={(e) => setFormData({ ...formData, salary_package: e.target.value })}
+                                            className="h-11 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all font-medium"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Job Offers Received</label>
+                                        <Input
+                                            type="number"
+                                            placeholder="e.g. 2"
+                                            value={formData.offers_received}
+                                            onChange={(e) => setFormData({ ...formData, offers_received: e.target.value })}
+                                            className="h-11 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all font-medium"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* Personal Info Section */}
                             <div className="mb-6">
                                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">

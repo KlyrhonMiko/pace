@@ -24,6 +24,10 @@ export interface Alumni {
     birthdate: string;
     age: number;
     gender: string;
+    employment_status: string | null;
+    employment_sector: string | null;
+    salary_package: number | null;
+    offers_received: number | null;
     student: StudentDetails | null;
 }
 
@@ -33,6 +37,12 @@ export interface AlumniFormData {
     middle_name: string;
     birthdate: string;
     gender: string;
+    // Employment Fields
+    employment_status: string;
+    employment_sector: string;
+    salary_package: string;
+    offers_received: string;
+    // Academic Fields
     student_id: string;
     course: string;
     year_graduated: string;
@@ -54,6 +64,10 @@ const EMPTY_FORM: AlumniFormData = {
     middle_name: "",
     birthdate: "",
     gender: "",
+    employment_status: "Searching",
+    employment_sector: "",
+    salary_package: "",
+    offers_received: "",
     student_id: "",
     course: "",
     year_graduated: "",
@@ -113,6 +127,10 @@ export function useAlumniManagement() {
                     birthdate: a.birthdate,
                     age: a.age,
                     gender: a.gender,
+                    employment_status: a.employment_status || null,
+                    employment_sector: a.employment_sector || null,
+                    salary_package: a.salary_package ?? null,
+                    offers_received: a.offers_received ?? null,
                     student: a.student_id ? {
                         student_id: a.student_id,
                         course: a.course_name || a.course_id || "",
@@ -161,6 +179,10 @@ export function useAlumniManagement() {
             middle_name: targetAlumni.middle_name,
             birthdate: targetAlumni.birthdate,
             gender: targetAlumni.gender,
+            employment_status: targetAlumni.employment_status || "Searching",
+            employment_sector: targetAlumni.employment_sector || "",
+            salary_package: targetAlumni.salary_package?.toString() || "",
+            offers_received: targetAlumni.offers_received?.toString() || "",
             student_id: targetAlumni.student?.student_id || "",
             course: targetAlumni.student?.course || "",
             year_graduated: targetAlumni.student?.year_graduated?.toString() || "",
@@ -193,6 +215,10 @@ export function useAlumniManagement() {
                     birthdate: formData.birthdate,
                     gender: formData.gender,
                     age,
+                    employment_status: formData.employment_status || null,
+                    employment_sector: formData.employment_sector || null,
+                    salary_package: formData.salary_package ? parseFloat(formData.salary_package) : null,
+                    offers_received: formData.offers_received ? parseInt(formData.offers_received, 10) : null,
                 }
             });
 

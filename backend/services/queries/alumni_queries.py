@@ -74,23 +74,7 @@ def build_full_profile(session: Session, alumni: Alumni) -> AlumniFullProfile:
         ).first()
 
     # Calculate completeness
-    alumni_fields = [
-        alumni.first_name, alumni.last_name, alumni.gender,
-        alumni.age, alumni.birthdate, alumni.middle_name
-    ]
-    filled_alumni = sum(1 for f in alumni_fields if f is not None and f != "")
-    
-    student_fields = []
-    if student:
-        student_fields = [
-            student.student_id, student.year_graduated, student.gwa,
-            student.avg_prof_grade, student.avg_elec_grade, student.ojt_grade
-        ]
-    filled_student = sum(1 for f in student_fields if f is not None and f != "")
-    
-    total_fields = 12 # 6 alumni + 6 student
-    total_filled = filled_alumni + filled_student
-    completeness = int((total_filled / total_fields) * 100) if total_fields > 0 else 0
+    completeness = calculate_profile_completeness(alumni, student)
 
     return AlumniFullProfile(
         alumni_id=alumni.alumni_id,
@@ -101,6 +85,10 @@ def build_full_profile(session: Session, alumni: Alumni) -> AlumniFullProfile:
         age=alumni.age,
         birthdate=alumni.birthdate,
         consent_for_survey_ml=alumni.consent_for_survey_ml,
+        employment_status=alumni.employment_status,
+        employment_sector=alumni.employment_sector,
+        salary_package=alumni.salary_package,
+        offers_received=alumni.offers_received,
         user_id=user.user_id if user else None,
         username=user.username if user else None,
         email=user.email if user else None,
@@ -258,6 +246,14 @@ def update_alumni(
         alumni.birthdate = data.birthdate
     if data.consent_for_survey_ml is not None:
         alumni.consent_for_survey_ml = data.consent_for_survey_ml
+    if data.employment_status is not None:
+        alumni.employment_status = data.employment_status
+    if data.employment_sector is not None:
+        alumni.employment_sector = data.employment_sector
+    if data.salary_package is not None:
+        alumni.salary_package = data.salary_package
+    if data.offers_received is not None:
+        alumni.offers_received = data.offers_received
     session.add(alumni)
     create_transaction_log(
         session,
@@ -694,7 +690,9 @@ def calculate_profile_completeness(alumni: Alumni, student: StudentRecord | None
     """Centralized calculation for profile completeness percentage."""
     alumni_fields = [
         alumni.first_name, alumni.last_name, alumni.gender,
-        alumni.age, alumni.birthdate, alumni.middle_name
+        alumni.age, alumni.birthdate, alumni.middle_name,
+        alumni.employment_status, alumni.employment_sector,
+        alumni.salary_package, alumni.offers_received
     ]
     filled_alumni = sum(1 for f in alumni_fields if f is not None and f != "")
     
@@ -706,6 +704,6 @@ def calculate_profile_completeness(alumni: Alumni, student: StudentRecord | None
         ]
     filled_student = sum(1 for f in student_fields if f is not None and f != "")
     
-    total_fields = 12 # 6 alumni + 6 student
+    total_fields = 16 # 10 alumni (including employment) + 6 student
     total_filled = filled_alumni + filled_student
     return min(int((total_filled / total_fields) * 100), 100) if total_fields > 0 else 0

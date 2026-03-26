@@ -14,6 +14,12 @@ class AlumniBase(SQLModel):
     age: int
     birthdate: Optional[date] = None
     consent_for_survey_ml: bool = Field(default=False)
+    
+    # Placement Tracking Fields
+    employment_status: Optional[str] = Field(default="Searching", max_length=20) # Employed, Interviewing, Searching, Not Looking
+    employment_sector: Optional[str] = Field(default=None, max_length=100)
+    salary_package: Optional[float] = Field(default=0.0)
+    offers_received: Optional[int] = Field(default=0)
 
 
 class Alumni(AlumniBase, table=True):

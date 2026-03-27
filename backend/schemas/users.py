@@ -5,7 +5,7 @@ from enum import Enum
 from sqlmodel import SQLModel, Field
 from pydantic import field_serializer, field_validator, BaseModel
 from utils.timezone import format_datetime_gmt8
-from utils.auth import hash_password
+from utils.crypto import hash_password
 
 
 class UserType(str, Enum):

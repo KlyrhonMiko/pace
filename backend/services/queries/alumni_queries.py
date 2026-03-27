@@ -18,7 +18,7 @@ from schemas.composite import (
     BatchAlumniRestoreResult, BatchAlumniRestoreResponse,
 )
 from models.response_codes import ErrorCode, SuccessCode
-from utils.auth import hash_password
+from utils.crypto import hash_password
 from utils.logging import log_integrity_error
 from utils.timezone import get_current_time_gmt8
 from services.queries.transaction_logs_queries import create_transaction_log

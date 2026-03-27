@@ -8,7 +8,8 @@ from models.auth import LoginRequest, TokenResponse, CurrentUser, ResetPasswordR
 from models.response_codes import ErrorCode, SuccessCode, StandardResponse
 from services.queries.transaction_logs_queries import create_transaction_log
 from services.queries.user_activities_queries import create_user_activity, ActivityType
-from utils.auth import verify_password, create_access_token, get_current_user, hash_password
+from utils.auth import create_access_token, get_current_user
+from utils.crypto import verify_password, hash_password
 from utils.otp import verify_otp
 from utils.logging import log_auth_error
 

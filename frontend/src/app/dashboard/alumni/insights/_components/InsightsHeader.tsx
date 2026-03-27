@@ -6,7 +6,6 @@ import { EmployabilityResult } from "../../_lib/api";
 import AskAIButton from "./AskAIButton";
 
 interface InsightsHeaderProps {
-    isDemo?: boolean;
     predictionData?: EmployabilityResult | null;
 }
 

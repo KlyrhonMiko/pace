@@ -1,5 +1,7 @@
 "use client";
 
+import { Fragment } from "react";
+
 import {
     Plus,
     Search,
@@ -12,6 +14,7 @@ import {
     ChevronDown,
     ChevronRight,
     User,
+    Briefcase,
 } from "lucide-react";
 import { Button } from "../../../../../components/ui/button";
 import { Input } from "../../../../../components/ui/input";
@@ -35,6 +38,23 @@ function GenderBadge({ gender }: { gender: string }) {
     return (
         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${c.bg} ${c.text} ${c.border}`}>
             {gender}
+        </span>
+    );
+}
+
+// ─── Employment Status Badge ──────────────────────────────────────────────────
+
+function EmploymentStatusBadge({ status }: { status: string | null }) {
+    const config: Record<string, { bg: string; text: string; border: string }> = {
+        Employed: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200/60" },
+        Interviewing: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200/60" },
+        Searching: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200/60" },
+        "Not Looking": { bg: "bg-slate-50", text: "text-slate-600", border: "border-slate-200/60" },
+    };
+    const c = config[status ?? "Searching"] ?? { bg: "bg-slate-50", text: "text-slate-600", border: "border-slate-200/60" };
+    return (
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${c.bg} ${c.text} ${c.border}`}>
+            {status ?? "Unknown"}
         </span>
     );
 }
@@ -66,6 +86,8 @@ export default function AlumniManagement() {
         alumniToDelete,
         expandedRows,
         formData,
+        isLoading,
+        error,
 
         setIsModalOpen,
         setFormData,
@@ -73,12 +95,12 @@ export default function AlumniManagement() {
         setFilterCourse,
         setAlumniToDelete,
         handleSearch,
-        openCreateModal,
         openEditModal,
         handleSave,
         handleDeleteClick,
         confirmDelete,
         toggleExpand,
+        fetchAlumni,
     } = useAlumniManagement();
 
     return (
@@ -117,18 +139,23 @@ export default function AlumniManagement() {
                         </SelectContent>
                     </Select>
                 </div>
-                <Button
-                    onClick={openCreateModal}
-                    className="w-full sm:w-auto h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-2 px-6 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
-                >
-                    <Plus className="h-5 w-5" strokeWidth={2.5} />
-                    Add Alumni
-                </Button>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={fetchAlumni}
+                        className="h-11 w-11 rounded-xl border border-slate-200 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
+                        disabled={isLoading}
+                        title="Refresh data"
+                    >
+                        <Loader2 className={`h-5 w-5 ${isLoading ? "animate-spin" : ""}`} />
+                    </Button>
+                </div>
             </div>
 
             {/* Alumni Table */}
-            <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-                <div className="overflow-x-auto">
+            <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm min-h-[400px] flex flex-col">
+                <div className="overflow-x-auto flex-1">
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-slate-50/50 border-bottom border-slate-200">
@@ -141,11 +168,51 @@ export default function AlumniManagement() {
                                 <th className="px-4 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {alumni.length === 0 ? (
+                        <tbody className="divide-y divide-slate-100 relative">
+                            {isLoading ? (
                                 <tr>
-                                    <td colSpan={7} className="px-6 py-16 text-center text-sm text-slate-400">
-                                        No alumni records found.
+                                    <td colSpan={7} className="px-6 py-32 text-center">
+                                        <div className="flex flex-col items-center gap-4">
+                                            <div className="relative">
+                                                <div className="h-12 w-12 rounded-full border-4 border-emerald-100 border-t-emerald-600 animate-spin" />
+                                                <div className="absolute inset-0 flex items-center justify-center">
+                                                    <div className="h-6 w-6 rounded-full bg-emerald-50" />
+                                                </div>
+                                            </div>
+                                            <p className="text-sm font-bold text-slate-500 uppercase tracking-widest animate-pulse">Fetching alumni records...</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ) : error ? (
+                                <tr>
+                                    <td colSpan={7} className="px-6 py-32 text-center">
+                                        <div className="flex flex-col items-center gap-4">
+                                            <div className="h-16 w-16 rounded-full bg-red-50 flex items-center justify-center text-red-600 shadow-inner">
+                                                <AlertTriangle className="h-8 w-8" />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <p className="text-base font-bold text-slate-900">Oops! Something went wrong</p>
+                                                <p className="text-sm text-slate-500 max-w-xs mx-auto">{error}</p>
+                                            </div>
+                                            <Button 
+                                                variant="outline" 
+                                                onClick={fetchAlumni}
+                                                className="mt-2 rounded-xl border-slate-200 hover:bg-slate-50 font-bold px-6"
+                                            >
+                                                Try Refreshing
+                                            </Button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ) : alumni.length === 0 ? (
+                                <tr>
+                                    <td colSpan={7} className="px-6 py-32 text-center">
+                                        <div className="flex flex-col items-center gap-4 opacity-40">
+                                            <div className="h-16 w-16 rounded-3xl bg-slate-100 flex items-center justify-center">
+                                                <User className="h-8 w-8 text-slate-400" />
+                                            </div>
+                                            <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">No alumni records found.</p>
+                                        </div>
                                     </td>
                                 </tr>
                             ) : (
@@ -153,7 +220,7 @@ export default function AlumniManagement() {
                                     const isExpanded = expandedRows.has(record.alumni_id);
                                     const hasStudent = record.student !== null;
                                     return (
-                                        <>
+                                        <Fragment key={record.alumni_id}>
                                             <tr
                                                 key={record.alumni_id}
                                                 className={`hover:bg-slate-50/80 transition-colors group ${isExpanded ? "bg-slate-50/50" : ""}`}
@@ -238,31 +305,52 @@ export default function AlumniManagement() {
                                                 </td>
                                             </tr>
 
-                                            {/* Expanded Student Details */}
+                                            {/* Expanded employment + Student Details */}
                                             {isExpanded && hasStudent && (
                                                 <tr key={`${record.alumni_id}-details`} className="bg-gradient-to-r from-emerald-50/40 to-teal-50/30">
                                                     <td colSpan={7} className="px-6 py-5">
-                                                        <div className="ml-10">
-                                                            <div className="flex items-center gap-2 mb-4">
-                                                                <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700">
-                                                                    <User className="h-3.5 w-3.5" />
+                                                        <div className="ml-10 space-y-5">
+                                                            {/* Employment Details */}
+                                                            <div>
+                                                                <div className="flex items-center gap-2 mb-3">
+                                                                    <div className="p-1.5 rounded-lg bg-blue-100 text-blue-700">
+                                                                        <Briefcase className="h-3.5 w-3.5" />
+                                                                    </div>
+                                                                    <span className="text-xs font-bold text-blue-800 uppercase tracking-wider">Employment Details</span>
                                                                 </div>
-                                                                <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider">Student Details</span>
+                                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
+                                                                    <div className="flex flex-col">
+                                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</span>
+                                                                        <EmploymentStatusBadge status={record.employment_status} />
+                                                                    </div>
+                                                                    <StudentDetailRow label="Sector" value={record.employment_sector} />
+                                                                    <StudentDetailRow label="Salary Package" value={record.salary_package !== null ? `₱${record.salary_package?.toLocaleString()}` : null} />
+                                                                    <StudentDetailRow label="Offers Received" value={record.offers_received} />
+                                                                </div>
                                                             </div>
-                                                            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-5">
-                                                                <StudentDetailRow label="Student ID" value={record.student!.student_id} />
-                                                                <StudentDetailRow label="Course" value={record.student!.course} />
-                                                                <StudentDetailRow label="Year Graduated" value={record.student!.year_graduated} />
-                                                                <StudentDetailRow label="GWA" value={record.student!.gwa.toFixed(2)} />
-                                                                <StudentDetailRow label="Avg Prof Grade" value={record.student!.avg_prof_grade?.toFixed(2) ?? null} />
-                                                                <StudentDetailRow label="Avg Elec Grade" value={record.student!.avg_elec_grade?.toFixed(2) ?? null} />
-                                                                <StudentDetailRow label="OJT Grade" value={record.student!.ojt_grade} />
+                                                            {/* Student Details */}
+                                                            <div>
+                                                                <div className="flex items-center gap-2 mb-3">
+                                                                    <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700">
+                                                                        <User className="h-3.5 w-3.5" />
+                                                                    </div>
+                                                                    <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider">Student Details</span>
+                                                                </div>
+                                                                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-5">
+                                                                    <StudentDetailRow label="Student ID" value={record.student!.student_id} />
+                                                                    <StudentDetailRow label="Course" value={record.student!.course} />
+                                                                    <StudentDetailRow label="Year Graduated" value={record.student!.year_graduated} />
+                                                                    <StudentDetailRow label="GWA" value={record.student!.gwa.toFixed(2)} />
+                                                                    <StudentDetailRow label="Avg Prof Grade" value={record.student!.avg_prof_grade?.toFixed(2) ?? null} />
+                                                                    <StudentDetailRow label="Avg Elec Grade" value={record.student!.avg_elec_grade?.toFixed(2) ?? null} />
+                                                                    <StudentDetailRow label="OJT Grade" value={record.student!.ojt_grade} />
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </td>
                                                 </tr>
                                             )}
-                                        </>
+                                        </Fragment>
                                     );
                                 })
                             )}
@@ -278,12 +366,12 @@ export default function AlumniManagement() {
                         {/* Modal Header */}
                         <div className="bg-gradient-to-r from-emerald-800 to-teal-700 p-8 text-white relative">
                             <h2 className="text-2xl font-extrabold tracking-tight">
-                                {editingAlumni ? "Edit Alumni Record" : "Add New Alumni"}
+                                Edit Alumni Record
                             </h2>
                             <p className="text-emerald-100/80 text-sm mt-1">
                                 {editingAlumni
                                     ? `Modifying: ${editingAlumni.alumni_id}`
-                                    : "Fill in the details to register a new alumni."}
+                                    : "Update alumni information."}
                             </p>
                             <button
                                 onClick={() => setIsModalOpen(false)}
@@ -295,6 +383,63 @@ export default function AlumniManagement() {
 
                         {/* Modal Body */}
                         <div className="p-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                            {/* Employment Info Section */}
+                            <div className="mb-6">
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                    <div className="w-5 h-px bg-slate-200" />
+                                    Employment Information
+                                    <div className="flex-1 h-px bg-slate-200" />
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Employment Status</label>
+                                        <Select
+                                            value={formData.employment_status}
+                                            onValueChange={(value: string) => setFormData({ ...formData, employment_status: value })}
+                                        >
+                                            <SelectTrigger className="h-11 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 font-medium">
+                                                <SelectValue placeholder="Select status" />
+                                            </SelectTrigger>
+                                            <SelectContent className="rounded-xl border-slate-200 z-[110]">
+                                                <SelectItem value="Employed">Employed</SelectItem>
+                                                <SelectItem value="Interviewing">Interviewing</SelectItem>
+                                                <SelectItem value="Searching">Searching</SelectItem>
+                                                <SelectItem value="Not Looking">Not Looking</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Industry / Sector</label>
+                                        <Input
+                                            placeholder="e.g. Information Technology"
+                                            value={formData.employment_sector}
+                                            onChange={(e) => setFormData({ ...formData, employment_sector: e.target.value })}
+                                            className="h-11 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all font-medium"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Salary Package (₱)</label>
+                                        <Input
+                                            type="number"
+                                            placeholder="e.g. 25000"
+                                            value={formData.salary_package}
+                                            onChange={(e) => setFormData({ ...formData, salary_package: e.target.value })}
+                                            className="h-11 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all font-medium"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Job Offers Received</label>
+                                        <Input
+                                            type="number"
+                                            placeholder="e.g. 2"
+                                            value={formData.offers_received}
+                                            onChange={(e) => setFormData({ ...formData, offers_received: e.target.value })}
+                                            className="h-11 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all font-medium"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* Personal Info Section */}
                             <div className="mb-6">
                                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">

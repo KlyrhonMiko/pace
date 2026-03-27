@@ -251,14 +251,13 @@ def get_all_student_records_including_deleted(
 def create_student_record_route(
     student_data: StudentRecordCreate,
     session: Session = Depends(get_session),
-    current_user: CurrentUser = Depends(require_staff_or_admin),
 ):
     """Create a new student record linked to an alumni"""
     try:
         new_student = create_student_record(
             session,
             student_data,
-            performed_by=current_user.user_code,
+            performed_by=None,
         )
         invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(

@@ -19,6 +19,10 @@ class AlumniFullProfile(SQLModel):
     age: int
     birthdate: Optional[date]
     consent_for_survey_ml: Optional[bool]
+    employment_status: Optional[str] = None
+    employment_sector: Optional[str] = None
+    salary_package: Optional[float] = None
+    offers_received: Optional[int] = None
 
     # User account info
     user_id: Optional[str]

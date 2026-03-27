@@ -7,7 +7,7 @@ from datetime import date
 from typing import Optional, List
 from sqlmodel import SQLModel
 from pydantic import field_validator, BaseModel, Field
-from utils.auth import hash_password
+from utils.crypto import hash_password
 
 
 class CompleteAlumniRegistration(SQLModel):

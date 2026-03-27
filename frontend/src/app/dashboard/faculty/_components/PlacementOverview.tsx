@@ -1,23 +1,47 @@
 "use client";
 
-import { Briefcase, TrendingUp, TrendingDown } from "lucide-react";
-
-const segments = [
-    { label: "Employed", desc: "Successfully placed", value: 50, color: "#10b981", pct: 78.1 },
-    { label: "Interviewing", desc: "In progress", value: 8, color: "#3b82f6", pct: 12.5 },
-    { label: "Searching", desc: "Actively looking", value: 6, color: "#f59e0b", pct: 9.4 },
-];
-
-const miniStats = [
-    { label: "Avg. Offers", value: "2.4", trend: "+0.3", up: true },
-    { label: "Avg. Package", value: "8.2L", trend: "+12%", up: true },
-    { label: "Top Sector", value: "IT", trend: "Same", up: null },
-];
+import { useEffect, useState } from "react";
+import { Briefcase, TrendingUp, TrendingDown, Loader2 } from "lucide-react";
+import { fetchFacultyStats, FacultyStats } from "../../_lib/dashboard";
 
 export default function PlacementOverview() {
-    const total = 64;
-    const placed = 50;
-    const placedPct = Math.round((placed / total) * 100);
+    const [stats, setStats] = useState<FacultyStats | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        async function load() {
+            const data = await fetchFacultyStats();
+            if (data) setStats(data);
+            setLoading(false);
+        }
+        load();
+    }, []);
+
+    if (loading) {
+        return (
+            <div className="rounded-2xl bg-white border border-gray-100/80 p-6 flex items-center justify-center min-h-[300px] h-full">
+                <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+            </div>
+        );
+    }
+
+    const dist = stats?.placement_distribution ?? { employed: 0, interviewing: 0, searching: 0 };
+    const total = dist.employed + dist.interviewing + dist.searching;
+    const placed = dist.employed;
+    const placedPct = total > 0 ? Math.round((placed / total) * 100) : 0;
+
+    const segments = [
+        { label: "Employed", desc: "Successfully placed", value: dist.employed, color: "#10b981", pct: total > 0 ? (dist.employed / total) * 100 : 0 },
+        { label: "Interviewing", desc: "In progress", value: dist.interviewing, color: "#3b82f6", pct: total > 0 ? (dist.interviewing / total) * 100 : 0 },
+        { label: "Searching", desc: "Actively looking", value: dist.searching, color: "#f59e0b", pct: total > 0 ? (dist.searching / total) * 100 : 0 },
+    ];
+
+    const miniStats = [
+        { label: "Avg. Offers", value: stats?.avg_offers?.toFixed(1) ?? "0.0", trend: "+0.3", up: true },
+        { label: "Avg. Package", value: stats?.avg_package ? `${stats.avg_package}L` : "0.0L", trend: "+12%", up: true },
+        { label: "Top Sector", value: stats?.top_sector ?? "N/A", trend: "Same", up: null },
+    ];
+
     const radius = 46;
     const strokeWidth = 11;
     const circumference = 2 * Math.PI * radius;
@@ -68,7 +92,7 @@ export default function PlacementOverview() {
                                 opacity="0.5"
                             />
                             <g style={{ transform: "rotate(-90deg)", transformOrigin: "60px 60px" }}>
-                                {segments.reduce<{ elements: JSX.Element[], currentOffset: number }>(
+                                {segments.reduce<{ elements: React.ReactNode[], currentOffset: number }>(
                                     (acc, seg) => {
                                         const dash = (seg.pct / 100) * circumference;
                                         const gap = circumference - dash;

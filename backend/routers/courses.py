@@ -127,7 +127,6 @@ def get_all_courses_route(
     sort_by: str = Query("course_id", description="Sort by field (course_id, course_abbv, course_name)"),
     sort_order: str = Query("asc", description="Sort order (asc, desc)"),
     session: Session = Depends(get_session),
-    current_user: CurrentUser = Depends(require_authenticated),
 ):
     """Get all courses with filtering, searching, and sorting"""
     cache_key = generate_cache_key(

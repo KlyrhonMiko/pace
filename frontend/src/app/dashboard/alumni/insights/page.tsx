@@ -4,7 +4,7 @@ import TopFactors from "./_components/TopFactors";
 import ImprovementSuggestions from "./_components/ImprovementSuggestions";
 import SkillBreakdown from "./_components/SkillBreakdown";
 import { cookies } from "next/headers";
-import { getLatestPrediction, fetchDemoPrediction } from "../_lib/api";
+import { getLatestPrediction } from "../_lib/api";
 import Link from "next/link";
 import { Sparkles, ArrowRight } from "lucide-react";
 
@@ -15,23 +15,19 @@ export default async function InsightsPage() {
 
     // 2. Fetch the latest employability prediction using the token
     let predictionData = null;
-    let isDemoData = false;
+
 
     if (token) {
         predictionData = await getLatestPrediction(token);
     }
 
-    // 3. Fallback to demo prediction if no data exists
-    if (!predictionData) {
-        predictionData = await fetchDemoPrediction(token);
-        isDemoData = true;
-    }
+    // 3. We no longer fallback to demo data. If no prediction exists, we show the "No Data" state below.
 
     // 4. Handle case where no prediction data is available at all
     if (!predictionData) {
         return (
             <div className="space-y-6">
-                <InsightsHeader isDemo={false} />
+                <InsightsHeader />
 
                 <div className="rounded-2xl bg-white border border-gray-200/60 overflow-hidden">
                     <div className="flex flex-col items-center justify-center py-20 px-6">
@@ -61,7 +57,7 @@ export default async function InsightsPage() {
     return (
         <div className="space-y-6">
             {/* Page Header */}
-            <InsightsHeader isDemo={isDemoData} predictionData={predictionData} />
+            <InsightsHeader predictionData={predictionData} />
 
             {/* Core Metrics — Score Overview + Top Factors */}
             <div className="grid gap-6 lg:grid-cols-5">

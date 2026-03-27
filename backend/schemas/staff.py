@@ -4,7 +4,7 @@ from typing import Optional, List
 from sqlmodel import SQLModel, Field
 from pydantic import BaseModel, field_serializer, field_validator
 from utils.timezone import format_datetime_gmt8
-from utils.auth import hash_password
+from utils.crypto import hash_password
 from models.users import UserType
 
 

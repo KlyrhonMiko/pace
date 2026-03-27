@@ -13,9 +13,7 @@ from models.users import User, UserType
 from models.alumni import Alumni
 from models.staff import Staff
 from utils.timezone import get_current_time_utc
-
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+from utils.crypto import hash_password, verify_password
 
 # JWT settings
 SECRET_KEY = settings.SECRET_KEY
@@ -26,16 +24,6 @@ if not SECRET_KEY:
     raise RuntimeError("JWT_SECRET_KEY environment variable is not set.")
 
 security = HTTPBearer(auto_error=False)
-
-
-def hash_password(password: str) -> str:
-    """Hash a password using bcrypt"""
-    return pwd_context.hash(password)
-
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a password against its hash"""
-    return pwd_context.verify(plain_password, hashed_password)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:

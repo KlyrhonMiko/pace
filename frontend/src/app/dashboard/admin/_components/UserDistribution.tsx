@@ -1,4 +1,5 @@
 "use client";
+import React from "react";
 import { PieChart, CheckCircle2 } from "lucide-react";
 
 const segments = [
@@ -68,7 +69,7 @@ export default function UserDistribution() {
                             />
                             {/* Segments */}
                             <g style={{ transform: "rotate(-90deg)", transformOrigin: "60px 60px" }}>
-                                {segments.reduce<{ elements: JSX.Element[], currentOffset: number }>(
+                                {segments.reduce<{ elements: React.ReactNode[], currentOffset: number }>(
                                     (acc, seg) => {
                                         const dash = (seg.pct / 100) * circumference;
                                         const gap = circumference - dash;

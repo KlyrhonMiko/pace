@@ -120,7 +120,6 @@ def batch_update_alumni_skills_route(
 def create_alumni_skills_route(
     data: AlumniSkillsCreate,
     session: Session = Depends(get_session),
-    current_user: CurrentUser = Depends(require_authenticated),
 ):
     """Create a skills record for an alumni"""
     alumni = _resolve_alumni_for_auth(session, data.alumni_id)
@@ -134,13 +133,13 @@ def create_alumni_skills_route(
             ).model_dump(mode="json"),
         )
 
-    _ensure_alumni_owner_or_staff_plus(current_user, str(alumni.user_code) if alumni.user_code else None)
+    # _ensure_alumni_owner_or_staff_plus(current_user, str(alumni.user_code) if alumni.user_code else None)
 
     try:
         skills = create_alumni_skills(
             session,
             data,
-            performed_by=current_user.user_code,
+            performed_by=None,
         )
         invalidate_cache_namespaces(ALUMNI_SKILLS_CACHE_NAMESPACE)
         return StandardResponse(

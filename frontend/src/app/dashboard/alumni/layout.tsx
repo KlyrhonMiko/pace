@@ -12,6 +12,7 @@ import {
     Home,
     Briefcase,
     Calendar,
+    ClipboardList,
     User,
     Sparkles,
     Settings,
@@ -28,6 +29,7 @@ const navItems = [
     { name: "Overview", href: "/dashboard/alumni", icon: () => <Home size={18} /> },
     { name: "Job Listings", href: "/dashboard/alumni/jobs", icon: () => <Briefcase size={18} /> },
     { name: "Events", href: "/dashboard/alumni/events", icon: () => <Calendar size={18} /> },
+    { name: "Surveys", href: "/dashboard/alumni/surveys", icon: () => <ClipboardList size={18} /> },
     { name: "Employability Insights", href: "/dashboard/alumni/insights", icon: () => <Sparkles size={18} /> },
     { name: "Profile", href: "/dashboard/alumni/profile", icon: () => <User size={18} /> },
 ];

@@ -80,7 +80,7 @@ def respond_to_survey(
             )
 
         # Check closes_at
-        if survey.closes_at and get_current_time_gmt8() > survey.closes_at:
+        if survey.closes_at and get_current_time_gmt8().replace(tzinfo=None) > survey.closes_at.replace(tzinfo=None):
             raise HTTPException(
                 status_code=409,
                 detail=StandardResponse(

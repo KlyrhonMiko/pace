@@ -13,8 +13,7 @@ from .event_types import EventType
 from .events import Event, EventRegistration
 from .questions import Question
 from .surveys import (
-    Survey, SurveyQuestion, SurveyResponse, SurveyAnswer,
-    SurveyInvitation, SurveyDistributionConfig,
+    Survey, SurveyQuestion, SurveyResponse,
 )
 from .employability import EmployabilityPrediction
 from .staff import Staff
@@ -39,9 +38,6 @@ __all__ = [
     "Survey",
     "SurveyQuestion",
     "SurveyResponse",
-    "SurveyAnswer",
-    "SurveyInvitation",
-    "SurveyDistributionConfig",
     "EmployabilityPrediction",
     "Staff"
 ]

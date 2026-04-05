@@ -1,9 +1,8 @@
-import json
 import uuid
 from datetime import datetime
 from typing import Optional, List
 from enum import Enum
-from sqlmodel import SQLModel, Field, JSON
+from sqlmodel import SQLModel, Field
 from pydantic import field_serializer, field_validator
 from utils.timezone import format_datetime_gmt8
 from schemas.questions import QuestionPublic
@@ -14,28 +13,6 @@ class SurveyStatus(str, Enum):
     ACTIVE = "ACTIVE"
     CLOSED = "CLOSED"
     ARCHIVED = "ARCHIVED"
-
-
-class SurveyInvitationStatus(str, Enum):
-    PENDING = "PENDING"
-    SENT = "SENT"
-    OPENED = "OPENED"
-    RESPONDED = "RESPONDED"
-    EXPIRED = "EXPIRED"
-
-
-class DistributionTargetGroup(str, Enum):
-    ALL_ALUMNI = "ALL_ALUMNI"
-    SPECIFIC_COURSE = "SPECIFIC_COURSE"
-    GRADUATION_YEAR_RANGE = "GRADUATION_YEAR_RANGE"
-    CUSTOM_LIST = "CUSTOM_LIST"
-
-
-class DistributionStatus(str, Enum):
-    DRAFT = "DRAFT"
-    SCHEDULED = "SCHEDULED"
-    SENT = "SENT"
-    COMPLETED = "COMPLETED"
 
 
 # ── Survey schemas ──────────────────────────────────────────────────────────
@@ -122,11 +99,11 @@ class SurveyResponsePublic(SQLModel):
     response_id: str
     submitted_at: datetime
     is_complete: bool
+    answers: Optional[list[dict]] = None
 
     @field_serializer("submitted_at")
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
         return format_datetime_gmt8(value)
-
 
 class SurveyAnswerCreate(SQLModel):
     response_code: uuid.UUID
@@ -162,107 +139,6 @@ class SurveyAnswerPublic(SQLModel):
     question_text: Optional[str] = None
 
 
-# ── Survey Invitation schemas ───────────────────────────────────────────────
-
-
-class SurveyInvitationCreate(SQLModel):
-    survey_code: uuid.UUID
-    alumni_code: uuid.UUID
-    recipient_email: str = Field(max_length=255)
-    status: SurveyInvitationStatus = Field(default=SurveyInvitationStatus.PENDING)
-
-
-class SurveyInvitationPublic(SQLModel):
-    invitation_id: str
-    recipient_email: str
-    status: SurveyInvitationStatus
-    sent_at: Optional[datetime]
-    opened_at: Optional[datetime]
-    responded_at: Optional[datetime]
-    created_at: datetime
-
-    @field_serializer("sent_at", "opened_at", "responded_at", "created_at")
-    def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
-        return format_datetime_gmt8(value)
-
-
-class SurveyInvitationListResponse(SQLModel):
-    invitations: List[SurveyInvitationPublic]
-    total: int
-    count: int
-    offset: int
-    limit: int
-    has_more: bool
-
-
-# ── Distribution schemas ────────────────────────────────────────────────────
-
-
-class SurveyDistributionConfigCreateRequest(SQLModel):
-    target_group: DistributionTargetGroup
-    filters: Optional[str] = None
-    scheduled_send_at: Optional[datetime] = None
-
-    @field_validator("filters", mode="before")
-    @classmethod
-    def validate_filters(cls, v, info):
-        target_group = info.data.get("target_group")
-        if v is None:
-            if target_group != DistributionTargetGroup.ALL_ALUMNI:
-                raise ValueError(f"{target_group} requires filters")
-            return None
-        if isinstance(v, str):
-            try:
-                parsed = json.loads(v)
-            except json.JSONDecodeError:
-                raise ValueError("Filters must be valid JSON")
-        else:
-            parsed = v
-        if target_group == DistributionTargetGroup.SPECIFIC_COURSE:
-            if "courses" not in parsed or not isinstance(parsed["courses"], list):
-                raise ValueError("SPECIFIC_COURSE requires courses list in filters")
-        elif target_group == DistributionTargetGroup.GRADUATION_YEAR_RANGE:
-            if "year_min" not in parsed or "year_max" not in parsed:
-                raise ValueError(
-                    "GRADUATION_YEAR_RANGE requires year_min and year_max in filters"
-                )
-        elif target_group == DistributionTargetGroup.CUSTOM_LIST:
-            if "alumni_ids" not in parsed or not isinstance(parsed["alumni_ids"], list):
-                raise ValueError("CUSTOM_LIST requires alumni_ids list in filters")
-        return json.dumps(parsed) if isinstance(v, dict) else v
-
-
-class SurveyDistributionConfigUpdate(SQLModel):
-    target_group: Optional[DistributionTargetGroup] = None
-    filters: Optional[str] = None
-    scheduled_send_at: Optional[datetime] = None
-
-
-class SurveyDistributionConfigPublic(SQLModel):
-    distribution_id: str
-    target_group: DistributionTargetGroup
-    filters: Optional[str]
-    status: DistributionStatus
-    total_recipients: int
-    scheduled_send_at: Optional[datetime]
-    sent_at: Optional[datetime]
-    created_at: datetime
-    updated_at: datetime
-
-    @field_serializer("scheduled_send_at", "sent_at", "created_at", "updated_at")
-    def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
-        return format_datetime_gmt8(value)
-
-
-class DistributionStatsResponse(SQLModel):
-    distribution_id: str
-    survey_id: str
-    total_recipients: int
-    sent_count: int
-    opened_count: int
-    responded_count: int
-    response_rate: float
-    pending_count: int
 
 
 class SurveyListResponse(SQLModel):
@@ -354,18 +230,3 @@ class SurveyExportResponse(SQLModel):
     ]  # each: {response_id, submitted_at, is_complete, alumni_id?, answers: [...]}
 
 
-# ── Non-respondent schemas (Phase 1.4B) ─────────────────────────────────────
-
-
-class NonRespondentPublic(SQLModel):
-    """Alumni who received an invitation but haven't responded."""
-
-    alumni_id: str
-    first_name: str
-    last_name: str
-    invitation_id: str
-    sent_at: Optional[datetime] = None
-
-    @field_serializer("sent_at")
-    def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
-        return format_datetime_gmt8(value)

@@ -13,6 +13,11 @@ import {
     fetchSurveys,
     saveSurveyWorkflow,
     deleteSurvey as apiDeleteSurvey,
+    createTracerStudyTemplate,
+    publishSurvey as apiPublishSurvey,
+    closeSurvey as apiCloseSurvey,
+    archiveSurvey as apiArchiveSurvey,
+    reopenSurvey as apiReopenSurvey,
 } from "../../_lib/surveys";
 
 export function useSurveyManagement() {
@@ -103,6 +108,90 @@ export function useSurveyManagement() {
         setIsSaving(false);
     };
 
+    const handlePublishSurvey = async (id: string) => {
+        setIsSaving(true);
+        try {
+            const success = await apiPublishSurvey(id);
+            if (success) {
+                toast.success("Survey published successfully.");
+                await loadData();
+            } else {
+                toast.error("Failed to publish survey.");
+            }
+        } catch (error) {
+            toast.error("Failed to publish survey.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleCloseSurvey = async (id: string) => {
+        setIsSaving(true);
+        try {
+            const success = await apiCloseSurvey(id);
+            if (success) {
+                toast.success("Survey closed successfully.");
+                await loadData();
+            } else {
+                toast.error("Failed to close survey.");
+            }
+        } catch (error) {
+            toast.error("Failed to close survey.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleArchiveSurvey = async (id: string) => {
+        setIsSaving(true);
+        try {
+            const success = await apiArchiveSurvey(id);
+            if (success) {
+                toast.success("Survey archived successfully.");
+                await loadData();
+            } else {
+                toast.error("Failed to archive survey.");
+            }
+        } catch (error) {
+            toast.error("Failed to archive survey.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleReopenSurvey = async (id: string) => {
+        setIsSaving(true);
+        try {
+            const success = await apiReopenSurvey(id);
+            if (success) {
+                toast.success("Survey reopened successfully.");
+                await loadData();
+            } else {
+                toast.error("Failed to reopen survey.");
+            }
+        } catch (error) {
+            toast.error("Failed to reopen survey.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+    
+    const handleCreateTracerStudy = async () => {
+        setIsSaving(true);
+        try {
+            const result = await createTracerStudyTemplate();
+            toast.success("CHED Tracer Study template created successfully.");
+            await loadData();
+        } catch (error) {
+            const message = error instanceof Error
+                ? error.message
+                : "Failed to create tracer study template.";
+            toast.error(message);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     // --- Question Library Handlers ---
     const handleCreateQuestion = () => {
         setEditingQuestion(null);
@@ -168,10 +257,15 @@ export function useSurveyManagement() {
         
         // Handlers
         handleCreateSurvey,
+        handleCreateTracerStudy,
         handleEditSurvey,
         handleDeleteSurveyClick,
         confirmDeleteSurvey,
         handleSaveSurvey,
+        handlePublishSurvey,
+        handleCloseSurvey,
+        handleArchiveSurvey,
+        handleReopenSurvey,
         handleCreateQuestion,
         handleEditQuestion,
         handleDeleteQuestionClick,

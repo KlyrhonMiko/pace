@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Loader2, Lock, User, ShieldCheck, GraduationCap, ChevronRight } from "lucide-react";
+import { Loader2, Lock, User, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -11,14 +11,9 @@ import { Input } from "@/components/ui/input";
 import { apiFetch } from "@/lib/api-client";
 import { useAuth } from "@/context/AuthContext";
 
-interface LoginFormProps {
-  defaultRole?: "ALUMNI" | "STAFF";
-}
-
-export function LoginForm({ defaultRole = "ALUMNI" }: LoginFormProps) {
+export function LoginForm() {
   const router = useRouter();
   const { login } = useAuth();
-  const [role, setRole] = useState<"ALUMNI" | "STAFF">(defaultRole);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     username: "",
@@ -75,32 +70,6 @@ export function LoginForm({ defaultRole = "ALUMNI" }: LoginFormProps) {
         <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
         
         <div className="relative px-8 py-10 bg-white/80 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl overflow-hidden">
-          {/* Role Selector */}
-          <div className="flex p-1 bg-slate-100/50 rounded-xl mb-8">
-            <button
-              onClick={() => setRole("ALUMNI")}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-lg transition-all ${
-                role === "ALUMNI"
-                  ? "bg-white text-emerald-700 shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              <GraduationCap className="w-4 h-4" />
-              Alumni
-            </button>
-            <button
-              onClick={() => setRole("STAFF")}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-lg transition-all ${
-                role === "STAFF"
-                  ? "bg-white text-emerald-700 shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              <ShieldCheck className="w-4 h-4" />
-              Staff / Admin
-            </button>
-          </div>
-
           <div className="text-center mb-8">
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
               Welcome Back
@@ -169,17 +138,15 @@ export function LoginForm({ defaultRole = "ALUMNI" }: LoginFormProps) {
             </Button>
           </form>
 
-          {role === "ALUMNI" && (
-            <p className="text-center text-sm text-slate-500 mt-8">
-              Don&apos;t have an account?{" "}
-              <Link
-                href="/register"
-                className="font-bold text-emerald-600 hover:text-emerald-700 transition-colors"
-              >
-                Get Started
-              </Link>
-            </p>
-          )}
+          <p className="text-center text-sm text-slate-500 mt-8">
+            Don&apos;t have an account?{" "}
+            <Link
+              href="/register"
+              className="font-bold text-emerald-600 hover:text-emerald-700 transition-colors"
+            >
+              Get Started
+            </Link>
+          </p>
         </div>
       </div>
     </div>

@@ -1,13 +1,17 @@
-import { Calendar, Users, EyeOff, FileText, CheckCircle2, Clock, Archive } from "lucide-react";
+import { Calendar, Users, EyeOff, FileText, CheckCircle2, Clock, Archive, Send, XCircle, RefreshCw, Box } from "lucide-react";
 import { Survey } from "../../_lib/surveys";
 
 interface SurveyCardProps {
     survey: Survey;
     onEdit: () => void;
     onDelete: () => void;
+    onPublish: () => void;
+    onCloseSurvey: () => void;
+    onArchive: () => void;
+    onReopen: () => void;
 }
 
-export default function SurveyCard({ survey, onEdit, onDelete }: SurveyCardProps) {
+export default function SurveyCard({ survey, onEdit, onDelete, onPublish, onCloseSurvey, onArchive, onReopen }: SurveyCardProps) {
 
     // Status color mapping
     const getStatusStyle = () => {
@@ -89,15 +93,53 @@ export default function SurveyCard({ survey, onEdit, onDelete }: SurveyCardProps
 
                 {/* Actions */}
                 <div className="flex gap-2 pt-1">
-                    <button
-                        onClick={onEdit}
-                        className="flex-1 py-2 text-sm font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors border border-emerald-100"
-                    >
-                        Edit
-                    </button>
+                    {survey.status === "DRAFT" && (
+                        <button
+                            onClick={onPublish}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors shadow-sm shadow-emerald-200"
+                        >
+                            <Send className="h-3.5 w-3.5" />
+                            Publish
+                        </button>
+                    )}
+                    {survey.status === "ACTIVE" && (
+                        <button
+                            onClick={onCloseSurvey}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors border border-rose-100"
+                        >
+                            <XCircle className="h-3.5 w-3.5" />
+                            Close
+                        </button>
+                    )}
+                    {survey.status === "CLOSED" && (
+                        <>
+                            <button
+                                onClick={onReopen}
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors border border-emerald-100"
+                            >
+                                <RefreshCw className="h-3.5 w-3.5" />
+                                Reopen
+                            </button>
+                            <button
+                                onClick={onArchive}
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors border border-slate-200"
+                            >
+                                <Box className="h-3.5 w-3.5" />
+                                Archive
+                            </button>
+                        </>
+                    )}
+                    {survey.status !== "ARCHIVED" && (
+                        <button
+                            onClick={onEdit}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors border border-emerald-100"
+                        >
+                            Edit
+                        </button>
+                    )}
                     <button
                         onClick={onDelete}
-                        className="flex-1 py-2 text-sm font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors border border-rose-100"
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors border border-rose-100"
                     >
                         Delete
                     </button>

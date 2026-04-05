@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Search, HelpCircle } from "lucide-react";
+import { Plus, Search, HelpCircle, ClipboardCheck } from "lucide-react";
 import { Survey } from "../../_lib/surveys";
 import { SURVEY_STATUSES } from "../../_lib/surveys";
 import SurveyCard from "./SurveyCard";
@@ -10,15 +10,25 @@ import SurveyFilters from "./SurveyFilters";
 interface SurveysViewProps {
     surveys: Survey[];
     onCreateSurvey: () => void;
+    onCreateTracerStudy: () => void;
     onEditSurvey: (survey: Survey) => void;
     onDeleteSurvey: (id: string) => void;
+    onPublishSurvey: (id: string) => void;
+    onCloseSurvey: (id: string) => void;
+    onArchiveSurvey: (id: string) => void;
+    onReopenSurvey: (id: string) => void;
 }
 
 export default function SurveysView({
     surveys,
     onCreateSurvey,
+    onCreateTracerStudy,
     onEditSurvey,
     onDeleteSurvey,
+    onPublishSurvey,
+    onCloseSurvey,
+    onArchiveSurvey,
+    onReopenSurvey,
 }: SurveysViewProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
@@ -61,13 +71,22 @@ export default function SurveysView({
                         className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
                     />
                 </div>
-                <button
-                    onClick={onCreateSurvey}
-                    className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm shadow-emerald-200 shrink-0"
-                >
-                    <Plus className="h-4 w-4 stroke-2" />
-                    Create Survey
-                </button>
+                <div className="flex items-center gap-3 shrink-0">
+                    <button
+                        onClick={onCreateTracerStudy}
+                        className="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-5 py-2.5 rounded-xl text-sm font-semibold border border-emerald-200 transition-all shadow-sm shrink-0"
+                    >
+                        <ClipboardCheck className="h-4 w-4 stroke-2" />
+                        Tracer Study
+                    </button>
+                    <button
+                        onClick={onCreateSurvey}
+                        className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm shadow-emerald-200 shrink-0"
+                    >
+                        <Plus className="h-4 w-4 stroke-2" />
+                        Create Survey
+                    </button>
+                </div>
             </div>
 
             {/* Main Layout containing Filters & Grid */}
@@ -106,6 +125,10 @@ export default function SurveysView({
                                     survey={survey}
                                     onEdit={() => onEditSurvey(survey)}
                                     onDelete={() => onDeleteSurvey(survey.survey_id)}
+                                    onPublish={() => onPublishSurvey(survey.survey_id)}
+                                    onCloseSurvey={() => onCloseSurvey(survey.survey_id)}
+                                    onArchive={() => onArchiveSurvey(survey.survey_id)}
+                                    onReopen={() => onReopenSurvey(survey.survey_id)}
                                 />
                             ))}
                         </div>

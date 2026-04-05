@@ -26,10 +26,15 @@ export default function SurveyManagement() {
         
         // Handlers
         handleCreateSurvey,
+        handleCreateTracerStudy,
         handleEditSurvey,
         handleDeleteSurveyClick,
         confirmDeleteSurvey,
         handleSaveSurvey,
+        handlePublishSurvey,
+        handleCloseSurvey,
+        handleArchiveSurvey,
+        handleReopenSurvey,
         handleCreateQuestion,
         handleEditQuestion,
         handleDeleteQuestionClick,
@@ -98,8 +103,13 @@ export default function SurveyManagement() {
                         <SurveysView
                             surveys={surveys}
                             onCreateSurvey={handleCreateSurvey}
+                            onCreateTracerStudy={handleCreateTracerStudy}
                             onEditSurvey={handleEditSurvey}
                             onDeleteSurvey={handleDeleteSurveyClick}
+                            onPublishSurvey={handlePublishSurvey}
+                            onCloseSurvey={handleCloseSurvey}
+                            onArchiveSurvey={handleArchiveSurvey}
+                            onReopenSurvey={handleReopenSurvey}
                         />
                     ) : (
                         <QuestionLibraryView

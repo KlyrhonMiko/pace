@@ -18,8 +18,8 @@ from routers import (
     transaction_logs,
     surveys,
     survey_questions,
-    survey_distribution,
     survey_responses,
+    alumni_surveys,
     questions,
     predict,
     dashboard,
@@ -50,7 +50,8 @@ app.include_router(users.router)
 app.include_router(college_dept.router)
 app.include_router(courses.router)
 app.include_router(student_records.router)
-app.include_router(alumni.router)
+app.include_router(alumni_surveys.router) # Specific alumni routes first
+app.include_router(alumni.router)         # Generic alumni routes second
 app.include_router(alumni_skills.router)
 app.include_router(jobs.router)
 app.include_router(event_types.router)
@@ -59,7 +60,6 @@ app.include_router(event_registration.router)
 app.include_router(transaction_logs.router)
 app.include_router(surveys.router)
 app.include_router(survey_questions.router)
-app.include_router(survey_distribution.router)
 app.include_router(survey_responses.router)
 app.include_router(survey_responses.respond_router)
 app.include_router(questions.router)

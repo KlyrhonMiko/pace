@@ -33,6 +33,9 @@ from services.queries.surveys_queries import (
 from services.queries.survey_questions_queries import (
     get_survey_questions_with_details,
 )
+from services.survey_templates import (
+    create_tracer_study_template as create_tracer_study_factory,
+)
 
 SURVEYS_CACHE_NAMESPACE = "surveys"
 SURVEYS_LIST_TTL = 300
@@ -57,26 +60,26 @@ def create_tracer_study_template(
 ):
     """Create a pre-built tracer study survey template"""
     try:
-        from schemas.surveys import SurveyCreate
-
-        template_data = SurveyCreate(
-            title="Tracer Study Survey",
-            description="Graduate Tracer Study - Track employment outcomes and career development of alumni.",
-            is_anonymous=False,
-            allow_multiple_responses=False,
-        )
-        survey = create_survey(
-            session,
-            template_data,
-            performed_by=current_user.user_code,
-        )
+        dup = check_duplicate_survey_title(session, "CHED Tracer Study")
+        if dup:
+            raise HTTPException(
+                status_code=409,
+                detail=StandardResponse(
+                    success=False,
+                    code=ErrorCode.DUPLICATE_SURVEY_TITLE.value,
+                    message="A 'CHED Tracer Study' survey already exists",
+                ).model_dump(mode="json"),
+            )
+        survey = create_tracer_study_factory(session)
         invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
+
         survey_data = SurveyPublic.model_validate(survey).dict()
-        survey_data["question_count"] = 0
+        survey_data["question_count"] = 10  # CHED template has 10 questions
+
         return StandardResponse(
             success=True,
             code=SuccessCode.SURVEY_CREATED.value,
-            message="Tracer study template created",
+            message="CHED Tracer study template created successfully",
             data=survey_data,
             timestamp=get_current_time_gmt8(),
         )
@@ -111,7 +114,7 @@ def create_survey_route(
                 status_code=409,
                 detail=StandardResponse(
                     success=False,
-                    code=ErrorCode.SURVEY_TITLE_EXISTS.value,
+                    code=ErrorCode.DUPLICATE_SURVEY_TITLE.value,
                     message="Survey title already exists",
                 ).model_dump(mode="json"),
             )
@@ -222,7 +225,7 @@ def update_survey_route(
                     status_code=409,
                     detail=StandardResponse(
                         success=False,
-                        code=ErrorCode.SURVEY_TITLE_EXISTS.value,
+                        code=ErrorCode.DUPLICATE_SURVEY_TITLE.value,
                         message="Survey title already exists",
                     ).model_dump(mode="json"),
                 )
@@ -514,6 +517,63 @@ def reopen_survey_route(
             success=True,
             code=SuccessCode.SURVEY_UPDATED.value,
             message="Survey reopened",
+            data=data,
+            timestamp=get_current_time_gmt8(),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail=StandardResponse(
+                success=False, code=ErrorCode.INVALID_INPUT.value, message=str(e)
+            ).model_dump(mode="json"),
+        )
+
+
+@router.post("/{survey_id}/archive", response_model=StandardResponse)
+def archive_survey_route(
+    survey_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
+):
+    """Archive a closed survey (CLOSED → ARCHIVED)"""
+    try:
+        survey = get_survey_by_id(session, survey_id)
+        if not survey:
+            raise HTTPException(
+                status_code=404,
+                detail=StandardResponse(
+                    success=False,
+                    code=ErrorCode.SURVEY_NOT_FOUND.value,
+                    message="Survey not found",
+                ).model_dump(mode="json"),
+            )
+        if survey.status != SurveyStatus.CLOSED:
+            raise HTTPException(
+                status_code=409,
+                detail=StandardResponse(
+                    success=False,
+                    code=ErrorCode.INVALID_INPUT.value,
+                    message="Only CLOSED surveys can be archived",
+                ).model_dump(mode="json"),
+            )
+        updated = set_survey_status(
+            session,
+            survey,
+            SurveyStatus.ARCHIVED,
+            performed_by=current_user.user_code,
+        )
+        invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
+        data = SurveyPublic.model_validate(updated).dict()
+        data["question_count"] = get_survey_question_count(
+            session, updated.survey_code
+        )
+        return StandardResponse(
+            success=True,
+            code=SuccessCode.SURVEY_UPDATED.value,
+            message="Survey archived",
             data=data,
             timestamp=get_current_time_gmt8(),
         )

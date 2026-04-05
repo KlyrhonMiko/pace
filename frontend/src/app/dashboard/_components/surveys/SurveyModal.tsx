@@ -208,22 +208,6 @@ export default function SurveyModal({ isOpen, onClose, onSubmit, initialData, qu
                                 <div className="space-y-4">
                                     <h3 className="text-sm font-bold text-emerald-900 uppercase tracking-wider mb-2 pt-6 border-t border-slate-200">Settings & Rules</h3>
 
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        {/* Status */}
-                                        <div>
-                                            <label className="block text-sm font-semibold text-slate-700 mb-1">Status</label>
-                                            <select
-                                                value={formData.status}
-                                                onChange={(e) => setFormData({ ...formData, status: e.target.value as "DRAFT" | "ACTIVE" | "CLOSED" })}
-                                                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors bg-white font-medium"
-                                            >
-                                                {SURVEY_STATUSES.map(status => (
-                                                    <option key={status} value={status}>{status}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
-
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
                                         <div className="space-y-4">
                                             {/* Anonymous Toggle */}

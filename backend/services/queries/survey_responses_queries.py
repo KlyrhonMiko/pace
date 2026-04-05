@@ -8,11 +8,8 @@ from models.surveys import (
     Survey,
     SurveyQuestion,
     SurveyResponse,
-    SurveyAnswer,
-    SurveyInvitation,
 )
 from models.questions import Question
-from schemas.surveys import SurveyInvitationStatus
 from utils.timezone import get_current_time_gmt8
 from services.queries.transaction_logs_queries import create_transaction_log
 from services.queries.user_activities_queries import create_user_activity, ActivityType
@@ -119,39 +116,41 @@ def submit_survey_response(
     session.add(response)
     session.flush()
 
-    # 7. Create SurveyAnswer rows
+    # 7. Add answers to JSON column
+    # The JSON schema is simply the list of answer dicts plus the question_code reference
+    answers_json = []
     for item in data.answers:
-        question_code, _ = question_map[item.question_id]
-        answer = SurveyAnswer(
-            answer_code=uuid.uuid4(),
-            response_code=response.response_code,
-            question_code=question_code,
-            answer_text=item.answer_text,
-            answer_choice=item.answer_choice,
-            answer_choices=item.answer_choices,
-            answer_scale=item.answer_scale,
-            answer_number=item.answer_number,
-            answer_date=item.answer_date,
-            answer_bool=item.answer_bool,
-        )
-        session.add(answer)
+        question_code, q = question_map[item.question_id]
+        
+        answer_dict = {
+            "question_id": item.question_id,
+            "question_text": q.question_text,
+            "question_type": q.question_type.value,
+        }
+        
+        from schemas.questions import QuestionType
+        
+        qtype = q.question_type
+        if qtype == QuestionType.TEXT:
+            answer_dict["answer_text"] = item.answer_text
+        elif qtype == QuestionType.MULTIPLE_CHOICE:
+            answer_dict["answer_choice"] = item.answer_choice
+        elif qtype == QuestionType.MULTI_SELECT:
+            answer_dict["answer_choices"] = item.answer_choices
+        elif qtype == QuestionType.SCALE:
+            answer_dict["answer_scale"] = item.answer_scale
+        elif qtype == QuestionType.NUMBER:
+            answer_dict["answer_number"] = item.answer_number
+        elif qtype == QuestionType.DATE:
+            answer_dict["answer_date"] = item.answer_date.isoformat() if item.answer_date else None
+        elif qtype == QuestionType.YES_NO:
+            answer_dict["answer_bool"] = item.answer_bool
 
-    # 8. Update invitation status if one exists
-    if alumni_code:
-        invitation = session.exec(
-            select(SurveyInvitation).where(
-                and_(
-                    SurveyInvitation.survey_code == survey.survey_code,
-                    SurveyInvitation.alumni_code == alumni_code,
-                )
-            )
-        ).first()
-        if invitation:
-            invitation.status = SurveyInvitationStatus.RESPONDED
-            invitation.responded_at = now
-            session.add(invitation)
+        answers_json.append(answer_dict)
+        
+    response.answers = answers_json
 
-    # 9. Log and commit
+    # 8. Log and commit
     create_transaction_log(
         session,
         tl_name=f"SUBMITTED survey response {survey.survey_id}",
@@ -224,6 +223,16 @@ def get_survey_results(session: Session, survey: Survey) -> dict:
         .order_by(SurveyQuestion.order_index)
     ).all()
 
+    # Fetch all valid responses for this survey once
+    responses = session.exec(
+        select(SurveyResponse).where(
+            and_(
+                SurveyResponse.survey_code == survey.survey_code,
+                SurveyResponse.is_deleted.is_(False),
+            )
+        )
+    ).all()
+
     question_summaries = []
 
     for sq in sq_rows:
@@ -233,21 +242,14 @@ def get_survey_results(session: Session, survey: Survey) -> dict:
         if not question:
             continue
 
-        # Fetch all answers for this question in this survey
-        answers = session.exec(
-            select(SurveyAnswer)
-            .join(
-                SurveyResponse,
-                SurveyResponse.response_code == SurveyAnswer.response_code,
-            )
-            .where(
-                and_(
-                    SurveyAnswer.question_code == question.question_code,
-                    SurveyResponse.survey_code == survey.survey_code,
-                    SurveyResponse.is_deleted == False,
-                )
-            )
-        ).all()
+        q_id_str = question.question_id
+        answers = []
+        for r in responses:
+            if not r.answers:
+                continue
+            for a in r.answers:
+                if a.get("question_id") == q_id_str:
+                    answers.append(a)
 
         total_answers = len(answers)
         summary: dict = {
@@ -260,7 +262,7 @@ def get_survey_results(session: Session, survey: Survey) -> dict:
         qtype = question.question_type
 
         if qtype == QuestionType.MULTIPLE_CHOICE:
-            counts = Counter(a.answer_choice for a in answers if a.answer_choice)
+            counts = Counter(a.get("answer_choice") for a in answers if a.get("answer_choice"))
             summary["choice_distribution"] = dict(counts)
 
         elif qtype == QuestionType.MULTI_SELECT:
@@ -268,9 +270,11 @@ def get_survey_results(session: Session, survey: Survey) -> dict:
 
             all_choices = []
             for a in answers:
-                if a.answer_choices:
+                val = a.get("answer_choices")
+                if val:
                     try:
-                        choices = _json.loads(a.answer_choices)
+                        # Sometimes frontend sends JSON string, sometimes parsed list
+                        choices = _json.loads(val) if isinstance(val, str) else val
                         if isinstance(choices, list):
                             all_choices.extend(choices)
                     except Exception:
@@ -278,7 +282,7 @@ def get_survey_results(session: Session, survey: Survey) -> dict:
             summary["choice_distribution"] = dict(Counter(all_choices))
 
         elif qtype == QuestionType.SCALE:
-            values = [a.answer_scale for a in answers if a.answer_scale is not None]
+            values = [a.get("answer_scale") for a in answers if a.get("answer_scale") is not None]
             if values:
                 summary["average"] = round(mean(values), 2)
                 dist = Counter(str(v) for v in values)
@@ -291,7 +295,7 @@ def get_survey_results(session: Session, survey: Survey) -> dict:
                 summary["distribution"] = {}
 
         elif qtype == QuestionType.NUMBER:
-            values = [a.answer_number for a in answers if a.answer_number is not None]
+            values = [a.get("answer_number") for a in answers if a.get("answer_number") is not None]
             if values:
                 summary["average"] = round(mean(values), 2)
                 summary["min_value"] = min(values)
@@ -299,17 +303,17 @@ def get_survey_results(session: Session, survey: Survey) -> dict:
                 summary["median_value"] = median(values)
 
         elif qtype == QuestionType.YES_NO:
-            yes = sum(1 for a in answers if a.answer_bool is True)
-            no = sum(1 for a in answers if a.answer_bool is False)
+            yes = sum(1 for a in answers if a.get("answer_bool") is True)
+            no = sum(1 for a in answers if a.get("answer_bool") is False)
             summary["yes_count"] = yes
             summary["no_count"] = no
 
         elif qtype in (QuestionType.TEXT, QuestionType.DATE):
             unique_samples = list(
                 dict.fromkeys(
-                    str(a.answer_text or a.answer_date)
+                    str(a.get("answer_text") or a.get("answer_date"))
                     for a in answers
-                    if (a.answer_text or a.answer_date) is not None
+                    if (a.get("answer_text") or a.get("answer_date")) is not None
                 )
             )
             summary["sample_answers"] = unique_samples[:10]
@@ -358,27 +362,32 @@ def export_survey_responses(session: Session, survey: Survey) -> dict:
                 alumni_id = alumni.alumni_id
 
         # Fetch answers
-        answers = session.exec(
-            select(SurveyAnswer).where(SurveyAnswer.response_code == resp.response_code)
-        ).all()
+        from datetime import datetime
+        answers = resp.answers or []
 
         answer_list = []
         for ans in answers:
-            q = session.exec(
-                select(Question).where(Question.question_code == ans.question_code)
-            ).first()
+            # If answer_date string is present, try to format it, otherwise leave as is
+            ans_date = ans.get("answer_date")
+            if ans_date and isinstance(ans_date, str):
+                try:
+                    dt = datetime.fromisoformat(ans_date)
+                    ans_date = _fmt(dt)
+                except ValueError:
+                    pass
+
             answer_list.append(
                 {
-                    "question_id": q.question_id if q else None,
-                    "question_text": q.question_text if q else None,
-                    "question_type": q.question_type.value if q else None,
-                    "answer_text": ans.answer_text,
-                    "answer_choice": ans.answer_choice,
-                    "answer_choices": ans.answer_choices,
-                    "answer_scale": ans.answer_scale,
-                    "answer_number": ans.answer_number,
-                    "answer_date": _fmt(ans.answer_date),
-                    "answer_bool": ans.answer_bool,
+                    "question_id": ans.get("question_id"),
+                    "question_text": ans.get("question_text"),
+                    "question_type": ans.get("question_type"),
+                    "answer_text": ans.get("answer_text"),
+                    "answer_choice": ans.get("answer_choice"),
+                    "answer_choices": ans.get("answer_choices"),
+                    "answer_scale": ans.get("answer_scale"),
+                    "answer_number": ans.get("answer_number"),
+                    "answer_date": ans_date,
+                    "answer_bool": ans.get("answer_bool"),
                 }
             )
 

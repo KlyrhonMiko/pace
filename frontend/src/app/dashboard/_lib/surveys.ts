@@ -250,6 +250,25 @@ export async function reopenSurvey(surveyId: string): Promise<Survey | null> {
     }
 }
 
+export async function archiveSurvey(surveyId: string): Promise<Survey | null> {
+    try {
+        const json = await apiFetch<any>(`/surveys/${surveyId}/archive`, {
+            method: "POST",
+        });
+        return json.success ? json.data : null;
+    } catch (error) {
+        console.error("Failed to archive survey:", error);
+        return null;
+    }
+}
+
+export async function createTracerStudyTemplate(): Promise<Survey> {
+    const json = await apiFetch<any>("/surveys/templates/tracer-study", {
+        method: "POST",
+    });
+    return json.data as Survey;
+}
+
 export async function fetchSurveyQuestions(surveyId: string): Promise<SurveyQuestionWithDetails[]> {
     try {
         const json = await apiFetch<any>(`/surveys/${surveyId}/questions`);
@@ -330,7 +349,8 @@ export async function saveSurveyWorkflow(
                 sData.is_anonymous !== editingSurvey.is_anonymous ||
                 sData.allow_multiple_responses !== editingSurvey.allow_multiple_responses ||
                 sData.opens_at !== editingSurvey.opens_at ||
-                sData.closes_at !== editingSurvey.closes_at;
+                sData.closes_at !== editingSurvey.closes_at ||
+                sData.status !== editingSurvey.status;
 
             if (metadataChanged) {
                 const updated = await updateSurvey(editingSurvey.survey_id, {
@@ -340,6 +360,7 @@ export async function saveSurveyWorkflow(
                     allow_multiple_responses: sData.allow_multiple_responses,
                     opens_at: sData.opens_at,
                     closes_at: sData.closes_at,
+                    status: sData.status,
                 });
                 if (!updated) return { success: false };
             }
@@ -401,5 +422,116 @@ export async function saveSurveyWorkflow(
     } catch (error) {
         console.error("Workflow failed:", error);
         return { success: false };
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Alumni-facing API functions  (call /alumni/* endpoints — no staff gate)
+// ---------------------------------------------------------------------------
+
+export interface AlumniProfile {
+    alumni_id: string;
+    first_name: string;
+    last_name: string;
+}
+
+export interface AnswerItem {
+    question_id: string;
+    answer_text?: string | null;
+    answer_choice?: string | null;
+    answer_choices?: string | null; // JSON string for MULTI_SELECT
+    answer_scale?: number | null;
+    answer_number?: number | null;
+    answer_date?: string | null;
+    answer_bool?: boolean | null;
+}
+
+export interface SurveySubmissionPayload {
+    alumni_id?: string | null;
+    answers: AnswerItem[];
+}
+
+/**
+ * Resolve the current user's alumni profile (alumni_id etc.) from the JWT.
+ * Calls GET /alumni/me
+ */
+export async function fetchMyAlumniProfile(): Promise<AlumniProfile | null> {
+    try {
+        const json = await apiFetch<any>("/alumni/me");
+        return json.success && json.data ? (json.data as AlumniProfile) : null;
+    } catch (error) {
+        console.error("Failed to fetch alumni profile:", error);
+        return null;
+    }
+}
+
+/**
+ * Fetch ACTIVE surveys available to alumni.
+ * Calls GET /alumni/surveys
+ */
+export async function fetchAlumniActiveSurveys(): Promise<Survey[]> {
+    try {
+        const json = await apiFetch<any>("/alumni/surveys");
+        if (json.success && json.data?.surveys) {
+            return json.data.surveys as Survey[];
+        }
+        return [];
+    } catch (error) {
+        console.error("Failed to fetch active surveys:", error);
+        return [];
+    }
+}
+
+/**
+ * Fetch a single survey with full question list for alumni.
+ * Calls GET /alumni/surveys/{survey_id}
+ */
+export async function fetchAlumniSurvey(surveyId: string): Promise<Survey | null> {
+    try {
+        const json = await apiFetch<any>(`/alumni/surveys/${surveyId}`);
+        return json.success && json.data ? (json.data as Survey) : null;
+    } catch (error) {
+        console.error(`Failed to fetch survey ${surveyId}:`, error);
+        return null;
+    }
+}
+
+/**
+ * Fetch the set of survey_ids the current alumni has already responded to.
+ * Calls GET /alumni/me/responded-surveys
+ */
+export async function fetchRespondedSurveyIds(): Promise<Set<string>> {
+    try {
+        const json = await apiFetch<any>("/alumni/me/responded-surveys");
+        if (json.success && json.data?.responded_survey_ids) {
+            return new Set<string>(json.data.responded_survey_ids as string[]);
+        }
+        return new Set();
+    } catch (error) {
+        console.error("Failed to fetch responded survey IDs:", error);
+        return new Set();
+    }
+}
+
+/**
+ * Submit a survey response.
+ * Calls POST /surveys/{survey_id}/respond
+ */
+export async function submitAlumniSurveyResponse(
+    surveyId: string,
+    payload: SurveySubmissionPayload
+): Promise<{ success: boolean; message?: string }> {
+    try {
+        const json = await apiFetch<any>(`/surveys/${surveyId}/respond`, {
+            method: "POST",
+            body: payload,
+        });
+        return {
+            success: json.success === true,
+            message: json.message,
+        };
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Submission failed";
+        return { success: false, message };
     }
 }

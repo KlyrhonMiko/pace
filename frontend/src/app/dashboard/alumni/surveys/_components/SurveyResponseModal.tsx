@@ -30,6 +30,7 @@ interface SurveyResponseModalProps {
     survey: Survey | null;
     onSubmit: (surveyId: string, payload: SurveySubmissionPayload) => Promise<boolean>;
     isSubmitting?: boolean;
+    isLoadingQuestions?: boolean;
 }
 
 // ------------------------------------------------------------------
@@ -50,6 +51,7 @@ export default function SurveyResponseModal({
     survey,
     onSubmit,
     isSubmitting = false,
+    isLoadingQuestions = false,
 }: SurveyResponseModalProps) {
     // Answer state: keyed by question_id
     const [answers, setAnswers] = useState<Record<string, AnswerItem>>({});
@@ -374,7 +376,25 @@ export default function SurveyResponseModal({
                         )}
 
                         {/* Questions */}
-                        {questions.length === 0 ? (
+                        {isLoadingQuestions ? (
+                            /* Loading skeleton while questions fetch */
+                            <div className="space-y-4">
+                                {[1, 2, 3].map(i => (
+                                    <div key={i} className="bg-white border border-slate-200 rounded-2xl p-6 animate-pulse">
+                                        <div className="flex items-start gap-3 mb-5">
+                                            <div className="h-7 w-7 rounded-full bg-slate-200 shrink-0" />
+                                            <div className="flex-1 space-y-2">
+                                                <div className="h-4 bg-slate-200 rounded w-3/4" />
+                                                <div className="h-3 bg-slate-100 rounded w-1/4" />
+                                            </div>
+                                        </div>
+                                        <div className="pl-10 space-y-2">
+                                            <div className="h-10 bg-slate-100 rounded-xl" />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : questions.length === 0 ? (
                             <div className="bg-white border-2 border-dashed border-slate-300 rounded-2xl p-12 text-center flex flex-col items-center justify-center">
                                 <h3 className="text-lg font-bold text-slate-800 mb-2">No Questions</h3>
                                 <p className="text-slate-500 text-sm">
@@ -388,7 +408,7 @@ export default function SurveyResponseModal({
                 </div>
 
                 {/* Footer with Submit/Clear */}
-                {questions.length > 0 && (
+                {!isLoadingQuestions && questions.length > 0 && (
                     <div className="p-6 border-t border-slate-100 bg-white shrink-0">
                         <div className="flex items-center gap-3 max-w-2xl mx-auto">
                             <button

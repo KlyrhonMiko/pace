@@ -22,6 +22,8 @@ from routers import (
     alumni_surveys,
     questions,
     predict,
+    regression,
+    forecast,
     dashboard,
     otp,
     staff,
@@ -64,6 +66,8 @@ app.include_router(survey_responses.router)
 app.include_router(survey_responses.respond_router)
 app.include_router(questions.router)
 app.include_router(predict.router)
+app.include_router(regression.router)
+app.include_router(forecast.router)
 app.include_router(dashboard.router)
 app.include_router(otp.router)
 app.include_router(staff.router)

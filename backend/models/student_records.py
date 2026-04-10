@@ -14,6 +14,8 @@ class StudentRecordBase(SQLModel):
     ojt_grade: Optional[float] = None
     leadership_pos: Optional[bool] = None
     act_member_pos: Optional[bool] = None
+    projects: Optional[int] = Field(default=None, ge=0, le=10, description="Number of academic/personal projects (0–10)")
+    extracurricular: Optional[bool] = Field(default=None, description="Whether student had extracurricular involvement")
 
 
 class StudentRecord(StudentRecordBase, table=True):

@@ -8,7 +8,7 @@ from .skills import Skills, SkillsList
 from .job_listings import JobListing
 from .transaction_logs import TransactionLog
 from .user_activities import UserActivity
-from .mentoring import MentoringSession # noqa: F401
+from .mentoring import MentoringSession  # noqa: F401
 from .event_types import EventType
 from .events import Event, EventRegistration
 from .questions import Question
@@ -16,6 +16,8 @@ from .surveys import (
     Survey, SurveyQuestion, SurveyResponse,
 )
 from .employability import EmployabilityPrediction
+from .alumni_regression_prediction import AlumniRegressionPrediction
+from .arima_forecast_result import ArimaForecastResult
 from .staff import Staff
 
 __all__ = [
@@ -39,5 +41,7 @@ __all__ = [
     "SurveyQuestion",
     "SurveyResponse",
     "EmployabilityPrediction",
-    "Staff"
+    "AlumniRegressionPrediction",
+    "ArimaForecastResult",
+    "Staff",
 ]

@@ -1,52 +1,46 @@
 """
-Employability prediction router — runs the dual Random Forest
-models using data looked up from the alumni's database records.
+Linear Regression prediction router — predicts alumni starting salary
+and job search duration using data from the alumni's database records.
 """
 import uuid
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
 
 from core.database import get_session
 from core.redis import cache_get_or_set, generate_cache_key, invalidate_cache_namespaces
-from models.alumni import Alumni
-from models.auth import CurrentUser
-from models.employability import (
-    EmployabilityPrediction,
-    EmployabilityPredictionRead,
+from models.alumni_regression_prediction import (
+    AlumniRegressionPrediction,
+    AlumniRegressionPredictionRead,
 )
+from models.auth import CurrentUser
 from models.response_codes import StandardResponse, ErrorCode, SuccessCode
 from models.users import UserType
-from services.machines.random_forest import EmployabilityPredictor
+from services.machines.alumni_regression import AlumniPredictor
 from services.queries.predict_queries import (
     get_active_alumni_by_code,
     get_alumni_by_user_code,
-    get_predictions_by_alumni,
-    save_prediction,
-    get_prediction_by_id,
     get_student_record_by_alumni_code,
     get_alumni_skills_by_alumni_code,
-    get_course_abbv_by_course_code,
-    build_employability_dict,
+    build_regression_inputs,
+)
+from services.queries.regression_queries import (
+    save_regression_prediction,
+    get_regression_prediction_by_id,
+    get_regression_predictions_by_alumni,
 )
 from utils.rbac import require_authenticated
 
 
-router = APIRouter(prefix="/predict", tags=["Employability Prediction"])
-PREDICT_CACHE_NAMESPACE = "predict"
-PREDICT_DETAIL_TTL = 1800
-PREDICT_ALUMNI_TTL = 300
-
-
-def _resolve_active_alumni(db: Session, alumni_code: uuid.UUID) -> Alumni | None:
-    return get_active_alumni_by_code(db, alumni_code)
+router = APIRouter(prefix="/predict", tags=["Linear Regression Prediction"])
+REGRESSION_CACHE_NAMESPACE = "regression"
+REGRESSION_DETAIL_TTL = 1800
+REGRESSION_ALUMNI_TTL = 300
 
 
 def _ensure_owner_or_staff_plus(current_user: CurrentUser, alumni_user_code: str | None) -> None:
     if current_user.user_type in {UserType.STAFF.value, UserType.ADMIN.value}:
         return
-
     if not current_user.user_code or not alumni_user_code or str(current_user.user_code) != str(alumni_user_code):
         raise HTTPException(
             status_code=403,
@@ -57,47 +51,47 @@ def _ensure_owner_or_staff_plus(current_user: CurrentUser, alumni_user_code: str
             ).model_dump(mode="json"),
         )
 
+
 # ── Singleton predictor — loaded once, reused for every request ──
 try:
-    predictor = EmployabilityPredictor()
-    print("[PREDICT] ✓ EmployabilityPredictor loaded successfully")
+    regression_predictor = AlumniPredictor()
+    print("[REGRESSION] ✓ AlumniPredictor (Linear Regression) loaded successfully")
 except FileNotFoundError as e:
-    predictor = None
-    print(f"[PREDICT] ⚠ Could not load predictor: {e}")
+    regression_predictor = None
+    print(f"[REGRESSION] ⚠ Could not load regression predictor: {e}")
 
 
 # ─────────────────────────────────────────────────────────────────
-# POST  /predict/employability/{alumni_code}
+# POST  /predict/regression/{alumni_code}
 # ─────────────────────────────────────────────────────────────────
 
-@router.post("/employability/{alumni_code}")
-def predict_employability(
+@router.post("/regression/{alumni_code}")
+def predict_regression(
     alumni_code: uuid.UUID,
     db: Session = Depends(get_session),
     current_user: CurrentUser = Depends(require_authenticated),
 ):
     """
-    Run the dual-model employability prediction for a specific alumni.
+    Predict starting salary and job search duration for an alumni.
 
-    1. Looks up the alumni's student_record, alumni_skills, and course from DB.
-    2. Assembles the predictor input dict from those records.
-    3. Runs both Random Forest models.
-    4. Stores input + result in the `employability_predictions` table.
+    1. Looks up alumni's student_record and alumni_skills from DB.
+    2. Derives the 5 regression inputs (cgpa, internships, projects, skills_count, extracurricular).
+    3. Runs both Linear Regression models (salary + duration).
+    4. Persists the result in the `alumni_regression_predictions` table.
     5. Returns the prediction wrapped in StandardResponse.
     """
-    # Guard: make sure the models are available
-    if predictor is None or not predictor.is_loaded:
+    if regression_predictor is None:
         raise HTTPException(
             status_code=503,
             detail=StandardResponse(
                 success=False,
                 code=ErrorCode.MODEL_NOT_LOADED.value,
-                message="ML models are not loaded. Please contact the administrator.",
+                message="Linear Regression models are not loaded. Please contact the administrator.",
             ).model_dump(mode="json"),
         )
 
     # Resolve and validate alumni
-    alumni = _resolve_active_alumni(db, alumni_code)
+    alumni = get_active_alumni_by_code(db, alumni_code)
     if not alumni:
         raise HTTPException(
             status_code=404,
@@ -108,11 +102,11 @@ def predict_employability(
             ).model_dump(mode="json"),
         )
 
-    # Authorization: regular users can only predict for themselves
+    # Authorization
     if current_user.user_type == UserType.USER.value:
         _ensure_owner_or_staff_plus(current_user, str(alumni.user_code) if alumni.user_code else None)
 
-    # Look up required data from the database
+    # Look up required data
     student_record = get_student_record_by_alumni_code(db, alumni_code)
     if not student_record:
         raise HTTPException(
@@ -135,66 +129,67 @@ def predict_employability(
             ).model_dump(mode="json"),
         )
 
-    # Resolve degree from course
-    degree = "BSIT"  # fallback
-    if student_record.course_code:
-        resolved = get_course_abbv_by_course_code(db, student_record.course_code)
-        if resolved:
-            degree = resolved
-
-    # Assemble predictor dict from DB data
-    student_dict = build_employability_dict(student_record, alumni_skills, degree)
+    # Build regression inputs from DB records
+    regression_inputs = build_regression_inputs(student_record, alumni_skills)
 
     try:
-        result = predictor.predict(student_dict)
+        result = regression_predictor.predict(**regression_inputs)
+        result_dict = result.to_dict()
+    except ValueError as e:
+        raise HTTPException(
+            status_code=422,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.REGRESSION_PREDICTION_FAILED.value,
+                message=f"Prediction failed due to invalid data: {str(e)}",
+            ).model_dump(mode="json"),
+        )
     except Exception as e:
         raise HTTPException(
             status_code=500,
             detail=StandardResponse(
                 success=False,
-                code=ErrorCode.PREDICTION_FAILED.value,
+                code=ErrorCode.REGRESSION_PREDICTION_FAILED.value,
                 message=f"Prediction failed: {str(e)}",
             ).model_dump(mode="json"),
         )
 
     # Persist to database
-    prediction = EmployabilityPrediction(
+    prediction = AlumniRegressionPrediction(
         alumni_code=alumni_code,
-        input_data=student_dict,
-        prediction_result=result,
-        realistic_prediction=result["realistic_assessment"]["prediction"],
-        realistic_probability=result["realistic_assessment"]["probability"],
-        improvement_prediction=result["improvement_roadmap"]["prediction"],
-        improvement_probability=result["improvement_roadmap"]["probability"],
+        input_data=regression_inputs,
+        prediction_result=result_dict,
+        predicted_salary=result.predicted_salary_php,
+        predicted_duration_weeks=result.predicted_job_search_weeks,
+        salary_band=result.salary_band,
+        search_outlook=result.search_outlook,
     )
-    save_prediction(db, prediction)
-    invalidate_cache_namespaces(PREDICT_CACHE_NAMESPACE)
+    save_regression_prediction(db, prediction)
+    invalidate_cache_namespaces(REGRESSION_CACHE_NAMESPACE)
 
     return StandardResponse(
         success=True,
-        code=SuccessCode.PREDICTION_COMPLETED.value,
-        message="Employability prediction completed successfully",
+        code=SuccessCode.REGRESSION_PREDICTION_COMPLETED.value,
+        message="Linear Regression prediction completed successfully",
         data={
             "prediction_id": str(prediction.id),
-            **result,
+            **result_dict,
         },
     )
 
 
 # ─────────────────────────────────────────────────────────────────
-# GET  /predict/employability/me
+# GET  /predict/regression/me
 # ─────────────────────────────────────────────────────────────────
 
-@router.get("/employability/me")
-def get_my_predictions(
+@router.get("/regression/me")
+def get_my_regression_predictions(
     db: Session = Depends(get_session),
     limit: int = Query(default=10, ge=1, le=50, description="Max results to return"),
     current_user: CurrentUser = Depends(require_authenticated),
 ):
-    """Get all predictions linked to the current authenticated alumni, newest first."""
-    # Find alumni record for the current user
+    """Get all regression predictions for the current authenticated alumni."""
     alumni = get_alumni_by_user_code(db, uuid.UUID(str(current_user.user_code)))
-
     if not alumni:
         raise HTTPException(
             status_code=404,
@@ -205,41 +200,41 @@ def get_my_predictions(
             ).model_dump(mode="json"),
         )
 
-    # Cache the result for this specific user
     cache_key = generate_cache_key(
-        f"{PREDICT_CACHE_NAMESPACE}:me",
+        f"{REGRESSION_CACHE_NAMESPACE}:me",
         user_code=str(current_user.user_code),
         limit=limit,
     )
     return cache_get_or_set(
         cache_key,
-        lambda: _build_alumni_predictions_response(db, alumni.alumni_code, limit),
-        ttl=PREDICT_DETAIL_TTL,
+        lambda: _build_regression_list_response(db, alumni.alumni_code, limit),
+        ttl=REGRESSION_DETAIL_TTL,
     )
 
 
 # ─────────────────────────────────────────────────────────────────
-# GET  /predict/employability/{prediction_id}
+# GET  /predict/regression/{prediction_id}
 # ─────────────────────────────────────────────────────────────────
 
-@router.get("/employability/{prediction_id}")
-def get_prediction(
+@router.get("/regression/{prediction_id}")
+def get_regression_prediction(
     prediction_id: uuid.UUID,
     db: Session = Depends(get_session),
     current_user: CurrentUser = Depends(require_authenticated),
 ):
-    """Retrieve a stored prediction by its UUID."""
-    prediction = get_prediction_by_id(db, prediction_id)
+    """Retrieve a stored regression prediction by its UUID."""
+    prediction = get_regression_prediction_by_id(db, prediction_id)
     if not prediction:
         raise HTTPException(
             status_code=404,
             detail=StandardResponse(
                 success=False,
-                code=ErrorCode.PREDICTION_NOT_FOUND.value,
-                message=f"Prediction with ID '{prediction_id}' not found",
+                code=ErrorCode.REGRESSION_PREDICTION_NOT_FOUND.value,
+                message=f"Regression prediction with ID '{prediction_id}' not found",
             ).model_dump(mode="json"),
         )
 
+    # Authorization for regular users
     if current_user.user_type == UserType.USER.value:
         if prediction.alumni_code is None:
             raise HTTPException(
@@ -250,40 +245,7 @@ def get_prediction(
                     message="You are not allowed to access this prediction",
                 ).model_dump(mode="json"),
             )
-        alumni = _resolve_active_alumni(db, prediction.alumni_code)
-        if not alumni:
-            raise HTTPException(
-                status_code=404,
-                detail=StandardResponse(
-                    success=False,
-                    code=ErrorCode.ALUMNI_NOT_FOUND.value,
-                    message="Alumni not found",
-                ).model_dump(mode="json"),
-            )
-        _ensure_owner_or_staff_plus(current_user, str(alumni.user_code) if alumni.user_code else None)
-
-    cache_key = generate_cache_key(f"{PREDICT_CACHE_NAMESPACE}:detail", prediction_id=str(prediction_id))
-    return cache_get_or_set(
-        cache_key,
-        lambda: _build_prediction_detail_response(db, prediction_id),
-        ttl=PREDICT_DETAIL_TTL,
-    )
-
-
-# ─────────────────────────────────────────────────────────────────
-# GET  /predict/employability/alumni/{alumni_code}
-# ─────────────────────────────────────────────────────────────────
-
-@router.get("/employability/alumni/{alumni_code}")
-def get_alumni_predictions(
-    alumni_code: uuid.UUID,
-    db: Session = Depends(get_session),
-    limit: int = Query(default=10, ge=1, le=50, description="Max results to return"),
-    current_user: CurrentUser = Depends(require_authenticated),
-):
-    """Get all predictions linked to a specific alumni, newest first."""
-    if current_user.user_type == UserType.USER.value:
-        alumni = _resolve_active_alumni(db, alumni_code)
+        alumni = get_active_alumni_by_code(db, prediction.alumni_code)
         if not alumni:
             raise HTTPException(
                 status_code=404,
@@ -296,56 +258,94 @@ def get_alumni_predictions(
         _ensure_owner_or_staff_plus(current_user, str(alumni.user_code) if alumni.user_code else None)
 
     cache_key = generate_cache_key(
-        f"{PREDICT_CACHE_NAMESPACE}:alumni",
+        f"{REGRESSION_CACHE_NAMESPACE}:detail",
+        prediction_id=str(prediction_id),
+    )
+    return cache_get_or_set(
+        cache_key,
+        lambda: _build_regression_detail_response(db, prediction_id),
+        ttl=REGRESSION_DETAIL_TTL,
+    )
+
+
+# ─────────────────────────────────────────────────────────────────
+# GET  /predict/regression/alumni/{alumni_code}
+# ─────────────────────────────────────────────────────────────────
+
+@router.get("/regression/alumni/{alumni_code}")
+def get_alumni_regression_predictions(
+    alumni_code: uuid.UUID,
+    db: Session = Depends(get_session),
+    limit: int = Query(default=10, ge=1, le=50, description="Max results to return"),
+    current_user: CurrentUser = Depends(require_authenticated),
+):
+    """Get all regression predictions for a specific alumni."""
+    if current_user.user_type == UserType.USER.value:
+        alumni = get_active_alumni_by_code(db, alumni_code)
+        if not alumni:
+            raise HTTPException(
+                status_code=404,
+                detail=StandardResponse(
+                    success=False,
+                    code=ErrorCode.ALUMNI_NOT_FOUND.value,
+                    message="Alumni not found",
+                ).model_dump(mode="json"),
+            )
+        _ensure_owner_or_staff_plus(current_user, str(alumni.user_code) if alumni.user_code else None)
+
+    cache_key = generate_cache_key(
+        f"{REGRESSION_CACHE_NAMESPACE}:alumni",
         alumni_code=str(alumni_code),
         limit=limit,
     )
     return cache_get_or_set(
         cache_key,
-        lambda: _build_alumni_predictions_response(db, alumni_code, limit),
-        ttl=PREDICT_ALUMNI_TTL,
+        lambda: _build_regression_list_response(db, alumni_code, limit),
+        ttl=REGRESSION_ALUMNI_TTL,
     )
 
 
-def _build_prediction_detail_response(
+# ── Response builders ─────────────────────────────────────────
+
+
+def _build_regression_detail_response(
     db: Session,
     prediction_id: uuid.UUID,
 ) -> StandardResponse:
-    prediction = get_prediction_by_id(db, prediction_id)
-
+    prediction = get_regression_prediction_by_id(db, prediction_id)
     if not prediction:
         raise HTTPException(
             status_code=404,
             detail=StandardResponse(
                 success=False,
-                code=ErrorCode.PREDICTION_NOT_FOUND.value,
-                message=f"Prediction with ID '{prediction_id}' not found",
+                code=ErrorCode.REGRESSION_PREDICTION_NOT_FOUND.value,
+                message=f"Regression prediction with ID '{prediction_id}' not found",
             ).model_dump(mode="json"),
         )
 
     return StandardResponse(
         success=True,
-        code=SuccessCode.PREDICTION_RETRIEVED.value,
-        message="Prediction retrieved successfully",
-        data=EmployabilityPredictionRead.model_validate(prediction).model_dump(mode="json"),
+        code=SuccessCode.REGRESSION_PREDICTION_RETRIEVED.value,
+        message="Regression prediction retrieved successfully",
+        data=AlumniRegressionPredictionRead.model_validate(prediction).model_dump(mode="json"),
     )
 
 
-def _build_alumni_predictions_response(
+def _build_regression_list_response(
     db: Session,
     alumni_code: uuid.UUID,
     limit: int,
 ) -> StandardResponse:
-    predictions = get_predictions_by_alumni(db, alumni_code, limit)
+    predictions = get_regression_predictions_by_alumni(db, alumni_code, limit)
 
     data = [
-        EmployabilityPredictionRead.model_validate(p).model_dump(mode="json")
+        AlumniRegressionPredictionRead.model_validate(p).model_dump(mode="json")
         for p in predictions
     ]
 
     return StandardResponse(
         success=True,
-        code=SuccessCode.PREDICTIONS_RETRIEVED.value,
-        message=f"Found {len(data)} prediction(s) for alumni '{alumni_code}'",
+        code=SuccessCode.REGRESSION_PREDICTIONS_RETRIEVED.value,
+        message=f"Found {len(data)} regression prediction(s) for alumni '{alumni_code}'",
         data=data,
     )

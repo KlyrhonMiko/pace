@@ -1,4 +1,5 @@
 import DashboardHeader from "@/app/dashboard/alumni/_components/DashboardHeader";
+import PageHeader from "@/components/dashboard/PageHeader";
 import StatsGrid from "@/app/dashboard/alumni/_components/StatsGrid";
 import EmployabilityScore from "@/app/dashboard/alumni/_components/EmployabilityScore";
 import RecommendedJobs from "@/app/dashboard/alumni/jobs/_components/RecommendedJobs";
@@ -31,6 +32,13 @@ export default async function AlumniDashboard() {
 
     return (
         <div className="space-y-5">
+            {/* Page Header */}
+            <PageHeader
+                title="Dashboard"
+                description="Here's what's happening with your career journey"
+                currentPage="Overview"
+            />
+
             {/* Hero */}
             <DashboardHeader profile={profileData} />
 

@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 
 import JobFilters from "./_components/JobFilters";
 import JobList from "./_components/JobList";
-import JobsHeader from "./_components/JobsHeader";
+import PageHeader from "@/components/dashboard/PageHeader";
 import { jobTypes, experienceLevels, workTypes } from "./_components/constants";
 import { searchJobs, JoobleJob } from "./_lib/api";
 import { useDebounce } from "../../../../hooks/use-debounce";
@@ -200,7 +200,11 @@ export default function JobListingsPage() {
 
             {/* Page Header */}
             <div className="mb-6">
-                <JobsHeader />
+                <PageHeader
+                    title="Job Listings"
+                    description="Discover opportunities that match your skills and career goals"
+                    currentPage="Job Listings"
+                />
             </div>
 
 

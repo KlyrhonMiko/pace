@@ -12,6 +12,7 @@ import {
     Home,
     Briefcase,
     Calendar,
+    FileText,
     ClipboardList,
     User,
     Sparkles,
@@ -27,6 +28,7 @@ import DateWidget from "../_components/DateWidget";
 
 const navItems = [
     { name: "Overview", href: "/dashboard/alumni", icon: () => <Home size={18} /> },
+    { name: "Resumes", href: "/dashboard/alumni/resumes", icon: () => <FileText size={18} /> },
     { name: "Job Listings", href: "/dashboard/alumni/jobs", icon: () => <Briefcase size={18} /> },
     { name: "Events", href: "/dashboard/alumni/events", icon: () => <Calendar size={18} /> },
     { name: "Surveys", href: "/dashboard/alumni/surveys", icon: () => <ClipboardList size={18} /> },

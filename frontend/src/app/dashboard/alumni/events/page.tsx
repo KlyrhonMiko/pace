@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import EventFilters from "./_components/EventFilters";
 import EventList from "./_components/EventList";
-import EventsHeader from "./_components/EventsHeader";
+import PageHeader from "@/components/dashboard/PageHeader";
 
 import { fetchEvents, fetchEventTypes, registerEvent, unregisterEvent, type Event } from "../../_lib/events";
 
@@ -29,7 +29,7 @@ export default function EventsPage() {
 
         // Use facets provided by the backend for accurate counts
         const facets = eventsResult.facets || {};
-        
+
         // Ensure all known types are included, even if they have 0 events
         const typeLabels = types.map(t => ({
             id: t.event_type_id,
@@ -98,8 +98,8 @@ export default function EventsPage() {
                     return {
                         ...e,
                         is_registered: !isCurrentlyRegistered,
-                        attendees: isCurrentlyRegistered 
-                            ? Math.max(0, e.attendees - 1) 
+                        attendees: isCurrentlyRegistered
+                            ? Math.max(0, e.attendees - 1)
                             : e.attendees + 1,
                     };
                 }
@@ -123,8 +123,8 @@ export default function EventsPage() {
                         return {
                             ...e,
                             is_registered: isCurrentlyRegistered,
-                            attendees: isCurrentlyRegistered 
-                                ? e.attendees + 1 
+                            attendees: isCurrentlyRegistered
+                                ? e.attendees + 1
                                 : Math.max(0, e.attendees - 1),
                         };
                     }
@@ -139,7 +139,11 @@ export default function EventsPage() {
     if (isLoading) {
         return (
             <div className="space-y-5">
-                <EventsHeader />
+                <PageHeader
+                    title="Events & Networking"
+                    description="Discover professional development events, seminars, and networking opportunities"
+                    currentPage="Events & Networking"
+                />
                 <div className="flex items-center justify-center py-20">
                     <div className="flex flex-col items-center gap-4">
                         <div className="relative h-10 w-10">
@@ -156,7 +160,11 @@ export default function EventsPage() {
     return (
         <div className="space-y-5">
             {/* Page Header */}
-            <EventsHeader />
+            <PageHeader
+                title="Events & Networking"
+                description="Discover professional development events, seminars, and networking opportunities"
+                currentPage="Events & Networking"
+            />
 
             {/* 2-Column Layout */}
             <div className="relative grid grid-cols-1 lg:grid-cols-4 gap-5">

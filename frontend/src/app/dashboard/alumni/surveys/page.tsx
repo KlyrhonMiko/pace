@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import SurveysHeader from "./_components/SurveysHeader";
+import PageHeader from "@/components/dashboard/PageHeader";
 import AlumniSurveyList from "./_components/AlumniSurveyList";
 import SurveyResponseModal from "./_components/SurveyResponseModal";
 import type { SurveySubmissionPayload } from "./_components/SurveyResponseModal";
@@ -150,7 +150,11 @@ export default function AlumniSurveysPage() {
     return (
         <div className="space-y-5">
             {/* Page Header */}
-            <SurveysHeader />
+            <PageHeader
+                title="Surveys"
+                description="Share your feedback and help us improve the alumni experience."
+                currentPage="Surveys"
+            />
 
             {/* Survey List with Tabs */}
             <AlumniSurveyList

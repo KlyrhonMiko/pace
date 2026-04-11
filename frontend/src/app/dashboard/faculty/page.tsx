@@ -1,4 +1,5 @@
 import FacultyStatsGrid from "./_components/FacultyStatsGrid";
+import PageHeader from "@/components/dashboard/PageHeader";
 import FacultyQuickActions from "./_components/FacultyQuickActions";
 import AlumniProgress from "./_components/AlumniProgress";
 import PlacementOverview from "./_components/PlacementOverview";
@@ -9,11 +10,13 @@ import RecentAlumniActivity from "./_components/RecentAlumniActivity";
 export default function FacultyDashboard() {
     return (
         <div className="space-y-5">
-            {/* Header */}
-            <div className="flex flex-col gap-1">
-                <h1 className="text-xl font-bold text-gray-900">Faculty Overview</h1>
-                <p className="text-sm text-gray-500">Track alumni progress, manage sessions, and monitor placements.</p>
-            </div>
+            <PageHeader
+                title="Faculty Overview"
+                description="Track alumni progress, manage sessions, and monitor placements."
+                currentPage="Overview"
+                dashboardHref="/dashboard/faculty"
+                dashboardName="Faculty Dashboard"
+            />
 
             {/* Stats - mixed sizes */}
             <FacultyStatsGrid />

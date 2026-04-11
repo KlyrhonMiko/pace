@@ -1,4 +1,4 @@
-import InsightsHeader from "./_components/InsightsHeader";
+import PageHeader from "@/components/dashboard/PageHeader";
 import ScoreOverview from "./_components/ScoreOverview";
 import TopFactors from "./_components/TopFactors";
 import ImprovementSuggestions from "./_components/ImprovementSuggestions";
@@ -27,7 +27,11 @@ export default async function InsightsPage() {
     if (!predictionData) {
         return (
             <div className="space-y-6">
-                <InsightsHeader />
+                <PageHeader
+                    title="Employability Insights"
+                    description="AI-powered analysis of your career potential and growth areas."
+                    currentPage="Employability Insights"
+                />
 
                 <div className="rounded-2xl bg-white border border-gray-200/60 overflow-hidden">
                     <div className="flex flex-col items-center justify-center py-20 px-6">
@@ -57,7 +61,11 @@ export default async function InsightsPage() {
     return (
         <div className="space-y-6">
             {/* Page Header */}
-            <InsightsHeader predictionData={predictionData} />
+            <PageHeader
+                title="Employability Insights"
+                description="AI-powered analysis of your career potential and growth areas."
+                currentPage="Employability Insights"
+            />
 
             {/* Core Metrics — Score Overview + Top Factors */}
             <div className="grid gap-6 lg:grid-cols-5">

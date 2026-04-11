@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { GraduationCap, TrendingUp, BarChart3, RefreshCw } from "lucide-react";
+import { RefreshCw, BarChart3 } from "lucide-react";
+import PageHeader from "@/components/dashboard/PageHeader";
 import ForecastChart from "./_components/ForecastChart";
 import ForecastSummary from "./_components/ForecastSummary";
 import NewForecastForm from "./_components/NewForecastForm";
@@ -53,67 +54,13 @@ export default function FacultyReportsPage() {
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
             {/* Page Header */}
-            <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900 p-8 lg:p-12 text-white shadow-2xl">
-                {/* Decorative mesh */}
-                <div className="absolute inset-0 opacity-20 pointer-events-none">
-                    <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-teal-400 blur-[100px]" />
-                    <div className="absolute -bottom-24 -left-24 w-96 h-96 rounded-full bg-emerald-400 blur-[100px]" />
-                </div>
-
-                <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-8">
-                    <div>
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-200 mb-6">
-                            <GraduationCap className="h-3 w-3" />
-                            Faculty Dashboard
-                        </div>
-                        <h1 className="text-4xl lg:text-5xl font-black tracking-tight mb-4">
-                            Employment{" "}
-                            <span className="text-teal-300">FORECAST</span>
-                        </h1>
-                        <p className="text-emerald-50/80 text-lg max-w-xl leading-relaxed">
-                            ARIMA-powered employment trend analysis. Forecast
-                            alumni employment rates and plan institutional
-                            strategies accordingly.
-                        </p>
-                    </div>
-
-                    <div className="flex gap-4">
-                        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 min-w-[160px] hover:bg-white/10 transition-colors">
-                            <div className="flex items-center gap-3 mb-2">
-                                <div className="p-2 rounded-xl bg-teal-400/20 text-teal-300">
-                                    <TrendingUp className="h-5 w-5" />
-                                </div>
-                                <span className="text-[10px] font-bold text-emerald-200/60 uppercase tracking-widest">
-                                    Model
-                                </span>
-                            </div>
-                            <div className="text-3xl font-black">
-                                ARIMA
-                            </div>
-                            <div className="text-[11px] font-bold text-teal-300/60 uppercase mt-1">
-                                (1,1,1)
-                            </div>
-                        </div>
-                        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 min-w-[160px] hover:bg-white/10 transition-colors">
-                            <div className="flex items-center gap-3 mb-2">
-                                <div className="p-2 rounded-xl bg-teal-400/20 text-teal-300">
-                                    <BarChart3 className="h-5 w-5" />
-                                </div>
-                                <span className="text-[10px] font-bold text-emerald-200/60 uppercase tracking-widest">
-                                    Forecasts
-                                </span>
-                            </div>
-                            <div className="text-3xl font-black">
-                                {forecast?.forecast_data?.forecasts?.length ??
-                                    "—"}
-                            </div>
-                            <div className="text-[11px] font-bold text-teal-300/60 uppercase mt-1">
-                                Years Projected
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <PageHeader
+                title="Employment FORECAST"
+                description="ARIMA-powered employment trend analysis. Forecast alumni employment rates and plan institutional strategies accordingly."
+                currentPage="Employment Forecast"
+                dashboardHref="/dashboard/faculty"
+                dashboardName="Faculty Dashboard"
+            />
 
             {/* Main Content */}
             <div className="relative">
@@ -216,11 +163,10 @@ export default function FacultyReportsPage() {
                                                 (f, i) => (
                                                     <tr
                                                         key={f.year}
-                                                        className={`border-b border-gray-50 transition-colors hover:bg-gray-50/50 ${
-                                                            i % 2 === 0
-                                                                ? ""
-                                                                : "bg-gray-50/30"
-                                                        }`}
+                                                        className={`border-b border-gray-50 transition-colors hover:bg-gray-50/50 ${i % 2 === 0
+                                                            ? ""
+                                                            : "bg-gray-50/30"
+                                                            }`}
                                                     >
                                                         <td className="px-6 py-3.5 text-sm font-bold text-gray-900">
                                                             {f.year}
@@ -236,15 +182,14 @@ export default function FacultyReportsPage() {
                                                         </td>
                                                         <td className="px-6 py-3.5 text-right">
                                                             <span
-                                                                className={`inline-flex items-center gap-0.5 text-xs font-bold px-2 py-0.5 rounded-md ${
-                                                                    f.yoy_change >=
+                                                                className={`inline-flex items-center gap-0.5 text-xs font-bold px-2 py-0.5 rounded-md ${f.yoy_change >=
                                                                     0
-                                                                        ? "bg-emerald-50 text-emerald-700"
-                                                                        : "bg-red-50 text-red-600"
-                                                                }`}
+                                                                    ? "bg-emerald-50 text-emerald-700"
+                                                                    : "bg-red-50 text-red-600"
+                                                                    }`}
                                                             >
                                                                 {f.yoy_change >=
-                                                                0
+                                                                    0
                                                                     ? "+"
                                                                     : ""}
                                                                 {f.yoy_change}

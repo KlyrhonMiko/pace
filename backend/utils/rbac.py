@@ -25,6 +25,23 @@ def require_user_type(*allowed_types: UserType):
     return role_checker
 
 
+def require_role(allowed_roles: list[str]):
+    """Return a dependency that only allows specific user roles by string names."""
+    def role_checker(current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+        if current_user.user_type not in allowed_roles:
+            raise HTTPException(
+                status_code=403,
+                detail=StandardResponse(
+                    success=False,
+                    code=ErrorCode.FORBIDDEN.value,
+                    message="You do not have permission to access this resource",
+                ).model_dump(mode="json"),
+            )
+        return current_user
+
+    return role_checker
+
+
 # Convenience shortcuts for route dependencies
 require_admin = require_user_type(UserType.ADMIN)
 require_staff_or_admin = require_user_type(UserType.STAFF, UserType.ADMIN)

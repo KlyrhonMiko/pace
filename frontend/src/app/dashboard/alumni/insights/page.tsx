@@ -7,6 +7,7 @@ import { cookies } from "next/headers";
 import { getLatestPrediction } from "../_lib/api";
 import Link from "next/link";
 import { Sparkles, ArrowRight } from "lucide-react";
+import AskAIButton from "./_components/AskAIButton";
 
 export default async function InsightsPage() {
     // 1. Get the session token from cookies
@@ -65,7 +66,9 @@ export default async function InsightsPage() {
                 title="Employability Insights"
                 description="AI-powered analysis of your career potential and growth areas."
                 currentPage="Employability Insights"
-            />
+            >
+                <AskAIButton insightsData={predictionData} />
+            </PageHeader>
 
             {/* Core Metrics — Score Overview + Top Factors */}
             <div className="grid gap-6 lg:grid-cols-5">

@@ -49,9 +49,10 @@ ${insightsJson}
 
 export async function POST(request: NextRequest) {
     try {
-        const apiKey = process.env.GEMINI_API_KEY;
+        const apiKey = process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.trim() : null;
 
         if (!apiKey) {
+            console.error("[AI Advisor] Missing GEMINI_API_KEY");
             return NextResponse.json(
                 { error: "Gemini API key is not configured." },
                 { status: 500 }
@@ -80,6 +81,8 @@ export async function POST(request: NextRequest) {
 
         // Initialize Gemini
         const genAI = new GoogleGenerativeAI(apiKey);
+
+        // Use gemini-2.5-flash as confirmed by REST API list
         const model = genAI.getGenerativeModel({
             model: "gemini-2.5-flash",
             systemInstruction: buildSystemPrompt(JSON.stringify(insightsData, null, 2)),
@@ -96,34 +99,40 @@ export async function POST(request: NextRequest) {
 
         // Send the latest user message
         const lastMessage = messages[messages.length - 1];
-        const result = await chat.sendMessage(lastMessage.content);
-        const reply = result.response.text();
 
-        return NextResponse.json({ reply });
-    } catch (error) {
-        console.error("[AI Advisor] Error:", error);
+        try {
+            const result = await chat.sendMessage(lastMessage.content);
+            const reply = result.response.text();
+            return NextResponse.json({ reply });
+        } catch (execError: any) {
+            console.error("[AI Advisor] Gemini Execution Error:", execError);
+            throw execError;
+        }
+    } catch (error: any) {
+        console.error("[AI Advisor] Request Error:", error);
 
-        const message =
-            error instanceof Error ? error.message : "An unexpected error occurred.";
+        const message = error?.message || "An unexpected error occurred.";
+        const stack = error?.stack;
 
-        // Detect rate limit errors and return a clear message
-        const isRateLimit =
-            message.includes("429") ||
-            message.includes("quota") ||
-            message.includes("Too Many Requests") ||
-            message.includes("RATE_LIMIT");
+        // Detect rate limit errors
+        const isRateLimit = message.includes("429") || message.includes("quota") || message.includes("Too Many Requests");
 
         if (isRateLimit) {
             return NextResponse.json(
                 {
-                    error:
-                        "AI service rate limit reached. Please wait a minute before trying again.",
+                    error: "AI service rate limit reached. Please wait a minute before trying again.",
                     retryable: true,
                 },
                 { status: 429 }
             );
         }
 
-        return NextResponse.json({ error: message }, { status: 500 });
+        return NextResponse.json(
+            {
+                error: message,
+                details: process.env.NODE_ENV === "development" ? stack : undefined
+            },
+            { status: 500 }
+        );
     }
 }

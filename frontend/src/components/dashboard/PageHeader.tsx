@@ -9,6 +9,7 @@ interface PageHeaderProps {
     currentPage: string;
     dashboardHref?: string;
     dashboardName?: string;
+    children?: React.ReactNode;
 }
 
 export default function PageHeader({
@@ -16,7 +17,8 @@ export default function PageHeader({
     description,
     currentPage,
     dashboardHref = "/dashboard/alumni",
-    dashboardName = "Dashboard"
+    dashboardName = "Dashboard",
+    children
 }: PageHeaderProps) {
     return (
         <div className="rounded-2xl bg-white border border-gray-100 overflow-hidden shadow-sm">
@@ -42,6 +44,12 @@ export default function PageHeader({
                             {description}
                         </p>
                     </div>
+
+                    {children && (
+                        <div className="flex-shrink-0">
+                            {children}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

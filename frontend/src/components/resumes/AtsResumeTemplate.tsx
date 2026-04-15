@@ -24,7 +24,7 @@ export interface ResumeData {
         endDate: string;
         description: string;
     }>;
-    skills: string[];
+    skills: Array<{ name: string; notes: string }>;
 }
 
 export const emptyResumeData: ResumeData = {
@@ -78,7 +78,7 @@ export function AtsResumeTemplate({ data, printRef }: Props) {
                             <div key={index}>
                                 <div className="flex justify-between items-baseline mb-1">
                                     <h3 className="font-bold text-sm">
-                                        {exp.position || exp.title} <span className="font-normal text-gray-800">at {exp.company}</span>
+                                        {exp.position || exp.title}{exp.company && <span className="font-normal text-gray-800"> at {exp.company}</span>}
                                     </h3>
                                     <span className="text-xs font-semibold whitespace-nowrap ml-4">
                                         {exp.startDate} {exp.endDate ? `— ${exp.endDate}` : ""}
@@ -106,9 +106,11 @@ export function AtsResumeTemplate({ data, printRef }: Props) {
                                         {edu.startDate} {edu.endDate ? `— ${edu.endDate}` : ""}
                                     </span>
                                 </div>
-                                <p className="text-sm mt-0.5 text-gray-800">
-                                    {edu.degree} {edu.field ? `in ${edu.field}` : ""}
-                                </p>
+                                {(edu.degree || edu.field) && (
+                                    <p className="text-sm mt-0.5 text-gray-800">
+                                        {edu.degree}{edu.degree && edu.field && " in "}{edu.field}
+                                    </p>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -121,9 +123,15 @@ export function AtsResumeTemplate({ data, printRef }: Props) {
                     <h2 className="text-sm font-bold uppercase tracking-widest border-b-[1.5px] border-black pb-1 mb-3">
                         Skills
                     </h2>
-                    <p className="text-sm text-gray-800 leading-relaxed font-medium">
-                        {data.skills.join(" • ")}
-                    </p>
+                    <ul className="list-disc list-inside space-y-1">
+                        {data.skills
+                            .filter(s => s.name)
+                            .map((s, i) => (
+                                <li key={i} className="text-sm text-gray-800 leading-relaxed font-medium">
+                                    <span className="font-bold">{s.name}</span>: {s.notes}
+                                </li>
+                            ))}
+                    </ul>
                 </section>
             )}
         </div>

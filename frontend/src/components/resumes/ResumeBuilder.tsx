@@ -2,14 +2,15 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { Upload, Download, Plus, Trash2, FileText, Loader2 } from "lucide-react";
-import { useReactToPrint } from "react-to-print";
 import { toast } from "sonner";
+import { generateAtsDocxPdf } from "./generateAtsPdf";
 import { AtsResumeTemplate, ResumeData, emptyResumeData } from "./AtsResumeTemplate";
 import { getMyProfile } from "@/app/dashboard/alumni/profile/_lib/api";
 
 export default function ResumeBuilder() {
     const [data, setData] = useState<ResumeData>(emptyResumeData);
     const [isParsing, setIsParsing] = useState(false);
+    const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
     const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
     const componentRef = useRef<HTMLDivElement>(null);
@@ -62,17 +63,27 @@ export default function ResumeBuilder() {
         loadProfile();
     }, []);
 
-    const handlePrint = useReactToPrint({
-        contentRef: componentRef,
-        documentTitle: `${data.personal.firstName || "Generated"}_${data.personal.lastName || "Resume"}`,
-    });
+    const handleDownloadPdf = () => {
+        setIsGeneratingPdf(true);
+        const toastId = toast.loading("Generating PDF...");
+
+        try {
+            generateAtsDocxPdf(data);
+            toast.success("Resume downloaded successfully!", { id: toastId });
+        } catch (error) {
+            console.error("PDF generation failed:", error);
+            toast.error("Failed to generate PDF.", { id: toastId });
+        } finally {
+            setIsGeneratingPdf(false);
+        }
+    };
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
         setIsParsing(true);
-        const toastId = toast.loading("Parsing resume with AI...");
+        const toastId = toast.loading("Parsing resume...");
 
         try {
             const formData = new FormData();
@@ -104,7 +115,11 @@ export default function ResumeBuilder() {
                     },
                     education: parsed.education?.length ? parsed.education : prev.education,
                     experience: parsed.experience?.length ? parsed.experience : prev.experience,
-                    skills: parsed.skills?.length ? parsed.skills : prev.skills,
+                    skills: parsed.skills?.length
+                        ? (typeof parsed.skills[0] === 'string'
+                            ? (parsed.skills as unknown as string[]).map(s => ({ name: s, notes: "" }))
+                            : parsed.skills)
+                        : prev.skills,
                 }
             });
 
@@ -122,19 +137,21 @@ export default function ResumeBuilder() {
         setData((prev) => ({ ...prev, personal: { ...prev.personal, [field]: value } }));
     };
 
-    const handleArrayAdd = (field: "education" | "experience") => {
+    const handleArrayAdd = (field: "education" | "experience" | "skills") => {
         setData((prev) => ({
             ...prev,
             [field]: [
                 ...prev[field],
                 field === "education"
                     ? { institution: "", degree: "", field: "", startDate: "", endDate: "" }
-                    : { company: "", position: "", title: "", startDate: "", endDate: "", description: "" }
+                    : field === "experience"
+                        ? { company: "", position: "", title: "", startDate: "", endDate: "", description: "" }
+                        : { name: "", notes: "" }
             ] as any,
         }));
     };
 
-    const handleArrayUpdate = (field: "education" | "experience", index: number, itemField: string, value: string) => {
+    const handleArrayUpdate = (field: "education" | "experience" | "skills", index: number, itemField: string, value: string) => {
         setData((prev) => {
             const newArray = [...prev[field]];
             newArray[index] = { ...newArray[index], [itemField]: value };
@@ -142,16 +159,12 @@ export default function ResumeBuilder() {
         });
     };
 
-    const handleArrayRemove = (field: "education" | "experience", index: number) => {
+    const handleArrayRemove = (field: "education" | "experience" | "skills", index: number) => {
         setData((prev) => {
             const newArray = [...prev[field]];
             newArray.splice(index, 1);
             return { ...prev, [field]: newArray as any };
         });
-    };
-
-    const handleSkillsChange = (value: string) => {
-        setData((prev) => ({ ...prev, skills: value.split(",").map(s => s.trim()).filter(Boolean) }));
     };
 
     return (
@@ -179,12 +192,12 @@ export default function ResumeBuilder() {
                             />
                         </label>
                         <button
-                            // @ts-ignore
-                            onClick={handlePrint}
-                            className="bg-emerald-700 text-white hover:bg-emerald-800 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2 shadow-sm"
+                            onClick={handleDownloadPdf}
+                            disabled={isGeneratingPdf}
+                            className="bg-emerald-700 text-white hover:bg-emerald-800 disabled:bg-emerald-600/50 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2 shadow-sm"
                         >
-                            <Download className="w-4 h-4" />
-                            <span>Download PDF</span>
+                            {isGeneratingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                            <span>{isGeneratingPdf ? "Generating..." : "Download PDF"}</span>
                         </button>
                     </div>
                 </div>
@@ -230,7 +243,7 @@ export default function ResumeBuilder() {
                             </div>
                             <div className="col-span-2">
                                 <label className="block text-xs font-medium text-gray-700 mb-1">Professional Summary</label>
-                                <textarea className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all min-h-[80px]" value={data.personal.summary} onChange={e => handlePersonalChange("summary", e.target.value)} />
+                                <textarea className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all min-h-[120px] resize-none" value={data.personal.summary} onChange={e => handlePersonalChange("summary", e.target.value)} />
                             </div>
                         </div>
                     </section>
@@ -274,7 +287,7 @@ export default function ResumeBuilder() {
                                     </div>
                                     <div className="col-span-2">
                                         <label className="block text-xs font-medium text-gray-700 mb-1">Description</label>
-                                        <textarea className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm min-h-[80px]" value={exp.description || ""} onChange={e => handleArrayUpdate("experience", index, "description", e.target.value)} />
+                                        <textarea className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm min-h-[120px] resize-none" value={exp.description || ""} onChange={e => handleArrayUpdate("experience", index, "description", e.target.value)} />
                                     </div>
                                 </div>
                             </div>
@@ -329,19 +342,52 @@ export default function ResumeBuilder() {
 
                     {/* Skills Info */}
                     <section className="space-y-4">
-                        <div className="flex items-center space-x-2 border-b border-gray-100 pb-2">
-                            <FileText className="w-4 h-4 text-emerald-600" />
-                            <h3 className="font-semibold text-gray-900">Skills</h3>
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                            <div className="flex items-center space-x-2">
+                                <FileText className="w-4 h-4 text-emerald-600" />
+                                <h3 className="font-semibold text-gray-900">Skills</h3>
+                            </div>
+                            <button
+                                onClick={() => handleArrayAdd("skills")}
+                                className="text-emerald-700 hover:text-emerald-800 text-xs font-medium flex items-center bg-emerald-50 px-2 py-1 rounded"
+                            >
+                                <Plus className="w-3 h-3 mr-1" /> Add Skill
+                            </button>
                         </div>
 
-                        <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-1">Provide skills separated by comma</label>
-                            <textarea
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm min-h-[80px]"
-                                placeholder="e.g. JavaScript, React, Node.js, Project Management"
-                                value={data.skills.join(", ")}
-                                onChange={e => handleSkillsChange(e.target.value)}
-                            />
+                        <div className="grid grid-cols-1 gap-4">
+                            {data.skills.map((skill, index) => (
+                                <div key={index} className="p-4 border border-gray-100 rounded-xl bg-gray-50/50 space-y-3 relative group transition-all hover:border-emerald-200 hover:shadow-sm">
+                                    <button
+                                        onClick={() => handleArrayRemove("skills", index)}
+                                        className="absolute top-4 right-4 text-gray-400 hover:text-red-500 transition-colors"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+
+                                    <div className="pr-8 space-y-3">
+                                        <div>
+                                            <label className="block text-[10px] font-bold text-emerald-700 uppercase tracking-wider mb-1">Skill Name</label>
+                                            <input
+                                                type="text"
+                                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-semibold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+                                                placeholder="e.g. React"
+                                                value={skill.name}
+                                                onChange={e => handleArrayUpdate("skills", index, "name", e.target.value)}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Notes & Expertise</label>
+                                            <textarea
+                                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all min-h-[80px] resize-none"
+                                                placeholder="Describe your level of expertise, projects, or specific tools..."
+                                                value={skill.notes}
+                                                onChange={e => handleArrayUpdate("skills", index, "notes", e.target.value)}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </section>
 

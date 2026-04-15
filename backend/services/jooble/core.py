@@ -88,6 +88,7 @@ async def fetch_jobs(
     session: Optional["Session"] = None,
     background_tasks: Optional["BackgroundTasks"] = None,
     has_salary: bool = False,
+    include_inactive: bool = False,
 ) -> dict:
     """Fetch job listings from Jooble API with lazy caching."""
     print(
@@ -212,63 +213,85 @@ async def fetch_jobs(
                     has_salary=has_salary,
                 )
 
-            # Filter by location (case-insensitive contains check)
+            # Fetch local jobs if session is provided
+            local_jobs_data = []
+            if session:
+                query = select(JobListing)
+                if not include_inactive:
+                    query = query.where(JobListing.is_active == True)
+                
+                if keywords:
+                    query = query.where(
+                        (JobListing.title.contains(keywords)) | 
+                        (JobListing.description.contains(keywords)) |
+                        (JobListing.company.contains(keywords))
+                    )
+                if location and location != "Philippines":
+                    query = query.where(JobListing.location.contains(location))
+                if job_type:
+                    query = query.where(JobListing.job_type == job_type)
+                if work_type:
+                    query = query.where(JobListing.work_type == work_type)
+                if experience_level:
+                    query = query.where(JobListing.experience_level == experience_level)
+                
+                local_jobs = session.exec(query).all()
+                local_jobs_data = [_map_db_job_to_dict(j) for j in local_jobs]
+                print(f"[FETCH_JOBS] Found {len(local_jobs_data)} local jobs matching criteria")
+
+            # Merge local jobs with API results (giving priority to local jobs)
+            # Create a set of external IDs to avoid duplicates if we happen to fetch a job we already have locally
+            local_external_ids = {j.get("external_id") for j in local_jobs_data if j.get("external_id")}
+            
+            combined_jobs = local_jobs_data + [
+                j for j in normalized_jobs if j.get("id") not in local_external_ids
+            ]
+
+            print(f"[FETCH_JOBS] Combined jobs count: {len(combined_jobs)}")
+
+            # Filter by location (case-insensitive contains check) - already filtered local, but filter API ones
             if location and location != "Philippines":
                 location_lower = location.lower().strip()
-                normalized_jobs = [
+                combined_jobs = [
                     j
-                    for j in normalized_jobs
+                    for j in combined_jobs
                     if location_lower in j.get("location", "").lower()
                 ]
                 print(
-                    f"[FETCH_JOBS] Filtered by location={location}: {len(normalized_jobs)} jobs remain"
+                    f"[FETCH_JOBS] Filtered combined by location={location}: {len(combined_jobs)} jobs remain"
                 )
 
-            # Filter by job_type, work_type and experience_level
+            # Filter by job_type, work_type and experience_level - already filtered local, but filter API ones
             if job_type:
-                # Exact match for job type
                 job_type_lower = job_type.lower().strip()
-                normalized_jobs = [
+                combined_jobs = [
                     j
-                    for j in normalized_jobs
-                    if j.get("type", "").lower() == job_type_lower
+                    for j in combined_jobs
+                    if j.get("type", "").lower() == job_type_lower or j.get("job_type", "").lower() == job_type_lower
                 ]
-                print(
-                    f"[FETCH_JOBS] Filtered by job_type={job_type}: {len(normalized_jobs)} jobs remain"
-                )
-
             if work_type:
-                # Exact matches for work type
                 work_type_lower = work_type.lower().strip()
-                normalized_jobs = [
+                combined_jobs = [
                     j
-                    for j in normalized_jobs
+                    for j in combined_jobs
                     if j.get("work_type", "").lower() == work_type_lower
                 ]
-                print(
-                    f"[FETCH_JOBS] Filtered by work_type={work_type}: {len(normalized_jobs)} jobs remain"
-                )
-
             if experience_level:
-                # Exact matches for experience level
                 exp_level_lower = experience_level.lower().strip()
-                normalized_jobs = [
+                combined_jobs = [
                     j
-                    for j in normalized_jobs
+                    for j in combined_jobs
                     if j.get("experience_level", "").lower() == exp_level_lower
                 ]
-                print(
-                    f"[FETCH_JOBS] Filtered by experience_level={experience_level}: {len(normalized_jobs)} jobs remain"
-                )
 
-            # Calculate facets from the full list of normalized jobs
+            # Calculate facets from the combined list
             facets = {
                 "jobTypes": {},
                 "workTypes": {},
                 "experienceLevels": {}
             }
             
-            for j in normalized_jobs:
+            for j in combined_jobs:
                 jt = j.get("type") or j.get("job_type") or "Full-time"
                 wt = j.get("work_type") or "On-site"
                 el = j.get("experience_level") or "Not specified"
@@ -278,10 +301,10 @@ async def fetch_jobs(
                 facets["experienceLevels"][el] = facets["experienceLevels"].get(el, 0) + 1
 
             # Paginate
-            total_count = len(normalized_jobs)
+            total_count = len(combined_jobs)
             start_idx = (page - 1) * results_per_page
             end_idx = start_idx + results_per_page
-            paginated_jobs = normalized_jobs[start_idx:end_idx]
+            paginated_jobs = combined_jobs[start_idx:end_idx]
             
             result = {"jobs": paginated_jobs, "totalCount": total_count, "facets": facets}
 

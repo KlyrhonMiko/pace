@@ -26,51 +26,8 @@ import {
     SelectValue,
 } from "../../../../../components/ui/select";
 import { useAlumniManagement } from "./useAlumniManagement";
-
-// ─── Gender Badge ─────────────────────────────────────────────────────────────
-
-function GenderBadge({ gender }: { gender: string }) {
-    const config: Record<string, { bg: string; text: string; border: string }> = {
-        Male: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200/60" },
-        Female: { bg: "bg-pink-50", text: "text-pink-700", border: "border-pink-200/60" },
-    };
-    const c = config[gender] ?? { bg: "bg-slate-50", text: "text-slate-600", border: "border-slate-200/60" };
-    return (
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${c.bg} ${c.text} ${c.border}`}>
-            {gender}
-        </span>
-    );
-}
-
-// ─── Employment Status Badge ──────────────────────────────────────────────────
-
-function EmploymentStatusBadge({ status }: { status: string | null }) {
-    const config: Record<string, { bg: string; text: string; border: string }> = {
-        Employed: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200/60" },
-        Interviewing: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200/60" },
-        Searching: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200/60" },
-        "Not Looking": { bg: "bg-slate-50", text: "text-slate-600", border: "border-slate-200/60" },
-    };
-    const c = config[status ?? "Searching"] ?? { bg: "bg-slate-50", text: "text-slate-600", border: "border-slate-200/60" };
-    return (
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${c.bg} ${c.text} ${c.border}`}>
-            {status ?? "Unknown"}
-        </span>
-    );
-}
-
-// ─── Student Detail Row ───────────────────────────────────────────────────────
-
-function StudentDetailRow({ label, value }: { label: string; value: string | number | null }) {
-    return (
-        <div className="flex flex-col">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</span>
-            <span className="text-sm font-semibold text-slate-700">{value ?? "—"}</span>
-        </div>
-    );
-}
-
-// ─── Main Component ───────────────────────────────────────────────────────────
+import AlumniList from "./AlumniList";
+import AlumniFilters from "./AlumniFilters";
 
 export default function AlumniManagement() {
     const {
@@ -104,259 +61,34 @@ export default function AlumniManagement() {
     } = useAlumniManagement();
 
     return (
-        <div className="space-y-6">
-            {/* Header Actions */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-                    <div className="relative w-full sm:w-80">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <Input
-                            placeholder="Search alumni..."
-                            className="pl-10 h-11 rounded-xl border-slate-200 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
-                            value={searchQuery}
-                            onChange={(e) => handleSearch(e.target.value)}
-                        />
-                    </div>
-                    <Select value={filterGender} onValueChange={setFilterGender}>
-                        <SelectTrigger className="h-11 w-full sm:w-36 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 font-medium text-sm">
-                            <SelectValue placeholder="All Genders" />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl border-slate-200 z-[110]">
-                            <SelectItem value="all">All Genders</SelectItem>
-                            <SelectItem value="Male">Male</SelectItem>
-                            <SelectItem value="Female">Female</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <Select value={filterCourse} onValueChange={setFilterCourse}>
-                        <SelectTrigger className="h-11 w-full sm:w-36 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 font-medium text-sm">
-                            <SelectValue placeholder="All Courses" />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl border-slate-200 z-[110]">
-                            <SelectItem value="all">All Courses</SelectItem>
-                            {availableCourses.map((course) => (
-                                <SelectItem key={course} value={course}>{course}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={fetchAlumni}
-                        className="h-11 w-11 rounded-xl border border-slate-200 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
-                        disabled={isLoading}
-                        title="Refresh data"
-                    >
-                        <Loader2 className={`h-5 w-5 ${isLoading ? "animate-spin" : ""}`} />
-                    </Button>
-                </div>
+        <div className="relative grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+            {/* Left Column: Alumni List */}
+            <div className="lg:col-span-2">
+                <AlumniList
+                    alumni={alumni}
+                    isLoading={isLoading}
+                    error={error}
+                    expandedRows={expandedRows}
+                    toggleExpand={toggleExpand}
+                    openEditModal={openEditModal}
+                    handleDeleteClick={handleDeleteClick}
+                    fetchAlumni={fetchAlumni}
+                />
             </div>
 
-            {/* Alumni Table */}
-            <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm min-h-[400px] flex flex-col">
-                <div className="overflow-x-auto flex-1">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-slate-50/50 border-bottom border-slate-200">
-                                <th className="px-4 py-4 w-10"></th>
-                                <th className="px-4 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Alumni ID</th>
-                                <th className="px-4 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Full Name</th>
-                                <th className="px-4 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Birthdate</th>
-                                <th className="px-4 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Age</th>
-                                <th className="px-4 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Gender</th>
-                                <th className="px-4 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 relative">
-                            {isLoading ? (
-                                <tr>
-                                    <td colSpan={7} className="px-6 py-32 text-center">
-                                        <div className="flex flex-col items-center gap-4">
-                                            <div className="relative">
-                                                <div className="h-12 w-12 rounded-full border-4 border-emerald-100 border-t-emerald-600 animate-spin" />
-                                                <div className="absolute inset-0 flex items-center justify-center">
-                                                    <div className="h-6 w-6 rounded-full bg-emerald-50" />
-                                                </div>
-                                            </div>
-                                            <p className="text-sm font-bold text-slate-500 uppercase tracking-widest animate-pulse">Fetching alumni records...</p>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ) : error ? (
-                                <tr>
-                                    <td colSpan={7} className="px-6 py-32 text-center">
-                                        <div className="flex flex-col items-center gap-4">
-                                            <div className="h-16 w-16 rounded-full bg-red-50 flex items-center justify-center text-red-600 shadow-inner">
-                                                <AlertTriangle className="h-8 w-8" />
-                                            </div>
-                                            <div className="space-y-1">
-                                                <p className="text-base font-bold text-slate-900">Oops! Something went wrong</p>
-                                                <p className="text-sm text-slate-500 max-w-xs mx-auto">{error}</p>
-                                            </div>
-                                            <Button 
-                                                variant="outline" 
-                                                onClick={fetchAlumni}
-                                                className="mt-2 rounded-xl border-slate-200 hover:bg-slate-50 font-bold px-6"
-                                            >
-                                                Try Refreshing
-                                            </Button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ) : alumni.length === 0 ? (
-                                <tr>
-                                    <td colSpan={7} className="px-6 py-32 text-center">
-                                        <div className="flex flex-col items-center gap-4 opacity-40">
-                                            <div className="h-16 w-16 rounded-3xl bg-slate-100 flex items-center justify-center">
-                                                <User className="h-8 w-8 text-slate-400" />
-                                            </div>
-                                            <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">No alumni records found.</p>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ) : (
-                                alumni.map((record) => {
-                                    const isExpanded = expandedRows.has(record.alumni_id);
-                                    const hasStudent = record.student !== null;
-                                    return (
-                                        <Fragment key={record.alumni_id}>
-                                            <tr
-                                                key={record.alumni_id}
-                                                className={`hover:bg-slate-50/80 transition-colors group ${isExpanded ? "bg-slate-50/50" : ""}`}
-                                            >
-                                                {/* Expand Toggle */}
-                                                <td className="px-4 py-4">
-                                                    {hasStudent ? (
-                                                        <button
-                                                            onClick={() => toggleExpand(record.alumni_id)}
-                                                            className="p-1 rounded-md text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
-                                                        >
-                                                            {isExpanded ? (
-                                                                <ChevronDown className="h-4 w-4" />
-                                                            ) : (
-                                                                <ChevronRight className="h-4 w-4" />
-                                                            )}
-                                                        </button>
-                                                    ) : (
-                                                        <span className="p-1 text-slate-200">
-                                                            <ChevronRight className="h-4 w-4" />
-                                                        </span>
-                                                    )}
-                                                </td>
-                                                <td className="px-4 py-4">
-                                                    <span className="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
-                                                        {record.alumni_id}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-4">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-emerald-100 to-teal-100 text-emerald-700 text-xs font-bold flex-shrink-0">
-                                                            {record.first_name[0]}{record.last_name[0]}
-                                                        </div>
-                                                        <div>
-                                                            <h4 className="font-bold text-slate-900 text-sm">
-                                                                {record.last_name}, {record.first_name}{record.middle_name ? ` ${record.middle_name}` : ""}
-                                                            </h4>
-                                                            {hasStudent && (
-                                                                <p className="text-[11px] text-slate-400 mt-0.5">
-                                                                    {record.student!.course} • Class of {record.student!.year_graduated}
-                                                                </p>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td className="px-4 py-4">
-                                                    <span className="text-sm text-slate-600">
-                                                        {new Date(record.birthdate).toLocaleDateString("en-US", {
-                                                            month: "short",
-                                                            day: "numeric",
-                                                            year: "numeric",
-                                                        })}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-4">
-                                                    <span className="text-sm font-medium text-slate-700">{record.age}</span>
-                                                </td>
-                                                <td className="px-4 py-4">
-                                                    <GenderBadge gender={record.gender} />
-                                                </td>
-                                                <td className="px-4 py-4 text-right">
-                                                    <div className="flex items-center justify-end gap-2">
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            onClick={() => openEditModal(record)}
-                                                            className="text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
-                                                            title="Edit alumni"
-                                                        >
-                                                            <Edit2 className="h-4 w-4" />
-                                                        </Button>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            onClick={() => handleDeleteClick(record.alumni_id)}
-                                                            className="text-slate-400 hover:text-red-600 hover:bg-red-50"
-                                                            title="Delete alumni"
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-
-                                            {/* Expanded employment + Student Details */}
-                                            {isExpanded && hasStudent && (
-                                                <tr key={`${record.alumni_id}-details`} className="bg-gradient-to-r from-emerald-50/40 to-teal-50/30">
-                                                    <td colSpan={7} className="px-6 py-5">
-                                                        <div className="ml-10 space-y-5">
-                                                            {/* Employment Details */}
-                                                            <div>
-                                                                <div className="flex items-center gap-2 mb-3">
-                                                                    <div className="p-1.5 rounded-lg bg-blue-100 text-blue-700">
-                                                                        <Briefcase className="h-3.5 w-3.5" />
-                                                                    </div>
-                                                                    <span className="text-xs font-bold text-blue-800 uppercase tracking-wider">Employment Details</span>
-                                                                </div>
-                                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
-                                                                    <div className="flex flex-col">
-                                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</span>
-                                                                        <EmploymentStatusBadge status={record.employment_status} />
-                                                                    </div>
-                                                                    <StudentDetailRow label="Sector" value={record.employment_sector} />
-                                                                    <StudentDetailRow label="Salary Package" value={record.salary_package !== null ? `₱${record.salary_package?.toLocaleString()}` : null} />
-                                                                    <StudentDetailRow label="Offers Received" value={record.offers_received} />
-                                                                </div>
-                                                            </div>
-                                                            {/* Student Details */}
-                                                            <div>
-                                                                <div className="flex items-center gap-2 mb-3">
-                                                                    <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700">
-                                                                        <User className="h-3.5 w-3.5" />
-                                                                    </div>
-                                                                    <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider">Student Details</span>
-                                                                </div>
-                                                                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-5">
-                                                                    <StudentDetailRow label="Student ID" value={record.student!.student_id} />
-                                                                    <StudentDetailRow label="Course" value={record.student!.course} />
-                                                                    <StudentDetailRow label="Year Graduated" value={record.student!.year_graduated} />
-                                                                    <StudentDetailRow label="GWA" value={record.student!.gwa.toFixed(2)} />
-                                                                    <StudentDetailRow label="Avg Prof Grade" value={record.student!.avg_prof_grade?.toFixed(2) ?? null} />
-                                                                    <StudentDetailRow label="Avg Elec Grade" value={record.student!.avg_elec_grade?.toFixed(2) ?? null} />
-                                                                    <StudentDetailRow label="OJT Grade" value={record.student!.ojt_grade} />
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </Fragment>
-                                    );
-                                })
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+            {/* Right Column: Filters */}
+            <div className="lg:col-span-1">
+                <AlumniFilters
+                    searchQuery={searchQuery}
+                    handleSearch={handleSearch}
+                    filterGender={filterGender}
+                    setFilterGender={setFilterGender}
+                    filterCourse={filterCourse}
+                    setFilterCourse={setFilterCourse}
+                    availableCourses={availableCourses}
+                    isLoading={isLoading}
+                    fetchAlumni={fetchAlumni}
+                />
             </div>
 
             {/* Create / Edit Modal */}

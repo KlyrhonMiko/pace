@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import pdfParse from "pdf-parse";
+import pdfParse from "pdf-parse/lib/pdf.js";
 
 export const maxDuration = 60;
 

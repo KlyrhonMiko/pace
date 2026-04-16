@@ -28,6 +28,8 @@ import {
     formatEventDate,
 } from "../../_lib/events";
 import { useEventManagement } from "./useEventManagement";
+import EventList from "./EventList";
+import EventFilters from "./EventFilters";
 
 export default function EventManagement() {
     const {
@@ -44,7 +46,7 @@ export default function EventManagement() {
         selectedImagePreview,
         eventToDelete,
         formData,
-        
+
         // Handlers
         setIsModalOpen,
         setIsAddingNewType,
@@ -57,125 +59,30 @@ export default function EventManagement() {
         handleSave,
         handleDeleteClick,
         confirmDeleteEvent,
+        loadData,
     } = useEventManagement();
 
     return (
-        <div className="space-y-6">
-            {/* Header Actions */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                <div className="relative w-full sm:w-96">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <Input
-                        placeholder="Search events..."
-                        className="pl-10 h-11 rounded-xl border-slate-200 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
-                        value={searchQuery}
-                        onChange={(e) => handleSearch(e.target.value)}
-                    />
-                </div>
-                <Button
-                    onClick={openCreateModal}
-                    className="w-full sm:w-auto h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-2 px-6 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
-                >
-                    <Plus className="h-5 w-5" strokeWidth={2.5} />
-                    Create New Event
-                </Button>
+        <div className="relative grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+            {/* Left Column: Events List */}
+            <div className="lg:col-span-2">
+                <EventList
+                    events={events}
+                    isLoading={isLoading}
+                    openUpdateModal={openUpdateModal}
+                    handleDeleteClick={handleDeleteClick}
+                    fetchEvents={loadData}
+                />
             </div>
 
-            {/* Event Table/List */}
-            <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-slate-50/50 border-bottom border-slate-200">
-                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Event Info</th>
-                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Type & Location</th>
-                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Capacity</th>
-                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {isLoading ? (
-                                <tr>
-                                    <td colSpan={4} className="px-6 py-16 text-center">
-                                        <div className="flex items-center justify-center gap-3 text-slate-500">
-                                            <Loader2 className="h-5 w-5 animate-spin" />
-                                            <span className="text-sm font-medium">Loading events...</span>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ) : events.length === 0 ? (
-                                <tr>
-                                    <td colSpan={4} className="px-6 py-16 text-center text-sm text-slate-400">
-                                        No events found.
-                                    </td>
-                                </tr>
-                            ) : (
-                                events.map((event) => (
-                                    <tr key={event.event_id} className="hover:bg-slate-50/80 transition-colors group">
-                                        <td className="px-6 py-5">
-                                            <div className="flex items-center gap-4">
-                                                <div className="h-12 w-12 rounded-xl bg-emerald-50 flex flex-col items-center justify-center border border-emerald-100 group-hover:bg-emerald-100 transition-colors">
-                                                    <span className="text-emerald-700 font-bold text-xs uppercase">{getMonthAbbreviation(event.date)}</span>
-                                                    <span className="text-emerald-800 font-extrabold text-lg leading-none">{getDayNumber(event.date)}</span>
-                                                </div>
-                                                <div>
-                                                    <h4 className="font-bold text-slate-900 line-clamp-1">{event.event_name}</h4>
-                                                    <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
-                                                        <Clock className="h-3 w-3" /> {formatEventDate(event.date)} • {event.time_start} - {event.time_end}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <div className="flex flex-col">
-                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-600 w-fit border border-slate-200/60 mb-1.5">
-                                                    {event.event_type}
-                                                </span>
-                                                <span className="text-xs text-slate-500 flex items-center gap-1">
-                                                    <MapPin className="h-3 w-3" /> {event.location}
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <div className="flex flex-col gap-1 w-32">
-                                                <div className="flex justify-between text-[10px] uppercase font-bold text-slate-400">
-                                                    <span>{Math.round((event.attendees / (event.capacity || 1)) * 100)}%</span>
-                                                    <span>{event.attendees}/{event.capacity}</span>
-                                                </div>
-                                                <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                                                    <div
-                                                        className="h-full bg-emerald-500 rounded-full"
-                                                        style={{ width: `${(event.attendees / (event.capacity || 1)) * 100}%` }}
-                                                    />
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-5 text-right">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => openUpdateModal(event)}
-                                                    className="text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
-                                                >
-                                                    <Edit2 className="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => handleDeleteClick(event.event_id)}
-                                                    className="text-slate-400 hover:text-red-600 hover:bg-red-50"
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+            {/* Right Column: Actions & Filters */}
+            <div className="lg:col-span-1">
+                <EventFilters
+                    searchQuery={searchQuery}
+                    handleSearch={handleSearch}
+                    openCreateModal={openCreateModal}
+                    isLoading={isLoading}
+                />
             </div>
 
             {/* Modal Form */}
@@ -238,7 +145,7 @@ export default function EventManagement() {
                                                 }
                                             }}
                                         >
-                                            <SelectTrigger className="h-11 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 font-medium">
+                                            <SelectTrigger className="w-full !h-11 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all font-medium">
                                                 <SelectValue placeholder="Select type" />
                                             </SelectTrigger>
                                             <SelectContent className="rounded-xl border-slate-200 z-[110]">

@@ -1,8 +1,7 @@
-"use client";
-
 import { useState } from "react";
-import { Filter, ChevronDown } from "lucide-react";
+import { Filter, ChevronDown, Search } from "lucide-react";
 import { SURVEY_STATUSES } from "../../_lib/surveys";
+import { Input } from "@/components/ui/input";
 
 interface SurveyFiltersProps {
     statusCounts: Record<string, number>;
@@ -11,6 +10,8 @@ interface SurveyFiltersProps {
     showAnonymousOnly: boolean;
     setShowAnonymousOnly: (show: boolean) => void;
     onClearFilters: () => void;
+    searchQuery: string;
+    setSearchQuery: (query: string) => void;
 }
 
 export default function SurveyFilters({
@@ -20,6 +21,8 @@ export default function SurveyFilters({
     showAnonymousOnly,
     setShowAnonymousOnly,
     onClearFilters,
+    searchQuery,
+    setSearchQuery,
 }: SurveyFiltersProps) {
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
         status: true,
@@ -27,14 +30,14 @@ export default function SurveyFilters({
     });
 
     const toggleSection = (section: string) => {
-        setExpandedSections((prev) => ({
+        setExpandedSections((prev: any) => ({
             ...prev,
             [section]: !prev[section],
         }));
     };
 
     return (
-        <div className="group/card rounded-2xl bg-white border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50 hover:-translate-y-0.5 sticky top-24 h-fit">
+        <div className="group/card rounded-2xl bg-white border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50 hover:-translate-y-0.5 h-fit">
             <div className="p-6">
                 {/* Header with Icon */}
                 <div className="flex items-center justify-between mb-6">
@@ -53,7 +56,17 @@ export default function SurveyFilters({
                     </div>
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-6">
+                    {/* Search Bar */}
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <Input
+                            placeholder="Search..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-10 h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
+                        />
+                    </div>
                     {/* Status Filter */}
                     <div className="border-b border-slate-200 last:border-b-0">
                         <button

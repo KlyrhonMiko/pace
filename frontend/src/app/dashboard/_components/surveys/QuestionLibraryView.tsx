@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { Question } from "../../_lib/surveys";
 import { QUESTION_TYPES } from "../../_lib/surveys";
-import ActionsCard from "./ActionsCard";
+import ActionsCard from "../ActionsCard";
 import { Button } from "@/components/ui/button";
 
 interface QuestionLibraryViewProps {
@@ -26,7 +26,7 @@ interface QuestionLibraryViewProps {
 }
 
 export default function QuestionLibraryView({
-    questions,
+    questions = [],
     onCreateQuestion,
     onEditQuestion,
     onDeleteQuestion

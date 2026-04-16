@@ -19,7 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Survey, SURVEY_STATUSES } from "../../_lib/surveys";
 import SurveyFilters from "./SurveyFilters";
-import ActionsCard from "./ActionsCard";
+import ActionsCard from "../ActionsCard";
 
 interface SurveysViewProps {
     surveys: Survey[];
@@ -51,7 +51,7 @@ function SurveyStatusBadge({ status }: { status: string }) {
 }
 
 export default function SurveysView({
-    surveys,
+    surveys = [],
     onCreateSurvey,
     onCreateTracerStudy,
     onEditSurvey,

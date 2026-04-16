@@ -6,7 +6,11 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import JobFilters from "../../alumni/jobs/_components/JobFilters"; // Reuse filters
 import AdminJobList from "./_components/AdminJobList";
 import PageHeader from "@/components/dashboard/PageHeader";
-import { searchJobs } from "../../faculty/jobs/_lib/api"; // Reuse API
+import ActionsCard from "../../_components/ActionsCard";
+import { searchJobs, hideJob, deleteJob } from "../../faculty/jobs/_lib/api"; // Reuse API
+import AdminJobFormModal from "./_components/AdminJobFormModal";
+import { ConfirmationModal } from "@/components/ConfirmationModal";
+import { Plus, Briefcase } from "lucide-react";
 import { useDebounce } from "../../../../hooks/use-debounce";
 
 // Unified job type
@@ -85,7 +89,12 @@ export default function AdminJobBoardPage() {
     const [tempSalaryRange, setTempSalaryRange] = useState<[number, number]>([0, 500]);
 
     const [currentPage, setCurrentPage] = useState(1);
-    const JOBS_PER_PAGE = 10;
+    const JOBS_PER_PAGE = 15;
+
+    const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+    const [editingJob, setEditingJob] = useState<UnifiedJob | null>(null);
+    const [jobToDelete, setJobToDelete] = useState<UnifiedJob | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const debouncedSearchQuery = useDebounce(searchQuery, 500);
     const debouncedLocationSearch = useDebounce(locationSearch, 500);
@@ -160,8 +169,56 @@ export default function AdminJobBoardPage() {
         setCurrentPage(1);
     };
 
+    const handleEditJob = (job: UnifiedJob) => {
+        setEditingJob(job);
+        setIsFormModalOpen(true);
+    };
+
+    const handleToggleHide = async (job: UnifiedJob) => {
+        try {
+            const res = (await hideJob(job.dbId || (job.id as number))) as any;
+            if (res.error) {
+                toast.error(res.error);
+            } else {
+                toast.success(`Job status updated successfully`);
+                fetchJobs();
+            }
+        } catch {
+            toast.error("An error occurred while updating job status");
+        }
+    };
+
+    const handleDeleteClick = (job: UnifiedJob) => {
+        setJobToDelete(job);
+    };
+
+    const confirmDelete = async () => {
+        if (!jobToDelete) return;
+        setIsDeleting(true);
+        try {
+            const res = (await deleteJob(jobToDelete.dbId || (jobToDelete.id as number))) as any;
+            if (res.error) {
+                toast.error(res.error);
+            } else {
+                toast.success("Job deleted successfully");
+                setJobToDelete(null);
+                fetchJobs();
+            }
+        } catch {
+            toast.error("An error occurred while deleting the job");
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     return (
-        <div className="relative">
+        <div className="relative animate-in fade-in slide-in-from-bottom-4 duration-700">
+            {/* Decorative background elements */}
+            <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                <div className="absolute top-1/3 -left-20 h-64 w-64 rounded-full bg-emerald-100 opacity-30 blur-3xl" />
+                <div className="absolute bottom-20 right-1/4 h-48 w-48 rounded-full bg-teal-100 opacity-30 blur-3xl" />
+            </div>
+
             {/* Page Header */}
             <div className="mb-6">
                 <PageHeader
@@ -184,28 +241,68 @@ export default function AdminJobBoardPage() {
                         JOBS_PER_PAGE={JOBS_PER_PAGE}
                         clearFilters={clearFilters}
                         isLoading={isLoading}
+                        onEdit={handleEditJob}
+                        onToggleHide={handleToggleHide}
+                        onDelete={handleDeleteClick}
                     />
                 </div>
 
-                <div className="lg:col-span-1">
-                    <JobFilters
-                        searchQuery={searchQuery}
-                        setSearchQuery={setSearchQuery}
-                        locationSearch={locationSearch}
-                        setLocationSearch={setLocationSearch}
-                        selectedTypes={selectedTypes}
-                        setSelectedTypes={setSelectedTypes}
-                        selectedWorkTypes={selectedWorkTypes}
-                        setSelectedWorkTypes={setSelectedWorkTypes}
-                        selectedExperience={selectedExperience}
-                        setSelectedExperience={setSelectedExperience}
-                        hasSalary={hasSalary}
-                        setHasSalary={setHasSalary}
-                        tempSalaryRange={tempSalaryRange}
-                        setTempSalaryRange={setTempSalaryRange}
-                    />
+                <div className="lg:col-span-1 space-y-6">
+                    <div className="flex flex-col gap-4 sticky top-24">
+                        <ActionsCard
+                            title="Job Management"
+                            description="Maintain the career marketplace"
+                            icon={<Briefcase className="h-5 w-5" />}
+                            actions={[
+                                {
+                                    label: "Post New Job",
+                                    onClick: () => {
+                                        setEditingJob(null);
+                                        setIsFormModalOpen(true);
+                                    },
+                                    icon: <Plus className="h-4 w-4 stroke-2" />,
+                                    variant: "primary",
+                                },
+                            ]}
+                        />
+
+                        <JobFilters
+                            searchQuery={searchQuery}
+                            setSearchQuery={setSearchQuery}
+                            locationSearch={locationSearch}
+                            setLocationSearch={setLocationSearch}
+                            selectedTypes={selectedTypes}
+                            setSelectedTypes={setSelectedTypes}
+                            selectedWorkTypes={selectedWorkTypes}
+                            setSelectedWorkTypes={setSelectedWorkTypes}
+                            selectedExperience={selectedExperience}
+                            setSelectedExperience={setSelectedExperience}
+                            hasSalary={hasSalary}
+                            setHasSalary={setHasSalary}
+                            tempSalaryRange={tempSalaryRange}
+                            setTempSalaryRange={setTempSalaryRange}
+                        />
+                    </div>
                 </div>
             </div>
+
+            <AdminJobFormModal
+                isOpen={isFormModalOpen}
+                onClose={() => setIsFormModalOpen(false)}
+                editingJob={editingJob}
+                onSuccess={fetchJobs}
+            />
+
+            <ConfirmationModal
+                isOpen={jobToDelete !== null}
+                onClose={() => setJobToDelete(null)}
+                onConfirm={confirmDelete}
+                title="Delete Job Posting?"
+                description={`Are you sure you want to delete "${jobToDelete?.title}"? This action cannot be undone and will remove the listing from the platform.`}
+                confirmText="Delete Posting"
+                variant="danger"
+                isLoading={isDeleting}
+            />
         </div>
     );
 }

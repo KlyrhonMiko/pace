@@ -1,9 +1,12 @@
 "use client";
 
 import SurveyManagement from "../../_components/surveys/SurveyManagement";
+import { useSurveyManagement } from "../../_components/surveys/useSurveyManagement";
 import PageHeader from "@/components/dashboard/PageHeader";
 
 export default function AdminSurveysPage() {
+    const surveyManagementProps = useSurveyManagement();
+
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
             {/* Page Header */}
@@ -18,7 +21,7 @@ export default function AdminSurveysPage() {
             {/* Main Content */}
             <div className="relative">
                 <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-full max-w-5xl h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent opacity-50" />
-                <SurveyManagement />
+                <SurveyManagement {...surveyManagementProps} />
             </div>
         </div>
     );

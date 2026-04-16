@@ -129,7 +129,7 @@ export default function AlumniManagement() {
                                             value={formData.employment_status}
                                             onValueChange={(value: string) => setFormData({ ...formData, employment_status: value })}
                                         >
-                                            <SelectTrigger className="h-11 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 font-medium">
+                                            <SelectTrigger className="w-full !h-11 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all font-medium">
                                                 <SelectValue placeholder="Select status" />
                                             </SelectTrigger>
                                             <SelectContent className="rounded-xl border-slate-200 z-[110]">
@@ -213,7 +213,7 @@ export default function AlumniManagement() {
                                             value={formData.gender}
                                             onValueChange={(value: string) => setFormData({ ...formData, gender: value })}
                                         >
-                                            <SelectTrigger className="h-11 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 font-medium">
+                                            <SelectTrigger className="w-full !h-11 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all font-medium">
                                                 <SelectValue placeholder="Select gender" />
                                             </SelectTrigger>
                                             <SelectContent className="rounded-xl border-slate-200 z-[110]">
@@ -253,12 +253,21 @@ export default function AlumniManagement() {
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Course</label>
-                                        <Input
-                                            placeholder="e.g. BSIT"
+                                        <Select
                                             value={formData.course}
-                                            onChange={(e) => setFormData({ ...formData, course: e.target.value })}
-                                            className="h-11 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all font-medium"
-                                        />
+                                            onValueChange={(value: string) => setFormData({ ...formData, course: value })}
+                                        >
+                                            <SelectTrigger className="w-full !h-11 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all font-medium">
+                                                <SelectValue placeholder="Select course" />
+                                            </SelectTrigger>
+                                            <SelectContent className="rounded-xl border-slate-200 z-[110]">
+                                                {availableCourses.map((course) => (
+                                                    <SelectItem key={course} value={course}>
+                                                        {course}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Year Graduated</label>

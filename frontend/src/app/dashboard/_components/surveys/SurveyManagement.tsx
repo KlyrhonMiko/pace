@@ -36,6 +36,8 @@ interface SurveyManagementProps {
     handleDeleteQuestionClick: (id: string) => void;
     confirmDeleteQuestion: () => void;
     handleSaveQuestion: (qData: Omit<Question, "question_id">) => void;
+    handleResetSurveyForm: () => void;
+    handleResetQuestionForm: () => void;
     setIsSurveyModalOpen: (open: boolean) => void;
     setIsQuestionModalOpen: (open: boolean) => void;
     setSurveyToDelete: (id: string | null) => void;
@@ -70,6 +72,8 @@ export default function SurveyManagement({
     handleDeleteQuestionClick,
     confirmDeleteQuestion,
     handleSaveQuestion,
+    handleResetSurveyForm,
+    handleResetQuestionForm,
     setIsSurveyModalOpen,
     setIsQuestionModalOpen,
     setSurveyToDelete,
@@ -116,6 +120,7 @@ export default function SurveyManagement({
                 isOpen={isQuestionModalOpen}
                 onClose={() => setIsQuestionModalOpen(false)}
                 onSubmit={handleSaveQuestion}
+                onReset={handleResetQuestionForm}
                 initialData={editingQuestion}
                 isSaving={isSaving}
             />
@@ -124,6 +129,7 @@ export default function SurveyManagement({
                 isOpen={isSurveyModalOpen}
                 onClose={() => setIsSurveyModalOpen(false)}
                 onSubmit={handleSaveSurvey}
+                onReset={handleResetSurveyForm}
                 initialData={editingSurvey}
                 questionLibrary={questionBank}
                 isSaving={isSaving}

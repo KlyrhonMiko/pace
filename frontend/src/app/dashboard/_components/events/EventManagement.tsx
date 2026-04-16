@@ -13,15 +13,23 @@ import {
     Loader2,
 } from "lucide-react";
 import { ConfirmationModal } from "@/components/ConfirmationModal";
-import { Button } from "../../../../components/ui/button";
-import { Input } from "../../../../components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from "../../../../components/ui/select";
+} from "@/components/ui/select";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import {
     getMonthAbbreviation,
     getDayNumber,
@@ -58,6 +66,7 @@ export default function EventManagement() {
         handleImageChange,
         handleSave,
         handleDeleteClick,
+        handleClearForm,
         confirmDeleteEvent,
         loadData,
     } = useEventManagement();
@@ -85,210 +94,228 @@ export default function EventManagement() {
                 />
             </div>
 
-            {/* Modal Form */}
-            {isModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-                    <div className="bg-white rounded-[32px] w-full max-w-2xl overflow-hidden shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-300">
-                        {/* Modal Header */}
-                        <div className="bg-gradient-to-r from-emerald-800 to-emerald-700 p-8 text-white relative">
-                            <h2 className="text-2xl font-extrabold tracking-tight">
-                                {editingEvent ? "Update Event" : "Create New Event"}
-                            </h2>
-                            <p className="text-emerald-100/80 text-sm mt-1">
-                                {editingEvent ? `Modifying: ${editingEvent.event_id}` : "Fill in the details to schedule a new event."}
-                            </p>
-                            <button
-                                onClick={() => setIsModalOpen(false)}
-                                className="absolute top-6 right-6 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-                            >
-                                <X className="h-5 w-5" />
-                            </button>
-                        </div>
-
-                        {/* Modal Body */}
-                        <div className="p-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {/* Name */}
-                                <div className="md:col-span-2 space-y-2">
-                                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Event Name*</label>
-                                    <Input
-                                        placeholder="e.g. Annual Networking Night"
-                                        value={formData.event_name}
-                                        onChange={(e) => setFormData({ ...formData, event_name: e.target.value })}
-                                        className="h-11 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all font-medium"
-                                    />
-                                </div>
-
-                                {/* Description */}
-                                <div className="md:col-span-2 space-y-2">
-                                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Description</label>
-                                    <textarea
-                                        placeholder="Tell us more about this event..."
-                                        value={formData.description}
-                                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                        className="w-full min-h-[100px] p-4 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 outline-none text-sm transition-all font-medium resize-none"
-                                    />
-                                </div>
-
-                                {/* Type */}
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Event Type*</label>
-                                    {!isAddingNewType ? (
-                                        <Select
-                                            value={formData.event_type_name}
-                                            onValueChange={(value: string) => {
-                                                if (value === "ADD_NEW") {
-                                                    setIsAddingNewType(true);
-                                                    setFormData({ ...formData, event_type_name: "" });
-                                                } else {
-                                                    setFormData({ ...formData, event_type_name: value });
-                                                }
-                                            }}
-                                        >
-                                            <SelectTrigger className="w-full !h-11 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all font-medium">
-                                                <SelectValue placeholder="Select type" />
-                                            </SelectTrigger>
-                                            <SelectContent className="rounded-xl border-slate-200 z-[110]">
-                                                {availableTypeNames.map(name => (
-                                                    <SelectItem key={name} value={name}>{name}</SelectItem>
-                                                ))}
-                                                <div className="h-px bg-slate-100 my-1" />
-                                                <SelectItem value="ADD_NEW" className="text-emerald-600 font-bold focus:text-emerald-700">
-                                                    + Add New Type...
-                                                </SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    ) : (
-                                        <div className="relative">
-                                            <Input
-                                                placeholder="Enter new event type..."
-                                                value={formData.event_type_name}
-                                                autoFocus
-                                                onChange={(e) => setFormData({ ...formData, event_type_name: e.target.value })}
-                                                className="h-11 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all font-medium pr-10"
-                                            />
-                                            <button
-                                                onClick={() => setIsAddingNewType(false)}
-                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
-                                                title="Back to list"
-                                            >
-                                                <X className="h-4 w-4" />
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Date */}
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Date*</label>
-                                    <Input
-                                        type="date"
-                                        value={formData.date}
-                                        onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                                        className="h-11 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all font-medium"
-                                    />
-                                </div>
-
-                                {/* Start Time */}
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Start Time*</label>
-                                    <Input
-                                        type="time"
-                                        value={formData.time_start}
-                                        onChange={(e) => setFormData({ ...formData, time_start: e.target.value })}
-                                        className="h-11 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all font-medium"
-                                    />
-                                </div>
-
-                                {/* End Time */}
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">End Time*</label>
-                                    <Input
-                                        type="time"
-                                        value={formData.time_end}
-                                        onChange={(e) => setFormData({ ...formData, time_end: e.target.value })}
-                                        className="h-11 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all font-medium"
-                                    />
-                                </div>
-
-                                {/* Location */}
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Location</label>
-                                    <Input
-                                        placeholder="Room, Building or Link"
-                                        value={formData.location}
-                                        onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                                        className="h-11 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all font-medium"
-                                    />
-                                </div>
-
-                                {/* Capacity */}
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Capacity</label>
-                                    <Input
-                                        type="number"
-                                        placeholder="Max attendees"
-                                        value={formData.capacity}
-                                        onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 0 })}
-                                        className="h-11 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all font-medium"
-                                    />
-                                </div>
-
-                                {/* Image Placeholder */}
-                                <div className="md:col-span-2 space-y-2">
-                                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Event Image</label>
-                                    <label className="h-32 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 hover:border-emerald-300 hover:bg-emerald-50 transition-all group cursor-pointer overflow-hidden">
-                                        {selectedImagePreview ? (
-                                            <img
-                                                src={selectedImagePreview}
-                                                alt="Selected event preview"
-                                                className="h-full w-full object-cover"
-                                            />
-                                        ) : (
-                                            <>
-                                                <div className="p-2 rounded-full bg-slate-50 group-hover:bg-emerald-100 text-slate-400 group-hover:text-emerald-600 transition-colors">
-                                                    <ImageIcon className="h-6 w-6" />
-                                                </div>
-                                                <span className="text-xs font-bold text-slate-400 group-hover:text-emerald-700 uppercase tracking-widest">Click to upload image</span>
-                                            </>
-                                        )}
-                                        <input
-                                            type="file"
-                                            accept="image/png,image/jpeg,image/webp"
-                                            className="hidden"
-                                            onChange={(e) => handleImageChange(e.target.files?.[0] ?? null)}
-                                        />
-                                    </label>
-                                </div>
+            {/* Create / Edit Modal */}
+            <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+                <DialogContent
+                    showCloseButton={!isSaving}
+                    className="sm:max-w-2xl p-0 gap-0 rounded-2xl border-gray-100 overflow-hidden shadow-2xl"
+                >
+                    {/* Header */}
+                    <DialogHeader className="p-6 pb-0">
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 text-white shadow-lg shadow-emerald-500/20">
+                                {editingEvent
+                                    ? <Edit2 className="h-5 w-5" />
+                                    : <Plus className="h-5 w-5" />}
+                            </div>
+                            <div>
+                                <DialogTitle className="text-base font-bold text-gray-900">
+                                    {editingEvent ? "Update Event" : "Create New Event"}
+                                </DialogTitle>
+                                <DialogDescription className="text-xs text-gray-500 mt-0.5">
+                                    {editingEvent
+                                        ? `Modifying details for: ${editingEvent.event_name}`
+                                        : "Fill in the details to schedule a new event for the community."}
+                                </DialogDescription>
                             </div>
                         </div>
+                    </DialogHeader>
 
-                        {/* Modal Footer */}
-                        <div className="p-8 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-3">
+                    {/* Body */}
+                    <div className="p-6 max-h-[70vh] overflow-y-auto space-y-6 custom-scrollbar">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Name */}
+                            <div className="md:col-span-2 space-y-1.5">
+                                <label className="text-sm font-medium text-slate-700">Event Name*</label>
+                                <Input
+                                    placeholder="e.g. Annual Networking Night"
+                                    value={formData.event_name}
+                                    onChange={(e) => setFormData({ ...formData, event_name: e.target.value })}
+                                    className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
+                                />
+                            </div>
+
+                            {/* Description */}
+                            <div className="md:col-span-2 space-y-1.5">
+                                <label className="text-sm font-medium text-slate-700">Description</label>
+                                <textarea
+                                    placeholder="Tell us more about this event..."
+                                    value={formData.description}
+                                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                    className="w-full min-h-[100px] p-3 rounded-xl border border-slate-200 bg-slate-50 focus:border-emerald-600 focus:ring-emerald-700/20 outline-none text-sm transition-all font-medium resize-none"
+                                />
+                            </div>
+
+                            {/* Type */}
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium text-slate-700">Event Type*</label>
+                                {!isAddingNewType ? (
+                                    <Select
+                                        value={formData.event_type_name}
+                                        onValueChange={(value: string) => {
+                                            if (value === "ADD_NEW") {
+                                                setIsAddingNewType(true);
+                                                setFormData({ ...formData, event_type_name: "" });
+                                            } else {
+                                                setFormData({ ...formData, event_type_name: value });
+                                            }
+                                        }}
+                                    >
+                                        <SelectTrigger className="!w-full !h-11 bg-slate-50 border-slate-200 focus:border-emerald-600 focus:ring-emerald-700/20">
+                                            <SelectValue placeholder="Select type" />
+                                        </SelectTrigger>
+                                        <SelectContent className="rounded-xl border-slate-200 z-[110]">
+                                            {availableTypeNames.map(name => (
+                                                <SelectItem key={name} value={name}>{name}</SelectItem>
+                                            ))}
+                                            <div className="h-px bg-slate-100 my-1" />
+                                            <SelectItem value="ADD_NEW" className="text-emerald-600 font-bold focus:text-emerald-700">
+                                                + Add New Type...
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                ) : (
+                                    <div className="relative">
+                                        <Input
+                                            placeholder="Enter new event type..."
+                                            value={formData.event_type_name}
+                                            autoFocus
+                                            onChange={(e) => setFormData({ ...formData, event_type_name: e.target.value })}
+                                            className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20 pr-10"
+                                        />
+                                        <button
+                                            onClick={() => setIsAddingNewType(false)}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                                            title="Back to list"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Date */}
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium text-slate-700">Date*</label>
+                                <Input
+                                    type="date"
+                                    value={formData.date}
+                                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                                    className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
+                                />
+                            </div>
+
+                            {/* Start Time */}
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium text-slate-700">Start Time*</label>
+                                <Input
+                                    type="time"
+                                    value={formData.time_start}
+                                    onChange={(e) => setFormData({ ...formData, time_start: e.target.value })}
+                                    className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
+                                />
+                            </div>
+
+                            {/* End Time */}
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium text-slate-700">End Time*</label>
+                                <Input
+                                    type="time"
+                                    value={formData.time_end}
+                                    onChange={(e) => setFormData({ ...formData, time_end: e.target.value })}
+                                    className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
+                                />
+                            </div>
+
+                            {/* Location */}
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium text-slate-700">Location</label>
+                                <Input
+                                    placeholder="Room, Building or Link"
+                                    value={formData.location}
+                                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                                    className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
+                                />
+                            </div>
+
+                            {/* Capacity */}
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium text-slate-700">Capacity</label>
+                                <Input
+                                    type="number"
+                                    placeholder="Max attendees"
+                                    value={formData.capacity}
+                                    onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 0 })}
+                                    className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
+                                />
+                            </div>
+
+                            {/* Image Placeholder */}
+                            <div className="md:col-span-2 space-y-1.5">
+                                <label className="text-sm font-medium text-slate-700">Event Image</label>
+                                <label className="h-40 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 flex flex-col items-center justify-center gap-2 hover:border-emerald-300 hover:bg-emerald-50 transition-all group cursor-pointer overflow-hidden">
+                                    {selectedImagePreview ? (
+                                        <img
+                                            src={selectedImagePreview}
+                                            alt="Selected event preview"
+                                            className="h-full w-full object-cover"
+                                        />
+                                    ) : (
+                                        <>
+                                            <div className="p-2.5 rounded-xl bg-white shadow-sm border border-slate-100 group-hover:scale-110 transition-transform text-slate-400 group-hover:text-emerald-600">
+                                                <ImageIcon className="h-6 w-6" />
+                                            </div>
+                                            <div className="flex flex-col items-center gap-0.5">
+                                                <span className="text-sm font-semibold text-slate-600">Click to upload image</span>
+                                                <span className="text-[11px] text-slate-400 font-medium">PNG, JPG or WEBP up to 5MB</span>
+                                            </div>
+                                        </>
+                                    )}
+                                    <input
+                                        type="file"
+                                        accept="image/png,image/jpeg,image/webp"
+                                        className="hidden"
+                                        onChange={(e) => handleImageChange(e.target.files?.[0] ?? null)}
+                                    />
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="p-6 border-t border-slate-100 bg-slate-50/30 flex items-center justify-between">
+                        <button
+                            onClick={handleClearForm}
+                            disabled={isSaving}
+                            className="text-sm font-medium text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
+                        >
+                            {editingEvent ? "Reset" : "Clear"}
+                        </button>
+                        <div className="flex items-center gap-2.5">
                             <Button
                                 variant="outline"
                                 onClick={() => setIsModalOpen(false)}
-                                className="h-11 px-6 rounded-xl border-slate-200 text-slate-600 font-bold hover:bg-slate-100 transition-all"
                                 disabled={isSaving}
+                                className="h-10 px-5 rounded-xl border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition-all"
                             >
                                 Cancel
                             </Button>
                             <Button
                                 onClick={handleSave}
                                 disabled={isSaving}
-                                className="h-11 px-8 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold shadow-lg shadow-emerald-700/20 transition-all active:scale-95 gap-2"
+                                className="h-10 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm shadow-emerald-200 transition-all active:scale-95 gap-2"
                             >
                                 {isSaving ? (
-                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                    <Loader2 className="h-4 w-4 animate-spin" />
                                 ) : (
-                                    <Check className="h-5 w-5" strokeWidth={3} />
+                                    <Check className="h-4 w-4" strokeWidth={2.5} />
                                 )}
-                                {editingEvent ? "Update Event" : "Save Event"}
+                                {editingEvent ? "Save Changes" : "Create Event"}
                             </Button>
                         </div>
                     </div>
-                </div>
-            )}
+                </DialogContent>
+            </Dialog>
             <ConfirmationModal
                 isOpen={eventToDelete !== null}
                 onClose={() => setEventToDelete(null)}

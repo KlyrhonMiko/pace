@@ -147,6 +147,14 @@ export function useEventManagement() {
         setIsSaving(false);
     };
 
+    const handleClearForm = () => {
+        if (editingEvent) {
+            openUpdateModal(editingEvent);
+        } else {
+            openCreateModal();
+        }
+    };
+
     const handleDeleteClick = (eventId: string) => {
         setEventToDelete(eventId);
     };
@@ -198,6 +206,7 @@ export function useEventManagement() {
         handleImageChange,
         handleSave,
         handleDeleteClick,
+        handleClearForm,
         confirmDeleteEvent,
         loadData,
     };

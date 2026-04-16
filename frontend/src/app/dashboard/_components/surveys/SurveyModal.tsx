@@ -1,14 +1,24 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Calendar, Settings2, HelpCircle, GripVertical, Trash2, LibraryBig, Loader2 } from "lucide-react";
+import { X, Calendar, Settings2, HelpCircle, GripVertical, Trash2, LibraryBig, Loader2, ClipboardList, Check } from "lucide-react";
 import { Survey, Question } from "../../_lib/surveys";
 import { SURVEY_STATUSES } from "../../_lib/surveys";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 interface SurveyModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSubmit: (survey: Omit<Survey, "survey_id" | "question_count">) => void;
+    onReset: () => void;
     initialData?: Survey | null;
     questionLibrary: Question[];
     isSaving?: boolean;
@@ -25,7 +35,7 @@ const defaultSurveyData: Omit<Survey, "survey_id" | "question_count"> = {
     questions: [],
 };
 
-export default function SurveyModal({ isOpen, onClose, onSubmit, initialData, questionLibrary, isSaving = false }: SurveyModalProps) {
+export default function SurveyModal({ isOpen, onClose, onSubmit, onReset, initialData, questionLibrary, isSaving = false }: SurveyModalProps) {
     const [formData, setFormData] = useState<Omit<Survey, "survey_id" | "question_count">>(defaultSurveyData);
 
     // UI State for tabs within the modal (Basic Info vs Questions Builder)
@@ -51,8 +61,6 @@ export default function SurveyModal({ isOpen, onClose, onSubmit, initialData, qu
             setActiveSection('details');
         }
     }, [initialData, isOpen]);
-
-    if (!isOpen) return null;
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -107,41 +115,30 @@ export default function SurveyModal({ isOpen, onClose, onSubmit, initialData, qu
     const questionsArray = formData.questions || [];
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl w-full max-w-4xl shadow-xl overflow-hidden h-[90vh] flex flex-col">
-
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent
+                showCloseButton={!isSaving}
+                className="sm:max-w-3xl p-0 gap-0 rounded-2xl border-gray-100 overflow-hidden shadow-2xl h-[90vh] flex flex-col"
+            >
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-slate-50/50 shrink-0">
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={onClose}
-                            className="p-2 -ml-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
+                <DialogHeader className="p-6 pb-0">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 text-white shadow-lg shadow-emerald-500/20">
+                            <ClipboardList className="h-5 w-5" />
+                        </div>
                         <div>
-                            <h2 className="text-xl font-bold text-slate-800 leading-tight">
+                            <DialogTitle className="text-base font-bold text-gray-900">
                                 {initialData ? "Edit Survey" : "Create New Survey"}
-                            </h2>
-                            <p className="text-xs text-slate-500 font-medium">Build your custom feedback form</p>
+                            </DialogTitle>
+                            <DialogDescription className="text-xs text-gray-500 mt-0.5">
+                                Build your custom feedback form and manage questions.
+                            </DialogDescription>
                         </div>
                     </div>
-
-                    <button
-                        form="survey-form"
-                        type="submit"
-                        disabled={isSaving}
-                        className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all shadow-sm shadow-emerald-200"
-                    >
-                        {isSaving ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : null}
-                        {isSaving ? "Saving..." : "Save Survey"}
-                    </button>
-                </div>
+                </DialogHeader>
 
                 {/* Sub Navigation */}
-                <div className="flex border-b border-slate-200 px-6 shrink-0">
+                <div className="flex border-b border-slate-200 px-6 shrink-0 bg-white">
                     <button
                         type="button"
                         onClick={() => setActiveSection('details')}
@@ -167,7 +164,7 @@ export default function SurveyModal({ isOpen, onClose, onSubmit, initialData, qu
                 </div>
 
                 {/* Content Area */}
-                <div className="flex-1 overflow-y-auto bg-slate-50/30">
+                <div className="flex-1 overflow-y-auto bg-slate-50/30 custom-scrollbar">
                     <form id="survey-form" onSubmit={handleSubmit} className="p-6">
 
                         {/* ===================== DETAILS SECTION ===================== */}
@@ -175,43 +172,42 @@ export default function SurveyModal({ isOpen, onClose, onSubmit, initialData, qu
                             <div className="max-w-2xl mx-auto space-y-8">
 
                                 <div className="space-y-4">
-                                    <h3 className="text-sm font-bold text-emerald-900 uppercase tracking-wider mb-2">Basic Information</h3>
+                                    <h3 className="text-[10px] font-bold text-emerald-900 uppercase tracking-[0.2em] mb-2">Basic Information</h3>
 
-                                    <div>
-                                        <label className="block text-sm font-semibold text-slate-700 mb-1">
-                                            Survey Title <span className="text-rose-500">*</span>
+                                    <div className="space-y-1.5">
+                                        <label className="text-sm font-medium text-slate-700">
+                                            Survey Title*
                                         </label>
-                                        <input
-                                            type="text"
+                                        <Input
                                             required
                                             value={formData.title}
                                             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors"
+                                            className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
                                             placeholder="e.g. End of Semester Evaluation"
                                         />
                                     </div>
 
-                                    <div>
-                                        <label className="block text-sm font-semibold text-slate-700 mb-1">
+                                    <div className="space-y-1.5">
+                                        <label className="text-sm font-medium text-slate-700">
                                             Description
                                         </label>
                                         <textarea
                                             rows={3}
                                             value={formData.description}
                                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors resize-none"
+                                            className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 focus:border-emerald-600 focus:ring-emerald-700/20 outline-none text-sm transition-all font-medium resize-none"
                                             placeholder="Briefly explain the purpose of this survey..."
                                         />
                                     </div>
                                 </div>
 
                                 <div className="space-y-4">
-                                    <h3 className="text-sm font-bold text-emerald-900 uppercase tracking-wider mb-2 pt-6 border-t border-slate-200">Settings & Rules</h3>
+                                    <h3 className="text-[10px] font-bold text-emerald-900 uppercase tracking-[0.2em] mb-2 pt-6 border-t border-slate-200">Settings & Rules</h3>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-                                        <div className="space-y-4">
+                                        <div className="flex flex-col gap-4">
                                             {/* Anonymous Toggle */}
-                                            <label className="flex items-start gap-3 cursor-pointer group bg-white p-4 rounded-xl border border-slate-200 hover:border-emerald-200 transition-colors">
+                                            <label className="flex items-start gap-3 cursor-pointer group bg-white p-4 rounded-xl border border-slate-200 hover:border-emerald-200 transition-colors flex-1">
                                                 <div className="relative flex-shrink-0 mt-0.5">
                                                     <input
                                                         type="checkbox"
@@ -223,12 +219,12 @@ export default function SurveyModal({ isOpen, onClose, onSubmit, initialData, qu
                                                 </div>
                                                 <div>
                                                     <span className="block text-sm font-bold text-slate-800">Anonymous Responses</span>
-                                                    <span className="block text-xs text-slate-500 mt-0.5">Do not record names or emails</span>
+                                                    <span className="block text-[11px] text-slate-500 mt-0.5 font-medium leading-relaxed">Do not record names or emails</span>
                                                 </div>
                                             </label>
 
                                             {/* Multiple Responses Toggle */}
-                                            <label className="flex items-start gap-3 cursor-pointer group bg-white p-4 rounded-xl border border-slate-200 hover:border-emerald-200 transition-colors">
+                                            <label className="flex items-start gap-3 cursor-pointer group bg-white p-4 rounded-xl border border-slate-200 hover:border-emerald-200 transition-colors flex-1">
                                                 <div className="relative flex-shrink-0 mt-0.5">
                                                     <input
                                                         type="checkbox"
@@ -240,34 +236,34 @@ export default function SurveyModal({ isOpen, onClose, onSubmit, initialData, qu
                                                 </div>
                                                 <div>
                                                     <span className="block text-sm font-bold text-slate-800">Multiple Responses</span>
-                                                    <span className="block text-xs text-slate-500 mt-0.5">Allow users to submit more than once</span>
+                                                    <span className="block text-[11px] text-slate-500 mt-0.5 font-medium leading-relaxed">Allow users to submit more than once</span>
                                                 </div>
                                             </label>
                                         </div>
 
-                                        <div className="space-y-4">
+                                        <div className="h-full">
                                             {/* Dates */}
-                                            <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
-                                                <div>
-                                                    <label className="flex items-center gap-2 text-xs font-bold text-slate-700 mb-1">
-                                                        <Calendar className="w-3.5 h-3.5 text-slate-400" /> Opens At
+                                            <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4 h-full flex flex-col justify-center">
+                                                <div className="space-y-1.5">
+                                                    <label className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                                        <Calendar className="w-3.5 h-3.5" /> Opens At
                                                     </label>
-                                                    <input
+                                                    <Input
                                                         type="date"
                                                         value={formData.opens_at || ''}
                                                         onChange={(e) => setFormData({ ...formData, opens_at: e.target.value || null })}
-                                                        className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:border-emerald-500 text-sm"
+                                                        className="h-10 bg-slate-50/50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
                                                     />
                                                 </div>
-                                                <div>
-                                                    <label className="flex items-center gap-2 text-xs font-bold text-slate-700 mb-1">
-                                                        <Calendar className="w-3.5 h-3.5 text-slate-400" /> Closes At
+                                                <div className="space-y-1.5">
+                                                    <label className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                                        <Calendar className="w-3.5 h-3.5" /> Closes At
                                                     </label>
-                                                    <input
+                                                    <Input
                                                         type="date"
                                                         value={formData.closes_at || ''}
                                                         onChange={(e) => setFormData({ ...formData, closes_at: e.target.value || null })}
-                                                        className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:border-emerald-500 text-sm"
+                                                        className="h-10 bg-slate-50/50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
                                                     />
                                                 </div>
                                             </div>
@@ -279,7 +275,7 @@ export default function SurveyModal({ isOpen, onClose, onSubmit, initialData, qu
 
                         {/* ===================== QUESTIONS SECTION ===================== */}
                         <div className={activeSection === 'questions' ? 'block' : 'hidden'}>
-                            <div className="max-w-3xl mx-auto">
+                            <div className="max-w-2xl mx-auto">
 
                                 {/* Question List */}
                                 <div className="space-y-4 mb-8">
@@ -302,13 +298,12 @@ export default function SurveyModal({ isOpen, onClose, onSubmit, initialData, qu
                                                 onDragOver={(e) => handleDragOver(e, idx)}
                                                 onDrop={(e) => handleDrop(e, idx)}
                                                 onDragEnd={handleDragEnd}
-                                                className={`bg-white border rounded-xl p-5 shadow-sm group hover:border-emerald-300 transition-all flex gap-4 ${
-                                                    dragIdx === idx
-                                                        ? 'opacity-40 scale-[0.97] border-emerald-300'
-                                                        : dropIdx === idx
+                                                className={`bg-white border rounded-xl p-5 shadow-sm group hover:border-emerald-300 transition-all flex gap-4 ${dragIdx === idx
+                                                    ? 'opacity-40 scale-[0.97] border-emerald-300'
+                                                    : dropIdx === idx
                                                         ? 'border-emerald-500 ring-2 ring-emerald-200'
                                                         : 'border-slate-200'
-                                                }`}
+                                                    }`}
                                             >
                                                 <div className="flex flex-col items-center gap-2 pt-1">
                                                     <span className="h-6 w-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 shrink-0">
@@ -413,7 +408,40 @@ export default function SurveyModal({ isOpen, onClose, onSubmit, initialData, qu
 
                     </form>
                 </div>
-            </div>
-        </div>
+
+                {/* Footer */}
+                <div className="p-6 border-t border-slate-100 bg-slate-50/30 flex items-center justify-between shrink-0">
+                    <button
+                        onClick={onReset}
+                        disabled={isSaving}
+                        className="text-sm font-medium text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
+                    >
+                        {initialData ? "Reset" : "Clear"}
+                    </button>
+                    <div className="flex items-center gap-2.5">
+                        <Button
+                            variant="outline"
+                            onClick={onClose}
+                            disabled={isSaving}
+                            className="h-10 px-5 rounded-xl border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition-all"
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleSubmit}
+                            disabled={isSaving}
+                            className="h-10 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm shadow-emerald-200 transition-all active:scale-95 gap-2"
+                        >
+                            {isSaving ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Check className="h-4 w-4" strokeWidth={2.5} />
+                            )}
+                            {isSaving ? "Saving..." : "Save Survey"}
+                        </Button>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
     );
 }

@@ -9,11 +9,11 @@ import {
     X,
     Check,
     Loader2,
-    AlertTriangle,
     Eye,
     EyeOff,
     RefreshCw,
 } from "lucide-react";
+import { ConfirmationModal } from "@/components/ConfirmationModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -42,7 +42,7 @@ function UserTypeBadge({ type }: { type: string }) {
     const config: Record<string, { bg: string; text: string; border: string }> = {
         ADMIN: { bg: "bg-violet-50", text: "text-violet-700", border: "border-violet-200/60" },
         STAFF: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200/60" },
-        USER:  { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200/60" },
+        USER: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200/60" },
     };
     const c = config[type] ?? { bg: "bg-slate-50", text: "text-slate-600", border: "border-slate-200/60" };
     return (
@@ -54,11 +54,10 @@ function UserTypeBadge({ type }: { type: string }) {
 
 function StatusBadge({ isDeleted }: { isDeleted: boolean }) {
     return (
-        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${
-            !isDeleted
-                ? "bg-green-50 text-green-700 border-green-200/60"
-                : "bg-red-50 text-red-600 border-red-200/60"
-        }`}>
+        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${!isDeleted
+            ? "bg-green-50 text-green-700 border-green-200/60"
+            : "bg-red-50 text-red-600 border-red-200/60"
+            }`}>
             <span className={`w-1.5 h-1.5 rounded-full ${!isDeleted ? "bg-green-500" : "bg-red-400"}`} />
             {!isDeleted ? "Active" : "Inactive"}
         </span>
@@ -108,7 +107,7 @@ export default function UserManagement() {
             if (res.success && res.data?.college_depts) {
                 setDepts(res.data.college_depts);
             }
-        }).catch(() => {});
+        }).catch(() => { });
     }, []);
 
     const totalPages = Math.ceil(total / pageSize);
@@ -514,60 +513,31 @@ export default function UserManagement() {
                 </div>
             )}
 
-            {/* Deactivate / Restore Confirmation Modal */}
-            {userToDeactivate !== null && (() => {
-                const targetUser = users.find((u) => u.user_id === userToDeactivate);
-                const isActive = !targetUser?.is_deleted;
-                return (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-                        <div className="bg-white rounded-xl w-full max-w-md shadow-xl overflow-hidden p-6 text-center animate-in zoom-in-95 duration-200">
-                            <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full mb-4 ${
-                                isActive ? "bg-red-100" : "bg-emerald-100"
-                            }`}>
-                                <AlertTriangle className={`h-8 w-8 ${
-                                    isActive ? "text-red-600" : "text-emerald-600"
-                                }`} strokeWidth={1.5} />
-                            </div>
-                            <h3 className="text-xl font-bold text-slate-900 mb-2">
-                                {isActive ? "Deactivate" : "Restore"} User?
-                            </h3>
-                            <p className="text-sm text-slate-500 mb-1 font-medium">{targetUser?.username}</p>
-                            <p className="text-sm text-slate-500 mb-6">
-                                {isActive
-                                    ? "This user will no longer be able to access the platform. You can restore them later."
-                                    : "This user will regain access to the platform."}
-                            </p>
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={() => setUserToDeactivate(null)}
-                                    disabled={isDeactivating}
-                                    className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 disabled:opacity-60 transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={confirmDeactivate}
-                                    disabled={isDeactivating}
-                                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold text-white disabled:opacity-60 transition-colors ${
-                                        isActive
-                                            ? "bg-red-600 hover:bg-red-700"
-                                            : "bg-emerald-600 hover:bg-emerald-700"
-                                    }`}
-                                >
-                                    {isDeactivating ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : null}
-                                    {isDeactivating
-                                        ? "Processing..."
-                                        : isActive
-                                        ? "Deactivate"
-                                        : "Restore"}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                );
-            })()}
+            <ConfirmationModal
+                isOpen={userToDeactivate !== null}
+                onClose={() => setUserToDeactivate(null)}
+                onConfirm={confirmDeactivate}
+                title={(() => {
+                    const targetUser = users.find((u) => u.user_id === userToDeactivate);
+                    return !targetUser?.is_deleted ? "Deactivate User?" : "Restore User?";
+                })()}
+                description={(() => {
+                    const targetUser = users.find((u) => u.user_id === userToDeactivate);
+                    const isActive = !targetUser?.is_deleted;
+                    return isActive
+                        ? `Are you sure you want to deactivate ${targetUser?.username}? This user will no longer be able to access the platform. You can restore them later.`
+                        : `Are you sure you want to restore ${targetUser?.username}? This user will regain access to the platform.`;
+                })()}
+                confirmText={(() => {
+                    const targetUser = users.find((u) => u.user_id === userToDeactivate);
+                    return !targetUser?.is_deleted ? "Deactivate" : "Restore";
+                })()}
+                variant={(() => {
+                    const targetUser = users.find((u) => u.user_id === userToDeactivate);
+                    return !targetUser?.is_deleted ? "danger" : "success";
+                })()}
+                isLoading={isDeactivating}
+            />
         </div>
     );
 }

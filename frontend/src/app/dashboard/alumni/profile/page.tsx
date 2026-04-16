@@ -3,6 +3,16 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { User, Settings, Check, Pencil, ChevronRight, GraduationCap, CalendarDays, Lock, Clock, Info, Loader2 } from "lucide-react";
+import { format } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
+import { Calendar } from "@/components/ui/calendar";
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import PageHeader from "@/components/dashboard/PageHeader";
 import { getMyProfile, AlumniProfile } from "./_lib/api";
 
@@ -206,6 +216,13 @@ function Field({
                         </option>
                     ))}
                 </select>
+            ) : type === "date" ? (
+                <DatePicker
+                    date={value as string}
+                    onChange={(v) => onChange?.(v)}
+                    disabled={isReadOnly}
+                    placeholder={placeholder}
+                />
             ) : (
                 <input
                     type={type}

@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 
 interface SurveyModalProps {
     isOpen: boolean;
@@ -248,22 +249,20 @@ export default function SurveyModal({ isOpen, onClose, onSubmit, onReset, initia
                                                     <label className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                                                         <Calendar className="w-3.5 h-3.5" /> Opens At
                                                     </label>
-                                                    <Input
-                                                        type="date"
-                                                        value={formData.opens_at || ''}
-                                                        onChange={(e) => setFormData({ ...formData, opens_at: e.target.value || null })}
-                                                        className="h-10 bg-slate-50/50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
+                                                    <DatePicker
+                                                        date={formData.opens_at || ''}
+                                                        onChange={(date: string) => setFormData({ ...formData, opens_at: date || null })}
+                                                        placeholder="Select opening date"
                                                     />
                                                 </div>
                                                 <div className="space-y-1.5">
                                                     <label className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                                                         <Calendar className="w-3.5 h-3.5" /> Closes At
                                                     </label>
-                                                    <Input
-                                                        type="date"
-                                                        value={formData.closes_at || ''}
-                                                        onChange={(e) => setFormData({ ...formData, closes_at: e.target.value || null })}
-                                                        className="h-10 bg-slate-50/50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
+                                                    <DatePicker
+                                                        date={formData.closes_at || ''}
+                                                        onChange={(date: string) => setFormData({ ...formData, closes_at: date || null })}
+                                                        placeholder="Select closing date"
                                                     />
                                                 </div>
                                             </div>

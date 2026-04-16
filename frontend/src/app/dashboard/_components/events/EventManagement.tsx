@@ -38,6 +38,7 @@ import {
 import { useEventManagement } from "./useEventManagement";
 import EventList from "./EventList";
 import EventFilters from "./EventFilters";
+import { DatePicker } from "@/components/ui/date-picker";
 
 export default function EventManagement() {
     const {
@@ -197,11 +198,10 @@ export default function EventManagement() {
                             {/* Date */}
                             <div className="space-y-1.5">
                                 <label className="text-sm font-medium text-slate-700">Date*</label>
-                                <Input
-                                    type="date"
-                                    value={formData.date}
-                                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                                    className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
+                                <DatePicker
+                                    date={formData.date}
+                                    onChange={(date: string) => setFormData({ ...formData, date })}
+                                    placeholder="Select event date"
                                 />
                             </div>
 

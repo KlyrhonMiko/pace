@@ -66,7 +66,7 @@ export default function JobList({
     };
 
     return (
-        <div className="group/card rounded-2xl bg-white border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50 hover:-translate-y-0.5 flex flex-col h-full">
+        <div className="group/card rounded-2xl bg-white border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50 hover:-translate-y-0.5 flex flex-col h-fit">
             {/* Header Area */}
             <div className="p-6 border-b border-slate-50 flex items-center justify-between">
                 <div className="flex items-center gap-3">

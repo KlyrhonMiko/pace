@@ -41,7 +41,7 @@ export default function RecommendedJobs() {
 
     return (
         <div className="lg:col-span-2 flex flex-col">
-            <div className="group/card h-full flex flex-col rounded-2xl bg-white border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-amber-100/30 hover:border-amber-100/60">
+            <div className="group/card h-fit flex flex-col rounded-2xl bg-white border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-amber-100/30 hover:border-amber-100/60">
                 {/* Decorative top gradient bar */}
 
 

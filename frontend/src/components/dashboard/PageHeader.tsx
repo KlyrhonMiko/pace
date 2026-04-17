@@ -21,7 +21,7 @@ export default function PageHeader({
     children
 }: PageHeaderProps) {
     return (
-        <div className="rounded-2xl bg-white border border-gray-100 overflow-hidden shadow-sm">
+        <div className="w-full rounded-2xl bg-white border border-gray-100 overflow-hidden shadow-sm">
             <div className="px-8 py-6">
                 <div className="flex items-center justify-between gap-8 flex-wrap">
                     <div className="flex-1 min-w-[240px]">

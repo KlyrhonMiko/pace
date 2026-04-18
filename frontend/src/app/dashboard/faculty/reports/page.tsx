@@ -6,6 +6,7 @@ import PageHeader from "@/components/dashboard/PageHeader";
 import ForecastChart from "./_components/ForecastChart";
 import ForecastSummary from "./_components/ForecastSummary";
 import NewForecastForm from "./_components/NewForecastForm";
+import ForecastAIInsights from "./_components/ForecastAIInsights";
 import {
     getLatestForecast,
     runNewForecast,
@@ -124,6 +125,11 @@ export default function FacultyReportsPage() {
                                 />
                             </div>
                         </div>
+
+                        {/* AI Insights Section */}
+                        {forecast?.forecast_data && (
+                            <ForecastAIInsights forecastData={forecast.forecast_data} />
+                        )}
 
                         {/* Forecast Table */}
                         {forecast?.forecast_data?.forecasts && (

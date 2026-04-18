@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { Groq } from "groq-sdk";
+
+export const dynamic = "force-dynamic";
 
 // ── Types ──────────────────────────────────────────────────────
 
 interface ChatMessage {
-    role: "user" | "assistant";
+    role: "user" | "assistant" | "system";
     content: string;
 }
 
@@ -49,12 +51,12 @@ ${insightsJson}
 
 export async function POST(request: NextRequest) {
     try {
-        const apiKey = process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.trim() : null;
+        const apiKey = process.env.GROQ_API_KEY;
 
         if (!apiKey) {
-            console.error("[AI Advisor] Missing GEMINI_API_KEY");
+            console.error("[AI Advisor] Missing GROQ_API_KEY");
             return NextResponse.json(
-                { error: "Gemini API key is not configured." },
+                { error: "Groq API key is not configured." },
                 { status: 500 }
             );
         }
@@ -79,40 +81,58 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Initialize Gemini
-        const genAI = new GoogleGenerativeAI(apiKey);
+        const groq = new Groq({ apiKey });
 
-        // Use gemini-2.5-flash as confirmed by REST API list
-        const model = genAI.getGenerativeModel({
-            model: "gemini-2.5-flash",
-            systemInstruction: buildSystemPrompt(JSON.stringify(insightsData, null, 2)),
+        const systemMessage: ChatMessage = {
+            role: "system",
+            content: buildSystemPrompt(JSON.stringify(insightsData, null, 2)),
+        };
+
+        const chatCompletion = await groq.chat.completions.create({
+            messages: [
+                systemMessage,
+                ...messages.map(m => ({
+                    role: m.role as "user" | "assistant",
+                    content: m.content
+                }))
+            ],
+            model: "llama-3.1-8b-instant",
+            temperature: 0.7,
+            max_completion_tokens: 1024,
+            top_p: 1,
+            stream: true,
         });
 
-        // Build conversation history for Gemini
-        // Gemini expects alternating user/model roles
-        const history = messages.slice(0, -1).map((msg) => ({
-            role: msg.role === "assistant" ? "model" : "user",
-            parts: [{ text: msg.content }],
-        }));
+        // Create a ReadableStream for streaming response
+        const stream = new ReadableStream({
+            async start(controller) {
+                const encoder = new TextEncoder();
+                try {
+                    for await (const chunk of chatCompletion) {
+                        const content = chunk.choices[0]?.delta?.content || "";
+                        if (content) {
+                            controller.enqueue(encoder.encode(content));
+                        }
+                    }
+                    controller.close();
+                } catch (err) {
+                    controller.error(err);
+                }
+            },
+        });
 
-        const chat = model.startChat({ history });
+        return new Response(stream, {
+            headers: {
+                "Content-Type": "text/event-stream",
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+            },
+        });
 
-        // Send the latest user message
-        const lastMessage = messages[messages.length - 1];
-
-        try {
-            const result = await chat.sendMessage(lastMessage.content);
-            const reply = result.response.text();
-            return NextResponse.json({ reply });
-        } catch (execError: any) {
-            console.error("[AI Advisor] Gemini Execution Error:", execError);
-            throw execError;
-        }
     } catch (error: any) {
         console.error("[AI Advisor] Request Error:", error);
 
         const message = error?.message || "An unexpected error occurred.";
-        const stack = error?.stack;
 
         // Detect rate limit errors
         const isRateLimit = message.includes("429") || message.includes("quota") || message.includes("Too Many Requests");
@@ -128,10 +148,7 @@ export async function POST(request: NextRequest) {
         }
 
         return NextResponse.json(
-            {
-                error: message,
-                details: process.env.NODE_ENV === "development" ? stack : undefined
-            },
+            { error: message },
             { status: 500 }
         );
     }

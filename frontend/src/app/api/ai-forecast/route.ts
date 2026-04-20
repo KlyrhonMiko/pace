@@ -12,39 +12,32 @@ interface ChatMessage {
 
 // ── System prompt ──────────────────────────────────────────────
 
-function buildSystemPrompt(insightsJson: string): string {
-    return `You are a professional AI Career Advisor embedded in a university's Employability Insights dashboard.
+function buildSystemPrompt(forecastJson: string): string {
+    return `You are a professional Senior Statistical Analyst and Institutional Planner. 
+Your role is to analyze ARIMA-based employment forecast data for a university and provide clear, actionable insights for faculty and administrators.
 
-Your role is to act as a warm, knowledgeable career counselor who analyzes an alumni's ML-predicted employability data and provides actionable, encouraging guidance. The user is an alumnus who has already graduated.
-
-## Alumni's Employability Insights Data
+## ARIMA Forecast Data
 \`\`\`json
-${insightsJson}
+${forecastJson}
 \`\`\`
 
 ## Guidelines
-- **Tone**: Professional yet approachable. Be encouraging but honest.
-- **Specificity**: Reference the actual numbers, skills, and factors from the data above. Never give generic advice — always ground your recommendations in the alumni's specific data.
-- **Structure**: Use clear formatting with bullet points and short paragraphs. Bold key takeaways.
-- **Actionability**: Every suggestion should be something the alumni can act on (courses, projects, certifications, habits).
-- **Career mapping**: When discussing career paths, explain WHY they fit based on the alumni's specific strengths.
-- **Improvement focus**: When discussing weak areas, frame them as growth opportunities, not failures.
-- **Length**: Keep responses concise — aim for 150-300 words per reply unless the user asks for more detail.
-
-## What you can help with
-- Analyzing the alumni's employability score and what it means
-- Identifying their strongest skills and how to leverage them
-- Suggesting specific improvements for their weakest areas
-- Recommending career paths that align with their skill profile
-- Advising on certifications, courses, or projects to boost employability
-- Providing interview preparation tips based on their strengths
-- Offering resume and portfolio suggestions
+- **Tone**: Professional, analytical, and objective. Use data-driven language.
+- **Specificity**: Reference specific years, point forecasts, and confidence intervals from the data.
+- **Key Analysis Points**:
+    1. **Trend Identification**: Is the employment rate projected to grow, decline, or remains stable?
+    2. **Short-term vs Long-term**: Pivot the analysis on immediate (1-year) vs distant (3+ years) outlook.
+    3. **Confidence Assessment**: Mention the Lower/Upper 95% Confidence Intervals to show the level of uncertainty.
+    4. **YoY Change**: Highlight significant year-over-year shifts.
+    5. **Strategic Recommendations**: Suggest institutional responses (e.g., "Strengthen industry partnerships if trend is down" or "Expand capacity for popular programs if trend is high").
+- **Structure**: Use clear formatting with headers and bullet points. Bold key numbers.
+- **Complexity**: Explain statistical concepts (like ARIMA or CI) simply if you mention them, but keep the focus on the implications of the results.
+- **Length**: Keep it mid-length (250-400 words) to ensure it's comprehensive yet readable.
 
 ## What you should NOT do
-- Make up data that isn't in the insights
-- Give medical, legal, or financial advice
-- Guarantee employment outcomes
-- Be discouraging or negative about the alumni's prospects`;
+- Do NOT hallucinate data not present in the JSON.
+- Do NOT offer purely generic advice without connecting it to the specific forecast data.
+- Do NOT guarantee future outcomes; use probabilistic language (e.g., "The model suggests," "Likely scenarios include").`;
 }
 
 // ── POST handler ───────────────────────────────────────────────
@@ -54,7 +47,7 @@ export async function POST(request: NextRequest) {
         const apiKey = process.env.GROQ_API_KEY;
 
         if (!apiKey) {
-            console.error("[AI Advisor] Missing GROQ_API_KEY");
+            console.error("[AI Forecast] Missing GROQ_API_KEY");
             return NextResponse.json(
                 { error: "Groq API key is not configured." },
                 { status: 500 }
@@ -62,21 +55,13 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { messages, insightsData } = body as {
-            messages: ChatMessage[];
-            insightsData: unknown;
+        const { forecastData } = body as {
+            forecastData: unknown;
         };
 
-        if (!messages || !Array.isArray(messages) || messages.length === 0) {
+        if (!forecastData) {
             return NextResponse.json(
-                { error: "Messages array is required." },
-                { status: 400 }
-            );
-        }
-
-        if (!insightsData) {
-            return NextResponse.json(
-                { error: "Insights data is required." },
+                { error: "Forecast data is required." },
                 { status: 400 }
             );
         }
@@ -85,25 +70,27 @@ export async function POST(request: NextRequest) {
 
         const systemMessage: ChatMessage = {
             role: "system",
-            content: buildSystemPrompt(JSON.stringify(insightsData, null, 2)),
+            content: buildSystemPrompt(JSON.stringify(forecastData, null, 2)),
         };
 
         const chatCompletion = await groq.chat.completions.create({
             messages: [
-                systemMessage,
-                ...messages.map(m => ({
-                    role: m.role as "user" | "assistant",
-                    content: m.content
-                }))
+                {
+                    role: "system",
+                    content: systemMessage.content,
+                },
+                {
+                    role: "user",
+                    content: "Please analyze the provided employment forecast data and explain the key trends and institutional implications.",
+                }
             ],
             model: "llama-3.1-8b-instant",
-            temperature: 0.7,
+            temperature: 0.5, // Lower temperature for more analytical/consistent output
             max_completion_tokens: 1024,
             top_p: 1,
             stream: true,
         });
 
-        // Create a ReadableStream for streaming response
         const stream = new ReadableStream({
             async start(controller) {
                 const encoder = new TextEncoder();
@@ -130,11 +117,9 @@ export async function POST(request: NextRequest) {
         });
 
     } catch (error: any) {
-        console.error("[AI Advisor] Request Error:", error);
+        console.error("[AI Forecast] Request Error:", error);
 
         const message = error?.message || "An unexpected error occurred.";
-
-        // Detect rate limit errors
         const isRateLimit = message.includes("429") || message.includes("quota") || message.includes("Too Many Requests");
 
         if (isRateLimit) {

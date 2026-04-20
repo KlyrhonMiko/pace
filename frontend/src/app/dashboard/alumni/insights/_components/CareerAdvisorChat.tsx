@@ -106,11 +106,10 @@ function MessageBubble({ message }: { message: ChatMessage }) {
             <ChatAvatar variant={isUser ? "user" : "ai"} />
 
             <div
-                className={`flex-1 max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed overflow-hidden ${
-                    isUser
+                className={`flex-1 max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed overflow-hidden ${isUser
                         ? "bg-gray-900 text-white rounded-tr-sm"
                         : "bg-gray-50 text-gray-700 border border-gray-100 rounded-tl-sm"
-                }`}
+                    }`}
             >
                 {isUser ? (
                     <p className="break-words whitespace-pre-wrap">{message.content}</p>
@@ -227,7 +226,7 @@ export default function CareerAdvisorChat({
                                 AI Career Advisor
                             </DialogTitle>
                             <DialogDescription className="text-xs text-gray-500 mt-0.5">
-                                Powered by Gemini · Personalized career guidance
+                                Powered by Groq Llama 3.1 · Personalized career guidance
                             </DialogDescription>
                         </div>
                     </div>
@@ -277,8 +276,8 @@ export default function CareerAdvisorChat({
                         <MessageBubble key={msg.id} message={msg} />
                     ))}
 
-                    {/* Typing indicator */}
-                    {isLoading && isInitialized && <LoadingBubble />}
+                    {/* Typing indicator - only show if loading AND the last message is NOT an ai message with content */}
+                    {isLoading && isInitialized && (!messages[messages.length - 1] || messages[messages.length - 1].role !== "assistant" || !messages[messages.length - 1].content) && <LoadingBubble />}
 
                     {/* Error state (for send errors, not init errors) */}
                     {error && !hasFailedInit && (
@@ -325,8 +324,8 @@ export default function CareerAdvisorChat({
                                 hasFailedInit
                                     ? "Click 'Try Again' above to start..."
                                     : isInitialized
-                                    ? "Ask a follow-up question..."
-                                    : "Analyzing your data..."
+                                        ? "Ask a follow-up question..."
+                                        : "Analyzing your data..."
                             }
                             disabled={!isInitialized || isLoading || hasFailedInit}
                             className="flex-1 h-10 rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
@@ -344,7 +343,7 @@ export default function CareerAdvisorChat({
                         </button>
                     </div>
                     <p className="text-[10px] text-gray-400 mt-2 text-center">
-                        AI-powered by Gemini · Responses are suggestions, not guarantees
+                        AI-powered by Groq · Responses are suggestions, not guarantees
                     </p>
                 </div>
             </DialogContent>

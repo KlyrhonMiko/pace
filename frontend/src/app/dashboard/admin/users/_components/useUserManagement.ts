@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api-client";
 
@@ -76,7 +76,7 @@ export function useUserManagement() {
 
     // --- Fetch Users ---
     const fetchUsers = useCallback(async () => {
-        setIsLoading(true);
+        if (users.length === 0) setIsLoading(true);
         try {
             const params = new URLSearchParams({
                 limit: String(PAGE_SIZE),
@@ -112,20 +112,20 @@ export function useUserManagement() {
         return () => clearTimeout(timer);
     }, [fetchUsers]);
 
-    const handleSearch = (query: string) => {
+    const handleSearch = useCallback((query: string) => {
         setSearchQuery(query);
         setCurrentPage(0);
-    };
+    }, []);
 
-    const handleFilterType = (t: string) => {
+    const handleFilterType = useCallback((t: string) => {
         setFilterType(t);
         setCurrentPage(0);
-    };
+    }, []);
 
-    const handleFilterStatus = (s: string) => {
+    const handleFilterStatus = useCallback((s: string) => {
         setFilterStatus(s);
         setCurrentPage(0);
-    };
+    }, []);
 
     // --- Modal Handlers ---
     const openCreateModal = useCallback(() => {
@@ -220,7 +220,7 @@ export function useUserManagement() {
         }
     };
 
-    const handleClearForm = () => {
+    const handleClearForm = useCallback(() => {
         if (editingUser) {
             setFormData({
                 last_name: editingUser.last_name ?? "",
@@ -236,13 +236,13 @@ export function useUserManagement() {
         } else {
             setFormData(EMPTY_FORM);
         }
-    };
+    }, [editingUser]);
 
-    const handleDeactivateClick = (userId: string) => {
+    const handleDeactivateClick = useCallback((userId: string) => {
         setUserToDeactivate(userId);
-    };
+    }, []);
 
-    const confirmDeactivate = async () => {
+    const confirmDeactivate = useCallback(async () => {
         if (!userToDeactivate) return;
         const targetUser = users.find((u) => u.user_id === userToDeactivate);
         setIsDeactivating(true);
@@ -275,13 +275,13 @@ export function useUserManagement() {
             setIsDeactivating(false);
             setUserToDeactivate(null);
         }
-    };
+    }, [userToDeactivate, users, fetchUsers]);
 
     // computed
     const totalUsers = total;
     const activeUsers = users.filter((u) => !u.is_deleted).length;
 
-    return {
+    return useMemo(() => ({
         users,
         total,
         totalUsers,
@@ -313,5 +313,11 @@ export function useUserManagement() {
         handleDeactivateClick,
         confirmDeactivate,
         refetch: fetchUsers,
-    };
+    }), [
+        users, total, totalUsers, activeUsers, isLoading, isModalOpen, editingUser,
+        searchQuery, filterType, filterStatus, isSaving, isDeactivating,
+        userToDeactivate, formData, currentPage, handleFilterType, handleFilterStatus,
+        handleSearch, openCreateModal, openEditModal, handleSave, handleClearForm,
+        handleDeactivateClick, confirmDeactivate, fetchUsers
+    ]);
 }

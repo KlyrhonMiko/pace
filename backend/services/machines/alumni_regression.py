@@ -8,16 +8,11 @@ Drop-in module exposing two classes:
 
 Intended use
 ------------
-Place this file and the `models/` folder in your project, then:
-
     from alumni_regression import AlumniPredictor
 
     predictor = AlumniPredictor()                         # load once at startup
     result    = predictor.predict(cgpa=2.0, internships=1)
     print(result.to_dict())                               # serialise to dict / JSON
-
-No FastAPI, Flask, or any web framework is imported here.
-Wire it into whatever backend your team is using.
 
 CGPA scale
 ----------
@@ -35,8 +30,8 @@ import numpy as np
 
 # Default bundle location: models/ folder next to this file.
 # Override by passing bundle_path= to AlumniPredictor().
-_DEFAULT_BUNDLE = Path(__file__).parent / \
-    "random_pickles" / "alumni_regression_bundle.pkl"
+_DEFAULT_BUNDLE = Path(__file__).parent / "random_pickles" / \
+    "alumni_regression_bundle.pkl"
 
 
 # ── Result container ──────────────────────────────────────────────────────────
@@ -56,12 +51,15 @@ class PredictionResult:
 
     Attributes (predictions)
     ------------------------
-    predicted_salary_php        : float — estimated starting salary in PHP/month
-    predicted_job_search_weeks  : float — estimated job search duration in weeks
-    salary_lower / salary_upper : float — ±1 RMSE confidence interval for salary
-    duration_lower / duration_upper : float — ±1 RMSE confidence interval for duration
-    salary_band     : str — "Low" | "Mid" | "High"
-    search_outlook  : str — "Short" | "Moderate" | "Long"
+    predicted_salary_php       : int   — estimated starting salary in PHP/month (rounded)
+    predicted_job_search_weeks : float — estimated job search duration in weeks
+    duration_range             : str   — plain-language range for UI display (e.g. "8–16 weeks")
+
+    salary_lower / salary_upper     : float — ±1 RMSE confidence interval for salary
+    duration_lower / duration_upper : float — bounded interval for duration (±4 weeks)
+
+    salary_band    : str — "Low" | "Mid" | "High"
+    search_outlook : str — "Short" | "Moderate" | "Long"
 
     Methods
     -------
@@ -78,10 +76,11 @@ class PredictionResult:
     extracurricular: int
 
     # — raw predictions —
-    predicted_salary_php: float
+    predicted_salary_php: int
     predicted_job_search_weeks: float
+    duration_range: str
 
-    # — confidence intervals (±1 RMSE) —
+    # — confidence intervals / bounds —
     salary_lower: float
     salary_upper: float
     duration_lower: float
@@ -93,27 +92,7 @@ class PredictionResult:
 
     def to_dict(self) -> dict:
         """
-        Return a serialisation-ready dict. Structure:
-
-            {
-              "input": { cgpa, internships, projects, skills_count, extracurricular },
-              "predictions": {
-                "starting_salary": {
-                    "value": <float>,   # PHP/month
-                    "lower": <float>,
-                    "upper": <float>,
-                    "band":  "Low" | "Mid" | "High",
-                    "unit":  "PHP/month"
-                },
-                "job_search_duration": {
-                    "value":   <float>,  # weeks
-                    "lower":   <float>,
-                    "upper":   <float>,
-                    "outlook": "Short" | "Moderate" | "Long",
-                    "unit":    "weeks"
-                }
-              }
-            }
+        Return a serialisation-ready dict.
         """
         return {
             "input": {
@@ -125,7 +104,7 @@ class PredictionResult:
             },
             "predictions": {
                 "starting_salary": {
-                    "value": round(self.predicted_salary_php, 2),
+                    "value": self.predicted_salary_php,
                     "lower": round(self.salary_lower, 2),
                     "upper": round(self.salary_upper, 2),
                     "band": self.salary_band,
@@ -133,7 +112,8 @@ class PredictionResult:
                 },
                 "job_search_duration": {
                     "value": round(self.predicted_job_search_weeks, 1),
-                    "lower": round(max(self.duration_lower, 1.0), 1),
+                    "range_str": self.duration_range,
+                    "lower": round(self.duration_lower, 1),
                     "upper": round(self.duration_upper, 1),
                     "outlook": self.search_outlook,
                     "unit": "weeks",
@@ -150,8 +130,8 @@ class AlumniPredictor:
     alumni outcome predictions.
 
     Two models are loaded internally:
-        - Salary model      → predicts starting salary (PHP/month)
-        - Duration model    → predicts job search duration (weeks)
+        - Salary model    → predicts starting salary (PHP/month)
+        - Duration model  → predicts job search duration (weeks)
 
     Both models share the same 5-feature input and a fitted StandardScaler.
 
@@ -159,29 +139,14 @@ class AlumniPredictor:
     ----------
     bundle_path : Path or str, optional
         Path to `alumni_regression_bundle.pkl`.
-        Defaults to `models/alumni_regression_bundle.pkl` next to this file.
+        Defaults to `random_pickles/alumni_regression_bundle.pkl` next to this file.
         Pass an explicit path if your project layout differs.
 
     Raises
     ------
     FileNotFoundError
         If the .pkl bundle cannot be found at the resolved path.
-
-    Example
-    -------
-    >>> from alumni_regression import AlumniPredictor
-    >>> predictor = AlumniPredictor()
-    >>> result = predictor.predict(cgpa=1.8, internships=1, projects=3,
-    ...                            skills_count=8, extracurricular=1)
-    >>> result.predicted_salary_php
-    52145.0
-    >>> result.to_dict()
-    { "input": {...}, "predictions": {...} }
     """
-
-    # ±1 RMSE from training — used to compute confidence intervals
-    _SALARY_RMSE: float = 2772.18
-    _DURATION_RMSE: float = 2.11
 
     def __init__(self, bundle_path: Optional[Path] = None):
         path = Path(bundle_path) if bundle_path else _DEFAULT_BUNDLE
@@ -201,6 +166,9 @@ class AlumniPredictor:
         self._features = bundle["features"]
         self._metrics = bundle.get("metrics", {})
 
+        # Dynamically extract RMSE for salary bounds if available, fallback to 2900
+        self._salary_rmse = self._metrics.get("salary", {}).get("rmse", 2900.0)
+
     # ── Public methods ────────────────────────────────────────────────────────
 
     def predict(
@@ -218,46 +186,18 @@ class AlumniPredictor:
         ----------
         cgpa : float
             GPA on a 1.0–3.75 scale. 1.0 = best, 3.75 = lowest passing.
-            Values outside this range raise ValueError.
 
         internships : int, default 0
             Whether the student completed at least one internship. 0 or 1.
 
         projects : int, default 0
-            Number of notable academic or personal projects. Range: 0–10.
+            Number of notable academic or personal projects. Range: 0–6.
 
         skills_count : int, default 5
-            Total number of technical and soft skills listed. Range: 1–15.
+            Total number of technical and soft skills listed. Range: 1–10.
 
         extracurricular : int, default 0
             Whether the student was involved in extracurricular activities. 0 or 1.
-
-        Returns
-        -------
-        PredictionResult
-            Dataclass with raw prediction values, confidence intervals,
-            and human-readable labels. Call .to_dict() to serialise.
-
-        Raises
-        ------
-        ValueError
-            If any input is outside its valid range.
-
-        Examples
-        --------
-        # FastAPI route
-        result = predictor.predict(cgpa=float(request_body.cgpa),
-                                   internships=request_body.internships)
-        return result.to_dict()
-
-        # Flask route
-        result = predictor.predict(**request.json)
-        return jsonify(result.to_dict())
-
-        # Direct access (no serialisation needed)
-        result = predictor.predict(cgpa=2.5)
-        print(result.predicted_salary_php)
-        print(result.predicted_job_search_weeks)
         """
         self._validate(cgpa, internships, projects,
                        skills_count, extracurricular)
@@ -266,12 +206,17 @@ class AlumniPredictor:
             [[cgpa, internships, projects, skills_count, extracurricular]])
         X_scaled = self._scaler.transform(X_raw)
 
-        salary = float(self._salary_model.predict(X_scaled)[0])
-        duration = float(self._duration_model.predict(X_scaled)[0])
+        raw_salary = float(self._salary_model.predict(X_scaled)[0])
+        raw_duration = float(self._duration_model.predict(X_scaled)[0])
 
-        # Clamp to realistic real-world bounds
-        salary = max(15_000.0, min(salary,   80_000.0))
-        duration = max(1.0,      min(duration,  30.0))
+        # Clamp to physically meaningful bounds matching training data
+        salary = int(round(np.clip(raw_salary, 16_000.0, 65_000.0), -2))
+        duration = round(float(np.clip(raw_duration, 4.0, 32.0)), 1)
+
+        # Express duration as a ±4-week range
+        dur_lo = max(4.0, round(duration - 4.0, 1))
+        dur_hi = min(32.0, round(duration + 4.0, 1))
+        duration_range = f"{dur_lo:.0f}–{dur_hi:.0f} weeks"
 
         return PredictionResult(
             cgpa=cgpa,
@@ -281,10 +226,11 @@ class AlumniPredictor:
             extracurricular=extracurricular,
             predicted_salary_php=salary,
             predicted_job_search_weeks=duration,
-            salary_lower=salary - self._SALARY_RMSE,
-            salary_upper=salary + self._SALARY_RMSE,
-            duration_lower=duration - self._DURATION_RMSE,
-            duration_upper=duration + self._DURATION_RMSE,
+            duration_range=duration_range,
+            salary_lower=salary - self._salary_rmse,
+            salary_upper=salary + self._salary_rmse,
+            duration_lower=dur_lo,
+            duration_upper=dur_hi,
             salary_band=self._salary_band(salary),
             search_outlook=self._search_outlook(duration),
         )
@@ -292,43 +238,12 @@ class AlumniPredictor:
     def predict_batch(self, records: list[dict]) -> list[dict]:
         """
         Predict outcomes for multiple alumni in one call.
-
-        Parameters
-        ----------
-        records : list of dict
-            Each dict must have a 'cgpa' key. All other keys are optional
-            and fall back to their defaults in predict().
-            Invalid records raise ValueError and abort the entire batch.
-
-        Returns
-        -------
-        list of dict
-            Each element is the .to_dict() output for one record,
-            in the same order as the input list.
-
-        Example
-        -------
-        results = predictor.predict_batch([
-            {"cgpa": 1.5, "internships": 1, "skills_count": 8},
-            {"cgpa": 3.2, "internships": 0},
-        ])
-        # results[0]["predictions"]["starting_salary"]["value"] → 52660.0
         """
         return [self.predict(**r).to_dict() for r in records]
 
     def model_info(self) -> dict:
         """
         Return model metadata and training performance metrics.
-
-        Useful for an /info or /health endpoint to expose model details
-        without hardcoding them in your route handlers.
-
-        Returns
-        -------
-        dict with keys:
-            features   : list[str] — feature names in order
-            cgpa_scale : str       — human-readable scale description
-            models     : dict      — per-model type, target, R², MAE, RMSE
         """
         return {
             "features": self._features,
@@ -359,11 +274,11 @@ class AlumniPredictor:
         if internships not in (0, 1):
             raise ValueError(
                 f"internships must be 0 or 1 (received {internships})")
-        if not (0 <= projects <= 10):
-            raise ValueError(f"projects must be 0–10 (received {projects})")
-        if not (1 <= skills_count <= 15):
+        if not (0 <= projects <= 6):
+            raise ValueError(f"projects must be 0–6 (received {projects})")
+        if not (1 <= skills_count <= 10):
             raise ValueError(
-                f"skills_count must be 1–15 (received {skills_count})")
+                f"skills_count must be 1–10 (received {skills_count})")
         if extracurricular not in (0, 1):
             raise ValueError(
                 f"extracurricular must be 0 or 1 (received {extracurricular})")

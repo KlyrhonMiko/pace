@@ -1,0 +1,188 @@
+"""
+Model Information router — exposes metadata and performance metrics
+for all ML models deployed in the system (admin-only).
+"""
+
+import os
+import pickle
+from datetime import datetime, timezone
+from pathlib import Path
+
+from fastapi import APIRouter, Depends
+
+from models.auth import CurrentUser
+from models.response_codes import StandardResponse, SuccessCode
+from utils.rbac import require_admin
+
+router = APIRouter(prefix="/predict", tags=["Model Information"])
+
+# Paths to model artifacts
+_PICKLE_DIR = Path(__file__).parent.parent / "services" / "machines" / "random_pickles"
+_REGRESSION_BUNDLE = _PICKLE_DIR / "alumni_regression_bundle.pkl"
+
+
+def _file_meta(path: Path) -> dict:
+    """Return size and last-modified timestamp for a file."""
+    if not path.exists():
+        return {"size_bytes": 0, "last_modified": None}
+    stat = path.stat()
+    return {
+        "size_bytes": stat.st_size,
+        "last_modified": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+    }
+
+
+def _load_rf_info() -> list[dict]:
+    """Load Random Forest model metadata from pickle info files."""
+    models = []
+
+    # Model 1 — Realistic Assessment (with CGPA)
+    info1_path = _PICKLE_DIR / "model1_info.pkl"
+    model1_path = _PICKLE_DIR / "model1_realistic.pkl"
+    if info1_path.exists():
+        with open(info1_path, "rb") as f:
+            info1 = pickle.load(f)
+        models.append({
+            "id": "rf_model1",
+            "name": "Employability — Realistic Assessment",
+            "type": "Random Forest Classifier",
+            "target": "Employability (with CGPA)",
+            "description": "Predicts graduate employability using all features including CGPA for an overall realistic assessment.",
+            "includes_cgpa": info1.get("includes_cgpa", True),
+            "num_features": len(info1.get("feature_columns", [])),
+            "features": info1.get("common_features", []),
+            "programs": [c.replace("Program_", "") for c in info1.get("dummy_columns", [])],
+            "hyperparameters": {
+                "n_estimators": 100,
+                "max_depth": 8,
+                "min_samples_split": 20,
+                "min_samples_leaf": 10,
+                "class_weight": "balanced",
+            },
+            **_file_meta(model1_path),
+        })
+
+    # Model 2 — Improvement Roadmap (without CGPA)
+    info2_path = _PICKLE_DIR / "model2_info.pkl"
+    model2_path = _PICKLE_DIR / "model2_improvement.pkl"
+    if info2_path.exists():
+        with open(info2_path, "rb") as f:
+            info2 = pickle.load(f)
+        models.append({
+            "id": "rf_model2",
+            "name": "Employability — Improvement Roadmap",
+            "type": "Random Forest Classifier",
+            "target": "Employability (without CGPA)",
+            "description": "Predicts employability excluding CGPA to surface actionable skill gaps and improvement areas.",
+            "includes_cgpa": info2.get("includes_cgpa", False),
+            "num_features": len(info2.get("feature_columns", [])),
+            "features": info2.get("common_features", []),
+            "programs": [c.replace("Program_", "") for c in info2.get("dummy_columns", [])],
+            "hyperparameters": {
+                "n_estimators": 100,
+                "max_depth": 8,
+                "min_samples_split": 20,
+                "min_samples_leaf": 10,
+                "class_weight": "balanced",
+            },
+            **_file_meta(model2_path),
+        })
+
+    return models
+
+
+def _load_regression_info() -> list[dict]:
+    """Load Linear Regression model metadata from the bundle."""
+    models = []
+    if not _REGRESSION_BUNDLE.exists():
+        return models
+
+    with open(_REGRESSION_BUNDLE, "rb") as f:
+        bundle = pickle.load(f)
+
+    features = bundle.get("features", [])
+    metrics = bundle.get("metrics", {})
+    file_meta = _file_meta(_REGRESSION_BUNDLE)
+
+    # Salary model
+    salary_metrics = metrics.get("salary", {})
+    models.append({
+        "id": "lr_salary",
+        "name": "Alumni Salary Prediction",
+        "type": "Linear Regression",
+        "target": "Starting Salary (PHP/month)",
+        "description": "Predicts the expected starting salary for alumni based on academic performance and extracurricular factors.",
+        "num_features": len(features),
+        "features": features,
+        "metrics": {
+            "r_squared": salary_metrics.get("r2"),
+            "mae": salary_metrics.get("mae"),
+            "rmse": salary_metrics.get("rmse"),
+        },
+        **file_meta,
+    })
+
+    # Duration model
+    duration_metrics = metrics.get("duration", {})
+    models.append({
+        "id": "lr_duration",
+        "name": "Job Search Duration Prediction",
+        "type": "Linear Regression",
+        "target": "Job Search Duration (weeks)",
+        "description": "Estimates how long an alumni's job search will take based on academic and skill factors.",
+        "num_features": len(features),
+        "features": features,
+        "metrics": {
+            "r_squared": duration_metrics.get("r2"),
+            "mae": duration_metrics.get("mae"),
+            "rmse": duration_metrics.get("rmse"),
+        },
+        **file_meta,
+    })
+
+    return models
+
+
+def _arima_info() -> list[dict]:
+    """Return static metadata for the ARIMA model."""
+    return [{
+        "id": "arima_employment",
+        "name": "Employment Trend Forecast",
+        "type": "ARIMA(1,1,1)",
+        "target": "Annual Employment Rate (%)",
+        "description": "Forecasts alumni employment trends using historical data. Uses synthetic baseline when insufficient data is available.",
+        "num_features": 1,
+        "features": ["historical_employment_rate"],
+        "metrics": None,
+        "size_bytes": 0,
+        "last_modified": None,
+    }]
+
+
+# ─────────────────────────────────────────────────────────────────
+# GET  /predict/models/info
+# ─────────────────────────────────────────────────────────────────
+
+@router.get("/models/info")
+def get_models_info(
+    current_user: CurrentUser = Depends(require_admin),
+):
+    """
+    Return metadata and performance metrics for every ML model
+    deployed in the system. Admin-only.
+    """
+    rf_models = _load_rf_info()
+    lr_models = _load_regression_info()
+    arima_models = _arima_info()
+
+    all_models = rf_models + lr_models + arima_models
+
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.MODEL_INFO_RETRIEVED.value,
+        message=f"Retrieved info for {len(all_models)} models",
+        data={
+            "total_models": len(all_models),
+            "models": all_models,
+        },
+    )

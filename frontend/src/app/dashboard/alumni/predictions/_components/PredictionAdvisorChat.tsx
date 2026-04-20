@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { EmployabilityResult } from "../../_lib/api";
-import { useCareerAdvisor, ChatMessage } from "../_hooks/useCareerAdvisor";
+import { RegressionPrediction } from "../_lib/api";
+import { usePredictionAdvisor, ChatMessage } from "../_hooks/usePredictionAdvisor";
 import {
     Bot,
     Send,
@@ -21,10 +21,10 @@ import { useAIInsightsStore } from "./ai-insights-store";
 // ── Constants ──────────────────────────────────────────────────
 
 const SUGGESTIONS = [
-    "What career paths suit my profile?",
-    "How can I improve my weakest skills?",
-    "What certifications should I pursue?",
-    "Give me a 90-day improvement plan",
+    "How can I increase my predicted salary?",
+    "What skills should I develop to get hired faster?",
+    "What career paths match my profile?",
+    "Give me a 90-day career action plan",
 ];
 
 const AI_GRADIENT = "bg-gradient-to-br from-emerald-700 to-emerald-600";
@@ -32,10 +32,10 @@ const AI_SHADOW = "shadow-lg shadow-emerald-500/25";
 
 // ── Main chat component ────────────────────────────────────────
 
-export default function CareerAdvisorChat({
-    insightsData,
+export default function PredictionAdvisorChat({
+    predictionData,
 }: {
-    insightsData: EmployabilityResult;
+    predictionData: RegressionPrediction;
 }) {
     const { isOpen, setIsOpen, initialQuery, clearQuery } = useAIInsightsStore();
     const [isMinimized, setIsMinimized] = useState(false);
@@ -49,7 +49,7 @@ export default function CareerAdvisorChat({
         clearChat,
         isInitialized,
         hasFailedInit,
-    } = useCareerAdvisor(insightsData);
+    } = usePredictionAdvisor(predictionData);
 
     const [input, setInput] = useState("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -137,7 +137,7 @@ export default function CareerAdvisorChat({
                         <h3 className="font-bold text-sm leading-tight">AI Career Advisor</h3>
                         {!isMinimized && (
                             <p className="text-[10px] text-emerald-100 font-medium">
-                                Employability Analysis
+                                Career & Salary Guidance
                             </p>
                         )}
                     </div>
@@ -175,7 +175,7 @@ export default function CareerAdvisorChat({
                                         <Bot size={12} />
                                     </div>
                                     <div className="px-4 py-3 rounded-2xl text-sm bg-white border border-gray-100 text-gray-800 shadow-sm rounded-bl-sm">
-                                        Hi! I'm your P.A.C.E. AI Career Advisor. I've analyzed your employability results — would you like me to explain your score or suggest how you can improve your career outlook?
+                                        Hi! I'm your P.A.C.E. AI Career Advisor. I've analyzed your career predictions — would you like me to explain what they mean or suggest how you can improve your outlook?
                                     </div>
                                 </div>
                             </div>
@@ -195,8 +195,8 @@ export default function CareerAdvisorChat({
 
                                     <div
                                         className={`px-4 py-3 rounded-2xl text-sm ${msg.role === "user"
-                                                ? "bg-gray-900 text-white rounded-br-sm shadow-sm"
-                                                : "bg-white border border-gray-100 text-gray-800 shadow-sm rounded-bl-sm prose prose-sm max-w-none prose-p:leading-snug prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-li:my-0.5"
+                                            ? "bg-gray-900 text-white rounded-br-sm shadow-sm"
+                                            : "bg-white border border-gray-100 text-gray-800 shadow-sm rounded-bl-sm prose prose-sm max-w-none prose-p:leading-snug prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-li:my-0.5"
                                             }`}
                                     >
                                         <ReactMarkdown>{msg.content}</ReactMarkdown>
@@ -211,7 +211,7 @@ export default function CareerAdvisorChat({
                             </div>
                         ))}
 
-                        {isLoading && (
+                        {isLoading && isInitialized && (
                             <div className="flex justify-start animate-pulse">
                                 <div className="flex gap-2 items-end">
                                     <div className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700">
@@ -265,7 +265,7 @@ export default function CareerAdvisorChat({
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 onKeyDown={handleKeyDown}
-                                placeholder="Ask about your career potential..."
+                                placeholder="Ask about your career outlook..."
                                 disabled={isLoading}
                                 className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl pl-4 pr-12 py-3 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium placeholder:text-gray-400 placeholder:font-normal disabled:opacity-50"
                             />

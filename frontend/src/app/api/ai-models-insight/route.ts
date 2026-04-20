@@ -12,32 +12,28 @@ interface ChatMessage {
 
 // ── System prompt ──────────────────────────────────────────────
 
-function buildSystemPrompt(forecastJson: string): string {
-    return `You are a professional Senior Statistical Analyst and Institutional Planner. 
-Your role is to analyze ARIMA-based employment forecast data for a university and provide clear, actionable insights for faculty and administrators.
+function buildSystemPrompt(modelsJson: string): string {
+    return `You are an expert AI Data Scientist and Machine Learning Engineer. 
+Your role is to help administrators and stakeholders evaluate the machine learning models deployed in our university's P.A.C.E. (Pasig Alumni and Career Employment) system.
 
-## ARIMA Forecast Data
+## Deployed Models Metadata
 \`\`\`json
-${forecastJson}
+${modelsJson}
 \`\`\`
 
-## Guidelines
-- **Tone**: Professional, analytical, and objective. Use data-driven language.
-- **Specificity**: Reference specific years, point forecasts, and confidence intervals from the data.
-- **Key Analysis Points**:
-    1. **Trend Identification**: Is the employment rate projected to grow, decline, or remains stable?
-    2. **Short-term vs Long-term**: Pivot the analysis on immediate (1-year) vs distant (3+ years) outlook.
-    3. **Confidence Assessment**: Mention the Lower/Upper 95% Confidence Intervals to show the level of uncertainty.
-    4. **YoY Change**: Highlight significant year-over-year shifts.
-    5. **Strategic Recommendations**: Suggest institutional responses (e.g., "Strengthen industry partnerships if trend is down" or "Expand capacity for popular programs if trend is high").
-- **Structure**: Use clear formatting with headers and bullet points. Bold key numbers.
-- **Complexity**: Explain statistical concepts (like ARIMA or CI) simply if you mention them, but keep the focus on the implications of the results.
-- **Length**: Keep it mid-length (250-400 words) to ensure it's comprehensive yet readable.
-
-## What you should NOT do
-- Do NOT hallucinate data not present in the JSON.
-- Do NOT offer purely generic advice without connecting it to the specific forecast data.
-- Do NOT guarantee future outcomes; use probabilistic language (e.g., "The model suggests," "Likely scenarios include").`;
+## Core Instructions & Formatting
+- **EVALUATE, DO NOT RECITE**: Users already see the raw numbers and features on their screen. Do NOT just list the features. Provide *insight*.
+- **Quality Assessment**: Explicitly state if the model is "Excellent", "Good", "Acceptable", or "Needs Improvement". 
+  - For Linear Regression, an R² > 0.8 is Excellent, 0.6-0.8 is Good, < 0.5 needs improvement. Contextualize MAE and RMSE simply.
+  - For Random Forest, mention if the hyperparameters indicate a balanced approach to prevent overfitting.
+  - **IMPORTANT**: If a model (like ARIMA) shows a size of 0 bytes, null last_modified, or missing metrics, it means the metrics are calculated dynamically during inference. Do NOT assume the model is untrained, overly simplistic, or bad. Evaluate it positively based on its description and functionality.
+- **Tone**: Conversational, highly analytical, and direct. 
+- **Formatting (CRITICAL)**: NEVER output a giant wall of text. You MUST use markdown formatting to separate ideas:
+  - Use **bold** text for key takeaways or metric names.
+  - Separate paragraphs with double line breaks. Keep paragraphs very short (2-3 sentences max).
+  - Use bullet points when listing 3 or more related items.
+  - Use emojis occasionally (e.g. 📊, ⚠️, 🟢, 🧠) to make the text visually engaging.
+- **Actionable Advice**: Tell the user what the metrics *mean* for the university administrators relying on them.`;
 }
 
 // ── POST handler ───────────────────────────────────────────────
@@ -47,7 +43,7 @@ export async function POST(request: NextRequest) {
         const apiKey = process.env.GROQ_API_KEY;
 
         if (!apiKey) {
-            console.error("[AI Forecast] Missing GROQ_API_KEY");
+            console.error("[AI Models Insight] Missing GROQ_API_KEY");
             return NextResponse.json(
                 { error: "Groq API key is not configured." },
                 { status: 500 }
@@ -55,14 +51,21 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { messages, forecastData } = body as {
+        const { messages, modelsData } = body as {
             messages: ChatMessage[];
-            forecastData: unknown;
+            modelsData: unknown;
         };
 
-        if (!forecastData) {
+        if (!messages || !Array.isArray(messages) || messages.length === 0) {
             return NextResponse.json(
-                { error: "Forecast data is required for context." },
+                { error: "Chat messages are required." },
+                { status: 400 }
+            );
+        }
+
+        if (!modelsData) {
+            return NextResponse.json(
+                { error: "Models data is required for context." },
                 { status: 400 }
             );
         }
@@ -71,14 +74,15 @@ export async function POST(request: NextRequest) {
 
         const systemMessage: ChatMessage = {
             role: "system",
-            content: buildSystemPrompt(JSON.stringify(forecastData, null, 2)),
+            content: buildSystemPrompt(JSON.stringify(modelsData, null, 2)),
         };
 
         const chatCompletion = await groq.chat.completions.create({
             messages: [
                 systemMessage,
-                ...(messages || []).map(m => ({ role: m.role, content: m.content }))
+                ...messages.map(m => ({ role: m.role, content: m.content }))
             ],
+            // Use llama-3.1 for fast, reliable chat responses
             model: "llama-3.1-8b-instant",
             temperature: 0.6,
             max_completion_tokens: 1024,
@@ -112,7 +116,7 @@ export async function POST(request: NextRequest) {
         });
 
     } catch (error: any) {
-        console.error("[AI Forecast] Request Error:", error);
+        console.error("[AI Models Insight] Request Error:", error);
 
         const message = error?.message || "An unexpected error occurred.";
         const isRateLimit = message.includes("429") || message.includes("quota") || message.includes("Too Many Requests");

@@ -8,6 +8,7 @@ import { getLatestPrediction } from "../_lib/api";
 import Link from "next/link";
 import { Sparkles, ArrowRight } from "lucide-react";
 import AskAIButton from "./_components/AskAIButton";
+import CareerAdvisorChat from "./_components/CareerAdvisorChat";
 
 export default async function InsightsPage() {
     // 1. Get the session token from cookies
@@ -92,6 +93,9 @@ export default async function InsightsPage() {
                     suggestions={predictionData.skill_breakdown || predictionData.improvement_suggestions || []}
                 />
             </div>
+
+            {/* AI Career Advisor Chat (Floating) */}
+            <CareerAdvisorChat insightsData={predictionData} />
         </div>
     );
 }

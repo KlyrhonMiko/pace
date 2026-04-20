@@ -20,6 +20,7 @@ import {
     Briefcase,
     BarChart3,
     ChevronRight,
+    Brain,
 } from "lucide-react";
 import DateWidget from "../_components/DateWidget";
 
@@ -32,6 +33,11 @@ const navItems = [
         name: "Reports",
         href: "/dashboard/admin/reports",
         icon: () => <BarChart3 size={18} />,
+    },
+    {
+        name: "Models",
+        href: "/dashboard/admin/models",
+        icon: () => <Brain size={18} />,
     },
     {
         name: "Surveys",
@@ -71,7 +77,7 @@ export default function AdminLayout({
                 `}
             >
                 {/* Logo Section */}
-                <div className="flex h-[72px] items-center justify-between px-6 border-b border-gray-200/60 bg-white/60 backdrop-blur-sm">
+                <div className="flex-shrink-0 flex h-[72px] items-center justify-between px-6 border-b border-gray-200/60 bg-white/60 backdrop-blur-sm">
                     <Link href="/" className="flex items-center gap-3 group">
                         <div className="relative h-10 w-10 flex-shrink-0">
                             <Image
@@ -96,7 +102,7 @@ export default function AdminLayout({
                 </div>
 
                 {/* Navigation Section */}
-                <nav className="flex-1 overflow-y-auto px-3 py-6">
+                <nav className="flex-1 min-h-0 overflow-y-auto px-3 py-4">
                     <div className="px-3 mb-3">
                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em]">Navigation</span>
                     </div>
@@ -142,7 +148,7 @@ export default function AdminLayout({
                     </div>
 
                     {/* System Section */}
-                    <div className="mt-8">
+                    <div className="mt-6">
                         <div className="px-3 mb-3">
                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em]">System</span>
                         </div>
@@ -176,7 +182,7 @@ export default function AdminLayout({
                 </nav>
 
                 {/* User Section */}
-                <div className="p-4 border-t border-gray-200/60 bg-white/60 backdrop-blur-sm">
+                <div className="flex-shrink-0 p-4 border-t border-gray-200/60 bg-white/60 backdrop-blur-sm">
                     <div className="flex items-center gap-3 rounded-xl bg-gradient-to-br from-gray-50/80 to-white p-3.5 border border-gray-200/60 shadow-sm hover:shadow-md hover:border-gray-300/60 transition-all duration-200">
                         <div className="relative flex-shrink-0">
                             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-emerald-700 to-emerald-800 text-xs font-bold text-white shadow-md ring-2 ring-white">

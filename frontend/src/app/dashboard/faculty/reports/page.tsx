@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { RefreshCw, BarChart3 } from "lucide-react";
+import { RefreshCw, BarChart3, Sparkles } from "lucide-react";
 import PageHeader from "@/components/dashboard/PageHeader";
 import ForecastChart from "./_components/ForecastChart";
 import ForecastSummary from "./_components/ForecastSummary";
 import NewForecastForm from "./_components/NewForecastForm";
-import ForecastAIInsights from "./_components/ForecastAIInsights";
+import ForecastInsightsChat from "./_components/ForecastInsightsChat";
+import { useForecastAIStore } from "./_components/forecast-ai-store";
 import {
     getLatestForecast,
     runNewForecast,
@@ -18,6 +19,7 @@ export default function FacultyReportsPage() {
     const [loading, setLoading] = useState(true);
     const [generating, setGenerating] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const { openWithQuery } = useForecastAIStore();
 
     const fetchLatest = useCallback(async () => {
         setLoading(true);
@@ -61,7 +63,18 @@ export default function FacultyReportsPage() {
                 currentPage="Employment Forecast"
                 dashboardHref="/dashboard/faculty"
                 dashboardName="Faculty Dashboard"
-            />
+            >
+                <button
+                    onClick={() => openWithQuery("Can you summarize the key trends and implications of this employment forecast?")}
+                    className="group inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 text-white text-sm font-medium shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 hover:from-emerald-500 hover:to-green-500 transition-all duration-300 cursor-pointer flex-shrink-0"
+                >
+                    <Sparkles
+                        className="h-4 w-4 group-hover:animate-pulse"
+                        strokeWidth={2}
+                    />
+                    Ask AI
+                </button>
+            </PageHeader>
 
             {/* Main Content */}
             <div className="relative">
@@ -89,9 +102,10 @@ export default function FacultyReportsPage() {
                             />
                         )}
 
-                        {/* Chart + New Forecast Form */}
+                        {/* Main Layout Grid: (Chart & Interaction) | (Table) */}
                         <div className="grid gap-6 lg:grid-cols-3">
-                            <div className="lg:col-span-2">
+                            {/* Left Column: Analysis & Visualization */}
+                            <div className="lg:col-span-2 space-y-6">
                                 {forecast?.forecast_data?.forecasts ? (
                                     <ForecastChart
                                         forecasts={
@@ -116,7 +130,8 @@ export default function FacultyReportsPage() {
                                 )}
                             </div>
 
-                            <div className="lg:col-span-1">
+                            {/* Right Column: Interaction & Data */}
+                            <div className="lg:col-span-1 space-y-6">
                                 <NewForecastForm
                                     onForecastCreated={handleForecastCreated}
                                     isLoading={generating}
@@ -126,14 +141,9 @@ export default function FacultyReportsPage() {
                             </div>
                         </div>
 
-                        {/* AI Insights Section */}
-                        {forecast?.forecast_data && (
-                            <ForecastAIInsights forecastData={forecast.forecast_data} />
-                        )}
-
-                        {/* Forecast Table */}
+                        {/* Forecast Table - Full Width below */}
                         {forecast?.forecast_data?.forecasts && (
-                            <div className="rounded-2xl bg-white border border-gray-200/60 overflow-hidden">
+                            <div className="rounded-2xl bg-white border border-gray-200/60 overflow-hidden shadow-sm">
                                 <div className="px-6 pt-6 pb-4">
                                     <h3 className="text-base font-bold text-gray-900">
                                         Detailed Forecast Data
@@ -147,20 +157,20 @@ export default function FacultyReportsPage() {
                                     <table className="w-full">
                                         <thead>
                                             <tr className="border-t border-b border-gray-100 bg-gray-50/50">
-                                                <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400">
+                                                <th className="px-3 py-2 text-left text-[9px] font-bold uppercase tracking-[0.1em] text-gray-400">
                                                     Year
                                                 </th>
-                                                <th className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400">
-                                                    Point Forecast
+                                                <th className="px-3 py-2 text-right text-[9px] font-bold uppercase tracking-[0.1em] text-gray-400">
+                                                    Point
                                                 </th>
-                                                <th className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400">
-                                                    Lower 95% CI
+                                                <th className="px-3 py-2 text-right text-[9px] font-bold uppercase tracking-[0.1em] text-gray-400">
+                                                    Lower 95%
                                                 </th>
-                                                <th className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400">
-                                                    Upper 95% CI
+                                                <th className="px-3 py-2 text-right text-[9px] font-bold uppercase tracking-[0.1em] text-gray-400">
+                                                    Upper 95%
                                                 </th>
-                                                <th className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400">
-                                                    YoY Change
+                                                <th className="px-3 py-2 text-right text-[9px] font-bold uppercase tracking-[0.1em] text-gray-400">
+                                                    YoY
                                                 </th>
                                             </tr>
                                         </thead>
@@ -174,21 +184,21 @@ export default function FacultyReportsPage() {
                                                             : "bg-gray-50/30"
                                                             }`}
                                                     >
-                                                        <td className="px-6 py-3.5 text-sm font-bold text-gray-900">
+                                                        <td className="px-3 py-2.5 text-xs font-bold text-gray-900">
                                                             {f.year}
                                                         </td>
-                                                        <td className="px-6 py-3.5 text-sm font-semibold text-gray-900 text-right">
+                                                        <td className="px-3 py-2.5 text-xs font-semibold text-gray-900 text-right">
                                                             {f.point.toLocaleString()}
                                                         </td>
-                                                        <td className="px-6 py-3.5 text-sm text-gray-500 text-right">
+                                                        <td className="px-3 py-2.5 text-[11px] text-gray-500 text-right">
                                                             {f.lower_ci.toLocaleString()}
                                                         </td>
-                                                        <td className="px-6 py-3.5 text-sm text-gray-500 text-right">
+                                                        <td className="px-3 py-2.5 text-[11px] text-gray-500 text-right">
                                                             {f.upper_ci.toLocaleString()}
                                                         </td>
-                                                        <td className="px-6 py-3.5 text-right">
+                                                        <td className="px-3 py-2.5 text-right">
                                                             <span
-                                                                className={`inline-flex items-center gap-0.5 text-xs font-bold px-2 py-0.5 rounded-md ${f.yoy_change >=
+                                                                className={`inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${f.yoy_change >=
                                                                     0
                                                                     ? "bg-emerald-50 text-emerald-700"
                                                                     : "bg-red-50 text-red-600"
@@ -208,6 +218,11 @@ export default function FacultyReportsPage() {
                                     </table>
                                 </div>
                             </div>
+                        )}
+
+                        {/* AI Insights Widget */}
+                        {forecast?.forecast_data && (
+                            <ForecastInsightsChat forecastData={forecast.forecast_data} />
                         )}
                     </div>
                 )}

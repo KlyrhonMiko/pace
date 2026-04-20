@@ -1,14 +1,31 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Plus, Trash2, Loader2 } from "lucide-react";
+import { X, Plus, Trash2, Loader2, HelpCircle, Check } from "lucide-react";
 import { Question, QuestionType } from "../../_lib/surveys";
 import { QUESTION_TYPES } from "../../_lib/surveys";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 interface QuestionModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSubmit: (question: Omit<Question, "question_id">) => void;
+    onReset: () => void;
     initialData?: Question | null;
     isSaving?: boolean;
 }
@@ -19,7 +36,7 @@ const defaultQuestionData: Omit<Question, "question_id"> = {
     is_required: false,
 };
 
-export default function QuestionModal({ isOpen, onClose, onSubmit, initialData, isSaving = false }: QuestionModalProps) {
+export default function QuestionModal({ isOpen, onClose, onSubmit, onReset, initialData, isSaving = false }: QuestionModalProps) {
     const [formData, setFormData] = useState<Omit<Question, "question_id">>(defaultQuestionData);
 
     useEffect(() => {
@@ -30,8 +47,6 @@ export default function QuestionModal({ isOpen, onClose, onSubmit, initialData, 
             setFormData(defaultQuestionData);
         }
     }, [initialData, isOpen]);
-
-    if (!isOpen) return null;
 
     // Helper to get options as array for rendering
     const getOptionsArray = (): string[] => {
@@ -79,70 +94,79 @@ export default function QuestionModal({ isOpen, onClose, onSubmit, initialData, 
     const optionsArray = getOptionsArray();
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl w-full max-w-2xl shadow-xl overflow-hidden max-h-[90vh] flex flex-col">
-                <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-slate-50/50">
-                    <h2 className="text-xl font-bold text-slate-800">
-                        {initialData ? "Edit Question" : "Create Question"}
-                    </h2>
-                    <button
-                        onClick={onClose}
-                        className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent
+                showCloseButton={!isSaving}
+                className="sm:max-w-2xl p-0 gap-0 rounded-2xl border-gray-100 overflow-hidden shadow-2xl max-h-[90vh] flex flex-col"
+            >
+                {/* Header */}
+                <DialogHeader className="p-6 pb-0">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 text-white shadow-lg shadow-emerald-500/20">
+                            <HelpCircle className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <DialogTitle className="text-base font-bold text-gray-900">
+                                {initialData ? "Edit Question" : "Create New Question"}
+                            </DialogTitle>
+                            <DialogDescription className="text-xs text-gray-500 mt-0.5">
+                                Define question text, type, and options for your survey.
+                            </DialogDescription>
+                        </div>
+                    </div>
+                </DialogHeader>
 
-                <div className="p-6 overflow-y-auto">
+                <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
                     <form id="question-form" onSubmit={handleSubmit} className="space-y-6">
 
                         {/* Core Fields */}
                         <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-1">
-                                    Question Text <span className="text-rose-500">*</span>
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium text-slate-700">
+                                    Question Text*
                                 </label>
                                 <textarea
                                     required
                                     rows={2}
                                     value={formData.question_text}
                                     onChange={(e) => setFormData({ ...formData, question_text: e.target.value })}
-                                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors resize-none text-base"
+                                    className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 focus:border-emerald-600 focus:ring-emerald-700/20 outline-none text-sm transition-all font-medium resize-none"
                                     placeholder="Enter your question here..."
                                 />
                             </div>
 
-                            <div className="flex flex-col sm:flex-row gap-4">
-                                <div className="flex-1">
-                                    <label className="block text-sm font-semibold text-slate-700 mb-1">
-                                        Question Type <span className="text-rose-500">*</span>
+                            <div className="flex flex-col sm:flex-row gap-6">
+                                <div className="flex-1 space-y-1.5">
+                                    <label className="text-sm font-medium text-slate-700">
+                                        Question Type*
                                     </label>
-                                    <select
-                                        required
+                                    <Select
                                         value={formData.question_type}
-                                        onChange={(e) => handleTypeChange(e.target.value as QuestionType)}
-                                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors bg-white font-medium text-slate-700 cursor-pointer"
+                                        onValueChange={(v) => handleTypeChange(v as QuestionType)}
                                     >
-                                        {QUESTION_TYPES.map(type => (
-                                            <option key={type.value} value={type.value}>{type.label}</option>
-                                        ))}
-                                    </select>
+                                        <SelectTrigger className="!w-full !h-11 bg-slate-50 border-slate-200 focus:border-emerald-600 focus:ring-emerald-700/20">
+                                            <SelectValue placeholder="Select type" />
+                                        </SelectTrigger>
+                                        <SelectContent className="rounded-xl border-slate-200 z-[110]">
+                                            {QUESTION_TYPES.map(type => (
+                                                <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
 
-                                <div className="flex items-end pb-2">
-                                    <label className="flex items-center gap-3 cursor-pointer group">
-                                        <div className="relative flex items-center">
+                                <div className="flex items-end pb-1.5">
+                                    <label className="flex items-center gap-3 cursor-pointer group bg-white p-2.5 px-4 rounded-xl border border-slate-200 hover:border-emerald-200 transition-colors h-11">
+                                        <div className="relative flex-shrink-0">
                                             <input
                                                 type="checkbox"
                                                 className="peer sr-only"
                                                 checked={formData.is_required}
                                                 onChange={(e) => setFormData({ ...formData, is_required: e.target.checked })}
                                             />
-                                            <div className="h-6 w-11 rounded-full bg-slate-200 peer-checked:bg-emerald-600 transition-colors duration-200 after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-5"></div>
+                                            <div className="h-5 w-9 rounded-full bg-slate-200 peer-checked:bg-emerald-600 transition-colors duration-200 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4"></div>
                                         </div>
-                                        <span className="text-sm font-semibold text-slate-700 group-hover:text-emerald-700 transition-colors">
-                                            Required to Answer
-                                        </span>
+                                        <span className="text-sm font-bold text-slate-800">Required</span>
                                     </label>
                                 </div>
                             </div>
@@ -154,23 +178,22 @@ export default function QuestionModal({ isOpen, onClose, onSubmit, initialData, 
                             {/* MULTI/CHOICE OPTIONS */}
                             {['MULTIPLE_CHOICE', 'MULTI_SELECT', 'YES_NO'].includes(formData.question_type) && (
                                 <div className="space-y-3">
-                                    <label className="block text-sm font-semibold text-slate-700 mb-1 text-emerald-900 bg-emerald-50 px-3 py-1.5 rounded-md inline-block">
+                                    <label className="text-[10px] font-bold text-emerald-900 uppercase tracking-wider bg-emerald-50 px-3 py-1.5 rounded-md inline-block">
                                         Answer Options
                                     </label>
 
                                     <div className="space-y-2.5">
                                         {optionsArray.map((opt, idx) => (
                                             <div key={idx} className="flex gap-2 items-center group">
-                                                <div className="h-8 w-8 rounded-md bg-slate-100 border border-slate-200 flex items-center justify-center text-xs font-bold text-slate-400">
+                                                <div className="h-9 w-9 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-xs font-bold text-slate-400">
                                                     {formData.question_type === 'MULTIPLE_CHOICE' || formData.question_type === 'YES_NO' ? '○' : '□'}
                                                 </div>
-                                                <input
-                                                    type="text"
+                                                <Input
                                                     required
                                                     value={opt}
                                                     onChange={(e) => handleOptionChange(idx, e.target.value)}
                                                     disabled={formData.question_type === 'YES_NO'}
-                                                    className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 disabled:bg-slate-50 disabled:text-slate-500"
+                                                    className="h-10 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
                                                     placeholder={`Option ${idx + 1}`}
                                                 />
                                                 {formData.question_type !== 'YES_NO' && (
@@ -178,7 +201,7 @@ export default function QuestionModal({ isOpen, onClose, onSubmit, initialData, 
                                                         type="button"
                                                         onClick={() => removeOption(idx)}
                                                         disabled={optionsArray.length <= 1}
-                                                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                                                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors disabled:opacity-50"
                                                     >
                                                         <Trash2 className="h-4 w-4" />
                                                     </button>
@@ -191,9 +214,9 @@ export default function QuestionModal({ isOpen, onClose, onSubmit, initialData, 
                                         <button
                                             type="button"
                                             onClick={addOption}
-                                            className="mt-2 text-sm font-semibold text-emerald-600 hover:text-emerald-800 flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-emerald-50 transition-colors"
+                                            className="mt-2 text-xs font-bold text-emerald-600 hover:text-emerald-800 flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-emerald-50 border border-emerald-100 transition-colors"
                                         >
-                                            <Plus className="h-3.5 w-3.5" />
+                                            <Plus className="h-4 w-4" strokeWidth={3} />
                                             Add Option
                                         </button>
                                     )}
@@ -202,51 +225,49 @@ export default function QuestionModal({ isOpen, onClose, onSubmit, initialData, 
 
                             {/* SCALE OPTIONS */}
                             {formData.question_type === 'SCALE' && (
-                                <div className="space-y-4">
-                                    <label className="block text-sm font-semibold text-emerald-900 bg-emerald-50 px-3 py-1.5 rounded-md inline-block mb-2">
+                                <div className="space-y-6">
+                                    <label className="text-[10px] font-bold text-emerald-900 uppercase tracking-wider bg-emerald-50 px-3 py-1.5 rounded-md inline-block">
                                         Scale Settings
                                     </label>
 
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wider">Scale Range</label>
-                                            <div className="flex items-center gap-3">
-                                                <input
-                                                    type="number"
-                                                    value={formData.scale_min || 0}
-                                                    onChange={(e) => setFormData({ ...formData, scale_min: parseInt(e.target.value) })}
-                                                    className="w-20 px-3 py-1.5 rounded-lg border border-slate-200 text-center"
-                                                />
-                                                <span className="text-slate-400 font-medium">to</span>
-                                                <input
-                                                    type="number"
-                                                    value={formData.scale_max || 5}
-                                                    onChange={(e) => setFormData({ ...formData, scale_max: parseInt(e.target.value) })}
-                                                    className="w-20 px-3 py-1.5 rounded-lg border border-slate-200 text-center"
-                                                />
-                                            </div>
+                                    <div className="space-y-1.5 w-48">
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Scale Range</label>
+                                        <div className="flex items-center gap-3">
+                                            <Input
+                                                type="number"
+                                                value={formData.scale_min || 0}
+                                                onChange={(e) => setFormData({ ...formData, scale_min: parseInt(e.target.value) })}
+                                                className="h-10 text-center bg-slate-50"
+                                            />
+                                            <span className="text-slate-400 font-bold">to</span>
+                                            <Input
+                                                type="number"
+                                                value={formData.scale_max || 5}
+                                                onChange={(e) => setFormData({ ...formData, scale_max: parseInt(e.target.value) })}
+                                                className="h-10 text-center bg-slate-50"
+                                            />
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-4 pt-2">
-                                        <div>
-                                            <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wider">Min Label (Optional)</label>
-                                            <input
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Min Label</label>
+                                            <Input
                                                 type="text"
                                                 value={formData.scale_label_min || ''}
                                                 onChange={(e) => setFormData({ ...formData, scale_label_min: e.target.value })}
                                                 placeholder="e.g. Strongly Disagree"
-                                                className="w-full px-3 py-1.5 rounded-lg border border-slate-200"
+                                                className="h-10 bg-slate-50"
                                             />
                                         </div>
-                                        <div>
-                                            <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wider">Max Label (Optional)</label>
-                                            <input
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Max Label</label>
+                                            <Input
                                                 type="text"
                                                 value={formData.scale_label_max || ''}
                                                 onChange={(e) => setFormData({ ...formData, scale_label_max: e.target.value })}
                                                 placeholder="e.g. Strongly Agree"
-                                                className="w-full px-3 py-1.5 rounded-lg border border-slate-200"
+                                                className="h-10 bg-slate-50"
                                             />
                                         </div>
                                     </div>
@@ -255,18 +276,18 @@ export default function QuestionModal({ isOpen, onClose, onSubmit, initialData, 
 
                             {/* TEXT / DATE / NUMBER - Placeholder */}
                             {['TEXT', 'DATE', 'NUMBER'].includes(formData.question_type) && (
-                                <div className="space-y-2">
-                                    <label className="block text-sm font-semibold text-slate-700">
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-medium text-slate-700">
                                         Placeholder Text (Optional)
                                     </label>
-                                    <p className="text-xs text-slate-500 mb-2">Text shown inside empty input boxes to guide the user.</p>
-                                    <input
+                                    <Input
                                         type="text"
                                         value={formData.placeholder || ''}
                                         onChange={(e) => setFormData({ ...formData, placeholder: e.target.value })}
-                                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors bg-slate-50/50"
-                                        placeholder={`e.g. ${formData.question_type === 'DATE' ? 'Select your birthday' : formData.question_type === 'NUMBER' ? 'Enter a number...' : 'Type your answer...'}`}
+                                        className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
+                                        placeholder={`e.g. ${formData.question_type === 'DATE' ? 'Select date' : formData.question_type === 'NUMBER' ? 'Enter a number' : 'Type your answer'}`}
                                     />
+                                    <p className="text-[11px] text-slate-400 font-medium ml-1">Shown inside the input to guide respondents.</p>
                                 </div>
                             )}
                         </div>
@@ -274,28 +295,38 @@ export default function QuestionModal({ isOpen, onClose, onSubmit, initialData, 
                     </form>
                 </div>
 
-                <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3 shrink-0">
+                <div className="p-6 border-t border-slate-100 bg-slate-50/30 flex items-center justify-between shrink-0">
                     <button
-                        type="button"
-                        onClick={onClose}
+                        onClick={onReset}
                         disabled={isSaving}
-                        className="px-6 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-200/50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                        className="text-sm font-medium text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
                     >
-                        Cancel
+                        {initialData ? "Reset" : "Clear"}
                     </button>
-                    <button
-                        form="question-form"
-                        type="submit"
-                        disabled={isSaving}
-                        className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all shadow-sm shadow-emerald-200 active:scale-95"
-                    >
-                        {isSaving ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : null}
-                        {isSaving ? "Saving..." : (initialData ? "Save Changes" : "Save Question")}
-                    </button>
+                    <div className="flex items-center gap-2.5">
+                        <Button
+                            variant="outline"
+                            onClick={onClose}
+                            disabled={isSaving}
+                            className="h-10 px-5 rounded-xl border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition-all"
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleSubmit}
+                            disabled={isSaving}
+                            className="h-10 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm shadow-emerald-200 transition-all active:scale-95 gap-2"
+                        >
+                            {isSaving ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Check className="h-4 w-4" strokeWidth={2.5} />
+                            )}
+                            {isSaving ? "Saving..." : (initialData ? "Save Changes" : "Save Question")}
+                        </Button>
+                    </div>
                 </div>
-            </div>
-        </div>
+            </DialogContent>
+        </Dialog>
     );
 }

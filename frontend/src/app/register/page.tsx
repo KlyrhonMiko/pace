@@ -16,17 +16,18 @@ import {
     ShieldCheck,
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
+import { DatePicker } from "../../components/ui/date-picker";
 import { toast } from "sonner";
 
-import { 
-  fetchCourses, 
-  sendOtp, 
-  resendOtp, 
-  verifyOtp, 
-  registerAlumni, 
-  createStudentRecord, 
-  initializeAlumniSkills,
-  CourseOption 
+import {
+    fetchCourses,
+    sendOtp,
+    resendOtp,
+    verifyOtp,
+    registerAlumni,
+    createStudentRecord,
+    initializeAlumniSkills,
+    CourseOption
 } from "./api";
 
 
@@ -633,8 +634,16 @@ export default function RegisterPage() {
                                     <SelectField label="Gender" value={personal.gender}
                                         onChange={(v) => setPersonal(p => ({ ...p, gender: v }))}
                                         options={["Male", "Female", "Non-binary", "Prefer not to say"]} required />
-                                    <InputField label="Birthdate" type="date" value={personal.birthdate}
-                                        onChange={(v) => setPersonal(p => ({ ...p, birthdate: v }))} required />
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                            Birthdate <span className="text-emerald-600">*</span>
+                                        </label>
+                                        <DatePicker
+                                            date={personal.birthdate}
+                                            onChange={(v: string) => setPersonal(p => ({ ...p, birthdate: v }))}
+                                            placeholder="Select birthdate"
+                                        />
+                                    </div>
                                     <div className="flex flex-col gap-1.5">
                                         <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
                                             Age <span className="text-[10px] font-normal text-gray-400 normal-case tracking-normal">(auto-computed)</span>

@@ -18,7 +18,7 @@ export function useEventManagement() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
-    
+
     // --- UI State ---
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingEvent, setEditingEvent] = useState<Event | null>(null);
@@ -147,6 +147,14 @@ export function useEventManagement() {
         setIsSaving(false);
     };
 
+    const handleClearForm = () => {
+        if (editingEvent) {
+            openUpdateModal(editingEvent);
+        } else {
+            openCreateModal();
+        }
+    };
+
     const handleDeleteClick = (eventId: string) => {
         setEventToDelete(eventId);
     };
@@ -186,7 +194,7 @@ export function useEventManagement() {
         selectedImagePreview,
         eventToDelete,
         formData,
-        
+
         // Handlers
         setIsModalOpen,
         setIsAddingNewType,
@@ -198,6 +206,8 @@ export function useEventManagement() {
         handleImageChange,
         handleSave,
         handleDeleteClick,
+        handleClearForm,
         confirmDeleteEvent,
+        loadData,
     };
 }

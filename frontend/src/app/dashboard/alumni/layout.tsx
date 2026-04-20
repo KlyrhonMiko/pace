@@ -22,7 +22,6 @@ import {
     Menu,
     X,
     ChevronRight,
-    Search,
 } from "lucide-react";
 import DateWidget from "../_components/DateWidget";
 
@@ -251,18 +250,6 @@ export default function AlumniLayout({
 
                     {/* Right Section */}
                     <div className="flex items-center gap-2">
-                        {/* Search */}
-                        <div className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 hover:border-gray-300 transition-colors duration-150 group">
-                            <Search className="h-4 w-4 text-gray-400" />
-                            <input
-                                type="text"
-                                placeholder="Search jobs, events..."
-                                className="bg-transparent text-sm text-gray-600 placeholder:text-gray-400 focus:outline-none w-40 xl:w-48"
-                            />
-                            <kbd className="hidden xl:flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-gray-200/80 text-[10px] font-medium text-gray-500">
-                                ⌘K
-                            </kbd>
-                        </div>
 
                         {/* Notifications */}
                         <button className="relative flex items-center justify-center h-9 w-9 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors duration-150">
@@ -272,10 +259,6 @@ export default function AlumniLayout({
                             </span>
                         </button>
 
-                        {/* Settings */}
-                        <button className="hidden sm:flex items-center justify-center h-9 w-9 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors duration-150">
-                            <Settings className="h-5 w-5" strokeWidth={1.5} />
-                        </button>
                     </div>
                 </header>
 

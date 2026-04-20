@@ -96,7 +96,7 @@ export function useSurveyManagement() {
     const handleSaveSurvey = async (sData: Omit<Survey, "survey_id" | "question_count">) => {
         setIsSaving(true);
         const { success } = await saveSurveyWorkflow(editingSurvey, sData);
-        
+
         if (success) {
             toast.success(editingSurvey ? "Survey updated successfully." : "Survey created successfully.");
             await loadData();
@@ -104,7 +104,7 @@ export function useSurveyManagement() {
         } else {
             toast.error(editingSurvey ? "Failed to update survey." : "Failed to create survey.");
         }
-        
+
         setIsSaving(false);
     };
 
@@ -175,7 +175,7 @@ export function useSurveyManagement() {
             setIsSaving(false);
         }
     };
-    
+
     const handleCreateTracerStudy = async () => {
         setIsSaving(true);
         try {
@@ -224,7 +224,7 @@ export function useSurveyManagement() {
 
     const handleSaveQuestion = async (qData: Omit<Question, "question_id">) => {
         setIsSaving(true);
-        const qAction = editingQuestion 
+        const qAction = editingQuestion
             ? apiUpdateQuestion(editingQuestion.question_id, qData)
             : apiCreateQuestion(qData);
 
@@ -237,6 +237,22 @@ export function useSurveyManagement() {
             toast.error(editingQuestion ? "Failed to update question." : "Failed to create question.");
         }
         setIsSaving(false);
+    };
+
+    const handleResetSurveyForm = () => {
+        if (editingSurvey) {
+            handleEditSurvey(editingSurvey);
+        } else {
+            handleCreateSurvey();
+        }
+    };
+
+    const handleResetQuestionForm = () => {
+        if (editingQuestion) {
+            handleEditQuestion(editingQuestion);
+        } else {
+            handleCreateQuestion();
+        }
     };
 
     return {
@@ -254,7 +270,7 @@ export function useSurveyManagement() {
         editingQuestion,
         surveyToDelete,
         questionToDelete,
-        
+
         // Handlers
         handleCreateSurvey,
         handleCreateTracerStudy,
@@ -271,6 +287,8 @@ export function useSurveyManagement() {
         handleDeleteQuestionClick,
         confirmDeleteQuestion,
         handleSaveQuestion,
+        handleResetSurveyForm,
+        handleResetQuestionForm,
         setIsSurveyModalOpen,
         setIsQuestionModalOpen,
         setSurveyToDelete,

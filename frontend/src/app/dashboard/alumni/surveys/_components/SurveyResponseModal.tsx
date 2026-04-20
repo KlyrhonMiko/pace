@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { X, Loader2, RotateCcw, Send } from "lucide-react";
 import { Survey, Question } from "../../../_lib/surveys";
+import { DatePicker } from "@/components/ui/date-picker";
 
 // ------------------------------------------------------------------
 // Types for building the submission payload
@@ -307,12 +308,13 @@ export default function SurveyResponseModal({
                     )}
 
                     {q.question_type === "DATE" && (
-                        <input
-                            type="date"
-                            value={a.answer_date || ""}
-                            onChange={e => setAnswer(q.question_id, { answer_date: e.target.value })}
-                            className="w-full max-w-xs px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors text-sm"
-                        />
+                        <div className="max-w-xs">
+                            <DatePicker
+                                date={a.answer_date || ""}
+                                onChange={(date: string) => setAnswer(q.question_id, { answer_date: date })}
+                                placeholder="Select response date"
+                            />
+                        </div>
                     )}
 
                     {q.question_type === "NUMBER" && (

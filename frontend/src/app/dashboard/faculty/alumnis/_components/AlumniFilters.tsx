@@ -63,7 +63,7 @@ export default function AlumniFilters({
                     {/* Gender Filter */}
                     <FilterSection title="Gender" icon={<User className="h-4 w-4" />} count={filterGender !== "all" ? 1 : undefined}>
                         <div className="space-y-2">
-                            {["all", "Male", "Female"].map((gender) => (
+                            {["all", "MALE", "FEMALE", "NON_BINARY", "PREFER_NOT_TO_SAY"].map((gender) => (
                                 <label
                                     key={gender}
                                     className="flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors hover:bg-slate-50"
@@ -74,7 +74,7 @@ export default function AlumniFilters({
                                         className="border-slate-300 data-[state=checked]:bg-emerald-700 data-[state=checked]:border-emerald-700"
                                     />
                                     <span className="text-sm text-slate-700">
-                                        {gender === "all" ? "All Genders" : gender}
+                                        {gender === "all" ? "All Genders" : gender.charAt(0) + gender.slice(1).toLowerCase().replace(/_/g, ' ')}
                                     </span>
                                 </label>
                             ))}

@@ -1,8 +1,36 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Briefcase, Building2, MapPin, CircleDollarSign, Calendar, Type, FileText } from "lucide-react";
+import {
+    X,
+    Briefcase,
+    Building2,
+    MapPin,
+    CircleDollarSign,
+    Type,
+    FileText,
+    Loader2,
+    Calendar,
+    BriefcaseIcon,
+    Plus,
+    Layout
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 
 interface AdminJobFormModalProps {
     isOpen: boolean;
@@ -63,20 +91,13 @@ export default function AdminJobFormModal({ isOpen, onClose, editingJob, onSucce
         }
     }, [editingJob, isOpen]);
 
-    if (!isOpen) return null;
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
         setIsSubmitting(true);
         try {
-            const url = editingJob ? `/jobs/${editingJob.dbId || editingJob.id}` : "/jobs/";
-            const method = editingJob ? "PATCH" : "POST";
-
-            // In a real app, you'd use your apiFetch here
-            // For now, I'll simulate the call
+            // Simulation of API call as in original
             console.log("Submitting job:", formData);
 
-            // Mocking success
             setTimeout(() => {
                 setIsSubmitting(false);
                 onSuccess?.();
@@ -88,190 +109,247 @@ export default function AdminJobFormModal({ isOpen, onClose, editingJob, onSucce
         }
     };
 
+    const handleClearForm = () => {
+        if (editingJob) {
+            // Reset to original values
+            setFormData({
+                title: editingJob.title || "",
+                company: editingJob.company || "",
+                location: editingJob.location || "",
+                type: editingJob.type || "Full-time",
+                category: editingJob.category || "Technology",
+                salary_min: editingJob.salary_min?.toString() || "",
+                salary_max: editingJob.salary_max?.toString() || "",
+                experience_level: editingJob.experienceLevel || "Junior",
+                work_type: editingJob.workType || "On-site",
+                description: editingJob.description || editingJob.snippet || "",
+                benefits: editingJob.benefits || "",
+                requirements: editingJob.requirements || "",
+            });
+        } else {
+            setFormData({
+                title: "",
+                company: "",
+                location: "",
+                type: "Full-time",
+                category: "Technology",
+                salary_min: "",
+                salary_max: "",
+                experience_level: "Junior",
+                work_type: "On-site",
+                description: "",
+                benefits: "",
+                requirements: "",
+            });
+        }
+    };
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="relative w-full max-w-2xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col bg-white shadow-2xl">
+        <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+            <DialogContent
+                showCloseButton={!isSubmitting}
+                className="sm:max-w-2xl p-0 gap-0 rounded-2xl border-gray-100 overflow-hidden shadow-2xl"
+            >
                 {/* Header */}
-                <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between bg-emerald-700 text-white">
-                    <div>
-                        <h2 className="text-xl font-bold">{editingJob ? "Edit Job Posting" : "Create New Job Posting"}</h2>
-                        <p className="text-sm text-emerald-100 opacity-90">Enter the details of the career opportunity.</p>
+                <DialogHeader className="p-6 pb-0">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 text-white shadow-lg shadow-emerald-500/20">
+                            {editingJob ? <Layout className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+                        </div>
+                        <div>
+                            <DialogTitle className="text-base font-bold text-gray-900">
+                                {editingJob ? "Edit Job Posting" : "Publish Job Posting"}
+                            </DialogTitle>
+                            <DialogDescription className="text-xs text-gray-500 mt-0.5">
+                                {editingJob
+                                    ? `Modifying job details for ${editingJob.title}`
+                                    : "Enter the details to announce a new career opportunity."}
+                            </DialogDescription>
+                        </div>
                     </div>
-                    <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/10 transition-colors">
-                        <X size={24} />
-                    </button>
-                </div>
+                </DialogHeader>
 
-                {/* Form */}
-                <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Title */}
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                                <Type size={14} className="text-emerald-600" />
-                                Job Title
-                            </label>
-                            <input
-                                required
-                                type="text"
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm"
-                                placeholder="e.g. Senior Software Engineer"
-                                value={formData.title}
-                                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                            />
+                {/* Body */}
+                <div className="p-6 max-h-[70vh] overflow-y-auto space-y-6 custom-scrollbar">
+                    {/* Basic Information */}
+                    <div>
+                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                            <Briefcase className="h-3.5 w-3.5" />
+                            Role Information
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-1.5 md:col-span-2">
+                                <label className="text-sm font-medium text-slate-700">Job Title*</label>
+                                <Input
+                                    placeholder="e.g. Senior Software Engineer"
+                                    value={formData.title}
+                                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                                    className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium text-slate-700">Company Name*</label>
+                                <Input
+                                    placeholder="e.g. Acme Innovations"
+                                    value={formData.company}
+                                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                                    className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium text-slate-700">Location*</label>
+                                <Input
+                                    placeholder="e.g. Pasig City, Metro Manila"
+                                    value={formData.location}
+                                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                                    className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
+                                />
+                            </div>
                         </div>
+                    </div>
 
-                        {/* Company */}
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                                <Building2 size={14} className="text-emerald-600" />
-                                Company Name
-                            </label>
-                            <input
-                                required
-                                type="text"
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm"
-                                placeholder="e.g. Acme Innovations"
-                                value={formData.company}
-                                onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                            />
+                    {/* Job Classification */}
+                    <div>
+                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                            <Type className="h-3.5 w-3.5" />
+                            Classification
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium text-slate-700">Job Type</label>
+                                <Select
+                                    value={formData.type}
+                                    onValueChange={(v) => setFormData({ ...formData, type: v })}
+                                >
+                                    <SelectTrigger className="w-full !h-11 bg-slate-50 border-slate-200 focus:border-emerald-600 focus:ring-emerald-700/20">
+                                        <SelectValue placeholder="Select type" />
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-xl border-slate-200 z-[110]">
+                                        <SelectItem value="Full-time">Full-time</SelectItem>
+                                        <SelectItem value="Part-time">Part-time</SelectItem>
+                                        <SelectItem value="Contract">Contract</SelectItem>
+                                        <SelectItem value="Internship">Internship</SelectItem>
+                                        <SelectItem value="Freelance">Freelance</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium text-slate-700">Experience</label>
+                                <Select
+                                    value={formData.experience_level}
+                                    onValueChange={(v) => setFormData({ ...formData, experience_level: v })}
+                                >
+                                    <SelectTrigger className="w-full !h-11 bg-slate-50 border-slate-200 focus:border-emerald-600 focus:ring-emerald-700/20">
+                                        <SelectValue placeholder="Select level" />
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-xl border-slate-200 z-[110]">
+                                        <SelectItem value="Entry Level">Entry Level</SelectItem>
+                                        <SelectItem value="Junior">Junior</SelectItem>
+                                        <SelectItem value="Mid-level">Mid-level</SelectItem>
+                                        <SelectItem value="Senior">Senior</SelectItem>
+                                        <SelectItem value="Lead">Lead</SelectItem>
+                                        <SelectItem value="Executive">Executive</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium text-slate-700">Work Setting</label>
+                                <Select
+                                    value={formData.work_type}
+                                    onValueChange={(v) => setFormData({ ...formData, work_type: v })}
+                                >
+                                    <SelectTrigger className="w-full !h-11 bg-slate-50 border-slate-200 focus:border-emerald-600 focus:ring-emerald-700/20">
+                                        <SelectValue placeholder="Select setting" />
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-xl border-slate-200 z-[110]">
+                                        <SelectItem value="On-site">On-site</SelectItem>
+                                        <SelectItem value="Remote">Remote</SelectItem>
+                                        <SelectItem value="Hybrid">Hybrid</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
+                    </div>
 
-                        {/* Location */}
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                                <MapPin size={14} className="text-emerald-600" />
-                                Location
-                            </label>
-                            <input
-                                required
-                                type="text"
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm"
-                                placeholder="e.g. Pasig City, Metro Manila"
-                                value={formData.location}
-                                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                            />
-                        </div>
-
-                        {/* Job Type */}
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                                <Briefcase size={14} className="text-emerald-600" />
-                                Job Type
-                            </label>
-                            <select
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm appearance-none bg-white"
-                                value={formData.type}
-                                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                            >
-                                <option>Full-time</option>
-                                <option>Part-time</option>
-                                <option>Contract</option>
-                                <option>Internship</option>
-                                <option>Freelance</option>
-                            </select>
-                        </div>
-
-                        {/* Experience Level */}
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                                <Briefcase size={14} className="text-emerald-600" />
-                                Experience Level
-                            </label>
-                            <select
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm appearance-none bg-white"
-                                value={formData.experience_level}
-                                onChange={(e) => setFormData({ ...formData, experience_level: e.target.value })}
-                            >
-                                <option>Entry Level</option>
-                                <option>Junior</option>
-                                <option>Mid-level</option>
-                                <option>Senior</option>
-                                <option>Lead</option>
-                                <option>Executive</option>
-                            </select>
-                        </div>
-
-                        {/* Work Type */}
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                                <Building2 size={14} className="text-emerald-600" />
-                                Work Setting
-                            </label>
-                            <select
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm appearance-none bg-white"
-                                value={formData.work_type}
-                                onChange={(e) => setFormData({ ...formData, work_type: e.target.value })}
-                            >
-                                <option>On-site</option>
-                                <option>Remote</option>
-                                <option>Hybrid</option>
-                            </select>
-                        </div>
-
-                        {/* Salary Min */}
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                                <CircleDollarSign size={14} className="text-emerald-600" />
-                                Salary Range (Monthly)
-                            </label>
-                            <div className="flex items-center gap-2">
-                                <input
+                    {/* Salary Information */}
+                    <div>
+                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                            <CircleDollarSign className="h-3.5 w-3.5" />
+                            Compensation (Monthly)
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium text-slate-700">Minimum Salary</label>
+                                <Input
                                     type="number"
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm"
-                                    placeholder="Min"
+                                    placeholder="e.g. 20000"
                                     value={formData.salary_min}
                                     onChange={(e) => setFormData({ ...formData, salary_min: e.target.value })}
+                                    className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
                                 />
-                                <span className="text-gray-400">—</span>
-                                <input
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium text-slate-700">Maximum Salary</label>
+                                <Input
                                     type="number"
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm"
-                                    placeholder="Max"
+                                    placeholder="e.g. 45000"
                                     value={formData.salary_max}
                                     onChange={(e) => setFormData({ ...formData, salary_max: e.target.value })}
+                                    className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
                                 />
                             </div>
                         </div>
                     </div>
 
                     {/* Description */}
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                            <FileText size={14} className="text-emerald-600" />
-                            Job Description
+                    <div className="space-y-1.5">
+                        <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                            <FileText className="h-3.5 w-3.5 text-slate-400" />
+                            Job Description*
                         </label>
                         <textarea
                             required
-                            rows={5}
-                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm resize-none"
+                            rows={6}
+                            className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-600 transition-all text-sm resize-none"
                             placeholder="Provide a detailed description of the job role..."
                             value={formData.description}
                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                         />
                     </div>
-                </form>
+                </div>
 
                 {/* Footer */}
-                <div className="px-8 py-6 border-t border-gray-100 bg-gray-50 flex items-center justify-end gap-3">
+                <div className="p-6 border-t border-slate-100 bg-slate-50/30 flex items-center justify-between">
                     <button
                         type="button"
-                        onClick={onClose}
-                        className="px-6 py-3 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-100 transition-all disabled:opacity-50"
+                        onClick={handleClearForm}
                         disabled={isSubmitting}
+                        className="text-sm font-medium text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
                     >
-                        Cancel
+                        {editingJob ? "Reset" : "Clear"}
                     </button>
-                    <Button
-                        type="submit"
-                        disabled={isSubmitting}
-                        className="px-8 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold shadow-lg shadow-emerald-700/20 transition-all active:scale-95 disabled:opacity-50"
-                        onClick={handleSubmit}
-                    >
-                        {isSubmitting ? "Saving..." : editingJob ? "Update Job Posting" : "Publish Job Posting"}
-                    </Button>
+                    <div className="flex items-center gap-2.5">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            disabled={isSubmitting}
+                            className="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => handleSubmit()}
+                            disabled={isSubmitting}
+                            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-200 transition-all disabled:opacity-50"
+                        >
+                            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                            {editingJob ? "Update Job Posting" : "Publish Job Posting"}
+                        </button>
+                    </div>
                 </div>
-            </div>
-        </div>
+            </DialogContent>
+        </Dialog>
     );
 }
+

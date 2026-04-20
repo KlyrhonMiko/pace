@@ -1,11 +1,25 @@
-"use client";
-
 import { useState } from "react";
-import { Plus, Search, HelpCircle, ClipboardCheck } from "lucide-react";
-import { Survey } from "../../_lib/surveys";
-import { SURVEY_STATUSES } from "../../_lib/surveys";
-import SurveyCard from "./SurveyCard";
+import {
+    Plus,
+    Search,
+    HelpCircle,
+    ClipboardCheck,
+    Eye,
+    Edit2,
+    Trash2,
+    Globe,
+    Lock,
+    Archive,
+    Calendar,
+    ChevronRight,
+    ClipboardList,
+    Clock,
+    User
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Survey, SURVEY_STATUSES } from "../../_lib/surveys";
 import SurveyFilters from "./SurveyFilters";
+import ActionsCard from "../ActionsCard";
 
 interface SurveysViewProps {
     surveys: Survey[];
@@ -19,8 +33,25 @@ interface SurveysViewProps {
     onReopenSurvey: (id: string) => void;
 }
 
+// ─── Status Badge Helper ───────────────────────────────────────────────────────
+function SurveyStatusBadge({ status }: { status: string }) {
+    const config: Record<string, { bg: string; text: string; dot: string }> = {
+        'DRAFT': { bg: "bg-slate-50 text-slate-600 border-slate-200", text: "text-slate-600", dot: "bg-slate-400" },
+        'ACTIVE': { bg: "bg-emerald-50 text-emerald-700 border-emerald-200", text: "text-emerald-700", dot: "bg-emerald-500" },
+        'CLOSED': { bg: "bg-amber-50 text-amber-700 border-amber-200", text: "text-amber-700", dot: "bg-amber-500" },
+        'ARCHIVED': { bg: "bg-rose-50 text-rose-700 border-rose-200", text: "text-rose-700", dot: "bg-rose-500" },
+    };
+    const c = config[status] || config['DRAFT'];
+    return (
+        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider border ${c.bg}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${c.dot}`} />
+            {status}
+        </span>
+    );
+}
+
 export default function SurveysView({
-    surveys,
+    surveys = [],
     onCreateSurvey,
     onCreateTracerStudy,
     onEditSurvey,
@@ -34,7 +65,7 @@ export default function SurveysView({
     const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
     const [showAnonymousOnly, setShowAnonymousOnly] = useState(false);
 
-    // Calculate background counts for the filters
+    // Calculate status counts
     const statusCounts = SURVEY_STATUSES.reduce((acc, status) => {
         acc[status] = surveys.filter(s => s.status === status).length;
         return acc;
@@ -59,80 +90,172 @@ export default function SurveysView({
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Action Bar */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm">
-                <div className="relative flex-1 max-w-md">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <input
-                        type="text"
-                        placeholder="Search active, closed, or draft surveys..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
-                    />
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                    <button
-                        onClick={onCreateTracerStudy}
-                        className="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-5 py-2.5 rounded-xl text-sm font-semibold border border-emerald-200 transition-all shadow-sm shrink-0"
-                    >
-                        <ClipboardCheck className="h-4 w-4 stroke-2" />
-                        Tracer Study
-                    </button>
-                    <button
-                        onClick={onCreateSurvey}
-                        className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm shadow-emerald-200 shrink-0"
-                    >
-                        <Plus className="h-4 w-4 stroke-2" />
-                        Create Survey
-                    </button>
-                </div>
-            </div>
-
-            {/* Main Layout containing Filters & Grid */}
-            <div className="flex flex-col-reverse lg:flex-row-reverse gap-8">
+            <div className="flex flex-col-reverse lg:flex-row-reverse gap-8 items-start">
                 {/* Sidebar Filters */}
-                <div className="w-full lg:w-72 flex-shrink-0">
-                    <SurveyFilters
-                        statusCounts={statusCounts}
-                        selectedStatus={selectedStatus}
-                        setSelectedStatus={setSelectedStatus}
-                        showAnonymousOnly={showAnonymousOnly}
-                        setShowAnonymousOnly={setShowAnonymousOnly}
-                        onClearFilters={handleClearFilters}
-                    />
+                <div className="w-full lg:w-80 flex-shrink-0">
+                    <div className="flex flex-col gap-4 sticky top-24">
+                        <ActionsCard
+                            title="Survey Actions"
+                            description="Create surveys"
+                            icon={<Plus className="h-5 w-5" />}
+                            actions={[
+                                {
+                                    label: "Create Survey",
+                                    onClick: onCreateSurvey,
+                                    icon: <Plus className="h-4 w-4 stroke-2" />,
+                                    variant: "primary"
+                                },
+                                {
+                                    label: "Tracer Study",
+                                    onClick: onCreateTracerStudy,
+                                    icon: <ClipboardCheck className="h-4 w-4 stroke-2" />,
+                                    variant: "secondary"
+                                }
+                            ]}
+                        />
+                        <SurveyFilters
+                            statusCounts={statusCounts}
+                            selectedStatus={selectedStatus}
+                            setSelectedStatus={setSelectedStatus}
+                            showAnonymousOnly={showAnonymousOnly}
+                            setShowAnonymousOnly={setShowAnonymousOnly}
+                            onClearFilters={handleClearFilters}
+                            searchQuery={searchQuery}
+                            setSearchQuery={setSearchQuery}
+                        />
+                    </div>
                 </div>
 
-                {/* Grid Area */}
-                <div className="flex-1">
-                    {filteredSurveys.length === 0 ? (
-                        <div className="bg-white rounded-2xl border border-slate-200/60 p-12 text-center shadow-sm flex flex-col items-center justify-center">
-                            <div className="h-16 w-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-                                <HelpCircle className="h-8 w-8 text-slate-400" />
+                {/* Table Area */}
+                <div className="flex-1 min-w-0">
+                    <div className="group/card rounded-2xl bg-white border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50 flex flex-col shadow-sm">
+                        {/* Header Area */}
+                        <div className="p-6 border-b border-slate-50 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 text-white shadow-lg shadow-emerald-500/20">
+                                    <ClipboardList className="h-5 w-5" strokeWidth={2} />
+                                </div>
+                                <div>
+                                    <h2 className="text-base font-bold text-gray-900">
+                                        Surveys Masterlist
+                                    </h2>
+                                    <p className="text-xs text-gray-500 mt-0.5">
+                                        Manage and track surveys ({filteredSurveys.length})
+                                    </p>
+                                </div>
                             </div>
-                            <h3 className="text-lg font-bold text-slate-900 mb-1">No surveys found</h3>
-                            <p className="text-slate-500 text-sm max-w-sm">
-                                {searchQuery || selectedStatus || showAnonymousOnly
-                                    ? "Try adjusting your filters or search terms to find what you're looking for."
-                                    : "You haven't created any surveys yet. Click 'Create Survey' to get started."}
-                            </p>
                         </div>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                            {filteredSurveys.map((survey) => (
-                                <SurveyCard
-                                    key={survey.survey_id}
-                                    survey={survey}
-                                    onEdit={() => onEditSurvey(survey)}
-                                    onDelete={() => onDeleteSurvey(survey.survey_id)}
-                                    onPublish={() => onPublishSurvey(survey.survey_id)}
-                                    onCloseSurvey={() => onCloseSurvey(survey.survey_id)}
-                                    onArchive={() => onArchiveSurvey(survey.survey_id)}
-                                    onReopen={() => onReopenSurvey(survey.survey_id)}
-                                />
-                            ))}
+
+                        {/* Table Content */}
+                        <div className="flex-1 overflow-x-auto custom-scrollbar">
+                            <table className="w-full text-left border-collapse min-w-[800px]">
+                                <thead>
+                                    <tr className="bg-slate-50/30 border-b border-slate-100">
+                                        <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Survey Details</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Type</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100/80">
+                                    {filteredSurveys.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={4} className="px-6 py-32 text-center bg-slate-50/20">
+                                                <div className="flex flex-col items-center gap-4">
+                                                    <div className="h-16 w-16 rounded-2xl bg-white border border-slate-200/60 shadow-sm flex items-center justify-center">
+                                                        <HelpCircle className="h-8 w-8 text-slate-300" strokeWidth={1.5} />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-semibold text-slate-900">No surveys found</p>
+                                                        <p className="text-xs text-slate-500 mt-1">Try adjusting your filters or search terms.</p>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        filteredSurveys.map((survey) => (
+                                            <tr key={survey.survey_id} className="group transition-all duration-200 hover:bg-slate-50/50">
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                                                            <ClipboardList className="h-5 w-5" />
+                                                        </div>
+                                                        <div className="min-w-0 max-w-[300px]">
+                                                            <h4 className="font-bold text-slate-900 text-sm truncate">
+                                                                {survey.title}
+                                                            </h4>
+                                                            <p className="text-xs text-slate-500 mt-0.5 truncate italic">
+                                                                {survey.description || "No description provided"}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <SurveyStatusBadge status={survey.status} />
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="flex items-center gap-2">
+                                                        {survey.is_anonymous ? (
+                                                            <>
+                                                                <Lock className="h-3.5 w-3.5 text-slate-400" />
+                                                                <span className="text-[13px] font-medium text-slate-600 italic">Anonymous</span>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <User className="h-3.5 w-3.5 text-slate-400" />
+                                                                <span className="text-[13px] font-medium text-slate-600">Standard</span>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                                            title="View Results"
+                                                        >
+                                                            <Eye className="h-4 w-4" />
+                                                        </Button>
+                                                        {survey.status === 'DRAFT' && (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => onPublishSurvey(survey.survey_id)}
+                                                                className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                                title="Publish"
+                                                            >
+                                                                <Globe className="h-4 w-4" />
+                                                            </Button>
+                                                        )}
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => onEditSurvey(survey)}
+                                                            className="h-8 w-8 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                                                            title="Edit"
+                                                        >
+                                                            <Edit2 className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => onDeleteSurvey(survey.survey_id)}
+                                                            className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                                            title="Delete"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
-                    )}
+                    </div>
                 </div>
             </div>
         </div>

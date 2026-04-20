@@ -48,8 +48,24 @@ export function useCareerAdvisor(
         hidden: hidden || false,
     });
 
-    const callAPI = useCallback(
-        async (chatMessages: ChatMessage[]): Promise<string> => {
+    const processStream = useCallback(
+        async (response: Response, onChunk: (text: string) => void) => {
+            const reader = response.body?.getReader();
+            const decoder = new TextDecoder();
+            if (!reader) throw new Error("No reader found");
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                const chunk = decoder.decode(value, { stream: true });
+                onChunk(chunk);
+            }
+        },
+        []
+    );
+
+    const callStreamingAPI = useCallback(
+        async (chatMessages: ChatMessage[], aiMsgId: string) => {
             const response = await fetch("/api/ai-advisor", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -62,15 +78,22 @@ export function useCareerAdvisor(
                 }),
             });
 
-            const data = await response.json();
-
             if (!response.ok) {
+                const data = await response.json().catch(() => ({ error: "Failed to get AI response." }));
                 throw new Error(data.error || "Failed to get AI response.");
             }
 
-            return data.reply;
+            await processStream(response, (chunk) => {
+                setMessages((prev) =>
+                    prev.map((msg) =>
+                        msg.id === aiMsgId
+                            ? { ...msg, content: msg.content + chunk }
+                            : msg
+                    )
+                );
+            });
         },
-        [insightsData]
+        [insightsData, processStream]
     );
 
     const sendMessage = useCallback(
@@ -78,16 +101,15 @@ export function useCareerAdvisor(
             if (isLoading || !content.trim()) return;
 
             const userMessage = createMessage("user", content.trim());
+            const aiMessage = createMessage("assistant", "");
 
-            setMessages((prev) => [...prev, userMessage]);
+            setMessages((prev) => [...prev, userMessage, aiMessage]);
             setIsLoading(true);
             setError(null);
 
             try {
-                const allMessages = [...messages, userMessage];
-                const reply = await callAPI(allMessages);
-                const aiMessage = createMessage("assistant", reply);
-                setMessages((prev) => [...prev, aiMessage]);
+                const historyForAPI = [...messages, userMessage];
+                await callStreamingAPI(historyForAPI, aiMessage.id);
             } catch (err) {
                 const errorMessage =
                     err instanceof Error ? err.message : "Something went wrong.";
@@ -96,11 +118,10 @@ export function useCareerAdvisor(
                 setIsLoading(false);
             }
         },
-        [isLoading, messages, callAPI]
+        [isLoading, messages, callStreamingAPI]
     );
 
     const initializeChat = useCallback(async () => {
-        // Prevent re-entry AND prevent retrying after failure
         if (initRef.current || hasFailedInit) return;
         initRef.current = true;
 
@@ -111,25 +132,24 @@ export function useCareerAdvisor(
         const initialPrompt = createMessage(
             "user",
             "As a graduate, please analyze my employability insights and give me an overview of where I stand in the job market. Highlight my strongest areas, key areas for growth, and suggest 2-3 specific action items I can start working on right away to strengthen my career prospects.",
-            true // hidden — don't show in UI but keep in history for Gemini
+            true
         );
+        const aiMessage = createMessage("assistant", "");
+
+        setMessages([initialPrompt, aiMessage]);
 
         try {
-            const reply = await callAPI([initialPrompt]);
-            const aiMessage = createMessage("assistant", reply);
-            // Store BOTH the hidden user prompt and AI response so history starts with 'user'
-            setMessages([initialPrompt, aiMessage]);
+            await callStreamingAPI([initialPrompt], aiMessage.id);
             setIsInitialized(true);
         } catch (err) {
             const errorMessage =
                 err instanceof Error ? err.message : "Failed to initialize chat.";
             setError(errorMessage);
-            // Do NOT reset initRef — mark as failed instead to prevent infinite retries
             setHasFailedInit(true);
         } finally {
             setIsLoading(false);
         }
-    }, [callAPI, hasFailedInit]);
+    }, [callStreamingAPI, hasFailedInit]);
 
     const clearChat = useCallback(() => {
         setMessages([]);

@@ -11,6 +11,7 @@ class AlumniFullProfile(SQLModel):
     """Complete alumni profile with all related information"""
 
     # Alumni info
+    alumni_code: str
     alumni_id: str
     last_name: str
     first_name: str

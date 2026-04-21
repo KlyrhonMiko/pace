@@ -130,4 +130,90 @@ export async function getLatestPrediction(
     }
 }
 
+export type Degree = "BSIT" | "BSCS" | "BSA" | "BSBA-Entrepreneurship" | "BSBA-Marketing" | "BSEd-Filipino" | "BSEd-English";
+
+export interface EmployabilityInputPayload {
+    cgpa: number;
+    average_prof_grade: number;
+    average_elec_grade: number;
+    ojt_grade: number;
+    leadership_pos: "Yes" | "No";
+    act_member_pos: "Yes" | "No";
+    soft_skills_ave: number;
+    hard_skills_ave: number;
+    degree: string;
+    year_graduated: number;
+    [key: string]: any; // For dynamic program-specific skills
+}
+
+/**
+ * Trigger a new employability prediction.
+ */
+export async function runPrediction(
+    payload: EmployabilityInputPayload,
+    alumniCode?: string
+): Promise<EmployabilityResult | null> {
+    try {
+        const code = alumniCode || (typeof window !== "undefined" ? JSON.parse(localStorage.getItem("user") || "{}").alumni_code : null);
+        
+        if (!code) {
+            throw new Error("Alumni profile code not found. Please ensure you are logged in correctly.");
+        }
+
+        const json = await apiFetch<any>(`/predict/employability/${code}`, {
+            method: "POST",
+            body: payload,
+        });
+
+        if (json.success && json.data) {
+            const data = json.data;
+            return {
+                prediction_id: data.prediction_id,
+                realistic_assessment: data.realistic_assessment,
+                improvement_roadmap: data.improvement_roadmap,
+                cgpa: data.cgpa || payload.cgpa,
+                top_factors: data.top_factors || [],
+                improvement_suggestions: data.improvement_suggestions || [],
+                skill_breakdown: data.skill_breakdown || data.improvement_suggestions || [],
+            } as EmployabilityResult;
+        }
+
+        return null;
+    } catch (error) {
+        console.error("Failed to run employability prediction:", error);
+        return null;
+    }
+}
+
+export interface PredictionHistoryItem {
+    id: string;
+    created_at: string;
+    realistic_prediction: string;
+    realistic_probability: number;
+    improvement_prediction: string;
+    improvement_probability: number;
+    input_data: any;
+}
+
+/**
+ * Fetch the prediction history for the current alumni.
+ */
+export async function getPredictionHistory(limit: number = 10): Promise<PredictionHistoryItem[]> {
+    try {
+        const json = await apiFetch<any>(`/predict/employability/me?limit=${limit}`, {
+            method: "GET",
+            cache: "no-store",
+        });
+
+        if (json.success && json.data) {
+            return json.data as PredictionHistoryItem[];
+        }
+
+        return [];
+    } catch (error) {
+        console.error("Failed to fetch prediction history:", error);
+        return [];
+    }
+}
+
 

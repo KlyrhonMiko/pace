@@ -102,23 +102,29 @@ def build_regression_inputs(
     """
     Assemble the inputs for the Linear Regression AlumniPredictor.
     Returns a dict with keys: cgpa, internships, projects, skills_count, extracurricular.
+    Inputs are strictly clamped to match the model's supported validation ranges.
     """
-    # Internships: derived from OJT grade > 0
+    # Internships: derived from OJT grade > 0 (0 or 1)
     internships = 1 if (student_record.ojt_grade and student_record.ojt_grade > 0) else 0
 
-    # Projects: from the new column, default 0
-    projects = student_record.projects if student_record.projects is not None else 0
+    # Projects: clamped to [0, 6]
+    raw_projects = student_record.projects if student_record.projects is not None else 0
+    projects = max(0, min(6, raw_projects))
 
-    # Skills count: count the number of program skills in the JSON
+    # Skills count: count the number of program skills in the JSON, clamped to [1, 10]
+    # Note: Even if the alumni has 13 skills (BSIT), the regression model only supports 10.
     skills_count = 5  # default
     if alumni_skills.program_skills and isinstance(alumni_skills.program_skills, dict):
-        skills_count = max(1, min(15, len(alumni_skills.program_skills)))
+        skills_count = max(1, min(10, len(alumni_skills.program_skills)))
 
-    # Extracurricular: from the new column, default 0
+    # Extracurricular: 0 or 1
     extracurricular = 1 if student_record.extracurricular else 0
 
+    # CGPA: clamped to [1.0, 3.75] to prevent crashes for students outside training range
+    cgpa = max(1.0, min(3.75, student_record.gwa))
+
     return {
-        "cgpa": student_record.gwa,
+        "cgpa": cgpa,
         "internships": internships,
         "projects": projects,
         "skills_count": skills_count,

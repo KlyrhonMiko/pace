@@ -13,13 +13,9 @@ Place this file and the `models/` folder in your project, then:
     from alumni_regression import AlumniPredictor
 
     predictor = AlumniPredictor()                         # load once at startup
-    result    = predictor.predict(
-                    cgpa=2.0,
-                    internships=1,
-                    soft_skills_avg=86.0,
-                    hard_skills_avg=85.0,
-                    avg_program_skill=87.0,
-                )
+    result    = predictor.predict(soft_skills_ave=75.0, hard_skills_ave=80.0,
+                                   cgpa=2.0, internships=1,
+                                   program_skills_average=70.0)
     print(result.to_dict())                               # serialise to dict / JSON
 
 No FastAPI, Flask, or any web framework is imported here.
@@ -67,11 +63,11 @@ class PredictionResult:
 
     Attributes (inputs)
     -------------------
-    cgpa              : float — CGPA used for this prediction (1.0 best, 3.75 lowest passing)
-    internships       : int   — internship count, 1–5
-    soft_skills_avg   : float — average soft skills score, 0–100
-    hard_skills_avg   : float — average hard skills score, 0–100
-    avg_program_skill : float — average program-specific skill score, 0–100
+    soft_skills_ave      : float — average soft skills score (0–100)
+    hard_skills_ave      : float — average hard skills score (0–100)
+    cgpa                 : float — CGPA used for this prediction
+    internships          : int   — 0 or 1
+    program_skills_average : float — average of program-specific skills (0–100)
 
     Attributes (predictions)
     ------------------------
@@ -93,11 +89,11 @@ class PredictionResult:
     """
 
     # — inputs —
+    soft_skills_ave: float
+    hard_skills_ave: float
     cgpa: float
     internships: int
-    soft_skills_avg: float
-    hard_skills_avg: float
-    avg_program_skill: float
+    program_skills_average: float
 
     # — raw predictions —
     predicted_salary_php: int
@@ -120,11 +116,11 @@ class PredictionResult:
         """
         return {
             "input": {
-                "cgpa":              self.cgpa,
-                "internships":       self.internships,
-                "soft_skills_avg":   self.soft_skills_avg,
-                "hard_skills_avg":   self.hard_skills_avg,
-                "avg_program_skill": self.avg_program_skill,
+                "soft_skills_ave": self.soft_skills_ave,
+                "hard_skills_ave": self.hard_skills_ave,
+                "cgpa": self.cgpa,
+                "internships": self.internships,
+                "program_skills_average": self.program_skills_average,
             },
             "predictions": {
                 "starting_salary": {
@@ -205,56 +201,37 @@ class AlumniPredictor:
 
     def predict(
         self,
-        cgpa: float,
-        internships: int,
-        soft_skills_avg: float,
-        hard_skills_avg: float,
-        avg_program_skill: float,
+        soft_skills_ave: float = 0.0,
+        hard_skills_ave: float = 0.0,
+        cgpa: float = 2.0,
+        internships: int = 0,
+        program_skills_average: float = 0.0,
     ) -> PredictionResult:
         """
         Predict starting salary and job search duration for one alumnus.
 
         Parameters
         ----------
-        cgpa : float
+        soft_skills_ave : float, default 0.0
+            Average soft skills score (0–100).
+
+        hard_skills_ave : float, default 0.0
+            Average hard skills score (0–100).
+
+        cgpa : float, default 2.0
             GPA on a 1.0–3.75 scale. 1.0 = best, 3.75 = lowest passing.
 
-        internships : int
-            Number of internships completed. Minimum 1 (all students have
-            completed at least one OJT). Maximum 5.
-            The salary premium for a first internship is modest since it is
-            universal; each additional internship adds a meaningful but
-            diminishing increment.
+        internships : int, default 0
+            Whether the student completed at least one internship. 0 or 1.
 
-        soft_skills_avg : float
-            Average score across soft skill assessments (0–100 scale).
-            Training data clusters between 75–100 (mean ~85). Values below 60
-            are outside the training distribution.
-
-        hard_skills_avg : float
-            Average score across hard skill assessments (0–100 scale).
-            Same distribution note as soft_skills_avg.
-
-        avg_program_skill : float
-            Average score across program-specific skill assessments (0–100 scale).
-            Same distribution note as soft_skills_avg.
-
-        Returns
-        -------
-        PredictionResult
-            Structured result with salary, duration, confidence intervals,
-            and human-readable band/outlook labels.
-
-        Raises
-        ------
-        ValueError
-            If any parameter is outside its valid range.
+        program_skills_average : float, default 0.0
+            Average of all program-specific skill scores (0–100).
         """
-        self._validate(cgpa, internships, soft_skills_avg,
-                       hard_skills_avg, avg_program_skill)
+        self._validate(soft_skills_ave, hard_skills_ave, cgpa,
+                       internships, program_skills_average)
 
-        X_raw = np.array([[cgpa, internships, soft_skills_avg,
-                           hard_skills_avg, avg_program_skill]])
+        X_raw = np.array(
+            [[soft_skills_ave, hard_skills_ave, cgpa, internships, program_skills_average]])
         X_scaled = self._scaler.transform(X_raw)
 
         raw_salary = float(self._salary_model.predict(X_scaled)[0])
@@ -273,11 +250,11 @@ class AlumniPredictor:
         duration_range = f"{dur_lo:.0f}–{dur_hi:.0f} weeks"
 
         return PredictionResult(
+            soft_skills_ave=soft_skills_ave,
+            hard_skills_ave=hard_skills_ave,
             cgpa=cgpa,
             internships=internships,
-            soft_skills_avg=soft_skills_avg,
-            hard_skills_avg=hard_skills_avg,
-            avg_program_skill=avg_program_skill,
+            program_skills_average=program_skills_average,
             predicted_salary_php=salary,
             predicted_job_search_weeks=duration,
             duration_range=duration_range,
@@ -328,13 +305,15 @@ class AlumniPredictor:
     # ── Internal helpers (not part of the public API) ─────────────────────────
 
     @staticmethod
-    def _validate(
-        cgpa: float,
-        internships: int,
-        soft_skills_avg: float,
-        hard_skills_avg: float,
-        avg_program_skill: float,
-    ) -> None:
+    def _validate(soft_skills_ave, hard_skills_ave, cgpa, internships, program_skills_average):
+        if not (0.0 <= soft_skills_ave <= 100.0):
+            raise ValueError(
+                f"soft_skills_ave must be 0–100 (received {soft_skills_ave})"
+            )
+        if not (0.0 <= hard_skills_ave <= 100.0):
+            raise ValueError(
+                f"hard_skills_ave must be 0–100 (received {hard_skills_ave})"
+            )
         if not (1.0 <= cgpa <= 3.75):
             raise ValueError(
                 f"cgpa must be 1.0–3.75 (received {cgpa}). "
@@ -347,16 +326,10 @@ class AlumniPredictor:
             )
         if not (0.0 <= soft_skills_avg <= 100.0):
             raise ValueError(
-                f"soft_skills_avg must be 0–100 (received {soft_skills_avg})."
-            )
-        if not (0.0 <= hard_skills_avg <= 100.0):
+                f"internships must be 0 or 1 (received {internships})")
+        if not (0.0 <= program_skills_average <= 100.0):
             raise ValueError(
-                f"hard_skills_avg must be 0–100 (received {hard_skills_avg})."
-            )
-        if not (0.0 <= avg_program_skill <= 100.0):
-            raise ValueError(
-                f"avg_program_skill must be 0–100 (received {avg_program_skill})."
-            )
+                f"program_skills_average must be 0–100 (received {program_skills_average})")
 
     @staticmethod
     def _salary_band(salary: float) -> str:

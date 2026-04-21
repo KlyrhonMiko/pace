@@ -29,5 +29,6 @@ class AlumniSkills(SQLModel, table=True):
         default=None,
         sa_column=Column(JSON, nullable=True),
     )
+    program_skills_average: Optional[float] = Field(default=None)
     created_at: datetime = Field(default_factory=get_current_time_gmt8)
     updated_at: datetime = Field(default_factory=get_current_time_gmt8)

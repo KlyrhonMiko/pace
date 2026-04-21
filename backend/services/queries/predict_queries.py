@@ -104,7 +104,7 @@ def build_regression_inputs(
     Returns a dict with keys: soft_skills_ave, hard_skills_ave, cgpa,
     internships, program_skills_average.
     """
-    # Internships: derived from OJT grade > 0
+    # Internships: derived from OJT grade > 0 (0 or 1)
     internships = 1 if (student_record.ojt_grade and student_record.ojt_grade > 0) else 0
 
     return {

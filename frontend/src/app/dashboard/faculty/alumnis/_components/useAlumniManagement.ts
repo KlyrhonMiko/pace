@@ -442,27 +442,43 @@ export function useAlumniManagement() {
                 setHasSkillsRecord(true);
             }
 
-            let predictionRefreshError: string | null = null;
+            let employabilityError: string | null = null;
+            let regressionError: string | null = null;
+
+            // 1. Refresh Employability Prediction
             try {
                 await apiFetch(`/predict/employability/${editingAlumni.alumni_code}`, {
                     method: "POST",
                 });
-            } catch (predictErr: any) {
-                predictionRefreshError =
-                    typeof predictErr === "string"
-                        ? predictErr
-                        : (predictErr?.message || "Prediction refresh failed.");
+            } catch (err: unknown) {
+                const error = err as any;
+                employabilityError = typeof error === "string" ? error : (error?.message || "Employability prediction failed");
             }
 
-            if (predictionRefreshError) {
-                toast.warning(`Alumni record updated, but prediction refresh failed: ${predictionRefreshError}`);
+            // 2. Refresh Regression Prediction
+            try {
+                await apiFetch(`/predict/regression/${editingAlumni.alumni_code}`, {
+                    method: "POST",
+                });
+            } catch (err: unknown) {
+                const error = err as any;
+                regressionError = typeof error === "string" ? error : (error?.message || "Regression prediction failed");
+            }
+
+            if (employabilityError || regressionError) {
+                const errors = [
+                    employabilityError && `Employability: ${employabilityError}`,
+                    regressionError && `Regression: ${regressionError}`,
+                ].filter(Boolean);
+                toast.warning(`Alumni record updated, but some predictions failed: ${errors.join(", ")}`);
             } else {
-                toast.success("Alumni record updated and employability prediction refreshed.");
+                toast.success("Alumni record updated and all predictions refreshed.");
             }
             fetchAlumni();
             setIsModalOpen(false);
-        } catch (err: any) {
-            const errorMsg = typeof err === "string" ? err : (err?.message || "Failed to save alumni record.");
+        } catch (err: unknown) {
+            const error = err as any;
+            const errorMsg = typeof error === "string" ? error : (error?.message || "Failed to save alumni record.");
             toast.error(errorMsg);
         } finally {
             setIsSaving(false);

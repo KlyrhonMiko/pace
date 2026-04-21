@@ -1,6 +1,6 @@
 "use client";
 
-import { ImprovementSuggestion } from "../../_lib/api";
+import { ImprovementSuggestion, normalizeValue } from "../../_lib/api";
 import { BarChart3 } from "lucide-react";
 
 function formatFeatureName(feature: string): string {
@@ -47,10 +47,11 @@ export default function SkillBreakdown({
     suggestions: ImprovementSuggestion[];
 }) {
     const sorted = [...suggestions]
-        .sort((a, b) => b.current - a.current)
+        .map(s => ({ ...s, normalized: normalizeValue(s.current, s.feature) }))
+        .sort((a, b) => b.normalized - a.normalized)
         .slice(0, 10);
-
-    const maxValue = Math.max(...sorted.map((s) => s.current), 100);
+ 
+    const maxValue = Math.max(...sorted.map((s) => s.normalized), 100);
 
     return (
         <div className="group/card rounded-2xl bg-white border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50 hover:-translate-y-0.5 h-full flex flex-col">
@@ -96,8 +97,9 @@ export default function SkillBreakdown({
                 {/* Skills List */}
                 <div className="flex-1 flex flex-col justify-center gap-1">
                     {sorted.map((suggestion, index) => {
-                        const pct = (suggestion.current / maxValue) * 100;
-                        const colors = getScoreColor(suggestion.current);
+                        const normalizedValue = suggestion.normalized;
+                        const pct = (normalizedValue / maxValue) * 100;
+                        const colors = getScoreColor(normalizedValue);
 
                         return (
                             <div

@@ -39,6 +39,14 @@ import AlumniList from "./AlumniList";
 import AlumniFilters from "./AlumniFilters";
 import { DatePicker } from "@/components/ui/date-picker";
 
+function parseDigitSkillValue(raw: string): number | null {
+    const digitsOnly = raw.replace(/\D/g, "");
+    if (!digitsOnly) return null;
+    const parsed = parseInt(digitsOnly, 10);
+    if (Number.isNaN(parsed)) return null;
+    return Math.min(100, parsed);
+}
+
 export default function AlumniManagement() {
     const {
         alumni,
@@ -48,6 +56,9 @@ export default function AlumniManagement() {
         searchQuery,
         filterGender,
         filterCourse,
+        hasSkillsRecord,
+        isSkillsLoading,
+        activeProgramSkills,
         isSaving,
         isDeleting,
         alumniToDelete,
@@ -67,6 +78,7 @@ export default function AlumniManagement() {
         handleDeleteClick,
         confirmDelete,
         toggleExpand,
+        setSkillScore,
         fetchAlumni,
     } = useAlumniManagement();
 
@@ -315,6 +327,97 @@ export default function AlumniManagement() {
                                         onChange={(e) => setFormData({ ...formData, ojt_grade: e.target.value })}
                                         className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
                                     />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Alumni Skills */}
+                        <div>
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                    Alumni Skills (Employability Inputs)
+                                </h3>
+                                {isSkillsLoading ? (
+                                    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                        Loading skills...
+                                    </span>
+                                ) : hasSkillsRecord ? (
+                                    <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-md">
+                                        Existing skills record
+                                    </span>
+                                ) : (
+                                    <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-md">
+                                        No skills record yet
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-medium text-slate-700">Soft Skills Average</label>
+                                    <Input
+                                        type="text"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
+                                        placeholder="0 - 100"
+                                        value={formData.soft_skills_ave ?? ""}
+                                        onChange={(e) => {
+                                            const parsed = parseDigitSkillValue(e.target.value);
+                                            setFormData({ ...formData, soft_skills_ave: parsed });
+                                        }}
+                                        className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-medium text-slate-700">Hard Skills Average</label>
+                                    <Input
+                                        type="text"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
+                                        placeholder="0 - 100"
+                                        value={formData.hard_skills_ave ?? ""}
+                                        onChange={(e) => {
+                                            const parsed = parseDigitSkillValue(e.target.value);
+                                            setFormData({ ...formData, hard_skills_ave: parsed });
+                                        }}
+                                        className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5 md:col-span-2">
+                                    <label className="text-sm font-medium text-slate-700">Program Skills (Course-based)</label>
+                                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 space-y-4">
+                                        {activeProgramSkills.length === 0 ? (
+                                            <p className="text-xs text-slate-500">
+                                                Select a course first to show the relevant skill sliders.
+                                            </p>
+                                        ) : (
+                                            activeProgramSkills.map((skillName) => {
+                                                const value = formData.program_skill_values[skillName] ?? 0;
+                                                return (
+                                                    <div key={skillName} className="space-y-1.5 border border-slate-200 rounded-lg p-3 bg-white">
+                                                        <div className="flex items-center justify-between gap-4">
+                                                            <span className="text-xs font-medium text-slate-700">{skillName}</span>
+                                                            <Input
+                                                                type="text"
+                                                                inputMode="numeric"
+                                                                pattern="[0-9]*"
+                                                                value={value}
+                                                                onChange={(e) => {
+                                                                    const parsed = parseDigitSkillValue(e.target.value);
+                                                                    setSkillScore(skillName, parsed);
+                                                                }}
+                                                                className="h-8 w-24 text-right bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
+                                                            />
+                                                        </div>
+                                                        <p className="text-[11px] text-slate-500">Allowed range: 0-100</p>
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>

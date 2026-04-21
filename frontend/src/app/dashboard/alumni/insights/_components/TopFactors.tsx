@@ -2,6 +2,7 @@
 
 import React from "react";
 import { BarChart3 } from "lucide-react";
+import { ImprovementSuggestion } from "../../_lib/api";
 
 const rankColors = [
     { bg: "bg-emerald-50", text: "text-emerald-700", ring: "ring-emerald-200/60", dot: "from-emerald-500 to-teal-400", barBg: "bg-emerald-100" },
@@ -17,9 +18,24 @@ function formatFactorName(factor: string): string {
         .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export default function TopFactors({ factors }: { factors: string[] }) {
-    // Simulate decreasing importance weights for visual impact
-    const weights = factors.map((_, i) => Math.max(100 - i * 15, 25));
+export default function TopFactors({ 
+    factors, 
+    suggestions 
+}: { 
+    factors: string[];
+    suggestions: ImprovementSuggestion[];
+}) {
+    // Try to find the importance for each factor from the suggestions list, 
+    // otherwise fallback to a rank-based simulation
+    const maxImportance = Math.max(...suggestions.map(s => s.importance), 0.1);
+    
+    const weights = factors.map((factor, i) => {
+        const match = suggestions.find(s => s.feature === factor);
+        if (match) {
+            return Math.round((match.importance / maxImportance) * 100);
+        }
+        return Math.max(100 - i * 15, 25);
+    });
 
     return (
         <div className="group/card rounded-2xl bg-white border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50 hover:-translate-y-0.5 h-full flex flex-col">
@@ -49,6 +65,7 @@ export default function TopFactors({ factors }: { factors: string[] }) {
                     {factors.map((factor, index) => {
                         const color = rankColors[index % rankColors.length];
                         const weight = weights[index];
+                        
                         return (
                             <div
                                 key={factor}
@@ -60,7 +77,7 @@ export default function TopFactors({ factors }: { factors: string[] }) {
                                 >
                                     {index + 1}
                                 </div>
-
+ 
                                 {/* Factor Name + Importance Bar */}
                                 <div className="flex-1 min-w-0">
                                     <span className="text-sm font-medium text-gray-800 block truncate">

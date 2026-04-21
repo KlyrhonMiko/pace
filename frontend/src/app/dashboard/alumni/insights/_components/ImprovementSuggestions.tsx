@@ -1,6 +1,6 @@
 "use client";
 
-import { ImprovementSuggestion } from "../../_lib/api";
+import { ImprovementSuggestion, normalizeValue } from "../../_lib/api";
 import { TrendingUp } from "lucide-react";
 
 function formatFeatureName(feature: string): string {
@@ -60,7 +60,8 @@ export default function ImprovementSuggestions({
                 <div className="space-y-3 flex-1">
                     {sorted.map((suggestion) => {
                         const importance = getImportanceInfo(suggestion.importance);
-                        const barColor = getBarColor(suggestion.current);
+                        const normalizedValue = normalizeValue(suggestion.current, suggestion.feature);
+                        const barColor = getBarColor(normalizedValue);
 
                         return (
                             <div
@@ -88,7 +89,7 @@ export default function ImprovementSuggestions({
                                         <div
                                             className="h-full rounded-full transition-all duration-1000 ease-out"
                                             style={{
-                                                width: `${Math.min(suggestion.current, 100)}%`,
+                                                width: `${Math.min(normalizedValue, 100)}%`,
                                                 background: `linear-gradient(90deg, ${barColor.from}, ${barColor.to})`,
                                             }}
                                         />

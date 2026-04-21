@@ -1,6 +1,7 @@
 import { apiFetch } from "@/lib/api-client";
 
 export interface AlumniProfile {
+    alumni_code?: string;
     alumni_id: string;
     last_name: string;
     first_name: string;
@@ -38,7 +39,8 @@ export async function getMyProfile(token?: string): Promise<AlumniProfile | null
         }
 
         const response = await apiFetch<any>("/alumni/me", {
-            headers
+            headers,
+            cache: "no-store",
         });
 
         if (response.success && response.data) {

@@ -11,7 +11,9 @@ Intended use
     from alumni_regression import AlumniPredictor
 
     predictor = AlumniPredictor()                         # load once at startup
-    result    = predictor.predict(cgpa=2.0, internships=1)
+    result    = predictor.predict(soft_skills_ave=75.0, hard_skills_ave=80.0,
+                                   cgpa=2.0, internships=1,
+                                   program_skills_average=70.0)
     print(result.to_dict())                               # serialise to dict / JSON
 
 CGPA scale
@@ -43,11 +45,11 @@ class PredictionResult:
 
     Attributes (inputs)
     -------------------
-    cgpa            : float — CGPA used for this prediction
-    internships     : int   — 0 or 1
-    projects        : int   — number of projects
-    skills_count    : int   — number of skills
-    extracurricular : int   — 0 or 1
+    soft_skills_ave      : float — average soft skills score (0–100)
+    hard_skills_ave      : float — average hard skills score (0–100)
+    cgpa                 : float — CGPA used for this prediction
+    internships          : int   — 0 or 1
+    program_skills_average : float — average of program-specific skills (0–100)
 
     Attributes (predictions)
     ------------------------
@@ -69,11 +71,11 @@ class PredictionResult:
     """
 
     # — inputs —
+    soft_skills_ave: float
+    hard_skills_ave: float
     cgpa: float
     internships: int
-    projects: int
-    skills_count: int
-    extracurricular: int
+    program_skills_average: float
 
     # — raw predictions —
     predicted_salary_php: int
@@ -96,11 +98,11 @@ class PredictionResult:
         """
         return {
             "input": {
+                "soft_skills_ave": self.soft_skills_ave,
+                "hard_skills_ave": self.hard_skills_ave,
                 "cgpa": self.cgpa,
                 "internships": self.internships,
-                "projects": self.projects,
-                "skills_count": self.skills_count,
-                "extracurricular": self.extracurricular,
+                "program_skills_average": self.program_skills_average,
             },
             "predictions": {
                 "starting_salary": {
@@ -173,37 +175,37 @@ class AlumniPredictor:
 
     def predict(
         self,
-        cgpa: float,
+        soft_skills_ave: float = 0.0,
+        hard_skills_ave: float = 0.0,
+        cgpa: float = 2.0,
         internships: int = 0,
-        projects: int = 0,
-        skills_count: int = 5,
-        extracurricular: int = 0,
+        program_skills_average: float = 0.0,
     ) -> PredictionResult:
         """
         Predict starting salary and job search duration for one alumnus.
 
         Parameters
         ----------
-        cgpa : float
+        soft_skills_ave : float, default 0.0
+            Average soft skills score (0–100).
+
+        hard_skills_ave : float, default 0.0
+            Average hard skills score (0–100).
+
+        cgpa : float, default 2.0
             GPA on a 1.0–3.75 scale. 1.0 = best, 3.75 = lowest passing.
 
         internships : int, default 0
             Whether the student completed at least one internship. 0 or 1.
 
-        projects : int, default 0
-            Number of notable academic or personal projects. Range: 0–6.
-
-        skills_count : int, default 5
-            Total number of technical and soft skills listed. Range: 1–10.
-
-        extracurricular : int, default 0
-            Whether the student was involved in extracurricular activities. 0 or 1.
+        program_skills_average : float, default 0.0
+            Average of all program-specific skill scores (0–100).
         """
-        self._validate(cgpa, internships, projects,
-                       skills_count, extracurricular)
+        self._validate(soft_skills_ave, hard_skills_ave, cgpa,
+                       internships, program_skills_average)
 
         X_raw = np.array(
-            [[cgpa, internships, projects, skills_count, extracurricular]])
+            [[soft_skills_ave, hard_skills_ave, cgpa, internships, program_skills_average]])
         X_scaled = self._scaler.transform(X_raw)
 
         raw_salary = float(self._salary_model.predict(X_scaled)[0])
@@ -219,11 +221,11 @@ class AlumniPredictor:
         duration_range = f"{dur_lo:.0f}–{dur_hi:.0f} weeks"
 
         return PredictionResult(
+            soft_skills_ave=soft_skills_ave,
+            hard_skills_ave=hard_skills_ave,
             cgpa=cgpa,
             internships=internships,
-            projects=projects,
-            skills_count=skills_count,
-            extracurricular=extracurricular,
+            program_skills_average=program_skills_average,
             predicted_salary_php=salary,
             predicted_job_search_weeks=duration,
             duration_range=duration_range,
@@ -265,7 +267,15 @@ class AlumniPredictor:
     # ── Internal helpers (not part of the public API) ─────────────────────────
 
     @staticmethod
-    def _validate(cgpa, internships, projects, skills_count, extracurricular):
+    def _validate(soft_skills_ave, hard_skills_ave, cgpa, internships, program_skills_average):
+        if not (0.0 <= soft_skills_ave <= 100.0):
+            raise ValueError(
+                f"soft_skills_ave must be 0–100 (received {soft_skills_ave})"
+            )
+        if not (0.0 <= hard_skills_ave <= 100.0):
+            raise ValueError(
+                f"hard_skills_ave must be 0–100 (received {hard_skills_ave})"
+            )
         if not (1.0 <= cgpa <= 3.75):
             raise ValueError(
                 f"cgpa must be 1.0–3.75 (received {cgpa}). "
@@ -274,14 +284,9 @@ class AlumniPredictor:
         if internships not in (0, 1):
             raise ValueError(
                 f"internships must be 0 or 1 (received {internships})")
-        if not (0 <= projects <= 6):
-            raise ValueError(f"projects must be 0–6 (received {projects})")
-        if not (1 <= skills_count <= 10):
+        if not (0.0 <= program_skills_average <= 100.0):
             raise ValueError(
-                f"skills_count must be 1–10 (received {skills_count})")
-        if extracurricular not in (0, 1):
-            raise ValueError(
-                f"extracurricular must be 0 or 1 (received {extracurricular})")
+                f"program_skills_average must be 0–100 (received {program_skills_average})")
 
     @staticmethod
     def _salary_band(salary: float) -> str:

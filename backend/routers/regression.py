@@ -75,7 +75,7 @@ def predict_regression(
     Predict starting salary and job search duration for an alumni.
 
     1. Looks up alumni's student_record and alumni_skills from DB.
-    2. Derives the 5 regression inputs (cgpa, internships, projects, skills_count, extracurricular).
+    2. Derives the 5 regression inputs (soft_skills_ave, hard_skills_ave, cgpa, internships, program_skills_average).
     3. Runs both Linear Regression models (salary + duration).
     4. Persists the result in the `alumni_regression_predictions` table.
     5. Returns the prediction wrapped in StandardResponse.

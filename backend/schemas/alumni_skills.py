@@ -73,6 +73,7 @@ class AlumniSkillsCreate(SQLModel):
     soft_skills_ave: Optional[float] = Field(default=None, ge=0, le=100)
     hard_skills_ave: Optional[float] = Field(default=None, ge=0, le=100)
     program_skills: Optional[Dict[str, float]] = None
+    program_skills_average: Optional[float] = Field(default=None, ge=0, le=100)
 
     @field_validator("alumni_id", mode="before")
     @classmethod
@@ -92,6 +93,7 @@ class AlumniSkillsUpdate(SQLModel):
     soft_skills_ave: Optional[float] = Field(default=None, ge=0, le=100)
     hard_skills_ave: Optional[float] = Field(default=None, ge=0, le=100)
     program_skills: Optional[Dict[str, float]] = None
+    program_skills_average: Optional[float] = Field(default=None, ge=0, le=100)
 
     @field_validator("program_skills", mode="before")
     @classmethod
@@ -106,6 +108,7 @@ class AlumniSkillsPublic(SQLModel):
     soft_skills_ave: Optional[float]
     hard_skills_ave: Optional[float]
     program_skills: Optional[Any]
+    program_skills_average: Optional[float]
     created_at: datetime
     updated_at: datetime
 
@@ -152,6 +155,7 @@ class AlumniSkillsBatchUpdateItem(BaseModel):
     soft_skills_ave: Optional[float] = Field(default=None, ge=0, le=100)
     hard_skills_ave: Optional[float] = Field(default=None, ge=0, le=100)
     program_skills: Optional[Dict[str, float]] = None
+    program_skills_average: Optional[float] = Field(default=None, ge=0, le=100)
 
     @field_validator("alumni_id", mode="before")
     @classmethod

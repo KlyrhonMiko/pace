@@ -19,6 +19,16 @@ from utils.timezone import get_current_time_gmt8
 from services.queries.transaction_logs_queries import create_transaction_log
 
 
+def _compute_program_skills_average(program_skills: dict | None) -> float | None:
+    """Compute the average of all values in the program_skills JSON dict."""
+    if not program_skills or not isinstance(program_skills, dict):
+        return None
+    values = [v for v in program_skills.values() if isinstance(v, (int, float))]
+    if not values:
+        return None
+    return round(sum(values) / len(values), 2)
+
+
 # ---------------------------------------------------------------------------
 # Lookups
 # ---------------------------------------------------------------------------
@@ -92,6 +102,7 @@ def create_alumni_skills(
         soft_skills_ave=data.soft_skills_ave,
         hard_skills_ave=data.hard_skills_ave,
         program_skills=data.program_skills,
+        program_skills_average=_compute_program_skills_average(data.program_skills),
     )
     session.add(skills)
     create_transaction_log(
@@ -117,6 +128,7 @@ def update_alumni_skills(
         skills.hard_skills_ave = data.hard_skills_ave
     if data.program_skills is not None:
         skills.program_skills = data.program_skills
+        skills.program_skills_average = _compute_program_skills_average(data.program_skills)
     skills.updated_at = get_current_time_gmt8()
     session.add(skills)
     create_transaction_log(
@@ -187,6 +199,7 @@ def batch_create_alumni_skills(
                     soft_skills_ave=item.soft_skills_ave,
                     hard_skills_ave=item.hard_skills_ave,
                     program_skills=item.program_skills,
+                    program_skills_average=_compute_program_skills_average(item.program_skills),
                 )
                 session.add(skills)
                 session.flush()
@@ -264,6 +277,7 @@ def batch_update_alumni_skills(
                     skills.hard_skills_ave = item.hard_skills_ave
                 if item.program_skills is not None:
                     skills.program_skills = item.program_skills
+                    skills.program_skills_average = _compute_program_skills_average(item.program_skills)
                 skills.updated_at = get_current_time_gmt8()
 
                 session.add(skills)

@@ -101,28 +101,18 @@ def build_regression_inputs(
 ) -> dict:
     """
     Assemble the inputs for the Linear Regression AlumniPredictor.
-    Returns a dict with keys: cgpa, internships, projects, skills_count, extracurricular.
+    Returns a dict with keys: soft_skills_ave, hard_skills_ave, cgpa,
+    internships, program_skills_average.
     """
     # Internships: derived from OJT grade > 0
     internships = 1 if (student_record.ojt_grade and student_record.ojt_grade > 0) else 0
 
-    # Projects: from the new column, default 0
-    projects = student_record.projects if student_record.projects is not None else 0
-
-    # Skills count: count the number of program skills in the JSON
-    skills_count = 5  # default
-    if alumni_skills.program_skills and isinstance(alumni_skills.program_skills, dict):
-        skills_count = max(1, min(15, len(alumni_skills.program_skills)))
-
-    # Extracurricular: from the new column, default 0
-    extracurricular = 1 if student_record.extracurricular else 0
-
     return {
+        "soft_skills_ave": alumni_skills.soft_skills_ave or 0.0,
+        "hard_skills_ave": alumni_skills.hard_skills_ave or 0.0,
         "cgpa": student_record.gwa,
         "internships": internships,
-        "projects": projects,
-        "skills_count": skills_count,
-        "extracurricular": extracurricular,
+        "program_skills_average": alumni_skills.program_skills_average or 0.0,
     }
 
 

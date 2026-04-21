@@ -88,6 +88,9 @@ export default function JobSearchDuration({
                             weeks
                         </span>
                     </div>
+                    <p className="text-sm font-semibold text-gray-600 mt-3 px-3 py-1.5 bg-gray-50 rounded-lg">
+                        {data.range_str}
+                    </p>
                     <p className="text-sm text-gray-500 mt-2">
                         {outlook.description}
                     </p>

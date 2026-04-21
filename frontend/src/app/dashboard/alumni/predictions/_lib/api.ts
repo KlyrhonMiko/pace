@@ -18,16 +18,17 @@ export interface DurationPrediction {
     value: number;
     lower: number;
     upper: number;
+    range_str: string;
     outlook: "Short" | "Moderate" | "Long";
     unit: string;
 }
 
 export interface RegressionInput {
     cgpa: number;
+    hard_skills_ave: number;
     internships: number;
-    projects: number;
-    skills_count: number;
-    extracurricular: number;
+    program_skills_average: number;
+    soft_skills_ave: number;
 }
 
 export interface RegressionPredictionResult {

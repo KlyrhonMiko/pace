@@ -50,7 +50,7 @@ import numpy as np
 
 # Default bundle location: models/ folder next to this file.
 # Override by passing bundle_path= to AlumniPredictor().
-_DEFAULT_BUNDLE = Path(__file__).parent / "models" / \
+_DEFAULT_BUNDLE = Path(__file__).parent / "random_pickles" / \
     "alumni_regression_bundle.pkl"
 
 
@@ -271,7 +271,7 @@ class AlumniPredictor:
         Predict outcomes for multiple alumni in one call.
 
         Each record must be a dict with keys:
-            cgpa, internships, soft_skills_avg, hard_skills_avg, avg_program_skill
+            soft_skills_ave, hard_skills_ave, cgpa, internships, program_skills_average
 
         Returns a list of to_dict() results in the same order.
         """
@@ -319,14 +319,10 @@ class AlumniPredictor:
                 f"cgpa must be 1.0–3.75 (received {cgpa}). "
                 "Values >= 4.0 indicate academic failure and are not accepted."
             )
-        if not isinstance(internships, int) or not (1 <= internships <= 5):
+        if not isinstance(internships, int) or not (0 <= internships <= 5):
             raise ValueError(
-                f"internships must be a whole number from 1 to 5 (received {internships}). "
-                "All students have completed at least one OJT (minimum = 1)."
+                f"internships must be a whole number from 0 to 5 (received {internships})."
             )
-        if not (0.0 <= soft_skills_avg <= 100.0):
-            raise ValueError(
-                f"internships must be 0 or 1 (received {internships})")
         if not (0.0 <= program_skills_average <= 100.0):
             raise ValueError(
                 f"program_skills_average must be 0–100 (received {program_skills_average})")

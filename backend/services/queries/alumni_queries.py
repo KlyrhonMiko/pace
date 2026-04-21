@@ -77,6 +77,7 @@ def build_full_profile(session: Session, alumni: Alumni) -> AlumniFullProfile:
     completeness = calculate_profile_completeness(alumni, student)
 
     return AlumniFullProfile(
+        alumni_code=str(alumni.alumni_code),
         alumni_id=alumni.alumni_id,
         last_name=alumni.last_name,
         first_name=alumni.first_name,

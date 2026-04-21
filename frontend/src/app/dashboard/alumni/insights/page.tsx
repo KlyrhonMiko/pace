@@ -5,6 +5,7 @@ import ImprovementSuggestions from "./_components/ImprovementSuggestions";
 import SkillBreakdown from "./_components/SkillBreakdown";
 import { cookies } from "next/headers";
 import { getLatestPrediction } from "../_lib/api";
+import { getMyProfile } from "../profile/_lib/api";
 import Link from "next/link";
 import { Sparkles, ArrowRight } from "lucide-react";
 import AskAIButton from "./_components/AskAIButton";
@@ -20,7 +21,8 @@ export default async function InsightsPage() {
 
 
     if (token) {
-        predictionData = await getLatestPrediction(token);
+        const profile = await getMyProfile(token);
+        predictionData = await getLatestPrediction(token, profile?.alumni_code);
     }
 
     // 3. We no longer fallback to demo data. If no prediction exists, we show the "No Data" state below.
@@ -80,7 +82,10 @@ export default async function InsightsPage() {
 
                 {/* Top Factors - takes 3 cols */}
                 <div className="lg:col-span-3">
-                    <TopFactors factors={predictionData.top_factors} />
+                    <TopFactors 
+                        factors={predictionData.top_factors} 
+                        suggestions={predictionData.improvement_suggestions}
+                    />
                 </div>
             </div>
 

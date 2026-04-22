@@ -65,12 +65,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Clear cookies for middleware
     document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     document.cookie = "userType=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    
+
     setUser(null);
     if (message) {
       toast.info(message);
     }
-    
+
     // Hard redirect to login to ensure clean state
     window.location.href = "/login";
   }, []);
@@ -78,12 +78,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback((userData: User) => {
     localStorage.setItem("token", userData.access_token);
     localStorage.setItem("user", JSON.stringify(userData));
-    
+
     // Set cookies for middleware (7 days)
     const maxAge = 60 * 60 * 24 * 7;
     document.cookie = `token=${userData.access_token}; path=/; max-age=${maxAge}; SameSite=Lax`;
     document.cookie = `userType=${userData.user_type}; path=/; max-age=${maxAge}; SameSite=Lax`;
-    
+
     setUser(userData);
   }, []);
 
@@ -98,6 +98,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return "/dashboard/admin";
       case "STAFF":
         return "/dashboard/faculty";
+      case "EMPLOYER":
+        return "/dashboard/employer";
       case "USER":
         return "/dashboard/alumni";
       default:

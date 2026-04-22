@@ -61,6 +61,7 @@ export default function UserFilters({
                                 { id: "all", label: "All Roles" },
                                 { id: "ADMIN", label: "Admin" },
                                 { id: "STAFF", label: "Faculty" },
+                                { id: "EMPLOYER", label: "Employer" },
                                 { id: "USER", label: "Alumni" },
                             ].map((role) => (
                                 <label

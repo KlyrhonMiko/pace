@@ -53,6 +53,8 @@ export function LoginForm() {
           router.push("/dashboard/admin");
         } else if (response.data.user_type === "STAFF") {
           router.push("/dashboard/faculty");
+        } else if (response.data.user_type === "EMPLOYER") {
+          router.push("/dashboard/employer");
         } else {
           router.push("/dashboard/alumni");
         }

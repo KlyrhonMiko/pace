@@ -28,6 +28,7 @@ from routers import (
     otp,
     staff,
     model_info,
+    employers,
 )
 from core.config import settings
 from models.response_codes import StandardResponse, ErrorCode
@@ -73,6 +74,7 @@ app.include_router(dashboard.router)
 app.include_router(otp.router)
 app.include_router(staff.router)
 app.include_router(model_info.router)
+app.include_router(employers.router)
 
 
 @app.on_event("startup")

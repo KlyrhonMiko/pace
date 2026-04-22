@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from models.users import User
 from models.alumni import Alumni
 from models.staff import Staff
+from models.employers import Employer
 from models.student_records import StudentRecord
 from schemas.users import (
     UserType, UserCreate, UserUpdate, UserPublic, UserWithProfile,
@@ -301,6 +302,17 @@ def get_all_users_with_profile(
                 first_name = alumni.first_name
                 last_name = alumni.last_name
                 middle_name = alumni.middle_name
+        elif user.user_type == UserType.EMPLOYER:
+            employer = session.exec(
+                select(Employer).where(
+                    (Employer.user_code == user.user_code)
+                )
+            ).first()
+            if employer:
+                # We map the contact person to the directory name fields
+                first_name = employer.contact_person_first_name
+                last_name = employer.contact_person_last_name
+                middle_name = None  # Employer profiles don't track middle names currently
         else:
             staff = session.exec(
                 select(Staff).where(

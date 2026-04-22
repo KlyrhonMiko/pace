@@ -12,6 +12,7 @@ class UserType(str, Enum):
     USER = "USER"
     STAFF = "STAFF"
     ADMIN = "ADMIN"
+    EMPLOYER = "EMPLOYER"
 
 
 class UserCreate(SQLModel):

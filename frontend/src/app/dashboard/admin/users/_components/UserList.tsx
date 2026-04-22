@@ -10,6 +10,7 @@ function labelFor(userType: string): string {
     if (userType === "USER") return "Alumni";
     if (userType === "STAFF") return "Faculty";
     if (userType === "ADMIN") return "Admin";
+    if (userType === "EMPLOYER") return "Employer";
     return userType;
 }
 

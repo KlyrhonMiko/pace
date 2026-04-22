@@ -1,10 +1,13 @@
+import uuid
 from sqlmodel import Session, select
 from typing import Optional, List
 from models.job_listings import JobListing, JobListingCreate, JobListingUpdate
 from utils.timezone import get_current_time_gmt8
 
-def create_job_listing(db: Session, job: JobListingCreate) -> JobListing:
+def create_job_listing(db: Session, job: JobListingCreate, employer_id: Optional[uuid.UUID] = None) -> JobListing:
     db_job = JobListing.from_orm(job)
+    if employer_id:
+        db_job.employer_id = employer_id
     db.add(db_job)
     db.commit()
     db.refresh(db_job)

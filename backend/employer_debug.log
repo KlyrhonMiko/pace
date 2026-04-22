@@ -1,0 +1,10 @@
+
+[DEBUG] 2026-04-23 02:55:54.323055 - Request by user_id=EMPLOYER-000001, user_type=EMPLOYER, user_code=36743d06-5a81-4b8d-b17f-1c07fddf528a
+[DEBUG] Identified as EMPLOYER, looking up profile...
+[DEBUG] Success! Found employer_id=32337a3b-e11a-481f-8196-0c9df36007e7
+[DEBUG_FETCH] Received employer_id=32337a3b-e11a-481f-8196-0c9df36007e7, type=<class 'uuid.UUID'>, bool=True, skip_jooble=True
+
+[DEBUG] 2026-04-23 02:55:54.822587 - Request by user_id=EMPLOYER-000001, user_type=EMPLOYER, user_code=36743d06-5a81-4b8d-b17f-1c07fddf528a
+[DEBUG] Identified as EMPLOYER, looking up profile...
+[DEBUG] Success! Found employer_id=32337a3b-e11a-481f-8196-0c9df36007e7
+[DEBUG_FETCH] Received employer_id=32337a3b-e11a-481f-8196-0c9df36007e7, type=<class 'uuid.UUID'>, bool=True, skip_jooble=True

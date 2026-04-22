@@ -1,3 +1,4 @@
+import uuid
 from sqlmodel import SQLModel, Field
 from typing import Optional
 from datetime import datetime
@@ -37,6 +38,7 @@ class JobListingBase(SQLModel):
     external_id: Optional[str] = None
     source_url: Optional[str] = None
     is_active: bool = True
+    employer_id: Optional[uuid.UUID] = Field(default=None, foreign_key="employers.employer_id", index=True)
 
 class JobListing(JobListingBase, table=True):
     __tablename__ = "job_listings"

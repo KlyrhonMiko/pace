@@ -10,10 +10,11 @@ class UserType(str, Enum):
     USER = "USER"
     STAFF = "STAFF"
     ADMIN = "ADMIN"
+    EMPLOYER = "EMPLOYER"
 
 
 class UserBase(SQLModel):
-    user_id: str = Field(max_length=12, unique=True, index=True)
+    user_id: str = Field(max_length=20, unique=True, index=True)
     username: str = Field(max_length=50, unique=True, index=True)
     email: str = Field(max_length=100, unique=True, index=True)
     user_type: UserType = Field(default=UserType.USER)

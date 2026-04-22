@@ -13,7 +13,7 @@ export interface User {
     middle_name: string | null;
     email: string;
     username: string;
-    user_type: "USER" | "STAFF" | "ADMIN";
+    user_type: "USER" | "STAFF" | "ADMIN" | "EMPLOYER";
     is_deleted: boolean;
     created_at: string;
     updated_at: string;
@@ -29,7 +29,10 @@ export interface UserFormData {
     // For STAFF/ADMIN creation
     gender: string;
     college_dept_code: string;
-    user_type: "USER" | "STAFF" | "ADMIN";
+    // For EMPLOYER creation
+    company_name: string;
+    contact_person_position: string;
+    user_type: "USER" | "STAFF" | "ADMIN" | "EMPLOYER";
 }
 
 // ─── Default Form ─────────────────────────────────────────────────────────────
@@ -43,6 +46,8 @@ const EMPTY_FORM: UserFormData = {
     password: "",
     gender: "",
     college_dept_code: "",
+    company_name: "",
+    contact_person_position: "",
     user_type: "STAFF",
 };
 
@@ -145,6 +150,8 @@ export function useUserManagement() {
             password: "",
             gender: "",
             college_dept_code: "",
+            company_name: "",
+            contact_person_position: "",
             user_type: user.user_type,
         });
         setIsModalOpen(true);
@@ -161,6 +168,9 @@ export function useUserManagement() {
         if (!editingUser && formData.password.length < 8) { toast.error("Password must be at least 8 characters."); return; }
         if (!editingUser && (formData.user_type === "STAFF" || formData.user_type === "ADMIN")) {
             if (!formData.gender) { toast.error("Gender is required for staff/admin."); return; }
+        }
+        if (!editingUser && formData.user_type === "EMPLOYER") {
+            if (!formData.company_name.trim()) { toast.error("Company name is required."); return; }
         }
 
         setIsSaving(true);
@@ -188,9 +198,9 @@ export function useUserManagement() {
                     toast.error(result.message || "Update failed.");
                 }
             } else {
-                // Create via POST /staff/register for STAFF/ADMIN
-                const endpoint = "/staff/register";
-                const body = {
+                // Create via profile-specific endpoints
+                let endpoint = "/staff/register";
+                let body: any = {
                     username: formData.username,
                     email: formData.email,
                     password: formData.password,
@@ -198,9 +208,25 @@ export function useUserManagement() {
                     first_name: formData.first_name,
                     last_name: formData.last_name,
                     middle_name: formData.middle_name || null,
-                    gender: formData.gender || "PREFER_NOT_TO_SAY",
-                    college_dept_code: formData.college_dept_code || null,
                 };
+
+                if (formData.user_type === "EMPLOYER") {
+                    endpoint = "/employers/register";
+                    body = {
+                        username: formData.username,
+                        email: formData.email,
+                        password: formData.password,
+                        company_name: formData.company_name,
+                        contact_person_first_name: formData.first_name,
+                        contact_person_last_name: formData.last_name,
+                        contact_person_position: formData.contact_person_position || null,
+                    };
+                } else {
+                    // STAFF or ADMIN
+                    body.gender = formData.gender || "PREFER_NOT_TO_SAY";
+                    body.college_dept_code = formData.college_dept_code || null;
+                }
+
                 const result = await apiFetch<any>(endpoint, {
                     method: "POST",
                     body,
@@ -231,6 +257,8 @@ export function useUserManagement() {
                 password: "",
                 gender: "",
                 college_dept_code: "",
+                company_name: "",
+                contact_person_position: "",
                 user_type: editingUser.user_type,
             });
         } else {

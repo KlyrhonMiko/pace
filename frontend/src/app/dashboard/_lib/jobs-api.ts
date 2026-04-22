@@ -62,6 +62,7 @@ export async function searchJobs(params: JobSearchParams = {}, token?: string): 
     if (params.work_type) searchParams.set("work_type", params.work_type);
     if (params.experience_level) searchParams.set("experience_level", params.experience_level);
     if (params.has_salary) searchParams.set("has_salary", "true");
+    if (params.include_inactive) searchParams.set("include_inactive", "true");
 
     try {
         const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);

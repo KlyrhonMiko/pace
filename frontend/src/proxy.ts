@@ -26,6 +26,7 @@ export default function proxy(request: NextRequest) {
       let dest = '/dashboard/alumni';
       if (userType === 'ADMIN') dest = '/dashboard/admin';
       if (userType === 'STAFF') dest = '/dashboard/faculty';
+      if (userType === 'EMPLOYER') dest = '/dashboard/employer';
       if (userType === 'USER') dest = '/dashboard/alumni';
       console.log(`[PROXY] Public -> Private Redirect: ${dest}`);
       return NextResponse.redirect(new URL(dest, request.url));
@@ -61,7 +62,8 @@ export default function proxy(request: NextRequest) {
 
   if (pathname.startsWith('/dashboard/faculty')) {
     if (userType !== 'STAFF') {
-      const dest = userType === 'USER' ? '/dashboard/alumni' : '/login';
+      const dest = userType === 'USER' ? '/dashboard/alumni' :
+        userType === 'EMPLOYER' ? '/dashboard/employer' : '/login';
       console.log(`[PROXY] RBAC Violation (Faculty) -> ${dest}`);
       return NextResponse.redirect(new URL(dest, request.url));
     }
@@ -69,15 +71,25 @@ export default function proxy(request: NextRequest) {
 
   if (pathname.startsWith('/dashboard/alumni')) {
     if (userType !== 'USER') {
-      const dest = userType === 'STAFF' ? '/dashboard/faculty' : '/login';
+      const dest = userType === 'STAFF' ? '/dashboard/faculty' :
+        userType === 'EMPLOYER' ? '/dashboard/employer' : '/login';
       console.log(`[PROXY] RBAC Violation (Alumni) -> ${dest}`);
+      return NextResponse.redirect(new URL(dest, request.url));
+    }
+  }
+
+  if (pathname.startsWith('/dashboard/employer')) {
+    if (userType !== 'EMPLOYER' && userType !== 'ADMIN') {
+      const dest = userType === 'STAFF' ? '/dashboard/faculty' : '/dashboard/alumni';
+      console.log(`[PROXY] RBAC Violation (Employer) -> ${dest}`);
       return NextResponse.redirect(new URL(dest, request.url));
     }
   }
 
   if (pathname.startsWith('/dashboard/admin')) {
     if (userType !== 'ADMIN') {
-      const dest = userType === 'STAFF' ? '/dashboard/faculty' : '/dashboard/alumni';
+      const dest = userType === 'STAFF' ? '/dashboard/faculty' :
+        userType === 'EMPLOYER' ? '/dashboard/employer' : '/dashboard/alumni';
       console.log(`[PROXY] RBAC Violation (Admin) -> ${dest}`);
       return NextResponse.redirect(new URL(dest, request.url));
     }

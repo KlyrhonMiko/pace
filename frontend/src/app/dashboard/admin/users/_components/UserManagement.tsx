@@ -81,6 +81,7 @@ export default function UserManagement() {
 
     const totalPages = Math.ceil(total / pageSize);
     const isStaffOrAdmin = formData.user_type === "STAFF" || formData.user_type === "ADMIN";
+    const isEmployer = formData.user_type === "EMPLOYER";
 
     return (
         <>
@@ -168,13 +169,43 @@ export default function UserManagement() {
                             </div>
                         )}
 
-                        {/* Personal Information — create only */}
+                        {/* 1. Account Role — create only */}
                         {!editingUser && (
                             <div>
-                                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Personal Information</h3>
+                                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Role Selection</h3>
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-medium text-slate-700">System Role*</label>
+                                    <Select
+                                        value={formData.user_type}
+                                        onValueChange={(v) => setFormData({ ...formData, user_type: v as "USER" | "STAFF" | "ADMIN" | "EMPLOYER" })}
+                                    >
+                                        <SelectTrigger className="w-full !h-11 bg-slate-50 border-slate-200 focus:border-emerald-600 focus:ring-emerald-700/20">
+                                            <SelectValue placeholder="Select role" />
+                                        </SelectTrigger>
+                                        <SelectContent className="rounded-xl border-slate-200 z-[110]">
+                                            <SelectItem value="STAFF">Faculty Member</SelectItem>
+                                            <SelectItem value="ADMIN">System Administrator</SelectItem>
+                                            <SelectItem value="EMPLOYER">Employer / Partner</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-[11px] text-slate-400">
+                                        Alumni accounts are registered through the public portal.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 2. Personal Information — create only */}
+                        {!editingUser && (
+                            <div>
+                                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+                                    {isEmployer ? "Contact Person Details" : "Personal Information"}
+                                </h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-1.5">
-                                        <label className="text-sm font-medium text-slate-700">Last Name*</label>
+                                        <label className="text-sm font-medium text-slate-700">
+                                            {isEmployer ? "Last Name (Contact)*" : "Last Name*"}
+                                        </label>
                                         <Input
                                             placeholder="e.g. Garcia"
                                             value={formData.last_name}
@@ -183,7 +214,9 @@ export default function UserManagement() {
                                         />
                                     </div>
                                     <div className="space-y-1.5">
-                                        <label className="text-sm font-medium text-slate-700">First Name*</label>
+                                        <label className="text-sm font-medium text-slate-700">
+                                            {isEmployer ? "First Name (Contact)*" : "First Name*"}
+                                        </label>
                                         <Input
                                             placeholder="e.g. Maria"
                                             value={formData.first_name}
@@ -262,30 +295,11 @@ export default function UserManagement() {
                             </div>
                         </div>
 
-                        {/* Role & Assignment — create only */}
+                        {/* 3. Role-Specific Assignment — create only */}
                         {!editingUser && (
                             <div>
-                                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Role &amp; Assignment</h3>
+                                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Assignment Details</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div key="role-field-segment" className="md:col-span-2 space-y-1.5">
-                                        <label className="text-sm font-medium text-slate-700">System Role*</label>
-                                        <Select
-                                            value={formData.user_type}
-                                            onValueChange={(v) => setFormData({ ...formData, user_type: v as "USER" | "STAFF" | "ADMIN" })}
-                                        >
-                                            <SelectTrigger className="h-11 bg-slate-50 border-slate-200 focus:border-emerald-600 focus:ring-emerald-700/20">
-                                                <SelectValue placeholder="Select role" />
-                                            </SelectTrigger>
-                                            <SelectContent className="rounded-xl border-slate-200 z-[110]">
-                                                <SelectItem value="STAFF">Faculty Member</SelectItem>
-                                                <SelectItem value="ADMIN">System Administrator</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <p className="text-[11px] text-slate-400">
-                                            Alumni accounts are registered through the public portal.
-                                        </p>
-                                    </div>
-
                                     {isStaffOrAdmin && (
                                         <>
                                             <div key="gender-field-segment" className="space-y-1.5">
@@ -294,7 +308,7 @@ export default function UserManagement() {
                                                     value={formData.gender}
                                                     onValueChange={(v) => setFormData({ ...formData, gender: v })}
                                                 >
-                                                    <SelectTrigger className="h-11 bg-slate-50 border-slate-200 focus:border-emerald-600 focus:ring-emerald-700/20">
+                                                    <SelectTrigger className="w-full !h-11 bg-slate-50 border-slate-200 focus:border-emerald-600 focus:ring-emerald-700/20">
                                                         <SelectValue placeholder="Select gender" />
                                                     </SelectTrigger>
                                                     <SelectContent className="rounded-xl border-slate-200 z-[110]">
@@ -311,7 +325,7 @@ export default function UserManagement() {
                                                     value={formData.college_dept_code}
                                                     onValueChange={(v) => setFormData({ ...formData, college_dept_code: v })}
                                                 >
-                                                    <SelectTrigger className="h-11 bg-slate-50 border-slate-200 focus:border-emerald-600 focus:ring-emerald-700/20">
+                                                    <SelectTrigger className="w-full !h-11 bg-slate-50 border-slate-200 focus:border-emerald-600 focus:ring-emerald-700/20">
                                                         <SelectValue placeholder="Select department (optional)" />
                                                     </SelectTrigger>
                                                     <SelectContent className="rounded-xl border-slate-200 z-[110]">
@@ -322,6 +336,29 @@ export default function UserManagement() {
                                                         ))}
                                                     </SelectContent>
                                                 </Select>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {isEmployer && (
+                                        <>
+                                            <div key="company-field-segment" className="md:col-span-2 space-y-1.5">
+                                                <label className="text-sm font-medium text-slate-700">Company Name*</label>
+                                                <Input
+                                                    placeholder="e.g. Acme Corp"
+                                                    value={formData.company_name}
+                                                    onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+                                                    className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
+                                                />
+                                            </div>
+                                            <div key="position-field-segment" className="md:col-span-2 space-y-1.5">
+                                                <label className="text-sm font-medium text-slate-700">Contact Position</label>
+                                                <Input
+                                                    placeholder="e.g. Hiring Manager"
+                                                    value={formData.contact_person_position}
+                                                    onChange={(e) => setFormData({ ...formData, contact_person_position: e.target.value })}
+                                                    className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
+                                                />
                                             </div>
                                         </>
                                     )}

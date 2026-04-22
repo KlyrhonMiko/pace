@@ -62,6 +62,13 @@ export async function registerStaff(data: any) {
   });
 }
 
+export async function registerEmployer(data: any) {
+  return apiFetch<any>("/employers/register", {
+    method: "POST",
+    body: data,
+  });
+}
+
 export async function createStudentRecord(data: any) {
   return apiFetch<any>("/student-records", {
     method: "POST",

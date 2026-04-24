@@ -72,13 +72,17 @@ export async function searchJobs(params: JobSearchParams = {}, token?: string): 
             requestHeaders["Authorization"] = `Bearer ${authToken}`;
         }
 
-        const data = await apiFetch<JobSearchResponse>(
+        const response = await apiFetch<{ success: boolean; data: JobSearchResponse } | JobSearchResponse>(
             `/jobs/search?${searchParams.toString()}`,
             {
                 method: "GET",
                 headers: requestHeaders,
             }
         );
+        // Backend wraps response in StandardResponse { success, code, message, data }
+        const data = "data" in response && "success" in response
+            ? (response as { data: JobSearchResponse }).data
+            : response as JobSearchResponse;
         return data;
     } catch (error) {
         console.error("Failed to fetch jobs:", error);

@@ -58,11 +58,20 @@ def create_job_application(db: Session, job_id: int, alumni_code: uuid.UUID) -> 
     return application
 
 def get_job_application(db: Session, job_id: int, alumni_code: uuid.UUID) -> Optional[JobApplication]:
-    """Check if an alumni has already applied to a job."""
+    """Check if an alumni has already applied to a job (any status)."""
     return db.exec(
         select(JobApplication)
         .where(JobApplication.job_id == job_id)
         .where(JobApplication.alumni_code == alumni_code)
+    ).first()
+
+def get_active_job_application(db: Session, job_id: int, alumni_code: uuid.UUID) -> Optional[JobApplication]:
+    """Check if an alumni has an active (non-rejected) application to a job."""
+    return db.exec(
+        select(JobApplication)
+        .where(JobApplication.job_id == job_id)
+        .where(JobApplication.alumni_code == alumni_code)
+        .where(JobApplication.status != "Rejected")
     ).first()
 
 def get_alumni_applications(db: Session, alumni_code: uuid.UUID) -> List[JobApplication]:

@@ -31,6 +31,7 @@ export default function JobDetailModal({ job, onClose }: JobDetailModalProps) {
     const overlayRef = useRef<HTMLDivElement>(null);
     const [isApplying, setIsApplying] = useState(false);
     const [hasApplied, setHasApplied] = useState(false);
+    const [isRejected, setIsRejected] = useState(false);
     const [isLoadingStatus, setIsLoadingStatus] = useState(false);
 
     useEffect(() => {
@@ -39,8 +40,11 @@ export default function JobDetailModal({ job, onClose }: JobDetailModalProps) {
                 setIsLoadingStatus(true);
                 try {
                     const apps = await getMyApplications();
-                    const alreadyApplied = apps.some((app: any) => app.job_id === job.id || String(app.job_id) === String(job.id));
-                    setHasApplied(alreadyApplied);
+                    const activeApp = apps.find((app: any) => (app.job_id === job.id || String(app.job_id) === String(job.id)) && app.status !== "Rejected");
+                    const rejectedApp = apps.find((app: any) => (app.job_id === job.id || String(app.job_id) === String(job.id)) && app.status === "Rejected");
+
+                    setHasApplied(!!activeApp);
+                    setIsRejected(!!rejectedApp && !activeApp);
                 } catch (error) {
                     console.error("Failed to check application status:", error);
                 } finally {
@@ -60,7 +64,8 @@ export default function JobDetailModal({ job, onClose }: JobDetailModalProps) {
             const result = await applyToJob(job.id);
             if (result.success) {
                 setHasApplied(true);
-                toast.success("Application submitted successfully!");
+                setIsRejected(false);
+                toast.success(isRejected ? "Successfully re-applied for the job!" : "Application submitted successfully!");
             } else {
                 toast.error(result.message || "Failed to submit application");
             }
@@ -679,6 +684,8 @@ export default function JobDetailModal({ job, onClose }: JobDetailModalProps) {
                                         <CheckCircle2 className="w-3.5 h-3.5" />
                                         Applied
                                     </>
+                                ) : isRejected ? (
+                                    "Re-apply Now"
                                 ) : (
                                     "Apply Now"
                                 )}

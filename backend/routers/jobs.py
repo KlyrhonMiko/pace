@@ -240,8 +240,9 @@ def apply_for_job(
     if db_job.source_api and db_job.source_api != "Internal":
          raise HTTPException(status_code=400, detail="Cannot apply to external jobs through this platform")
 
-    # Check if already applied
-    existing = get_job_application(db, job_id, alumni.alumni_code)
+    # Check if already applied (active application)
+    from services.queries.jobs_queries import get_active_job_application
+    existing = get_active_job_application(db, job_id, alumni.alumni_code)
     if existing:
         return StandardResponse(
             success=True,
@@ -253,16 +254,16 @@ def apply_for_job(
     application = create_job_application(db, job_id, alumni.alumni_code)
     
     # Log activity
-    from models.user_activities import UserActivity
+    from services.queries.user_activities_queries import create_user_activity
     from core.redis import cache_delete, generate_cache_key
     
-    activity = UserActivity(
+    create_user_activity(
+        session=db,
         user_code=current_user.user_code,
         activity_type="JOB_APPLICATION",
         description=f"Applied for job: {db_job.title} at {db_job.company}",
-        metadata_json={"job_id": job_id, "application_id": application.id}
+        activity_metadata={"job_id": job_id, "application_id": application.id}
     )
-    db.add(activity)
     db.commit()
     
     # Invalidate activity cache

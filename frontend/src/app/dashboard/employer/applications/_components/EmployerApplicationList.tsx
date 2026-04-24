@@ -115,7 +115,11 @@ export default function EmployerApplicationList({
                             </tr>
                         ) : (
                             applications.map((app) => (
-                                <tr key={app.id} className="group transition-all duration-200 hover:bg-slate-50/50 cursor-pointer">
+                                <tr
+                                    key={app.id}
+                                    className={`group transition-all duration-200 hover:bg-slate-50/50 ${app.status.toLowerCase() === "rejected" ? "opacity-50 grayscale-[0.5] hover:bg-transparent" : ""
+                                        }`}
+                                >
                                     <td className="px-4 py-4">
                                         <div className="flex items-center gap-4">
                                             <div className="h-10 w-10 rounded-xl bg-emerald-100 flex justify-center items-center font-bold text-emerald-800 text-xs shadow-sm ring-1 ring-emerald-200 transition-transform duration-300 group-hover:scale-105">
@@ -150,16 +154,18 @@ export default function EmployerApplicationList({
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className="h-8 w-8 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg hover:shadow-sm"
+                                                className="h-8 w-8 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg hover:shadow-sm cursor-pointer"
                                                 title="Contact Candidate"
-                                                onClick={(e) => { e.stopPropagation(); if (onContact) onContact(app.email); }}
+                                                asChild
                                             >
-                                                <Mail size={14} />
+                                                <a href={`mailto:${app.email}`} onClick={(e) => e.stopPropagation()}>
+                                                    <Mail size={14} />
+                                                </a>
                                             </Button>
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg hover:shadow-sm"
+                                                className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg hover:shadow-sm cursor-pointer"
                                                 title="Approve"
                                                 onClick={(e) => { e.stopPropagation(); if (onApprove) onApprove(app.id); }}
                                             >
@@ -168,7 +174,7 @@ export default function EmployerApplicationList({
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg hover:shadow-sm"
+                                                className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg hover:shadow-sm cursor-pointer"
                                                 title="Reject"
                                                 onClick={(e) => { e.stopPropagation(); if (onReject) onReject(app.id); }}
                                             >
@@ -177,7 +183,7 @@ export default function EmployerApplicationList({
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className="h-8 w-8 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg"
+                                                className="h-8 w-8 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
                                                 title="More Options"
                                             >
                                                 <MoreHorizontal size={14} />

@@ -40,6 +40,10 @@ export function LoginModal({ isOpen, onOpenChange }: LoginModalProps) {
                     <X className="h-4 w-4" />
                 </DialogPrimitive.Close>
 
+                <Suspense fallback={null}>
+                    <LoginNotice />
+                </Suspense>
+
                 <div className="px-8 pt-10 pb-8">
                     {/* Brand */}
                     <div className="mb-7 flex items-center gap-2.5">
@@ -55,10 +59,6 @@ export function LoginModal({ isOpen, onOpenChange }: LoginModalProps) {
                             P.A.C.E.
                         </span>
                     </div>
-
-                    <Suspense fallback={<div className="h-12 w-full animate-pulse bg-slate-100 rounded-xl mb-4" />}>
-                        <LoginNotice />
-                    </Suspense>
 
                     <LoginForm isModal onSuccess={() => onOpenChange(false)} />
                 </div>

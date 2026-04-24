@@ -216,7 +216,7 @@ export default function EmployerLayout({
         <LogoutConfirmModal
           isOpen={isLogoutModalOpen}
           onClose={() => setIsLogoutModalOpen(false)}
-          onConfirm={logout}
+          onConfirm={() => logout()}
         />
       </aside>
 

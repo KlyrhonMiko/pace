@@ -221,7 +221,7 @@ export default function AlumniLayout({
                 <LogoutConfirmModal
                     isOpen={isLogoutModalOpen}
                     onClose={() => setIsLogoutModalOpen(false)}
-                    onConfirm={logout}
+                    onConfirm={() => logout()}
                 />
             </aside>
 

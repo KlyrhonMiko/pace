@@ -212,7 +212,7 @@ export default function AdminLayout({
                 <LogoutConfirmModal
                     isOpen={isLogoutModalOpen}
                     onClose={() => setIsLogoutModalOpen(false)}
-                    onConfirm={logout}
+                    onConfirm={() => logout()}
                 />
             </aside>
 

@@ -69,7 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     document.cookie = "userType=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
 
     setUser(null);
-    if (message) {
+    if (typeof message === "string") {
       toast.info(message);
     }
 

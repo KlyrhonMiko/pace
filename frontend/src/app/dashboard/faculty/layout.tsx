@@ -220,7 +220,7 @@ export default function FacultyLayout({
                 <LogoutConfirmModal
                     isOpen={isLogoutModalOpen}
                     onClose={() => setIsLogoutModalOpen(false)}
-                    onConfirm={logout}
+                    onConfirm={() => logout()}
                 />
             </aside>
 

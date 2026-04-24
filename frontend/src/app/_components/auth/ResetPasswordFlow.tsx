@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { 
-  Loader2, Mail, Lock, KeyRound, CheckCircle2, 
-  ArrowLeft, Save, ShieldCheck 
+import {
+  Loader2, Mail, Lock, KeyRound, CheckCircle2,
+  ArrowLeft, Save, ShieldCheck
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -77,7 +77,7 @@ export function ResetPasswordFlow() {
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (formData.new_password !== formData.confirm_password) {
       toast.error("Passwords do not match.");
       return;
@@ -116,12 +116,12 @@ export function ResetPasswordFlow() {
     <div className="w-full max-w-md mx-auto">
       <div className="relative group">
         <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
-        
+
         <div className="relative px-8 py-10 bg-white/80 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl overflow-hidden min-h-[450px] flex flex-col justify-center transition-all duration-500">
-          
+
           {step !== "SUCCESS" && (
-            <Link 
-              href="/login" 
+            <Link
+              href="/?login=true"
               className="absolute top-6 left-6 text-slate-400 hover:text-emerald-600 transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -285,7 +285,7 @@ export function ResetPasswordFlow() {
               <p className="text-slate-500 text-sm mt-3 mb-8">
                 Your password has been reset successfully. You can now sign in with your new credentials.
               </p>
-              <Link href="/login">
+              <Link href="/?login=true">
                 <Button className="w-full h-11 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-semibold shadow-lg shadow-emerald-200 transition-all active:scale-[0.98]">
                   Go to Sign In
                 </Button>

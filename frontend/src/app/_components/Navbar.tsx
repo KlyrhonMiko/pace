@@ -1,17 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "../../components/ui/button";
 import { useAuth } from "@/context/AuthContext";
+import { LoginModal } from "./auth/LoginModal";
 
 export function Navbar() {
+  return (
+    <Suspense fallback={<div className="h-16 border-b border-emerald-100 bg-white sticky top-0 z-50" />}>
+      <NavbarContent />
+    </Suspense>
+  );
+}
+
+function NavbarContent() {
   const { isAuthenticated, logout, getDashboardUrl } = useAuth();
   const [mounted, setMounted] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    if (searchParams.get("login") === "true") {
+      setIsLoginModalOpen(true);
+    }
+  }, [searchParams]);
 
   return (
     <nav className="border-b border-emerald-100 bg-white sticky top-0 z-50">
@@ -46,7 +61,7 @@ export function Navbar() {
                   Dashboard
                 </Button>
               </Link>
-              <Button 
+              <Button
                 onClick={() => logout()}
                 className="bg-emerald-700 hover:bg-emerald-800 text-white shadow-sm shadow-emerald-200"
               >
@@ -55,11 +70,13 @@ export function Navbar() {
             </>
           ) : (
             <>
-              <Link href="/login">
-                <Button variant="ghost" className="hidden sm:inline-flex text-emerald-800 hover:text-emerald-900 hover:bg-emerald-50">
-                  Sign In
-                </Button>
-              </Link>
+              <Button
+                variant="ghost"
+                onClick={() => setIsLoginModalOpen(true)}
+                className="hidden sm:inline-flex text-emerald-800 hover:text-emerald-900 hover:bg-emerald-50"
+              >
+                Sign In
+              </Button>
               <Link href="/register">
                 <Button className="bg-emerald-700 hover:bg-emerald-800 text-white shadow-sm shadow-emerald-200">
                   Get Started
@@ -69,6 +86,11 @@ export function Navbar() {
           )}
         </div>
       </div>
+
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onOpenChange={setIsLoginModalOpen}
+      />
     </nav>
   );
 }

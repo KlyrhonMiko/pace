@@ -249,9 +249,9 @@ async def fetch_jobs(
                 
                 if keywords:
                     query = query.where(
-                        (JobListing.title.contains(keywords)) | 
-                        (JobListing.description.contains(keywords)) |
-                        (JobListing.company.contains(keywords))
+                        (JobListing.title.ilike(f"%{keywords}%")) | 
+                        (JobListing.description.ilike(f"%{keywords}%")) |
+                        (JobListing.company.ilike(f"%{keywords}%"))
                     )
                 if location and location != "Philippines":
                     query = query.where(JobListing.location.contains(location))

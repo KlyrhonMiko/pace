@@ -21,6 +21,7 @@ interface Job {
     snippet?: string;
     link?: string;
     description?: string;
+    source?: string;
 }
 
 interface JobListProps {

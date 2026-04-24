@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, MapPin, CircleDollarSign, Calendar, FileText, ExternalLink, Link as LinkIcon } from "lucide-react";
+import { X, MapPin, CircleDollarSign, Calendar, ExternalLink, Link as LinkIcon, Briefcase, Building2, Loader2, CheckCircle2 } from "lucide-react";
+import { applyToJob, getMyApplications } from "@/app/dashboard/_lib/jobs-api";
+import { toast } from "sonner";
 
 interface JobDetailModalProps {
     job: {
@@ -20,12 +22,54 @@ interface JobDetailModalProps {
         link?: string;
         snippet?: string;
         description?: string;
+        source?: string;
     };
     onClose: () => void;
 }
 
 export default function JobDetailModal({ job, onClose }: JobDetailModalProps) {
     const overlayRef = useRef<HTMLDivElement>(null);
+    const [isApplying, setIsApplying] = useState(false);
+    const [hasApplied, setHasApplied] = useState(false);
+    const [isLoadingStatus, setIsLoadingStatus] = useState(false);
+
+    useEffect(() => {
+        const checkApplicationStatus = async () => {
+            if (job.source === "Internal") {
+                setIsLoadingStatus(true);
+                try {
+                    const apps = await getMyApplications();
+                    const alreadyApplied = apps.some((app: any) => app.job_id === job.id || String(app.job_id) === String(job.id));
+                    setHasApplied(alreadyApplied);
+                } catch (error) {
+                    console.error("Failed to check application status:", error);
+                } finally {
+                    setIsLoadingStatus(false);
+                }
+            }
+        };
+
+        checkApplicationStatus();
+    }, [job.id, job.source]);
+
+    const handleApply = async () => {
+        if (hasApplied) return;
+
+        setIsApplying(true);
+        try {
+            const result = await applyToJob(job.id);
+            if (result.success) {
+                setHasApplied(true);
+                toast.success("Application submitted successfully!");
+            } else {
+                toast.error(result.message || "Failed to submit application");
+            }
+        } catch (error) {
+            toast.error("An error occurred. Please try again.");
+        } finally {
+            setIsApplying(false);
+        }
+    };
 
     useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {
@@ -46,13 +90,13 @@ export default function JobDetailModal({ job, onClose }: JobDetailModalProps) {
     const getBadgeColors = () => {
         switch (job.type.toLowerCase()) {
             case "full-time":
-                return { bg: "rgba(16, 185, 129, 0.15)", text: "#059669", dot: "#10b981" };
+                return { bg: "#ecfdf5", text: "#047857", border: "#a7f3d0", dot: "#10b981" };
             case "internship":
-                return { bg: "rgba(59, 130, 246, 0.15)", text: "#2563eb", dot: "#3b82f6" };
+                return { bg: "#eff6ff", text: "#1d4ed8", border: "#bfdbfe", dot: "#3b82f6" };
             case "part-time":
-                return { bg: "rgba(245, 158, 11, 0.15)", text: "#d97706", dot: "#f59e0b" };
+                return { bg: "#fffbeb", text: "#b45309", border: "#fde68a", dot: "#f59e0b" };
             default:
-                return { bg: "rgba(100, 116, 139, 0.15)", text: "#475569", dot: "#94a3b8" };
+                return { bg: "#f8fafc", text: "#475569", border: "#e2e8f0", dot: "#94a3b8" };
         }
     };
 
@@ -73,6 +117,7 @@ export default function JobDetailModal({ job, onClose }: JobDetailModalProps) {
     };
 
     const [gradStart, gradEnd] = getLogoGradient();
+    const hasImageLogo = !!(job.logo && (job.logo.startsWith("http") || job.logo.startsWith("/")));
     const fullDescription = job.description || job.snippet || "";
 
     const formattedDate = (() => {
@@ -87,6 +132,24 @@ export default function JobDetailModal({ job, onClose }: JobDetailModalProps) {
         }
     })();
 
+    const infoItems = [
+        {
+            icon: <MapPin className="w-[15px] h-[15px]" strokeWidth={2} />,
+            label: "Location",
+            value: job.location || "—",
+        },
+        {
+            icon: <CircleDollarSign className="w-[15px] h-[15px]" strokeWidth={2} />,
+            label: "Salary",
+            value: job.salaryDisplay || "—",
+        },
+        {
+            icon: <Calendar className="w-[15px] h-[15px]" strokeWidth={2} />,
+            label: "Posted",
+            value: formattedDate,
+        },
+    ];
+
     const modalContent = (
         <div
             ref={overlayRef}
@@ -99,9 +162,9 @@ export default function JobDetailModal({ job, onClose }: JobDetailModalProps) {
                 alignItems: "center",
                 justifyContent: "center",
                 padding: "16px",
-                backgroundColor: "rgba(0, 0, 0, 0.5)",
-                backdropFilter: "blur(12px)",
-                WebkitBackdropFilter: "blur(12px)",
+                backgroundColor: "rgba(15, 23, 42, 0.55)",
+                backdropFilter: "blur(10px) saturate(140%)",
+                WebkitBackdropFilter: "blur(10px) saturate(140%)",
                 animation: "jdmOverlayIn 0.2s ease-out",
             }}
         >
@@ -111,7 +174,7 @@ export default function JobDetailModal({ job, onClose }: JobDetailModalProps) {
                     to { opacity: 1; }
                 }
                 @keyframes jdmModalIn {
-                    from { opacity: 0; transform: translateY(20px) scale(0.97); }
+                    from { opacity: 0; transform: translateY(16px) scale(0.98); }
                     to { opacity: 1; transform: translateY(0) scale(1); }
                 }
                 .jdm-scroll::-webkit-scrollbar {
@@ -121,32 +184,52 @@ export default function JobDetailModal({ job, onClose }: JobDetailModalProps) {
                     background: transparent;
                 }
                 .jdm-scroll::-webkit-scrollbar-thumb {
-                    background: #cbd5e1;
+                    background: #e2e8f0;
                     border-radius: 3px;
                 }
                 .jdm-scroll::-webkit-scrollbar-thumb:hover {
-                    background: #94a3b8;
+                    background: #cbd5e1;
                 }
                 .jdm-cta {
-                    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+                    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
                 }
                 .jdm-cta:hover {
-                    transform: translateY(-2px);
-                    box-shadow: 0 8px 25px -5px rgba(5, 150, 105, 0.5), 0 4px 10px -3px rgba(0,0,0,0.1) !important;
+                    transform: translateY(-1px);
+                    box-shadow: 0 12px 24px -8px rgba(5, 150, 105, 0.45), 0 4px 8px -2px rgba(0,0,0,0.08) !important;
+                }
+                .jdm-cta:active {
+                    transform: translateY(0);
                 }
                 .jdm-close-btn {
-                    transition: all 0.2s ease;
+                    transition: background-color 0.2s ease, color 0.2s ease;
                 }
                 .jdm-close-btn:hover {
-                    background: rgba(255,255,255,0.2);
-                    transform: rotate(90deg);
+                    background: #f1f5f9;
+                    color: #0f172a;
                 }
-                .jdm-info-card {
-                    transition: all 0.2s ease;
+                .jdm-secondary-btn {
+                    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
                 }
-                .jdm-info-card:hover {
+                .jdm-secondary-btn:hover {
                     background: #f8fafc;
-                    border-color: #e2e8f0;
+                    border-color: #cbd5e1;
+                    color: #0f172a;
+                }
+                .jdm-description p { margin: 0 0 12px; }
+                .jdm-description p:last-child { margin-bottom: 0; }
+                .jdm-description ul, .jdm-description ol { margin: 0 0 12px; padding-left: 20px; }
+                .jdm-description li { margin-bottom: 6px; }
+                .jdm-description strong, .jdm-description b { color: #0f172a; font-weight: 600; }
+                .jdm-description a { color: #059669; text-decoration: underline; text-underline-offset: 2px; }
+                .jdm-kbd {
+                    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+                    font-size: 10px;
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    background: #ffffff;
+                    border: 1px solid #e2e8f0;
+                    color: #64748b;
+                    box-shadow: 0 1px 0 #e2e8f0;
                 }
             `}</style>
 
@@ -154,40 +237,29 @@ export default function JobDetailModal({ job, onClose }: JobDetailModalProps) {
                 style={{
                     position: "relative",
                     width: "100%",
-                    maxWidth: "720px",
+                    maxWidth: "680px",
                     maxHeight: "90vh",
-                    borderRadius: "20px",
+                    borderRadius: "16px",
                     overflow: "hidden",
                     display: "flex",
                     flexDirection: "column",
                     background: "#ffffff",
-                    boxShadow: "0 25px 60px -15px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255,255,255,0.1)",
-                    animation: "jdmModalIn 0.35s cubic-bezier(0.16, 1, 0.3, 1)",
+                    boxShadow:
+                        "0 40px 80px -20px rgba(15, 23, 42, 0.35), 0 10px 24px -8px rgba(15, 23, 42, 0.15), 0 0 0 1px rgba(15, 23, 42, 0.04)",
+                    animation: "jdmModalIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
                 }}
             >
-                {/* ═══════════════ HERO HEADER ═══════════════ */}
+
+                {/* ═══════════════ HEADER ═══════════════ */}
                 <div
                     style={{
                         position: "relative",
-                        padding: "32px 32px 28px",
-                        background: `linear-gradient(135deg, ${gradStart}08 0%, ${gradEnd}12 100%)`,
+                        padding: "24px 28px 22px",
+                        background: "#ffffff",
                         borderBottom: "1px solid #f1f5f9",
                         flexShrink: 0,
                     }}
                 >
-                    {/* Subtle pattern overlay */}
-                    <div
-                        style={{
-                            position: "absolute",
-                            inset: 0,
-                            opacity: 0.03,
-                            backgroundImage:
-                                "radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)",
-                            backgroundSize: "24px 24px",
-                            pointerEvents: "none",
-                        }}
-                    />
-
                     {/* Close button */}
                     <button
                         onClick={onClose}
@@ -199,73 +271,111 @@ export default function JobDetailModal({ job, onClose }: JobDetailModalProps) {
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            height: "36px",
-                            width: "36px",
-                            borderRadius: "12px",
+                            height: "32px",
+                            width: "32px",
+                            borderRadius: "8px",
                             border: "none",
                             cursor: "pointer",
-                            background: "rgba(0,0,0,0.05)",
-                            color: "#64748b",
+                            background: "transparent",
+                            color: "#94a3b8",
                         }}
                         aria-label="Close"
                     >
-                        <X className="w-4 h-4" strokeWidth={2.5} />
+                        <X className="w-4 h-4" strokeWidth={2.25} />
                     </button>
 
-                    {/* Logo + Title */}
-                    <div style={{ position: "relative", display: "flex", alignItems: "flex-start", gap: "16px", paddingRight: "40px" }}>
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: "16px",
+                            paddingRight: "36px",
+                        }}
+                    >
+                        {/* Logo */}
                         <div
                             style={{
                                 flexShrink: 0,
                                 width: "56px",
                                 height: "56px",
-                                borderRadius: "16px",
-                                background: `linear-gradient(135deg, ${gradStart}, ${gradEnd})`,
+                                borderRadius: "14px",
+                                background: hasImageLogo
+                                    ? "#ffffff"
+                                    : `linear-gradient(135deg, ${gradStart}, ${gradEnd})`,
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
                                 color: "#fff",
                                 fontSize: "22px",
                                 fontWeight: 700,
-                                boxShadow: `0 8px 20px -4px ${gradStart}50`,
                                 letterSpacing: "-0.02em",
+                                overflow: "hidden",
+                                border: hasImageLogo ? "1px solid #e2e8f0" : "none",
+                                boxShadow: hasImageLogo
+                                    ? "0 1px 2px rgba(15, 23, 42, 0.06)"
+                                    : `0 6px 16px -4px ${gradStart}55`,
                             }}
                         >
-                            {job.logo}
+                            {hasImageLogo ? (
+                                <img
+                                    src={job.logo}
+                                    alt={job.company}
+                                    style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                                />
+                            ) : (
+                                job.logo
+                            )}
                         </div>
 
+                        {/* Title block */}
                         <div style={{ flex: 1, minWidth: 0 }}>
                             <h2
                                 style={{
                                     margin: 0,
-                                    fontSize: "1.35rem",
+                                    fontSize: "20px",
                                     fontWeight: 700,
                                     color: "#0f172a",
-                                    lineHeight: 1.3,
+                                    lineHeight: 1.25,
                                     letterSpacing: "-0.02em",
                                 }}
                             >
                                 {job.title}
                             </h2>
-                            <p style={{ margin: "6px 0 0", fontSize: "0.9rem", color: "#64748b", fontWeight: 500 }}>
-                                {job.company}
-                            </p>
+
+                            <div
+                                style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "6px",
+                                    marginTop: "6px",
+                                }}
+                            >
+                                <Building2 className="w-[13px] h-[13px]" strokeWidth={2} style={{ color: "#94a3b8" }} />
+                                <span
+                                    style={{
+                                        fontSize: "13px",
+                                        color: "#475569",
+                                        fontWeight: 500,
+                                    }}
+                                >
+                                    {job.company}
+                                </span>
+                            </div>
 
                             {/* Badges */}
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "14px" }}>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "12px" }}>
                                 <span
                                     style={{
                                         display: "inline-flex",
                                         alignItems: "center",
                                         gap: "6px",
-                                        padding: "5px 12px",
-                                        borderRadius: "8px",
+                                        padding: "3px 10px 3px 8px",
+                                        borderRadius: "999px",
                                         fontSize: "11px",
-                                        fontWeight: 700,
-                                        textTransform: "uppercase",
-                                        letterSpacing: "0.05em",
+                                        fontWeight: 600,
                                         background: badgeColors.bg,
                                         color: badgeColors.text,
+                                        border: `1px solid ${badgeColors.border}`,
                                     }}
                                 >
                                     <span
@@ -283,18 +393,33 @@ export default function JobDetailModal({ job, onClose }: JobDetailModalProps) {
                                         style={{
                                             display: "inline-flex",
                                             alignItems: "center",
-                                            gap: "6px",
-                                            padding: "5px 12px",
-                                            borderRadius: "8px",
+                                            padding: "3px 10px",
+                                            borderRadius: "999px",
                                             fontSize: "11px",
                                             fontWeight: 600,
-                                            textTransform: "uppercase",
-                                            letterSpacing: "0.05em",
-                                            background: "#f1f5f9",
+                                            background: "#f8fafc",
                                             color: "#475569",
+                                            border: "1px solid #e2e8f0",
                                         }}
                                     >
                                         {job.workType}
+                                    </span>
+                                )}
+                                {job.experienceLevel && (
+                                    <span
+                                        style={{
+                                            display: "inline-flex",
+                                            alignItems: "center",
+                                            padding: "3px 10px",
+                                            borderRadius: "999px",
+                                            fontSize: "11px",
+                                            fontWeight: 600,
+                                            background: "#f8fafc",
+                                            color: "#475569",
+                                            border: "1px solid #e2e8f0",
+                                        }}
+                                    >
+                                        {job.experienceLevel}
                                     </span>
                                 )}
                             </div>
@@ -302,51 +427,60 @@ export default function JobDetailModal({ job, onClose }: JobDetailModalProps) {
                     </div>
                 </div>
 
-                {/* ═══════════════ INFO CARDS ROW ═══════════════ */}
+                {/* ═══════════════ KEY DETAILS BAR ═══════════════ */}
                 <div
                     style={{
                         display: "grid",
                         gridTemplateColumns: "repeat(3, 1fr)",
-                        gap: "0",
+                        background: "#fafbfc",
                         borderBottom: "1px solid #f1f5f9",
                         flexShrink: 0,
                     }}
                 >
-                    {[
-                        {
-                            icon: <MapPin className="w-[18px] h-[18px] text-slate-400" strokeWidth={1.8} />,
-                            label: "Location",
-                            value: job.location,
-                        },
-                        {
-                            icon: <CircleDollarSign className="w-[18px] h-[18px] text-slate-400" strokeWidth={1.8} />,
-                            label: "Salary",
-                            value: job.salaryDisplay,
-                        },
-                        {
-                            icon: <Calendar className="w-[18px] h-[18px] text-slate-400" strokeWidth={1.8} />,
-                            label: "Posted",
-                            value: formattedDate,
-                        },
-                    ].map((item, i) => (
+                    {infoItems.map((item, i) => (
                         <div
                             key={i}
-                            className="jdm-info-card"
                             style={{
                                 display: "flex",
                                 flexDirection: "column",
-                                alignItems: "center",
                                 gap: "6px",
-                                padding: "18px 12px",
-                                borderRight: i < 2 ? "1px solid #f1f5f9" : "none",
-                                cursor: "default",
+                                padding: "14px 20px",
+                                borderRight: i < infoItems.length - 1 ? "1px solid #f1f5f9" : "none",
+                                minWidth: 0,
                             }}
                         >
-                            {item.icon}
-                            <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "#94a3b8" }}>
-                                {item.label}
-                            </span>
-                            <span style={{ fontSize: "13px", fontWeight: 600, color: "#334155", textAlign: "center", lineHeight: 1.3 }}>
+                            <div
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "6px",
+                                    color: "#94a3b8",
+                                }}
+                            >
+                                {item.icon}
+                                <span
+                                    style={{
+                                        fontSize: "10px",
+                                        fontWeight: 600,
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.08em",
+                                    }}
+                                >
+                                    {item.label}
+                                </span>
+                            </div>
+                            <span
+                                style={{
+                                    fontSize: "13px",
+                                    fontWeight: 600,
+                                    color: "#0f172a",
+                                    lineHeight: 1.35,
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                }}
+                                title={item.value}
+                            >
                                 {item.value}
                             </span>
                         </div>
@@ -359,58 +493,78 @@ export default function JobDetailModal({ job, onClose }: JobDetailModalProps) {
                     style={{
                         flex: 1,
                         overflowY: "auto",
-                        padding: "28px 32px",
+                        padding: "24px 28px 28px",
                         minHeight: 0,
                     }}
                 >
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "18px" }}>
-                        <div
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "10px",
+                            marginBottom: "14px",
+                        }}
+                    >
+                        <h3
                             style={{
-                                width: "28px",
-                                height: "28px",
-                                borderRadius: "8px",
-                                background: "linear-gradient(135deg, #f0fdf4, #dcfce7)",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                flexShrink: 0,
+                                margin: 0,
+                                fontSize: "12px",
+                                fontWeight: 700,
+                                color: "#0f172a",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.08em",
                             }}
                         >
-                            <FileText className="w-3.5 h-3.5 text-[#16a34a]" strokeWidth={2} />
-                        </div>
-                        <h3 style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "#1e293b", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                            Job Description
+                            About this role
                         </h3>
                     </div>
 
                     {fullDescription ? (
                         <div
+                            className="jdm-description"
                             style={{
                                 fontSize: "14px",
-                                lineHeight: 1.8,
-                                color: "#475569",
+                                lineHeight: 1.7,
+                                color: "#334155",
                                 wordBreak: "break-word",
                             }}
                             dangerouslySetInnerHTML={{ __html: fullDescription }}
                         />
                     ) : (
-                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "40px 0", textAlign: "center" }}>
+                        <div
+                            style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                padding: "32px 0 16px",
+                                textAlign: "center",
+                            }}
+                        >
                             <div
                                 style={{
-                                    width: "48px",
-                                    height: "48px",
-                                    borderRadius: "14px",
+                                    width: "44px",
+                                    height: "44px",
+                                    borderRadius: "12px",
                                     background: "#f8fafc",
+                                    border: "1px solid #f1f5f9",
                                     display: "flex",
                                     alignItems: "center",
                                     justifyContent: "center",
                                     marginBottom: "12px",
                                 }}
                             >
-                                <FileText className="w-[22px] h-[22px] text-slate-300" strokeWidth={1.5} />
+                                <Briefcase className="w-5 h-5" strokeWidth={1.5} style={{ color: "#cbd5e1" }} />
                             </div>
-                            <p style={{ margin: 0, fontSize: "13px", color: "#94a3b8" }}>
-                                No description available — view the original posting for full details.
+                            <p
+                                style={{
+                                    margin: 0,
+                                    fontSize: "13px",
+                                    color: "#64748b",
+                                    maxWidth: "320px",
+                                    lineHeight: 1.5,
+                                }}
+                            >
+                                No description provided. View the original posting for full details.
                             </p>
                         </div>
                     )}
@@ -422,82 +576,133 @@ export default function JobDetailModal({ job, onClose }: JobDetailModalProps) {
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "space-between",
-                        padding: "16px 32px",
+                        gap: "12px",
+                        padding: "14px 20px 14px 28px",
                         borderTop: "1px solid #f1f5f9",
                         background: "#fafbfc",
                         flexShrink: 0,
                     }}
                 >
-                    <button
-                        onClick={onClose}
+                    <div
                         style={{
-                            padding: "10px 20px",
-                            borderRadius: "12px",
-                            fontSize: "13px",
-                            fontWeight: 600,
-                            color: "#64748b",
-                            background: "transparent",
-                            border: "1px solid #e2e8f0",
-                            cursor: "pointer",
-                            transition: "all 0.2s ease",
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.background = "#f1f5f9";
-                            e.currentTarget.style.borderColor = "#cbd5e1";
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.background = "transparent";
-                            e.currentTarget.style.borderColor = "#e2e8f0";
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            fontSize: "12px",
+                            color: "#94a3b8",
                         }}
                     >
-                        Close
-                    </button>
+                        <span className="jdm-kbd">Esc</span>
+                        <span>to close</span>
+                    </div>
 
-                    {job.link ? (
-                        <a
-                            href={job.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="jdm-cta"
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <button
+                            onClick={onClose}
+                            className="jdm-secondary-btn"
                             style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "10px",
-                                padding: "10px 24px",
-                                borderRadius: "12px",
-                                fontSize: "13px",
-                                fontWeight: 700,
-                                color: "#ffffff",
-                                background: "linear-gradient(135deg, #059669 0%, #0d9488 50%, #059669 100%)",
-                                backgroundSize: "200% 200%",
-                                border: "none",
-                                textDecoration: "none",
-                                cursor: "pointer",
-                                boxShadow: "0 4px 14px -3px rgba(5, 150, 105, 0.45), inset 0 1px 0 rgba(255,255,255,0.15)",
-                                letterSpacing: "0.01em",
-                            }}
-                        >
-                            View Original Posting
-                            <ExternalLink className="w-3.5 h-3.5" strokeWidth={2.5} />
-                        </a>
-                    ) : (
-                        <span
-                            style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "8px",
-                                padding: "10px 20px",
-                                borderRadius: "12px",
+                                padding: "8px 16px",
+                                borderRadius: "10px",
                                 fontSize: "13px",
                                 fontWeight: 600,
-                                color: "#94a3b8",
-                                background: "#f1f5f9",
+                                color: "#475569",
+                                background: "#ffffff",
+                                border: "1px solid #e2e8f0",
+                                cursor: "pointer",
                             }}
                         >
-                            <LinkIcon className="w-3.5 h-3.5" strokeWidth={2} />
-                            No link available
-                        </span>
-                    )}
+                            Close
+                        </button>
+
+                        {job.link ? (
+                            <a
+                                href={job.link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="jdm-cta"
+                                style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "8px",
+                                    padding: "8px 18px",
+                                    borderRadius: "10px",
+                                    fontSize: "13px",
+                                    fontWeight: 600,
+                                    color: "#ffffff",
+                                    background:
+                                        "linear-gradient(135deg, #059669 0%, #0d9488 100%)",
+                                    border: "none",
+                                    textDecoration: "none",
+                                    cursor: "pointer",
+                                    boxShadow:
+                                        "0 6px 16px -4px rgba(5, 150, 105, 0.4), inset 0 1px 0 rgba(255,255,255,0.18)",
+                                    letterSpacing: "0.01em",
+                                }}
+                            >
+                                Apply Now
+                                <ExternalLink className="w-3.5 h-3.5" strokeWidth={2.5} />
+                            </a>
+                        ) : job.source === "Internal" ? (
+                            <button
+                                onClick={handleApply}
+                                disabled={isApplying || hasApplied || isLoadingStatus}
+                                className="jdm-cta"
+                                style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "8px",
+                                    padding: "8px 18px",
+                                    borderRadius: "10px",
+                                    fontSize: "13px",
+                                    fontWeight: 600,
+                                    color: "#ffffff",
+                                    background: hasApplied
+                                        ? "#10b981"
+                                        : "linear-gradient(135deg, #059669 0%, #0d9488 100%)",
+                                    border: "none",
+                                    textDecoration: "none",
+                                    cursor: (isApplying || hasApplied || isLoadingStatus) ? "default" : "pointer",
+                                    boxShadow: hasApplied
+                                        ? "none"
+                                        : "0 6px 16px -4px rgba(5, 150, 105, 0.4), inset 0 1px 0 rgba(255,255,255,0.18)",
+                                    letterSpacing: "0.01em",
+                                    opacity: (isApplying || isLoadingStatus) ? 0.7 : 1,
+                                }}
+                            >
+                                {isApplying || isLoadingStatus ? (
+                                    <>
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                        {isLoadingStatus ? "Checking..." : "Applying..."}
+                                    </>
+                                ) : hasApplied ? (
+                                    <>
+                                        <CheckCircle2 className="w-3.5 h-3.5" />
+                                        Applied
+                                    </>
+                                ) : (
+                                    "Apply Now"
+                                )}
+                            </button>
+                        ) : (
+                            <span
+                                style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "8px",
+                                    padding: "8px 16px",
+                                    borderRadius: "10px",
+                                    fontSize: "13px",
+                                    fontWeight: 600,
+                                    color: "#94a3b8",
+                                    background: "#f1f5f9",
+                                    border: "1px solid #e2e8f0",
+                                }}
+                            >
+                                <LinkIcon className="w-3.5 h-3.5" strokeWidth={2} />
+                                No link available
+                            </span>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

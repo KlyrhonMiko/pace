@@ -49,13 +49,14 @@ export default function JobCard({
     };
 
     return (
-        <div onClick={onClick} className={`group relative flex items-start gap-4 rounded-xl border border-gray-100 bg-white p-4 transition-all duration-300 hover:bg-gradient-to-r hover:from-white hover:to-amber-50/30 hover:border-amber-200/60 hover:shadow-md hover:shadow-amber-100/20 cursor-pointer ${className}`}>
-            {/* Hover accent bar */}
-            <div className="absolute left-0 top-3 bottom-3 w-0.5 rounded-full bg-gradient-to-b from-amber-400 to-orange-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        <div onClick={onClick} className={`group relative flex items-start gap-4 rounded-xl border border-gray-100 bg-white p-4 transition-all duration-300 hover:bg-slate-50 hover:border-slate-200 hover:shadow-md hover:shadow-slate-200/50 cursor-pointer ${className}`}>
 
-            {/* Company Logo */}
-            <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${getLogoGradient()} text-white text-sm font-bold shadow-sm transition-transform duration-300 group-hover:scale-105 group-hover:shadow-md`}>
-                {logo}
+            <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl ${(logo && (logo.startsWith('http') || logo.startsWith('/'))) ? 'bg-gray-50' : `bg-gradient-to-br ${getLogoGradient()}`} text-white text-sm font-bold shadow-sm transition-transform duration-300 group-hover:scale-105 group-hover:shadow-md overflow-hidden`}>
+                {(logo && (logo.startsWith('http') || logo.startsWith('/'))) ? (
+                    <img src={logo} alt={company} className="h-full w-full object-cover" />
+                ) : (
+                    logo
+                )}
             </div>
 
             <div className="flex-1 min-w-0">

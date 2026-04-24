@@ -20,7 +20,6 @@ interface Application {
     status: string;
     date: string;
     email: string;
-    matchScore: number;
 }
 
 interface EmployerApplicationListProps {
@@ -75,7 +74,6 @@ export default function EmployerApplicationList({
                         <tr className="bg-slate-50/30 border-b border-slate-100">
                             <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Applicant</th>
                             <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Applied Role</th>
-                            <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Match Score</th>
                             <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
                             <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
                         </tr>
@@ -118,9 +116,6 @@ export default function EmployerApplicationList({
                                                 <h4 className="font-bold text-slate-900 text-sm line-clamp-1 group-hover:text-emerald-900 transition-colors">
                                                     {app.applicant}
                                                 </h4>
-                                                <div className="flex items-center gap-2 mt-0.5">
-                                                    <p className="text-[11px] text-slate-400 truncate">{app.email}</p>
-                                                </div>
                                             </div>
                                         </div>
                                     </td>
@@ -134,17 +129,6 @@ export default function EmployerApplicationList({
                                                 <Calendar className="h-3 w-3" />
                                                 Applied {app.date}
                                             </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-4">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden ring-1 ring-slate-200">
-                                                <div
-                                                    className={`h-full transition-all duration-1000 ${app.matchScore >= 80 ? 'bg-emerald-500' : app.matchScore >= 60 ? 'bg-amber-500' : 'bg-rose-500'}`}
-                                                    style={{ width: `${app.matchScore}%` }}
-                                                />
-                                            </div>
-                                            <span className="text-[11px] font-bold text-slate-600">{app.matchScore}%</span>
                                         </div>
                                     </td>
                                     <td className="px-4 py-4">

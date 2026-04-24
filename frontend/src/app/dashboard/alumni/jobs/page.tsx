@@ -25,6 +25,7 @@ interface UnifiedJob {
     workType: string;
     link?: string;
     snippet?: string;
+    source?: string;
 }
 
 // Convert Jooble API job to unified format
@@ -64,11 +65,12 @@ function convertApiJob(job: JoobleJob, index: number): UnifiedJob {
         salaryDisplay: salaryDisplay,
         type: job.type || job.job_type || "Full-time",
         postedDate: job.updated ? new Date(job.updated) : new Date(),
-        logo: job.company.charAt(0).toUpperCase(),
+        logo: (job.logo && (job.logo.startsWith('http') || job.logo.startsWith('/'))) ? job.logo : job.company.charAt(0).toUpperCase(),
         experienceLevel: experienceLevel,
         workType: workType,
         link: job.link,
         snippet: snippet,
+        source: job.source || (job.link ? "External" : "Internal"),
     };
 }
 

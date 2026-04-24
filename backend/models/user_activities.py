@@ -15,6 +15,7 @@ class ActivityType(str, Enum):
     SUBMIT_SURVEY = "SUBMIT_SURVEY"
     UPDATE_PROFILE = "UPDATE_PROFILE"
     PASSWORD_RESET = "PASSWORD_RESET"
+    JOB_APPLICATION = "JOB_APPLICATION"
 
 
 class UserActivity(SQLModel, table=True):

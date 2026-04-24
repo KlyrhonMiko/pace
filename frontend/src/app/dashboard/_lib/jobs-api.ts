@@ -14,6 +14,7 @@ export interface JoobleJob {
     link: string;
     source: string;
     updated: string;
+    logo?: string;
     // Backend DB fields (aliases)
     job_type?: string;
     description?: string;
@@ -105,6 +106,58 @@ export async function getRecommendedJobs(limit: number = 3, token?: string): Pro
         });
     } catch (error) {
         console.error("Failed to fetch recommended jobs:", error);
+        return [];
+    }
+}
+
+/**
+ * Apply for a job
+ */
+export async function applyToJob(jobId: number | string, token?: string): Promise<{ success: boolean; message: string; data?: any }> {
+    try {
+        const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+        const requestHeaders: Record<string, string> = { "Content-Type": "application/json" };
+        if (authToken) {
+            requestHeaders["Authorization"] = `Bearer ${authToken}`;
+        }
+
+        const response = await apiFetch<any>(`/jobs/${jobId}/apply`, {
+            method: "POST",
+            headers: requestHeaders
+        });
+
+        return {
+            success: true,
+            message: response.message || "Successfully applied for the job",
+            data: response.data
+        };
+    } catch (error) {
+        console.error("Failed to apply for job:", error);
+        return {
+            success: false,
+            message: error instanceof Error ? error.message : "Failed to apply for job"
+        };
+    }
+}
+
+/**
+ * Get current user's job applications
+ */
+export async function getMyApplications(token?: string): Promise<any[]> {
+    try {
+        const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+        const requestHeaders: Record<string, string> = { "Content-Type": "application/json" };
+        if (authToken) {
+            requestHeaders["Authorization"] = `Bearer ${authToken}`;
+        }
+
+        const response = await apiFetch<any>(`/jobs/my-applications`, {
+            headers: requestHeaders
+        });
+
+        return response.data || [];
+    } catch (error) {
+        console.error("Failed to fetch applications:", error);
         return [];
     }
 }

@@ -10,12 +10,14 @@ from services.queries.jobs_queries import (
     delete_job_listing,
     get_job_listing
 )
-from models.job_listings import JobListing, JobListingCreate, JobListingUpdate, JobListingRead
+from models.job_listings import JobListing, JobListingCreate, JobListingUpdate, JobListingRead, JobApplication
 from core.database import get_session
 from core.redis import cache_invalidate_job_searches
 from models.auth import CurrentUser
 from utils.rbac import require_authenticated, require_role
 from models.employers import Employer
+from models import Alumni
+from models.response_codes import StandardResponse, SuccessCode
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
@@ -82,7 +84,12 @@ async def search_jobs(
         employer_id=employer_id
     )
     
-    return result
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.JOB_LIST_RETRIEVED.value,
+        message="Job listings retrieved successfully",
+        data=result
+    )
 
 
 @router.post("/", response_model=JobListingRead, status_code=status.HTTP_201_CREATED)
@@ -207,3 +214,158 @@ def toggle_hide_job(
     db.refresh(db_job)
     cache_invalidate_job_searches()
     return db_job
+
+
+@router.post("/{job_id}/apply", response_model=StandardResponse)
+def apply_for_job(
+    job_id: int,
+    db: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
+):
+    """
+    Apply for an internal job listing.
+    """
+    from services.queries.alumni_queries import get_alumni_by_user_code
+    from services.queries.jobs_queries import create_job_application, get_job_application
+
+    alumni = get_alumni_by_user_code(db, str(current_user.user_code))
+    if not alumni:
+        raise HTTPException(status_code=404, detail="Alumni profile not found")
+
+    # Check if job exists
+    db_job = get_job_listing(db, job_id)
+    if not db_job:
+        raise HTTPException(status_code=404, detail="Job listing not found")
+
+    if db_job.source_api and db_job.source_api != "Internal":
+         raise HTTPException(status_code=400, detail="Cannot apply to external jobs through this platform")
+
+    # Check if already applied
+    existing = get_job_application(db, job_id, alumni.alumni_code)
+    if existing:
+        return StandardResponse(
+            success=True,
+            code=SuccessCode.SUCCESS.value,
+            message="You have already applied for this job",
+            data={"application_id": existing.id}
+        )
+
+    application = create_job_application(db, job_id, alumni.alumni_code)
+    
+    # Log activity
+    from models.user_activities import UserActivity
+    from core.redis import cache_delete, generate_cache_key
+    
+    activity = UserActivity(
+        user_code=current_user.user_code,
+        activity_type="JOB_APPLICATION",
+        description=f"Applied for job: {db_job.title} at {db_job.company}",
+        metadata_json={"job_id": job_id, "application_id": application.id}
+    )
+    db.add(activity)
+    db.commit()
+    
+    # Invalidate activity cache
+    cache_key_activity = generate_cache_key("alumni_activity", user_code=str(current_user.user_code))
+    cache_delete(cache_key_activity)
+
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.SUCCESS.value,
+        message="Application submitted successfully",
+        data={"application_id": application.id}
+    )
+
+
+@router.get("/my-applications", response_model=StandardResponse)
+def get_my_applications(
+    db: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
+):
+    """
+    Get all job applications submitted by the current alumni.
+    """
+    from services.queries.alumni_queries import get_alumni_by_user_code
+    from services.queries.jobs_queries import get_alumni_applications
+
+    alumni = get_alumni_by_user_code(db, str(current_user.user_code))
+    if not alumni:
+        raise HTTPException(status_code=404, detail="Alumni profile not found")
+
+    applications = get_alumni_applications(db, alumni.alumni_code)
+    
+    # Enrich with job details
+    result = []
+    for app in applications:
+        job = get_job_listing(db, app.job_id)
+        if job:
+            result.append({
+                "application_id": app.id,
+                "job_id": app.job_id,
+                "job_title": job.title,
+                "company": job.company,
+                "status": app.status,
+                "applied_at": app.applied_at
+            })
+
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.SUCCESS.value,
+        message="Applications retrieved successfully",
+        data=result
+    )
+
+
+@router.get("/{job_id}/applicants", response_model=StandardResponse)
+def get_job_applicants_route(
+    job_id: int,
+    db: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
+):
+    """
+    Get all applicants for a specific job listing. Only accessible by the employer who posted the job or staff/admin.
+    """
+    from services.queries.jobs_queries import get_job_applicants, get_job_listing
+    from services.queries.alumni_queries import get_alumni_by_id_any
+
+    db_job = get_job_listing(db, job_id)
+    if not db_job:
+        raise HTTPException(status_code=404, detail="Job listing not found")
+
+    # Authorization Check
+    is_staff_admin = current_user.user_type in ["ADMIN", "STAFF"]
+    
+    is_owner = False
+    if current_user.user_type == "EMPLOYER":
+        from services.queries.employers_queries import get_employer_by_user_code
+        target_user_code = uuid.UUID(current_user.user_code) if isinstance(current_user.user_code, str) else current_user.user_code
+        employer = get_employer_by_user_code(db, target_user_code)
+        if employer and db_job.employer_id == employer.employer_id:
+            is_owner = True
+
+    if not (is_staff_admin or is_owner):
+        raise HTTPException(status_code=403, detail="Not authorized to view applicants for this job")
+
+    applications = get_job_applicants(db, job_id)
+    
+    # Enrich with alumni details
+    result = []
+    for app in applications:
+        alumni = db.exec(select(Alumni).where(Alumni.alumni_code == app.alumni_code)).first()
+        if alumni:
+            result.append({
+                "application_id": app.id,
+                "alumni_id": alumni.alumni_id,
+                "first_name": alumni.first_name,
+                "last_name": alumni.last_name,
+                "email": alumni.user_code, # Should ideally join with User table for email
+                "status": app.status,
+                "applied_at": app.applied_at
+            })
+
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.SUCCESS.value,
+        message="Applicants retrieved successfully",
+        data=result
+    )

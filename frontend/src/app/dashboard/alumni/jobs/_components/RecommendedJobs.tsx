@@ -100,7 +100,7 @@ export default function RecommendedJobs() {
                                     location={job.location}
                                     salary={formatSalary(job.salary || job.raw_salary || "")}
                                     type={job.type || "Full-time"}
-                                    logo={job.company.charAt(0).toUpperCase()}
+                                    logo={(job.logo && (job.logo.startsWith('http') || job.logo.startsWith('/'))) ? job.logo : job.company.charAt(0).toUpperCase()}
                                     className="flex-1"
                                     description={formatSnippet(job.snippet || job.description || "")}
                                 />

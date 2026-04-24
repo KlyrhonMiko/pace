@@ -65,3 +65,12 @@ class JobListingUpdate(SQLModel):
     salary_min: Optional[int] = None
     salary_max: Optional[int] = None
     is_active: Optional[bool] = None
+
+class JobApplication(SQLModel, table=True):
+    __tablename__ = "job_applications"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    job_id: int = Field(foreign_key="job_listings.id", index=True)
+    alumni_code: uuid.UUID = Field(foreign_key="alumni.alumni_code", index=True)
+    status: str = Field(default="Pending") # Pending, Reviewed, Accepted, Rejected
+    applied_at: datetime = Field(default_factory=get_current_time_gmt8)
+    updated_at: datetime = Field(default_factory=get_current_time_gmt8)

@@ -9,6 +9,9 @@ from models.response_codes import ErrorCode, SuccessCode, StandardResponse
 
 from services.queries.users_queries import create_user
 from services.queries.employers_queries import create_employer_profile, get_employer_by_user_code, update_employer_profile
+from services.queries.jobs_queries import get_employer_applications, get_job_listing
+from models.alumni import Alumni
+from models.job_listings import JobListing
 from schemas.users import UserCreate
 from utils.auth import get_current_user
 import uuid
@@ -244,3 +247,60 @@ def update_employer_me(
     except Exception as e:
         session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/applications", response_model=StandardResponse)
+def get_my_applications_route(
+    db: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(get_current_user)
+):
+    """
+    Get all job applications for all jobs posted by the current employer.
+    """
+    if current_user.user_type != UserType.EMPLOYER.value:
+        raise HTTPException(status_code=403, detail="Only employers can access this.")
+    
+    user_code = uuid.UUID(current_user.user_code) if isinstance(current_user.user_code, str) else current_user.user_code
+    employer = get_employer_by_user_code(db, user_code)
+    if not employer:
+        raise HTTPException(status_code=404, detail="Employer profile not found.")
+    
+    applications = get_employer_applications(db, employer.employer_id)
+    
+    # Enrich with alumni and job details
+    result = []
+    for app in applications:
+        # Join with Alumni and User tables
+        query = select(Alumni, User).join(User, Alumni.user_code == User.user_code).where(Alumni.alumni_code == app.alumni_code)
+        alumni_data = db.exec(query).first()
+        job = get_job_listing(db, app.job_id)
+        
+        if alumni_data and job:
+            alumni, user = alumni_data
+            # We'll use the employability probability as matchScore for now if available, 
+            match_score = 0
+            
+            # Try to get the latest prediction for this alumni
+            from services.queries.predict_queries import get_predictions_by_alumni
+            predictions = get_predictions_by_alumni(db, alumni.alumni_code, limit=1)
+            if predictions:
+                match_score = int(predictions[0].realistic_probability)
+            else:
+                match_score = 85 if app.status == "Accepted" else 70 if app.status == "Reviewed" else 50
+
+            result.append({
+                "id": app.id,
+                "applicant": f"{alumni.first_name} {alumni.last_name}",
+                "job": job.title,
+                "status": app.status,
+                "date": app.applied_at.strftime("%b %d, %Y"),
+                "email": user.email, # Use the real email from User table
+                "matchScore": match_score
+            })
+
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.EMPLOYER_APPLICATIONS_RETRIEVED.value,
+        message="Applications retrieved successfully",
+        data=result
+    )

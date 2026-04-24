@@ -5,7 +5,7 @@ from .student_records import StudentRecord
 from .alumni import Alumni
 from .alumni_skills import AlumniSkills
 from .skills import Skills, SkillsList
-from .job_listings import JobListing
+from .job_listings import JobListing, JobApplication
 from .transaction_logs import TransactionLog
 from .user_activities import UserActivity
 from .mentoring import MentoringSession  # noqa: F401
@@ -32,6 +32,7 @@ __all__ = [
     "Skills",
     "SkillsList",
     "JobListing",
+    "JobApplication",
     "TransactionLog",
     "UserActivity",
     "EventType",

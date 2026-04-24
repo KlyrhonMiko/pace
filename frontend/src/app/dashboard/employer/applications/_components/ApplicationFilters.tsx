@@ -10,6 +10,7 @@ interface ApplicationFiltersProps {
     setSearchQuery: (query: string) => void;
     selectedJobs: string[];
     setSelectedJobs: (jobs: string[]) => void;
+    jobList?: string[];
 }
 
 export default function ApplicationFilters({
@@ -17,14 +18,8 @@ export default function ApplicationFilters({
     setSearchQuery,
     selectedJobs,
     setSelectedJobs,
+    jobList = [],
 }: ApplicationFiltersProps) {
-    const jobList = [
-        "Software Engineer",
-        "Product Manager",
-        "UI/UX Designer",
-        "Data Analyst"
-    ];
-
     const toggleJob = (job: string) => {
         if (selectedJobs.includes(job)) {
             setSelectedJobs(selectedJobs.filter((j) => j !== job));
@@ -71,7 +66,9 @@ export default function ApplicationFilters({
                         count={selectedJobs.length || undefined}
                     >
                         <div className="space-y-2">
-                            {jobList.map((job) => (
+                            {jobList.length === 0 ? (
+                                <p className="text-xs text-slate-400 py-2 px-1 italic">No job postings found</p>
+                            ) : jobList.map((job) => (
                                 <label
                                     key={job}
                                     className="flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors hover:bg-slate-50"

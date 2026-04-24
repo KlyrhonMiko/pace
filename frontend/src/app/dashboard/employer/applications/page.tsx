@@ -67,6 +67,29 @@ export default function EmployerApplicationsPage() {
         });
     }, [searchQuery, selectedJobs, applications]);
 
+    const handleContactCandidate = (email: string) => {
+        window.location.href = `mailto:${email}`;
+    };
+
+    const handleUpdateStatus = async (id: number, status: "Accepted" | "Rejected") => {
+        try {
+            const result = await apiFetch<any>(`/employers/applications/${id}/status?status=${status}`, {
+                method: "PATCH"
+            });
+            if (result.success) {
+                toast.success(`Application marked as ${status.toLowerCase()}!`);
+                setApplications(prev => prev.map(app =>
+                    app.id === id ? { ...app, status } : app
+                ));
+            } else {
+                toast.error(result.message || "Failed to update status");
+            }
+        } catch (error: any) {
+            console.error("Error updating status:", error);
+            toast.error(error.message || "An unexpected error occurred");
+        }
+    };
+
     return (
         <div className="relative animate-in fade-in slide-in-from-bottom-4 duration-700">
             {/* Decorative background */}
@@ -92,6 +115,9 @@ export default function EmployerApplicationsPage() {
                         applications={filteredApplications}
                         isLoading={isLoading}
                         totalApplications={filteredApplications.length}
+                        onContact={handleContactCandidate}
+                        onApprove={(id) => handleUpdateStatus(id, "Accepted")}
+                        onReject={(id) => handleUpdateStatus(id, "Rejected")}
                     />
                 </div>
 

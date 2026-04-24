@@ -12,9 +12,17 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import PageHeader from "@/components/dashboard/PageHeader";
-import { getMyProfile, AlumniProfile } from "./_lib/api";
+import { getMyProfile, AlumniProfile, updateMyProfile, updateMyAccount } from "./_lib/api";
+import { toast } from "sonner";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -62,6 +70,23 @@ function computeAge(birthdate: string): number | string {
     return age >= 0 ? age : "—";
 }
 
+function normalizeGender(gender: string | null | undefined): string {
+    if (!gender) return "";
+    return gender.trim().toUpperCase().replace("-", "_");
+}
+
+function formatGender(gender: string | null | undefined): string {
+    if (!gender) return "";
+    const mapping: Record<string, string> = {
+        "MALE": "Male",
+        "FEMALE": "Female",
+        "NON_BINARY": "Non-binary",
+        "PREFER_NOT_TO_SAY": "Prefer not to say"
+    };
+    const normalized = gender.trim().toUpperCase().replace("-", "_");
+    return mapping[normalized] || gender;
+}
+
 // ─── Formatting Helpers ────────────────────────────────────────────────────────
 function formatAlumniId(id: string): string {
     const digits = id.replace(/\D/g, "");
@@ -83,10 +108,10 @@ function SectionCard({
     onEdit,
     onSave,
     onCancel,
-    saved = false,
     skipable = false,
     onSkip,
     iconContainerClass = "",
+    loading = false,
 }: {
     title: string;
     subtitle?: string;
@@ -97,10 +122,10 @@ function SectionCard({
     onEdit?: () => void;
     onSave?: () => void;
     onCancel?: () => void;
-    saved?: boolean;
     skipable?: boolean;
     onSkip?: () => void;
     iconContainerClass?: string;
+    loading?: boolean;
 }) {
     return (
         <div className="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
@@ -119,12 +144,6 @@ function SectionCard({
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {saved && !editing && (
-                        <span className="flex items-center gap-1.5 text-xs text-emerald-700 font-medium bg-emerald-50 px-2.5 py-1 rounded-full">
-                            <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
-                            Saved
-                        </span>
-                    )}
                     {skipable && !editing && (
                         <button
                             onClick={onSkip}
@@ -146,15 +165,18 @@ function SectionCard({
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={onCancel}
-                                className="text-xs text-gray-500 hover:text-gray-700 font-medium px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors duration-150"
+                                disabled={loading}
+                                className="text-xs text-gray-500 hover:text-gray-700 font-medium px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors duration-150 disabled:opacity-50"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={onSave}
-                                className="text-xs text-white bg-emerald-700 hover:bg-emerald-800 font-medium px-3.5 py-1.5 rounded-lg transition-colors duration-150 shadow-sm"
+                                disabled={loading}
+                                className="flex items-center gap-2 text-xs text-white bg-emerald-700 hover:bg-emerald-800 font-medium px-3.5 py-1.5 rounded-lg transition-colors duration-150 shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
                             >
-                                Save changes
+                                {loading && <Loader2 className="w-3 h-3 animate-spin" />}
+                                {loading ? "Saving..." : "Save changes"}
                             </button>
                         </div>
                     )}
@@ -204,18 +226,21 @@ function Field({
                 {required && <span className="text-emerald-600 ml-0.5">*</span>}
             </label>
             {options && !isReadOnly ? (
-                <select
+                <Select
                     value={value as string}
-                    onChange={(e) => onChange?.(e.target.value)}
-                    className={baseInput + editableClass}
+                    onValueChange={(v) => onChange?.(v)}
                 >
-                    <option value="">Select {label}</option>
-                    {options.map((o) => (
-                        <option key={o} value={o}>
-                            {o}
-                        </option>
-                    ))}
-                </select>
+                    <SelectTrigger className={cn(baseInput, editableClass, "h-[42px]")}>
+                        <SelectValue placeholder={placeholder || `Select ${label}`} />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {options.map((o) => (
+                            <SelectItem key={o} value={o}>
+                                {o}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
             ) : type === "date" ? (
                 <DatePicker
                     date={value as string}
@@ -268,7 +293,6 @@ export default function ProfilePage() {
     });
     const [accountDraft, setAccountDraft] = useState<AccountInfo>(account);
     const [editingAccount, setEditingAccount] = useState(false);
-    const [accountSaved, setAccountSaved] = useState(false);
 
     // ── Personal Info ──
     const [personal, setPersonal] = useState<PersonalInfo>({
@@ -281,7 +305,6 @@ export default function ProfilePage() {
     });
     const [personalDraft, setPersonalDraft] = useState<PersonalInfo>(personal);
     const [editingPersonal, setEditingPersonal] = useState(false);
-    const [personalSaved, setPersonalSaved] = useState(false);
 
     // ── Academic Info ──
     const [academic, setAcademic] = useState<AcademicInfo>({
@@ -299,7 +322,12 @@ export default function ProfilePage() {
     const [academicSkipped, setAcademicSkipped] = useState(false);
 
     const [isLoading, setIsLoading] = useState(true);
+    const [isSavingAccount, setIsSavingAccount] = useState(false);
+    const [isSavingPersonal, setIsSavingPersonal] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    const [userId, setUserId] = useState<string | null>(null);
+    const [alumniId, setAlumniId] = useState<string | null>(null);
 
     // ── Fetch Data ──
     useEffect(() => {
@@ -307,6 +335,8 @@ export default function ProfilePage() {
             try {
                 const data = await getMyProfile();
                 if (data) {
+                    setUserId(data.user_id);
+                    setAlumniId(data.alumni_id);
                     setAccount({
                         username: data.username,
                         password: "",
@@ -323,7 +353,7 @@ export default function ProfilePage() {
                         lastname: data.last_name,
                         firstname: data.first_name,
                         middlename: data.middle_name || "",
-                        gender: data.gender,
+                        gender: normalizeGender(data.gender),
                         birthdate: data.birthdate || "",
                         age: data.age,
                     });
@@ -331,7 +361,7 @@ export default function ProfilePage() {
                         lastname: data.last_name,
                         firstname: data.first_name,
                         middlename: data.middle_name || "",
-                        gender: data.gender,
+                        gender: normalizeGender(data.gender),
                         birthdate: data.birthdate || "",
                         age: data.age,
                     });
@@ -372,11 +402,20 @@ export default function ProfilePage() {
     }, [personalDraft.birthdate]);
 
     // ── Handlers: Account ──
-    const handleSaveAccount = useCallback(() => {
-        setAccount(accountDraft);
-        setEditingAccount(false);
-        setAccountSaved(true);
-    }, [accountDraft]);
+    const handleSaveAccount = useCallback(async () => {
+        if (!userId) return;
+        setIsSavingAccount(true);
+        const success = await updateMyAccount(userId, { email: accountDraft.email });
+
+        if (success) {
+            setAccount(accountDraft);
+            setEditingAccount(false);
+            toast.success("Account information updated successfully");
+        } else {
+            toast.error("Failed to update account information");
+        }
+        setIsSavingAccount(false);
+    }, [accountDraft, userId]);
 
     const handleCancelAccount = useCallback(() => {
         setAccountDraft(account);
@@ -384,14 +423,33 @@ export default function ProfilePage() {
     }, [account]);
 
     // ── Handlers: Personal ──
-    const handleSavePersonal = useCallback(() => {
-        setPersonal({
-            ...personalDraft,
-            age: computeAge(personalDraft.birthdate),
-        });
-        setEditingPersonal(false);
-        setPersonalSaved(true);
-    }, [personalDraft]);
+    const handleSavePersonal = useCallback(async () => {
+        if (!alumniId) return;
+        setIsSavingPersonal(true);
+
+        const updateData = {
+            last_name: personalDraft.lastname,
+            first_name: personalDraft.firstname,
+            middle_name: personalDraft.middlename,
+            gender: personalDraft.gender,
+            birthdate: personalDraft.birthdate,
+            age: Number(computeAge(personalDraft.birthdate)) || 0,
+        };
+
+        const success = await updateMyProfile(alumniId, updateData as any);
+
+        if (success) {
+            setPersonal({
+                ...personalDraft,
+                age: computeAge(personalDraft.birthdate),
+            });
+            setEditingPersonal(false);
+            toast.success("Personal information updated successfully");
+        } else {
+            toast.error("Failed to update personal information");
+        }
+        setIsSavingPersonal(false);
+    }, [personalDraft, alumniId]);
 
     const handleCancelPersonal = useCallback(() => {
         setPersonalDraft(personal);
@@ -494,10 +552,10 @@ export default function ProfilePage() {
                         subtitle="Login credentials and contact email"
                         editable
                         editing={editingAccount}
-                        saved={accountSaved}
-                        onEdit={() => { setAccountDraft(account); setEditingAccount(true); setAccountSaved(false); }}
+                        onEdit={() => { setAccountDraft(account); setEditingAccount(true); }}
                         onSave={handleSaveAccount}
                         onCancel={handleCancelAccount}
+                        loading={isSavingAccount}
                         icon={<Settings size={18} />}
                         iconContainerClass="bg-gradient-to-br from-gray-700 to-gray-900 shadow-gray-900/20"
                     >
@@ -533,10 +591,10 @@ export default function ProfilePage() {
                         subtitle="Basic personal details"
                         editable
                         editing={editingPersonal}
-                        saved={personalSaved}
-                        onEdit={() => { setPersonalDraft(personal); setEditingPersonal(true); setPersonalSaved(false); }}
+                        onEdit={() => { setPersonalDraft(personal); setEditingPersonal(true); }}
                         onSave={handleSavePersonal}
                         onCancel={handleCancelPersonal}
+                        loading={isSavingPersonal}
                         icon={<User size={18} />}
                         iconContainerClass="bg-gradient-to-br from-emerald-600 to-teal-500 shadow-emerald-500/20"
                     >
@@ -570,20 +628,23 @@ export default function ProfilePage() {
                                     Gender <span className="text-emerald-600">*</span>
                                 </label>
                                 {editingPersonal ? (
-                                    <select
+                                    <Select
                                         value={personalDraft.gender}
-                                        onChange={(e) => setPersonalDraft((p) => ({ ...p, gender: e.target.value }))}
-                                        className="w-full rounded-xl border border-gray-300 bg-white text-sm text-gray-900 px-3.5 py-2.5 transition-all duration-150 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                                        onValueChange={(v) => setPersonalDraft((p) => ({ ...p, gender: v }))}
                                     >
-                                        <option value="">Select gender</option>
-                                        <option value="Male">Male</option>
-                                        <option value="Female">Female</option>
-                                        <option value="Non-binary">Non-binary</option>
-                                        <option value="Prefer not to say">Prefer not to say</option>
-                                    </select>
+                                        <SelectTrigger className="w-full rounded-xl border border-gray-300 bg-white text-sm text-gray-900 px-3.5 h-[42px] transition-all duration-150 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20">
+                                            <SelectValue placeholder="Select gender" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="MALE">Male</SelectItem>
+                                            <SelectItem value="FEMALE">Female</SelectItem>
+                                            <SelectItem value="NON_BINARY">Non-binary</SelectItem>
+                                            <SelectItem value="PREFER_NOT_TO_SAY">Prefer not to say</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 ) : (
                                     <div className="w-full rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-500 px-3.5 py-2.5">
-                                        {personal.gender || <span className="text-gray-300 italic text-xs">Not provided</span>}
+                                        {formatGender(personal.gender) || <span className="text-gray-300 italic text-xs">Not provided</span>}
                                     </div>
                                 )}
                             </div>

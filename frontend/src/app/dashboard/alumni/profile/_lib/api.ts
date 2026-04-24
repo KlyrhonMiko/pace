@@ -91,3 +91,36 @@ export async function getSavedResume(): Promise<ResumeData | null> {
         return null;
     }
 }
+/**
+ * Update the current authenticated alumni's personal profile information.
+ */
+export async function updateMyProfile(alumniId: string, data: Partial<AlumniProfile>): Promise<boolean> {
+    try {
+        const response = await apiFetch<any>(`/alumni/${alumniId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: data,
+        });
+        return response.success;
+    } catch (error) {
+        console.error(`Failed to update alumni profile ${alumniId}:`, error);
+        return false;
+    }
+}
+
+/**
+ * Update the current authenticated user's account information (e.g., email).
+ */
+export async function updateMyAccount(userId: string, data: { email: string }): Promise<boolean> {
+    try {
+        const response = await apiFetch<any>(`/users/${userId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: data,
+        });
+        return response.success;
+    } catch (error) {
+        console.error(`Failed to update user account ${userId}:`, error);
+        return false;
+    }
+}

@@ -26,19 +26,28 @@ interface EmployerApplicationListProps {
     applications: Application[];
     isLoading: boolean;
     totalApplications: number;
+    onContact?: (email: string) => void;
+    onApprove?: (id: number) => void;
+    onReject?: (id: number) => void;
 }
 
 export default function EmployerApplicationList({
     applications,
     isLoading,
     totalApplications,
+    onContact,
+    onApprove,
+    onReject
 }: EmployerApplicationListProps) {
     const getStatusStyle = (status: string) => {
         switch (status.toLowerCase()) {
+            case "pending":
             case "new":
                 return "bg-blue-50 text-blue-700 border-blue-200";
+            case "reviewed":
             case "review":
                 return "bg-amber-50 text-amber-800 border-amber-200";
+            case "accepted":
             case "interviewing":
                 return "bg-emerald-50 text-emerald-700 border-emerald-200";
             case "rejected":
@@ -143,6 +152,7 @@ export default function EmployerApplicationList({
                                                 size="icon"
                                                 className="h-8 w-8 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg hover:shadow-sm"
                                                 title="Contact Candidate"
+                                                onClick={(e) => { e.stopPropagation(); if (onContact) onContact(app.email); }}
                                             >
                                                 <Mail size={14} />
                                             </Button>
@@ -151,6 +161,7 @@ export default function EmployerApplicationList({
                                                 size="icon"
                                                 className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg hover:shadow-sm"
                                                 title="Approve"
+                                                onClick={(e) => { e.stopPropagation(); if (onApprove) onApprove(app.id); }}
                                             >
                                                 <CheckCircle size={14} />
                                             </Button>
@@ -159,6 +170,7 @@ export default function EmployerApplicationList({
                                                 size="icon"
                                                 className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg hover:shadow-sm"
                                                 title="Reject"
+                                                onClick={(e) => { e.stopPropagation(); if (onReject) onReject(app.id); }}
                                             >
                                                 <XCircle size={14} />
                                             </Button>

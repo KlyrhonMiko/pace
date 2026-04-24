@@ -9,9 +9,9 @@ from models.response_codes import ErrorCode, SuccessCode, StandardResponse
 
 from services.queries.users_queries import create_user
 from services.queries.employers_queries import create_employer_profile, get_employer_by_user_code, update_employer_profile
-from services.queries.jobs_queries import get_employer_applications, get_job_listing
+from services.queries.jobs_queries import get_employer_applications, get_job_listing, update_job_application_status, get_job_application
 from models.alumni import Alumni
-from models.job_listings import JobListing
+from models.job_listings import JobListing, JobApplication
 from schemas.users import UserCreate
 from utils.auth import get_current_user
 import uuid
@@ -300,7 +300,49 @@ def get_my_applications_route(
 
     return StandardResponse(
         success=True,
-        code=SuccessCode.EMPLOYER_APPLICATIONS_RETRIEVED.value,
+        code=SuccessCode.EMPLOYER_APPLICATIONS_RETRIEVED.value if hasattr(SuccessCode, 'EMPLOYER_APPLICATIONS_RETRIEVED') else 200,
         message="Applications retrieved successfully",
         data=result
+    )
+
+
+@router.patch("/applications/{application_id}/status", response_model=StandardResponse)
+def update_application_status_route(
+    application_id: int,
+    status: str,
+    db: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(get_current_user)
+):
+    """
+    Update the status of a job application for an employer's job listing.
+    Status can be 'Pending', 'Reviewed', 'Accepted', 'Rejected'.
+    """
+    if current_user.user_type != UserType.EMPLOYER.value:
+        raise HTTPException(status_code=403, detail="Only employers can perform this action.")
+    
+    user_code = uuid.UUID(current_user.user_code) if isinstance(current_user.user_code, str) else current_user.user_code
+    employer = get_employer_by_user_code(db, user_code)
+    if not employer:
+        raise HTTPException(status_code=404, detail="Employer profile not found.")
+        
+    application = db.get(JobApplication, application_id)
+    if not application:
+        raise HTTPException(status_code=404, detail="Job application not found.")
+        
+    # Verify the application belongs to a job posted by the employer
+    job = get_job_listing(db, application.job_id)
+    if not job or job.employer_id != employer.employer_id:
+         raise HTTPException(status_code=403, detail="Not authorized to update this application.")
+         
+    valid_statuses = ["Pending", "Reviewed", "Accepted", "Rejected"]
+    if status not in valid_statuses:
+         raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of {valid_statuses}")
+         
+    updated_app = update_job_application_status(db, application_id, status)
+    
+    return StandardResponse(
+        success=True,
+        code=200,
+        message=f"Application status updated to {status}",
+        data={"application_id": updated_app.id, "status": updated_app.status}
     )

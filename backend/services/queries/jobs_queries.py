@@ -89,3 +89,17 @@ def get_employer_applications(db: Session, employer_id: uuid.UUID) -> List[JobAp
         .where(JobListing.employer_id == employer_id)
         .order_by(JobApplication.applied_at.desc())
     ).all()
+
+def update_job_application_status(db: Session, application_id: int, status: str) -> Optional[JobApplication]:
+    """Update the status of a job application."""
+    application = db.get(JobApplication, application_id)
+    if not application:
+        return None
+    
+    application.status = status
+    application.updated_at = get_current_time_gmt8()
+    
+    db.add(application)
+    db.commit()
+    db.refresh(application)
+    return application

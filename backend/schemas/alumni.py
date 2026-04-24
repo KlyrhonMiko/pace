@@ -1,5 +1,6 @@
+import uuid
 from datetime import datetime, date
-from typing import Optional
+from typing import Optional, Any, List, Dict
 from sqlmodel import SQLModel, Field
 from pydantic import field_serializer, field_validator
 from utils.timezone import format_datetime_gmt8
@@ -78,3 +79,25 @@ class AlumniUpdate(SQLModel):
         if v is not None and v < 0:
             raise ValueError("Invalid age")
         return v
+
+class ResumeSchema(SQLModel):
+    personal: Dict[str, Any]
+    education: List[Dict[str, Any]]
+    experience: List[Dict[str, Any]]
+    skills: List[Dict[str, Any]]
+
+
+class ResumeSave(SQLModel):
+    resume_data: ResumeSchema
+
+
+class ResumeRead(SQLModel):
+    resume_code: uuid.UUID
+    alumni_code: uuid.UUID
+    resume_data: ResumeSchema
+    created_at: datetime
+    updated_at: datetime
+
+    @field_serializer("created_at", "updated_at")
+    def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
+        return format_datetime_gmt8(value)

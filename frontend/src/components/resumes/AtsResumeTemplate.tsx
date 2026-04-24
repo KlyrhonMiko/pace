@@ -44,7 +44,7 @@ export function AtsResumeTemplate({ data, printRef }: Props) {
         <div
             ref={printRef as any}
             className="bg-white mx-auto print:mx-0 shadow-lg print:shadow-none min-h-[1056px] w-[816px] max-w-full print:w-full print:min-h-0 text-black leading-snug tracking-tight font-sans overflow-hidden"
-            style={{ padding: "48px 64px" }}
+            style={{ padding: "48px 96px 96px 96px" }}
         >
             {/* Header */}
             <header className="text-center mb-6">
@@ -68,7 +68,7 @@ export function AtsResumeTemplate({ data, printRef }: Props) {
             )}
 
             {/* Experience */}
-            {data.experience.length > 0 && (
+            {data.experience.some(exp => exp.company || exp.position || exp.title || exp.description) && (
                 <section className="mb-6">
                     <h2 className="text-sm font-bold uppercase tracking-widest border-b-[1.5px] border-black pb-1 mb-3">
                         Experience
@@ -84,7 +84,20 @@ export function AtsResumeTemplate({ data, printRef }: Props) {
                                         {exp.startDate} {exp.endDate ? `— ${exp.endDate}` : ""}
                                     </span>
                                 </div>
-                                <p className="text-sm text-gray-800 whitespace-pre-wrap">{exp.description}</p>
+                                {exp.description?.includes("\n") || exp.description?.startsWith("•") || exp.description?.startsWith("-") ? (
+                                    <ul className="list-disc list-outside ml-4 space-y-1">
+                                        {exp.description
+                                            .split("\n")
+                                            .filter((line) => line.trim() !== "")
+                                            .map((line, i) => (
+                                                <li key={i} className="text-sm text-gray-800">
+                                                    {line.replace(/^[•\s*-]+/, "").trim()}
+                                                </li>
+                                            ))}
+                                    </ul>
+                                ) : (
+                                    <p className="text-sm text-gray-800 whitespace-pre-wrap">{exp.description}</p>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -92,7 +105,7 @@ export function AtsResumeTemplate({ data, printRef }: Props) {
             )}
 
             {/* Education */}
-            {data.education.length > 0 && (
+            {data.education.some(edu => edu.institution || edu.degree || edu.field) && (
                 <section className="mb-6">
                     <h2 className="text-sm font-bold uppercase tracking-widest border-b-[1.5px] border-black pb-1 mb-3">
                         Education
@@ -118,7 +131,7 @@ export function AtsResumeTemplate({ data, printRef }: Props) {
             )}
 
             {/* Skills */}
-            {data.skills.length > 0 && (
+            {data.skills.some(s => s.name.trim() !== "") && (
                 <section>
                     <h2 className="text-sm font-bold uppercase tracking-widest border-b-[1.5px] border-black pb-1 mb-3">
                         Skills

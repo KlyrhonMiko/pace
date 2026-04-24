@@ -1,4 +1,5 @@
 import { apiFetch } from "@/lib/api-client";
+import { ResumeData } from "@/components/resumes/AtsResumeTemplate";
 
 export interface AlumniProfile {
     alumni_code?: string;
@@ -49,6 +50,44 @@ export async function getMyProfile(token?: string): Promise<AlumniProfile | null
         return null;
     } catch (error) {
         console.error("Failed to fetch alumni profile:", error);
+        return null;
+    }
+}
+
+/**
+ * Save or update the current user's resume data.
+ */
+export async function saveResume(data: ResumeData): Promise<boolean> {
+    try {
+        const response = await apiFetch<any>("/alumni/resume", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: { resume_data: data },
+        });
+        return response.success;
+    } catch (error) {
+        console.error("Failed to save resume:", error);
+        return false;
+    }
+}
+
+/**
+ * Fetch the current user's saved resume data.
+ */
+export async function getSavedResume(): Promise<ResumeData | null> {
+    try {
+        const response = await apiFetch<any>("/alumni/resume", {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+            cache: "no-store",
+        });
+
+        if (response.success && response.data?.resume_data) {
+            return response.data.resume_data as ResumeData;
+        }
+        return null;
+    } catch (error) {
+        console.error("Failed to fetch saved resume:", error);
         return null;
     }
 }

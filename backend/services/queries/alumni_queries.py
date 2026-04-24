@@ -1,15 +1,17 @@
 """
 DB query functions for alumni domain (covers composite register too).
 """
+import uuid
 from sqlmodel import Session, select, func
 from sqlalchemy.exc import IntegrityError
 
 from models.alumni import Alumni
+from models.alumni_resumes import AlumniResume
 from models.users import User, UserType
 from models.student_records import StudentRecord
 from models.courses import Course
 from models.responses import AlumniFullProfile
-from schemas.alumni import AlumniUpdate
+from schemas.alumni import AlumniUpdate, ResumeSave
 from schemas.composite import (
     BatchAlumniRegistrationItem, BatchAlumniRegistrationItemSafeDisplay,
     BatchAlumniRegistrationResult, BatchAlumniRegisterResponse,
@@ -708,3 +710,42 @@ def calculate_profile_completeness(alumni: Alumni, student: StudentRecord | None
     total_fields = 16 # 10 alumni (including employment) + 6 student
     total_filled = filled_alumni + filled_student
     return min(int((total_filled / total_fields) * 100), 100) if total_fields > 0 else 0
+
+def save_alumni_resume(
+    session: Session,
+    alumni_code: uuid.UUID,
+    data: ResumeSave,
+    performed_by: str | None = None,
+) -> AlumniResume:
+    """Create or update the resume for an alumni."""
+    existing = session.exec(
+        select(AlumniResume).where(AlumniResume.alumni_code == alumni_code)
+    ).first()
+
+    if existing:
+        existing.resume_data = data.resume_data.model_dump()
+        session.add(existing)
+        res = existing
+    else:
+        res = AlumniResume(
+            alumni_code=alumni_code,
+            resume_data=data.resume_data.model_dump()
+        )
+        session.add(res)
+
+    create_transaction_log(
+        session,
+        tl_name=f"SAVED resume for alumni {alumni_code}",
+        after=res,
+        performed_by=performed_by,
+    )
+    session.commit()
+    session.refresh(res)
+    return res
+
+
+def get_alumni_resume(session: Session, alumni_code: uuid.UUID) -> AlumniResume | None:
+    """Retrieve the resume for an alumni."""
+    return session.exec(
+        select(AlumniResume).where(AlumniResume.alumni_code == alumni_code)
+    ).first()

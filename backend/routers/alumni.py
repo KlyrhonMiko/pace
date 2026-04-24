@@ -3,7 +3,7 @@ from sqlmodel import Session
 from sqlalchemy.exc import IntegrityError
 from core.database import get_session
 from core.redis import cache_get_or_set, generate_cache_key, invalidate_cache_namespaces
-from schemas.alumni import AlumniUpdate, AlumniPublic
+from schemas.alumni import AlumniUpdate, AlumniPublic, ResumeSave, ResumeRead
 from schemas.composite import (
     CompleteAlumniRegistration,
     BatchAlumniRegister, BatchAlumniUpdate, BatchAlumniDelete, BatchAlumniRestore,
@@ -19,6 +19,7 @@ from services.queries.alumni_queries import (
     register_complete_alumni, update_alumni, soft_delete_alumni, restore_alumni,
     get_all_alumni, build_full_profile,
     batch_register_alumni, batch_update_alumni, batch_delete_alumni, batch_restore_alumni,
+    save_alumni_resume, get_alumni_resume,
 )
 
 router = APIRouter(prefix="/alumni", tags=["alumni"])
@@ -376,6 +377,73 @@ def get_my_activity_history(
 
 
 # ---------------------------------------------------------------------------
+# Resume endpoints
+# ---------------------------------------------------------------------------
+
+@router.post("/resume", response_model=StandardResponse)
+def save_resume_route(
+    data: ResumeSave,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
+):
+    """Save or update the current user's resume."""
+    if current_user.user_type != UserType.USER.value:
+        raise HTTPException(status_code=403, detail="Only alumni can save resumes")
+
+    from services.queries.alumni_queries import get_alumni_by_user_code
+    alumni = get_alumni_by_user_code(session, str(current_user.user_code))
+    if not alumni:
+        raise HTTPException(status_code=404, detail=StandardResponse(
+            success=False,
+            code=ErrorCode.ALUMNI_NOT_FOUND.value,
+            message="Alumni profile not found"
+        ).model_dump(mode='json'))
+
+    res = save_alumni_resume(session, alumni.alumni_code, data, performed_by=current_user.user_code)
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.ALUMNI_UPDATED.value, # Reusing updated code
+        message="Resume saved successfully",
+        data=ResumeRead.model_validate(res)
+    )
+
+
+@router.get("/resume", response_model=StandardResponse)
+def get_resume_route(
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
+):
+    """Retrieve the current user's saved resume."""
+    if current_user.user_type != UserType.USER.value:
+        raise HTTPException(status_code=403, detail="Only alumni can access resumes")
+
+    from services.queries.alumni_queries import get_alumni_by_user_code
+    alumni = get_alumni_by_user_code(session, str(current_user.user_code))
+    if not alumni:
+        raise HTTPException(status_code=404, detail=StandardResponse(
+            success=False,
+            code=ErrorCode.ALUMNI_NOT_FOUND.value,
+            message="Alumni profile not found"
+        ).model_dump(mode='json'))
+
+    res = get_alumni_resume(session, alumni.alumni_code)
+    if not res:
+        return StandardResponse(
+            success=True,
+            code=SuccessCode.ALUMNI_RETRIEVED.value,
+            message="No resume found",
+            data=None
+        )
+
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.ALUMNI_RETRIEVED.value,
+        message="Resume retrieved successfully",
+        data=ResumeRead.model_validate(res)
+    )
+
+
+# ---------------------------------------------------------------------------
 # Single-record endpoints
 # ---------------------------------------------------------------------------
 
@@ -625,3 +693,4 @@ def _build_alumni_detail_response(session: Session, alumni_id: str) -> StandardR
         message=f"Alumni {alumni_id} retrieved successfully",
         data=build_full_profile(session, alumni)
     )
+

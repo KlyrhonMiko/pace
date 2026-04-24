@@ -18,6 +18,8 @@ class Settings:
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
     JOOBLE_API_KEY: str = os.getenv("JOOBLE_API_KEY", "")
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    CLOUDINARY_URL: str = os.getenv("CLOUDINARY_URL", "")
+
 
     # Gmail OAuth2 settings
     GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "")

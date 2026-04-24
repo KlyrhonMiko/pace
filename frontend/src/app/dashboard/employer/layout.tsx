@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -18,11 +18,13 @@ import {
   Menu,
   X,
   ChevronRight,
+  User,
 } from "lucide-react";
 import DateWidget from "../_components/DateWidget";
 
 const navItems = [
   { name: "Overview", href: "/dashboard/employer", icon: () => <LayoutDashboard size={18} /> },
+  { name: "Company Profile", href: "/dashboard/employer/profile", icon: () => <User size={18} /> },
   { name: "Job Postings", href: "/dashboard/employer/jobs", icon: () => <Briefcase size={18} /> },
   { name: "Applications", href: "/dashboard/employer/applications", icon: () => <FileText size={18} /> },
 ];
@@ -35,7 +37,13 @@ export default function EmployerLayout({
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { user, logout } = useAuth();
+
+  // Fix hydration mismatch: only render user-dependent content after mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <div className="flex h-screen w-full bg-gray-50">
@@ -168,16 +176,30 @@ export default function EmployerLayout({
         <div className="flex-shrink-0 p-4 border-t border-emerald-100/60 bg-white/60 backdrop-blur-sm">
           <div className="flex items-center gap-3 rounded-xl bg-gradient-to-br from-slate-50/80 to-white p-3.5 border border-slate-200/60 shadow-sm hover:shadow-md hover:border-slate-300/60 transition-all duration-200">
             <div className="relative flex-shrink-0">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-emerald-800 to-emerald-700 text-xs font-bold text-white shadow-md ring-2 ring-white">
-                {user?.first_name?.[0] || "E"}{user?.last_name?.[0] || "R"}
-              </div>
+              {mounted && user?.company_logo_url ? (
+                <div className="h-10 w-10 overflow-hidden rounded-full ring-2 ring-white shadow-md bg-white">
+                  <Image
+                    src={user.company_logo_url || ""}
+                    alt={user.company_name || "Company Logo"}
+                    width={40}
+                    height={40}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              ) : (
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-emerald-800 to-emerald-700 text-xs font-bold text-white shadow-md ring-2 ring-white">
+                  {mounted ? (user?.first_name?.[0] || "E") + (user?.last_name?.[0] || "R") : "ER"}
+                </div>
+              )}
               <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-600 rounded-full ring-2 ring-white shadow-sm" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-slate-900 truncate leading-tight">
-                {user?.first_name || "Enterprise"} {user?.last_name || "Recruiter"}
+                {mounted ? (user?.first_name || "Enterprise") + " " + (user?.last_name || "Recruiter") : "Enterprise Recruiter"}
               </p>
-              <p className="text-[11px] text-slate-500 truncate mt-0.5">Employer Profile</p>
+              <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                {mounted ? (user?.company_name || "Employer Profile") : "Employer Profile"}
+              </p>
             </div>
             {/* Logout Button */}
             <button
@@ -214,7 +236,7 @@ export default function EmployerLayout({
               <div className="h-8 w-px bg-slate-200 hidden md:block" />
               <div>
                 <h1 className="text-base font-semibold text-slate-900">
-                  Welcome, {user?.first_name || "Employer"}!
+                  Welcome, {mounted ? (user?.first_name || "Employer") : "Employer"}!
                 </h1>
                 <p className="text-xs text-slate-500 hidden sm:block">Manage job postings and evaluate candidate applications</p>
               </div>

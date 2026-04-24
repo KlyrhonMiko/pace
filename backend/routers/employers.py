@@ -1,16 +1,25 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from sqlmodel import Session, select
 from sqlalchemy.exc import IntegrityError
 from core.database import get_session
-from schemas.employers import EmployerCreate, EmployerResponse
-from models.users import UserType
+from schemas.employers import EmployerCreate, EmployerResponse, EmployerUpdate
+from models.users import User, UserType
+from models.auth import CurrentUser
 from models.response_codes import ErrorCode, SuccessCode, StandardResponse
 
 from services.queries.users_queries import create_user
-from services.queries.employers_queries import create_employer_profile
+from services.queries.employers_queries import create_employer_profile, get_employer_by_user_code, update_employer_profile
 from schemas.users import UserCreate
+from utils.auth import get_current_user
+import uuid
+import cloudinary
+import cloudinary.uploader
+from core.config import settings
 
 router = APIRouter(prefix="/employers", tags=["employers"])
+
+if settings.CLOUDINARY_URL:
+    cloudinary.config(url=settings.CLOUDINARY_URL)
 
 @router.post("/register", response_model=StandardResponse)
 def register_employer(
@@ -42,11 +51,28 @@ def register_employer(
             company_address=employer_data.company_address
         )
         
+        # Manually assemble EmployerResponse since it now needs user fields
+        response_data = EmployerResponse(
+            employer_id=employer_profile.employer_id,
+            user_code=employer_profile.user_code,
+            user_id=new_user.user_id,
+            username=new_user.username,
+            email=new_user.email,
+            company_name=employer_profile.company_name,
+            contact_person_first_name=employer_profile.contact_person_first_name,
+            contact_person_last_name=employer_profile.contact_person_last_name,
+            contact_person_position=employer_profile.contact_person_position,
+            company_website=employer_profile.company_website,
+            company_address=employer_profile.company_address,
+            company_contact_number=employer_profile.company_contact_number,
+            company_logo_url=employer_profile.company_logo_url
+        )
+
         return StandardResponse(
             success=True,
             code=SuccessCode.USER_CREATED.value,
             message="Employer account created successfully",
-            data=EmployerResponse.model_validate(employer_profile)
+            data=response_data
         )
     except IntegrityError as e:
         session.rollback()
@@ -63,3 +89,158 @@ def register_employer(
             raise HTTPException(status_code=400, detail=StandardResponse(
                 success=False, code=ErrorCode.INVALID_INPUT.value, message="Registration failed"
             ).model_dump(mode='json'))
+
+@router.get("/me", response_model=StandardResponse)
+def get_employer_me(
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(get_current_user)
+):
+    """Fetch the current authenticated employer's profile details."""
+    if current_user.user_type != UserType.EMPLOYER.value:
+        raise HTTPException(status_code=403, detail="Only employers can access this profile.")
+    
+    user_code = uuid.UUID(current_user.user_code) if isinstance(current_user.user_code, str) else current_user.user_code
+    
+    employer_profile = get_employer_by_user_code(session, user_code)
+    if not employer_profile:
+        raise HTTPException(status_code=404, detail="Employer profile not found.")
+    
+    # Get associated user for username and email
+    user = session.exec(select(User).where(User.user_code == user_code)).first()
+    if not user:
+         raise HTTPException(status_code=404, detail="User account not found.")
+
+    response_data = EmployerResponse(
+        employer_id=employer_profile.employer_id,
+        user_code=employer_profile.user_code,
+        user_id=user.user_id,
+        username=user.username,
+        email=user.email,
+        company_name=employer_profile.company_name,
+        contact_person_first_name=employer_profile.contact_person_first_name,
+        contact_person_last_name=employer_profile.contact_person_last_name,
+        contact_person_position=employer_profile.contact_person_position,
+        company_website=employer_profile.company_website,
+        company_address=employer_profile.company_address,
+        company_contact_number=employer_profile.company_contact_number,
+        company_logo_url=employer_profile.company_logo_url
+    )
+
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.USER_RETRIEVED.value if hasattr(SuccessCode, 'USER_RETRIEVED') else SuccessCode.USERS_RETRIEVED.value,
+        message="Employer profile retrieved successfully",
+        data=response_data
+    )
+
+@router.post("/upload-logo", response_model=StandardResponse)
+def upload_employer_logo(
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(get_current_user)
+):
+    """Upload a company logo to Cloudinary and update the Employer profile."""
+    if current_user.user_type != UserType.EMPLOYER.value:
+        raise HTTPException(status_code=403, detail="Only employers can upload logos.")
+
+    user_code = uuid.UUID(current_user.user_code) if isinstance(current_user.user_code, str) else current_user.user_code
+    employer_profile = get_employer_by_user_code(session, user_code)
+    if not employer_profile:
+        raise HTTPException(status_code=404, detail="Employer profile not found.")
+
+    if not settings.CLOUDINARY_URL:
+        raise HTTPException(status_code=500, detail="Cloudinary integration is not configured.")
+
+    try:
+        if employer_profile.company_logo_public_id:
+            try:
+                cloudinary.uploader.destroy(employer_profile.company_logo_public_id)
+            except Exception as e:
+                print(f"Failed to delete old image by public_id: {e}")
+        elif employer_profile.company_logo_url:
+            try:
+                url_parts = employer_profile.company_logo_url.split('/')
+                if 'upload' in url_parts:
+                    upload_index = url_parts.index('upload')
+                    path_parts = url_parts[upload_index+2:]
+                    public_id_with_ext = '/'.join(path_parts)
+                    public_id = public_id_with_ext.rsplit('.', 1)[0]
+                    cloudinary.uploader.destroy(public_id)
+            except Exception as e:
+                print(f"Failed to delete old image by URL fallback: {e}")
+
+        result = cloudinary.uploader.upload(
+            file.file, 
+            folder=f"pace/employers/{employer_profile.employer_id}",
+            resource_type="image"
+        )
+        logo_url = result.get("secure_url")
+        public_id = result.get("public_id")
+        
+        employer_profile.company_logo_url = logo_url
+        employer_profile.company_logo_public_id = public_id
+        session.add(employer_profile)
+        session.commit()
+        session.refresh(employer_profile)
+
+        return StandardResponse(
+            success=True,
+            code=SuccessCode.USER_UPDATED.value if hasattr(SuccessCode, 'USER_UPDATED') else 200,
+            message="Logo uploaded successfully",
+            data={"logo_url": logo_url}
+        )
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/me", response_model=StandardResponse)
+def update_employer_me(
+    employer_data: EmployerUpdate,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(get_current_user)
+):
+    """Update the current authenticated employer's profile details."""
+    if current_user.user_type != UserType.EMPLOYER.value:
+        raise HTTPException(status_code=403, detail="Only employers can update this profile.")
+    
+    user_code = uuid.UUID(current_user.user_code) if isinstance(current_user.user_code, str) else current_user.user_code
+    
+    employer_profile = get_employer_by_user_code(session, user_code)
+    if not employer_profile:
+        raise HTTPException(status_code=404, detail="Employer profile not found.")
+    
+    # Get associated user for username and email
+    user = session.exec(select(User).where(User.user_code == user_code)).first()
+    if not user:
+         raise HTTPException(status_code=404, detail="User account not found.")
+
+    try:
+        updated_profile = update_employer_profile(session, employer_profile, employer_data)
+        
+        response_data = EmployerResponse(
+            employer_id=updated_profile.employer_id,
+            user_code=updated_profile.user_code,
+            user_id=user.user_id,
+            username=user.username,
+            email=user.email,
+            company_name=updated_profile.company_name,
+            contact_person_first_name=updated_profile.contact_person_first_name,
+            contact_person_last_name=updated_profile.contact_person_last_name,
+            contact_person_position=updated_profile.contact_person_position,
+            company_website=updated_profile.company_website,
+            company_address=updated_profile.company_address,
+            company_contact_number=updated_profile.company_contact_number,
+            company_logo_url=updated_profile.company_logo_url,
+            company_logo_public_id=updated_profile.company_logo_public_id
+        )
+
+        return StandardResponse(
+            success=True,
+            code=SuccessCode.USER_UPDATED.value if hasattr(SuccessCode, 'USER_UPDATED') else 200,
+            message="Employer profile updated successfully",
+            data=response_data
+        )
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))

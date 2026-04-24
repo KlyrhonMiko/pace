@@ -11,6 +11,8 @@ interface User {
   access_token: string;
   first_name?: string | null;
   last_name?: string | null;
+  company_name?: string | null;
+  company_logo_url?: string | null;
 }
 
 interface AuthContextType {

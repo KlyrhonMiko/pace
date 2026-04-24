@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional, List
 from enum import Enum
 from sqlmodel import SQLModel, Field
-from pydantic import field_serializer, field_validator, BaseModel
+from pydantic import field_serializer, field_validator, BaseModel, ConfigDict
 from utils.timezone import format_datetime_gmt8
 from utils.crypto import hash_password
 
@@ -13,6 +13,7 @@ class UserType(str, Enum):
     STAFF = "STAFF"
     ADMIN = "ADMIN"
     EMPLOYER = "EMPLOYER"
+    FACULTY = "FACULTY"
 
 
 class UserCreate(SQLModel):
@@ -50,7 +51,7 @@ class UserCreate(SQLModel):
         return v
 
 
-class UserPublic(SQLModel):
+class UserPublic(BaseModel):
     user_id: str
     username: str
     email: str
@@ -58,6 +59,8 @@ class UserPublic(SQLModel):
     is_deleted: bool = False
     created_at: datetime
     updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
 
     @field_serializer("created_at", "updated_at")
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
@@ -71,7 +74,7 @@ class UserWithProfile(UserPublic):
     middle_name: Optional[str] = None
 
 
-class UserUpdate(SQLModel):
+class UserUpdate(BaseModel):
     username: Optional[str] = Field(default=None, max_length=50)
     email: Optional[str] = Field(default=None, max_length=100)
     current_password: Optional[str] = Field(default=None, min_length=8, max_length=72)

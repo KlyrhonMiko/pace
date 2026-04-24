@@ -7,7 +7,7 @@ export * from "@/app/dashboard/_lib/jobs-api";
 export async function createJob(jobData: any) {
     return await apiFetch("/jobs/", {
         method: "POST",
-        body: JSON.stringify(jobData),
+        body: jobData,
     });
 }
 

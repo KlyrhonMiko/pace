@@ -17,18 +17,19 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AdminJobDetailModal from "../../../admin/jobs/_components/AdminJobDetailModal";
+import { UnifiedJob } from "../_lib/types";
 
 interface EmployerJobListProps {
-    filteredJobs: any[];
+    filteredJobs: UnifiedJob[];
     totalJobs: number;
     totalPages: number;
     currentPage: number;
     setCurrentPage: (page: number) => void;
     clearFilters: () => void;
     isLoading: boolean;
-    onEdit?: (job: any) => void;
-    onToggleHide?: (job: any) => void;
-    onDelete?: (job: any) => void;
+    onEdit?: (job: UnifiedJob) => void;
+    onToggleHide?: (job: UnifiedJob) => void;
+    onDelete?: (job: UnifiedJob) => void;
     onAdd?: () => void;
 }
 
@@ -45,7 +46,7 @@ export default function EmployerJobList({
     onDelete,
     onAdd,
 }: EmployerJobListProps) {
-    const [selectedJob, setSelectedJob] = useState<any | null>(null);
+    const [selectedJob, setSelectedJob] = useState<UnifiedJob | null>(null);
 
     const getBadgeStyle = (type: string) => {
         switch (type?.toLowerCase()) {
@@ -152,11 +153,13 @@ export default function EmployerJobList({
                                     <td className="px-5 py-4">
                                         <div className="flex items-center gap-4">
                                             <div
-                                                className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${getLogoGradient(
-                                                    job.logo
-                                                )} text-white text-sm font-bold shadow-sm transition-transform duration-300 group-hover:scale-105`}
+                                                className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${job.logo?.startsWith("http") ? "" : getLogoGradient(job.logo)} text-white text-sm font-bold shadow-sm transition-transform duration-300 group-hover:scale-105 overflow-hidden`}
                                             >
-                                                {job.logo}
+                                                {job.logo?.startsWith("http") ? (
+                                                    <img src={job.logo} alt="Company Logo" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    job.logo
+                                                )}
                                             </div>
                                             <div className="min-w-0">
                                                 <div className="flex items-center gap-2">

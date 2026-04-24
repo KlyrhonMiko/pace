@@ -1,28 +1,22 @@
 "use client";
 
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, Activity } from "lucide-react";
 
 export default function EmployerHiringActivity() {
     return (
-        <div className="flex flex-col h-full overflow-hidden rounded-2xl bg-white shadow-sm border border-gray-100">
-            <div className="border-b border-gray-50 px-6 py-5">
-                <h3 className="text-lg font-bold text-gray-900">Hiring Activity</h3>
-            </div>
-            <div className="p-6 flex-1 flex flex-col gap-6">
-                {/* Highlight Card */}
-                <div className="rounded-2xl bg-emerald-50/50 border border-emerald-100 p-5">
-                    <div className="flex gap-4">
-                        <div className="flex-shrink-0 h-10 w-10 rounded-xl bg-white flex items-center justify-center shadow-sm">
-                            <TrendingUp className="h-5 w-5 text-emerald-600" aria-hidden="true" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <h3 className="text-sm font-bold text-emerald-900">Job Views are Up!</h3>
-                            <p className="mt-1 text-sm text-emerald-700/80 leading-relaxed">
-                                Your recent posting <span className="font-bold text-emerald-800">"Software Engineer"</span> has gathered 300% more views than your average postings.
-                            </p>
-                        </div>
-                    </div>
+        <div className="group/card flex flex-col h-full overflow-hidden rounded-2xl bg-white border border-gray-100 transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50 hover:-translate-y-0.5">
+            <div className="p-6 border-b border-slate-50 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 text-white shadow-lg shadow-emerald-500/20">
+                    <Activity className="h-5 w-5" strokeWidth={2} />
                 </div>
+                <div>
+                    <h3 className="text-base font-bold text-gray-900">Hiring Activity</h3>
+                    <p className="text-xs text-gray-500 mt-0.5">Track your pipeline progress</p>
+                </div>
+            </div>
+
+
+            <div className="p-6 flex-1 flex flex-col gap-6">
 
                 {/* Timeline */}
                 <div className="relative pl-6 space-y-8 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-100">

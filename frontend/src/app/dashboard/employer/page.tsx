@@ -1,37 +1,51 @@
-import { PlusCircle } from "lucide-react";
+"use client";
+
 import Link from "next/link";
 import PageHeader from "@/components/dashboard/PageHeader";
 import EmployerStatsGrid from "./_components/EmployerStatsGrid";
 import EmployerRecentApplications from "./_components/EmployerRecentApplications";
 import EmployerHiringActivity from "./_components/EmployerHiringActivity";
+import EmployerQuickActions from "./_components/EmployerQuickActions";
+
+import { useRouter } from "next/navigation";
 
 export default function EmployerOverview() {
+    const router = useRouter();
+
     return (
-        <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            {/* Page Header */}
-            <PageHeader
-                title="Employer Overview"
-                description="Monitor your hiring pipeline and job posting performance."
-                currentPage="Overview"
-                dashboardHref="/dashboard/employer"
-                dashboardName="Employer Dashboard"
-            >
-                <Link
-                    href="/dashboard/employer/jobs"
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-200 hover:bg-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 transition-all active:scale-95"
-                >
-                    <PlusCircle className="w-4 h-4" />
-                    Post New Job
-                </Link>
-            </PageHeader>
+        <div className="relative animate-in fade-in slide-in-from-bottom-4 duration-700">
 
-            {/* Stats Grid */}
-            <EmployerStatsGrid />
+            {/* Decorative background elements */}
+            <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                <div className="absolute top-1/3 -left-20 h-64 w-64 rounded-full bg-emerald-100 opacity-30 blur-3xl" />
+                <div className="absolute bottom-20 right-1/4 h-48 w-48 rounded-full bg-teal-100 opacity-30 blur-3xl" />
+            </div>
 
-            {/* Main Content Details Grid */}
-            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-                <EmployerRecentApplications />
-                <EmployerHiringActivity />
+            <div className="relative space-y-6">
+                {/* Page Header */}
+                <PageHeader
+                    title="Employer Overview"
+                    description="Monitor your hiring pipeline and job posting performance."
+                    currentPage="Overview"
+                    dashboardHref="/dashboard/employer"
+                    dashboardName="Employer Dashboard"
+                />
+
+
+                {/* Stats Grid */}
+                <EmployerStatsGrid />
+
+                {/* Main Content Details Grid */}
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 items-start">
+                    <div className="lg:col-span-2">
+                        <EmployerRecentApplications />
+                    </div>
+
+                    <div className="lg:col-span-1 space-y-6">
+                        <EmployerQuickActions />
+                        <EmployerHiringActivity />
+                    </div>
+                </div>
             </div>
         </div>
     );

@@ -57,13 +57,20 @@ def _ensure_owner_or_staff_plus(current_user: CurrentUser, alumni_user_code: str
             ).model_dump(mode="json"),
         )
 
-# ── Singleton predictor — loaded once, reused for every request ──
-try:
-    predictor = EmployabilityPredictor()
-    print("[PREDICT] ✓ EmployabilityPredictor loaded successfully")
-except FileNotFoundError as e:
-    predictor = None
-    print(f"[PREDICT] ⚠ Could not load predictor: {e}")
+# ── Singleton predictor — loaded lazily on first request ──
+_predictor: Optional[EmployabilityPredictor] = None
+
+def get_predictor() -> Optional[EmployabilityPredictor]:
+    """Lazy initializer for the predictor singleton."""
+    global _predictor
+    if _predictor is None:
+        try:
+            _predictor = EmployabilityPredictor()
+            print("[PREDICT] ✓ EmployabilityPredictor loaded (lazy)")
+        except Exception as e:
+            print(f"[PREDICT] ⚠ Could not load predictor: {e}")
+            _predictor = None
+    return _predictor
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -78,13 +85,8 @@ def predict_employability(
 ):
     """
     Run the dual-model employability prediction for a specific alumni.
-
-    1. Looks up the alumni's student_record, alumni_skills, and course from DB.
-    2. Assembles the predictor input dict from those records.
-    3. Runs both Random Forest models.
-    4. Stores input + result in the `employability_predictions` table.
-    5. Returns the prediction wrapped in StandardResponse.
     """
+    predictor = get_predictor()
     # Guard: make sure the models are available
     if predictor is None or not predictor.is_loaded:
         raise HTTPException(

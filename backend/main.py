@@ -81,9 +81,31 @@ app.include_router(employers.router)
 async def startup_event():
     """Startup event"""
     try:
-        print("[STARTUP] ✓ Application started - lazy caching enabled")
+        from core.redis import test_redis_connection
+        if test_redis_connection():
+            print("[STARTUP] ✓ Redis connection verified")
+        else:
+            print("[STARTUP] ⚠ Redis unavailable - performance may be degraded")
+
+        print("[STARTUP] ✓ PACE Application started - all systems initialized")
+        
+        # Initialize Jooble shutdown event
+        from services.jooble.core import get_shutdown_event
+        get_shutdown_event()
     except Exception as e:
-        print(f"[STARTUP] ⚠ Failed to load jobs into cache: {e}")
+        print(f"[STARTUP] ⚠ Error during startup sequence: {e}")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Shutdown event"""
+    print("[SHUTDOWN] Application shutting down...")
+    try:
+        from services.jooble.core import signal_shutdown
+        signal_shutdown()
+        print("[SHUTDOWN] ✓ Cleanup signals sent")
+    except Exception as e:
+        print(f"[SHUTDOWN] ⚠ Error during shutdown sequence: {e}")
 
 
 @app.exception_handler(RequestValidationError)

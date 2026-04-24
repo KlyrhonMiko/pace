@@ -30,18 +30,18 @@ import {
 } from "@/components/ui/dialog";
 import { createJob, updateJob } from "../../../faculty/jobs/_lib/api";
 import { toast } from "sonner";
+import { UnifiedJob } from "../_lib/types";
 
 interface EmployerJobFormModalProps {
     isOpen: boolean;
     onClose: () => void;
-    editingJob?: any;
+    editingJob?: UnifiedJob | null;
     onSuccess?: () => void;
 }
 
 export default function EmployerJobFormModal({ isOpen, onClose, editingJob, onSuccess }: EmployerJobFormModalProps) {
     const [formData, setFormData] = useState({
         title: "",
-        company: "",
         location: "",
         type: "Full-time",
         salary_min: "",
@@ -57,7 +57,6 @@ export default function EmployerJobFormModal({ isOpen, onClose, editingJob, onSu
         if (editingJob) {
             setFormData({
                 title: editingJob.title || "",
-                company: editingJob.company || "",
                 location: editingJob.location || "",
                 type: editingJob.type || "Full-time",
                 salary_min: editingJob.salary_min?.toString() || "",
@@ -69,7 +68,6 @@ export default function EmployerJobFormModal({ isOpen, onClose, editingJob, onSu
         } else {
             setFormData({
                 title: "",
-                company: "",
                 location: "",
                 type: "Full-time",
                 salary_min: "",
@@ -84,7 +82,7 @@ export default function EmployerJobFormModal({ isOpen, onClose, editingJob, onSu
     const handleSubmit = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
 
-        if (!formData.title || !formData.company || !formData.location || !formData.description) {
+        if (!formData.title || !formData.location || !formData.description) {
             toast.error("Please fill in all required fields");
             return;
         }
@@ -121,7 +119,6 @@ export default function EmployerJobFormModal({ isOpen, onClose, editingJob, onSu
         if (editingJob) {
             setFormData({
                 title: editingJob.title || "",
-                company: editingJob.company || "",
                 location: editingJob.location || "",
                 type: editingJob.type || "Full-time",
                 salary_min: editingJob.salary_min?.toString() || "",
@@ -133,7 +130,6 @@ export default function EmployerJobFormModal({ isOpen, onClose, editingJob, onSu
         } else {
             setFormData({
                 title: "",
-                company: "",
                 location: "",
                 type: "Full-time",
                 salary_min: "",
@@ -179,21 +175,12 @@ export default function EmployerJobFormModal({ isOpen, onClose, editingJob, onSu
                             Role Information
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-1.5 md:col-span-2">
+                            <div className="space-y-1.5">
                                 <label className="text-sm font-medium text-slate-700">Job Title <span className="text-red-500">*</span></label>
                                 <Input
                                     placeholder="e.g. Senior Software Engineer"
                                     value={formData.title}
                                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                    className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
-                                />
-                            </div>
-                            <div className="space-y-1.5">
-                                <label className="text-sm font-medium text-slate-700">Company Name <span className="text-red-500">*</span></label>
-                                <Input
-                                    placeholder="e.g. Acme Innovations"
-                                    value={formData.company}
-                                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
                                     className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
                                 />
                             </div>

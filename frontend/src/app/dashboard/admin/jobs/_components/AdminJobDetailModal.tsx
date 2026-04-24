@@ -89,10 +89,14 @@ export default function AdminJobDetailModal({ job, onClose, onEdit, onToggleHide
 
                     <div className="relative flex items-center gap-4">
                         <div
-                            className="flex-shrink-0 w-16 h-16 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-xl shadow-emerald-500/10"
+                            className="flex-shrink-0 w-16 h-16 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-xl shadow-emerald-500/10 overflow-hidden"
                             style={{ background: `linear-gradient(135deg, ${gradStart}, ${gradEnd})` }}
                         >
-                            {logo || company?.charAt(0)}
+                            {logo?.startsWith("http") ? (
+                                <img src={logo} alt={company} className="w-full h-full object-cover" />
+                            ) : (
+                                logo || company?.charAt(0)
+                            )}
                         </div>
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">

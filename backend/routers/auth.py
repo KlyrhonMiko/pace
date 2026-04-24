@@ -4,6 +4,7 @@ from core.database import get_session
 from models.users import User, UserType
 from models.alumni import Alumni
 from models.staff import Staff
+from models.employers import Employer
 from models.auth import LoginRequest, TokenResponse, CurrentUser, ResetPasswordRequest
 from models.response_codes import ErrorCode, SuccessCode, StandardResponse
 from services.queries.transaction_logs_queries import create_transaction_log
@@ -83,6 +84,8 @@ def login(
     
     first_name = None
     last_name = None
+    company_name = None
+    company_logo_url = None
     
     if user.user_type == UserType.USER:
         alumni = session.exec(select(Alumni).where(Alumni.user_code == user.user_code)).first()
@@ -94,6 +97,21 @@ def login(
         if staff:
             first_name = staff.first_name
             last_name = staff.last_name
+        else:
+            # Fallback for system admin/staff with no detailed profile
+            if user.user_type == UserType.ADMIN:
+                first_name = "System"
+                last_name = "Administrator"
+            else:
+                first_name = "Staff"
+                last_name = "Member"
+    elif user.user_type == UserType.EMPLOYER:
+        employer = session.exec(select(Employer).where(Employer.user_code == user.user_code)).first()
+        if employer:
+            first_name = employer.contact_person_first_name
+            last_name = employer.contact_person_last_name
+            company_name = employer.company_name
+            company_logo_url = employer.company_logo_url
 
     return StandardResponse(
         success=True,
@@ -105,7 +123,9 @@ def login(
             user_id=user.user_id,
             user_type=user.user_type.value,
             first_name=first_name,
-            last_name=last_name
+            last_name=last_name,
+            company_name=company_name,
+            company_logo_url=company_logo_url
         )
     )
 

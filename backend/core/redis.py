@@ -20,13 +20,20 @@ redis_client: Optional[redis.Redis] = None
 
 try:
     redis_client = redis.from_url(redis_url, decode_responses=True)
-    if redis_client is not None:
-        # Test connection
-        redis_client.ping()
-        logger.info("Redis connected successfully")
 except Exception as e:
-    logger.warning("Failed to connect to Redis: %s", e)
+    logger.warning("Failed to initialize Redis: %s", e)
     redis_client = None
+
+
+def test_redis_connection() -> bool:
+    """Test connection to Redis during startup"""
+    if not redis_client:
+        return False
+    try:
+        return redis_client.ping()
+    except Exception as e:
+        logger.warning("Redis ping failed: %s", e)
+        return False
 
 
 def get_redis_client() -> Optional[redis.Redis]:
@@ -228,7 +235,7 @@ def cache_invalidate_job_searches() -> int:
     Returns:
         Number of cache entries deleted
     """
-    return cache_delete_pattern("job_search:*")
+    return cache_delete_pattern("job_search*")
 
 
 def cache_invalidate_recommended() -> int:

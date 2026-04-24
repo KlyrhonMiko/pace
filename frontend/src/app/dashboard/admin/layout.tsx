@@ -192,7 +192,7 @@ export default function AdminLayout({
                         </div>
                         <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-gray-900 truncate leading-tight">
-                                {user?.first_name} {user?.last_name}
+                                {user?.first_name || "System"} {user?.last_name || "Administrator"}
                             </p>
                             <p className="text-[11px] text-gray-500 truncate mt-0.5">System Administrator</p>
                         </div>

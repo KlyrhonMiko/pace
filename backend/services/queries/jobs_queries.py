@@ -5,7 +5,7 @@ from models.job_listings import JobListing, JobListingCreate, JobListingUpdate
 from utils.timezone import get_current_time_gmt8
 
 def create_job_listing(db: Session, job: JobListingCreate, employer_id: Optional[uuid.UUID] = None) -> JobListing:
-    db_job = JobListing.from_orm(job)
+    db_job = JobListing.model_validate(job, from_attributes=True)
     if employer_id:
         db_job.employer_id = employer_id
     db.add(db_job)
@@ -21,7 +21,7 @@ def update_job_listing(db: Session, job_id: int, job_update: JobListingUpdate) -
     if not db_job:
         return None
     
-    job_data = job_update.dict(exclude_unset=True)
+    job_data = job_update.model_dump(exclude_unset=True)
     for key, value in job_data.items():
         setattr(db_job, key, value)
     

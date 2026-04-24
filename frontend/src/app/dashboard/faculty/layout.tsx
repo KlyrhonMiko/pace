@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -56,7 +56,13 @@ export default function FacultyLayout({
     const pathname = usePathname();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+    const [mounted, setMounted] = useState(false);
     const { user, logout } = useAuth();
+
+    // Fix hydration mismatch: only render user-dependent content after mount
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     return (
         <div className="flex h-screen w-full bg-gray-50">
@@ -189,13 +195,13 @@ export default function FacultyLayout({
                     <div className="flex items-center gap-3 rounded-xl bg-gradient-to-br from-gray-50/80 to-white p-3.5 border border-gray-200/60 shadow-sm hover:shadow-md hover:border-gray-300/60 transition-all duration-200">
                         <div className="relative flex-shrink-0">
                             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-emerald-800 to-emerald-700 text-xs font-bold text-white shadow-md ring-2 ring-white">
-                                {user?.first_name?.[0]}{user?.last_name?.[0]}
+                                {mounted ? (user?.first_name?.[0] || "S") + (user?.last_name?.[0] || "M") : "SM"}
                             </div>
                             <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-600 rounded-full ring-2 ring-white shadow-sm" />
                         </div>
                         <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-gray-900 truncate leading-tight">
-                                {user?.first_name} {user?.last_name}
+                                {mounted ? (user?.first_name || "Staff") + " " + (user?.last_name || "Member") : "Staff Member"}
                             </p>
                             <p className="text-[11px] text-gray-500 truncate mt-0.5">Faculty Member</p>
                         </div>
@@ -234,7 +240,7 @@ export default function FacultyLayout({
                             <div className="h-8 w-px bg-gray-200 hidden md:block" />
                             <div>
                                 <h1 className="text-base font-semibold text-gray-900">
-                                    Welcome, {user?.first_name || "Faculty"}!
+                                    Welcome, {mounted ? (user?.first_name || "Faculty") : "Faculty"}!
                                 </h1>
                                 <p className="text-xs text-gray-500 hidden sm:block">Track alumni progress and manage your academic activities</p>
                             </div>

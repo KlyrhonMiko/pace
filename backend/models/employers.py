@@ -12,6 +12,9 @@ class EmployerBase(SQLModel):
     contact_person_position: Optional[str] = Field(default=None, max_length=150)
     company_website: Optional[str] = Field(default=None, max_length=255)
     company_address: Optional[str] = Field(default=None, max_length=500)
+    company_contact_number: Optional[str] = Field(default=None, max_length=20)
+    company_logo_url: Optional[str] = Field(default=None, max_length=500)
+    company_logo_public_id: Optional[str] = Field(default=None, max_length=500)
 
 class Employer(EmployerBase, table=True):
     __tablename__ = "employers"

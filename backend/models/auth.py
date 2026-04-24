@@ -16,6 +16,8 @@ class TokenResponse(SQLModel):
     user_type: str
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+    company_name: Optional[str] = None
+    company_logo_url: Optional[str] = None
 
 
 class CurrentUser(SQLModel):
@@ -25,6 +27,8 @@ class CurrentUser(SQLModel):
     user_code: Optional[str] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+    company_name: Optional[str] = None
+    company_logo_url: Optional[str] = None
 
 
 class ResetPasswordRequest(SQLModel):

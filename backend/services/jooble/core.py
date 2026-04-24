@@ -21,6 +21,25 @@ from .normalization import _normalize_job_dict
 from .mappers import _map_db_job_to_dict
 
 
+# Global shutdown signal for background tasks
+_shutdown_event: Optional[asyncio.Event] = None
+
+
+def get_shutdown_event() -> asyncio.Event:
+    """Lazy initialize and return the shutdown event"""
+    global _shutdown_event
+    if _shutdown_event is None:
+        _shutdown_event = asyncio.Event()
+    return _shutdown_event
+
+
+def signal_shutdown():
+    """Signal all background tasks to stop"""
+    if _shutdown_event:
+        _shutdown_event.set()
+        print("[JOOBLE] Shutdown signal sent to background tasks")
+
+
 def load_all_jobs_to_cache(session: Session) -> int:
     """
     Load all active jobs from database into Redis cache.
@@ -93,12 +112,8 @@ async def fetch_jobs(
     employer_id: Optional[uuid.UUID] = None,
 ) -> dict:
     """Fetch job listings from Jooble API with lazy caching."""
-    with open("employer_debug.log", "a") as f:
-        f.write(f"[DEBUG_FETCH] Received employer_id={employer_id}, type={type(employer_id)}, bool={bool(employer_id)}, skip_jooble={bool(employer_id)}\n")
-    
-    print(f"DEBUG_FETCH: employer_id={employer_id}, type(employer_id)={type(employer_id)}")
     print(
-        f"\n[FETCH_JOBS] Searching: keywords={keywords}, location={location}, job_type={job_type}, work_type={work_type}, experience_level={experience_level}, page={page}"
+        f"\n[FETCH_JOBS] Searching: keywords={keywords}, location={location}, job_type={job_type}, work_type={work_type}, experience_level={experience_level}, page={page}, employer_id={employer_id}"
     )
 
     # Generate cache key
@@ -113,6 +128,7 @@ async def fetch_jobs(
         results_per_page=results_per_page,
         salary=salary,
         has_salary=has_salary,
+        include_inactive=include_inactive,
         employer_id=str(employer_id) if employer_id else None,
     )
 
@@ -249,7 +265,16 @@ async def fetch_jobs(
                     query = query.where(JobListing.employer_id == employer_id)
                 
                 local_jobs = session.exec(query).all()
-                local_jobs_data = [_map_db_job_to_dict(j) for j in local_jobs]
+                
+                # Fetch logos for local jobs
+                from models.employers import Employer
+                employer_ids = {j.employer_id for j in local_jobs if j.employer_id}
+                logo_map = {}
+                if employer_ids:
+                    employers = session.exec(select(Employer.employer_id, Employer.company_logo_url).where(Employer.employer_id.in_(list(employer_ids)))).all()
+                    logo_map = {emp_id: logo for emp_id, logo in employers if logo}
+                    
+                local_jobs_data = [_map_db_job_to_dict(j, logo_map.get(j.employer_id)) for j in local_jobs]
 
             # Merge local jobs with API results (giving priority to local jobs)
             # Create a set of external IDs to avoid duplicates if we happen to fetch a job we already have locally
@@ -378,8 +403,13 @@ async def fetch_all_remaining_jobs(
                 # Small delay to be nice to API
                 await asyncio.sleep(1.0)
 
-                # Construct keywords (don't add job_type here - filtered in main function)
+                # construct keywords (don't add job_type here - filtered in main function)
                 api_keywords = keywords or ""
+
+                # Check if we should stop
+                if _shutdown_event and _shutdown_event.is_set():
+                    print(f"[JOOBLE] Background fetch aborted at page {p} due to shutdown signal")
+                    break
 
                 payload = {
                     "keywords": api_keywords,

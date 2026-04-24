@@ -1,6 +1,6 @@
-from sqlmodel import Session
+from sqlmodel import Session, select
 from models.employers import Employer
-from schemas.employers import EmployerCreate
+from schemas.employers import EmployerCreate, EmployerUpdate
 import uuid
 
 def create_employer_profile(
@@ -27,3 +27,21 @@ def create_employer_profile(
     session.commit()
     session.refresh(employer)
     return employer
+
+def get_employer_by_user_code(session: Session, user_code: uuid.UUID) -> Employer | None:
+    """Fetch an employer profile by user_code."""
+    return session.exec(
+        select(Employer).where(Employer.user_code == user_code)
+    ).first()
+
+def update_employer_profile(session: Session, employer: Employer, data: EmployerUpdate) -> Employer:
+    """Updates an existing employer profile."""
+    update_data = data.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(employer, key, value)
+    
+    session.add(employer)
+    session.commit()
+    session.refresh(employer)
+    return employer
+

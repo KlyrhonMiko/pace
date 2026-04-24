@@ -28,7 +28,9 @@ def require_user_type(*allowed_types: UserType):
 def require_role(allowed_roles: list[str]):
     """Return a dependency that only allows specific user roles by string names."""
     def role_checker(current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
-        if current_user.user_type not in allowed_roles:
+        # Case-insensitive check against allowed roles
+        allowed_roles_upper = [role.upper() for role in allowed_roles]
+        if current_user.user_type.upper() not in allowed_roles_upper:
             raise HTTPException(
                 status_code=403,
                 detail=StandardResponse(

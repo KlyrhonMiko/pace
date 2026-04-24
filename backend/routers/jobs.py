@@ -12,6 +12,7 @@ from services.queries.jobs_queries import (
 )
 from models.job_listings import JobListing, JobListingCreate, JobListingUpdate, JobListingRead
 from core.database import get_session
+from core.redis import cache_invalidate_job_searches
 from models.auth import CurrentUser
 from utils.rbac import require_authenticated, require_role
 from models.employers import Employer
@@ -54,33 +55,16 @@ async def search_jobs(
     
     Returns a list of jobs matching the search criteria along with total count.
     """
-    with open("employer_debug.log", "a") as f:
-        f.write(f"\n[DEBUG] {datetime.now()} - Request by user_id={current_user.user_id}, user_type={current_user.user_type}, user_code={current_user.user_code}\n")
-    
     if current_user.user_type.upper() == "EMPLOYER" and not employer_id:
-        with open("employer_debug.log", "a") as f:
-            f.write(f"[DEBUG] Identified as EMPLOYER, looking up profile...\n")
-        from models.employers import Employer
-        import uuid
-        
         try:
             target_user_code = uuid.UUID(current_user.user_code) if isinstance(current_user.user_code, str) else current_user.user_code
             employer = db.exec(select(Employer).where(Employer.user_code == target_user_code)).first()
             if employer:
                 employer_id = employer.employer_id
-                with open("employer_debug.log", "a") as f:
-                    f.write(f"[DEBUG] Success! Found employer_id={employer_id}\n")
             else:
-                with open("employer_debug.log", "a") as f:
-                    f.write(f"[DEBUG] FAILED - No employer profile found for user_code={target_user_code}\n")
                 employer_id = uuid.UUID(int=0)
-        except (ValueError, TypeError) as e:
-            with open("employer_debug.log", "a") as f:
-                f.write(f"[DEBUG] ERROR during employer lookup: {str(e)}\n")
+        except (ValueError, TypeError):
             employer_id = uuid.UUID(int=0)
-    else:
-        with open("employer_debug.log", "a") as f:
-            f.write(f"[DEBUG] Not an employer or employer_id already set: type={current_user.user_type}, id={employer_id}\n")
 
     result = await fetch_jobs(
         keywords=keywords,
@@ -105,19 +89,33 @@ async def search_jobs(
 def create_job(
     job: JobListingCreate,
     db: Session = Depends(get_session),
-    current_user: CurrentUser = Depends(require_role(["admin", "staff", "faculty", "employer"])),
+    current_user: CurrentUser = Depends(require_role(["ADMIN", "STAFF", "FACULTY", "EMPLOYER"])),
 ):
     """
     Create a new job listing. Accessible by admin, staff, faculty, and employers.
     """
     employer_id = None
     if current_user.user_type == "EMPLOYER":
-        from models.employers import Employer
-        employer = db.exec(select(Employer).where(Employer.user_code == current_user.user_code)).first()
+        target_user_code = uuid.UUID(current_user.user_code) if isinstance(current_user.user_code, str) else current_user.user_code
+        employer = db.exec(select(Employer).where(Employer.user_code == target_user_code)).first()
         if employer:
             employer_id = employer.employer_id
+            # Auto-populate company name from employer profile
+            if not job.company:
+                job.company = employer.company_name
 
-    return create_job_listing(db=db, job=job, employer_id=employer_id)
+    # Populate raw_salary from min/max if not provided
+    if not job.raw_salary:
+        if job.salary_min and job.salary_max:
+            job.raw_salary = f"₱{job.salary_min:,.0f} - ₱{job.salary_max:,.0f}"
+        elif job.salary_min:
+            job.raw_salary = f"₱{job.salary_min:,.0f}"
+        elif job.salary_max:
+            job.raw_salary = f"₱{job.salary_max:,.0f}"
+
+    result = create_job_listing(db=db, job=job, employer_id=employer_id)
+    cache_invalidate_job_searches()
+    return result
 
 
 @router.patch("/{job_id}", response_model=JobListingRead)
@@ -125,7 +123,7 @@ def update_job(
     job_id: int,
     job_update: JobListingUpdate,
     db: Session = Depends(get_session),
-    current_user: CurrentUser = Depends(require_role(["admin", "staff", "faculty", "employer"])),
+    current_user: CurrentUser = Depends(require_role(["ADMIN", "STAFF", "FACULTY", "EMPLOYER"])),
 ):
     """
     Update an existing job listing.
@@ -136,12 +134,25 @@ def update_job(
 
     # Ownership check for employers
     if current_user.user_type == "EMPLOYER":
-        from models.employers import Employer
-        employer = db.exec(select(Employer).where(Employer.user_code == current_user.user_code)).first()
+        target_user_code = uuid.UUID(current_user.user_code) if isinstance(current_user.user_code, str) else current_user.user_code
+        employer = db.exec(select(Employer).where(Employer.user_code == target_user_code)).first()
         if not employer or db_job.employer_id != employer.employer_id:
             raise HTTPException(status_code=403, detail="Not authorized to update this job listing")
 
+    # Update raw_salary if min/max are updated and raw_salary isn't explicitly changed
+    if job_update.salary_min is not None or job_update.salary_max is not None:
+        if not job_update.raw_salary:
+            s_min = job_update.salary_min if job_update.salary_min is not None else db_job.salary_min
+            s_max = job_update.salary_max if job_update.salary_max is not None else db_job.salary_max
+            if s_min and s_max:
+                job_update.raw_salary = f"₱{s_min:,.0f} - ₱{s_max:,.0f}"
+            elif s_min:
+                job_update.raw_salary = f"₱{s_min:,.0f}"
+            elif s_max:
+                job_update.raw_salary = f"₱{s_max:,.0f}"
+
     updated_job = update_job_listing(db=db, job_id=job_id, job_update=job_update)
+    cache_invalidate_job_searches()
     return updated_job
 
 
@@ -149,7 +160,7 @@ def update_job(
 def delete_job(
     job_id: int,
     db: Session = Depends(get_session),
-    current_user: CurrentUser = Depends(require_role(["admin", "staff", "faculty", "employer"])),
+    current_user: CurrentUser = Depends(require_role(["ADMIN", "STAFF", "FACULTY", "EMPLOYER"])),
 ):
     """
     Deactivate a job listing (soft delete).
@@ -160,12 +171,13 @@ def delete_job(
 
     # Ownership check for employers
     if current_user.user_type == "EMPLOYER":
-        from models.employers import Employer
-        employer = db.exec(select(Employer).where(Employer.user_code == current_user.user_code)).first()
+        target_user_code = uuid.UUID(current_user.user_code) if isinstance(current_user.user_code, str) else current_user.user_code
+        employer = db.exec(select(Employer).where(Employer.user_code == target_user_code)).first()
         if not employer or db_job.employer_id != employer.employer_id:
             raise HTTPException(status_code=403, detail="Not authorized to delete this job listing")
 
     success = delete_job_listing(db=db, job_id=job_id)
+    cache_invalidate_job_searches()
     return None
 
 
@@ -173,7 +185,7 @@ def delete_job(
 def toggle_hide_job(
     job_id: int,
     db: Session = Depends(get_session),
-    current_user: CurrentUser = Depends(require_role(["admin", "staff", "faculty", "employer"])),
+    current_user: CurrentUser = Depends(require_role(["ADMIN", "STAFF", "FACULTY", "EMPLOYER"])),
 ):
     """
     Toggle the visibility (is_active) of a job listing for alumni.
@@ -184,8 +196,8 @@ def toggle_hide_job(
 
     # Ownership check for employers
     if current_user.user_type == "EMPLOYER":
-        from models.employers import Employer
-        employer = db.exec(select(Employer).where(Employer.user_code == current_user.user_code)).first()
+        target_user_code = uuid.UUID(current_user.user_code) if isinstance(current_user.user_code, str) else current_user.user_code
+        employer = db.exec(select(Employer).where(Employer.user_code == target_user_code)).first()
         if not employer or db_job.employer_id != employer.employer_id:
             raise HTTPException(status_code=403, detail="Not authorized to modify this job listing")
 
@@ -193,4 +205,5 @@ def toggle_hide_job(
     db.add(db_job)
     db.commit()
     db.refresh(db_job)
+    cache_invalidate_job_searches()
     return db_job

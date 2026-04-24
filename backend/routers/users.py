@@ -300,19 +300,25 @@ async def update_user_route(
             ).model_dump(mode='json'))
 
     try:
+        print(f"[DEBUG] Updating user {user_id}")
         updated = update_user(
             session,
             user,
             user_data,
             performed_by=current_user.user_code,
         )
+        data = UserPublic.model_validate(updated)
+        print(f"[DEBUG] User {user_id} updated and validated successfully")
         invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.USER_UPDATED.value,
             message=f"User {updated.user_id} updated successfully",
-            data=UserPublic.model_validate(updated)
+            data=data
         )
-    except IntegrityError as e:
+    except Exception as e:
+        import traceback
+        print(f"[ERROR] Update user failed: {e}")
+        traceback.print_exc()
         session.rollback()
         error_str = str(e).lower()
         if "ix_users_email" in error_str or "users_email_key" in error_str:
@@ -320,7 +326,7 @@ async def update_user_route(
         elif "ix_users_username" in error_str or "users_username_key" in error_str:
             code, msg = ErrorCode.DUPLICATE_USERNAME.value, "Username already in use"
         else:
-            code, msg = ErrorCode.INVALID_INPUT.value, "Update failed: Duplicate entry"
+            code, msg = ErrorCode.INVALID_INPUT.value, f"Update failed: {str(e)}"
         log_integrity_error("users", "update_user", code, msg, str(e))
         raise HTTPException(status_code=400, detail=StandardResponse(success=False, code=code, message=msg).model_dump(mode='json'))
 

@@ -3,6 +3,7 @@ Linear Regression prediction router — predicts alumni starting salary
 and job search duration using data from the alumni's database records.
 """
 import uuid
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
@@ -52,13 +53,20 @@ def _ensure_owner_or_staff_plus(current_user: CurrentUser, alumni_user_code: str
         )
 
 
-# ── Singleton predictor — loaded once, reused for every request ──
-try:
-    regression_predictor = AlumniPredictor()
-    print("[REGRESSION] ✓ AlumniPredictor (Linear Regression) loaded successfully")
-except FileNotFoundError as e:
-    regression_predictor = None
-    print(f"[REGRESSION] ⚠ Could not load regression predictor: {e}")
+# ── Singleton predictor — loaded lazily on first request ──
+_regression_predictor: Optional[AlumniPredictor] = None
+
+def get_regression_predictor() -> Optional[AlumniPredictor]:
+    """Lazy initializer for the linear regression predictor singleton."""
+    global _regression_predictor
+    if _regression_predictor is None:
+        try:
+            _regression_predictor = AlumniPredictor()
+            print("[REGRESSION] ✓ AlumniPredictor (Linear Regression) loaded (lazy)")
+        except Exception as e:
+            print(f"[REGRESSION] ⚠ Could not load regression predictor: {e}")
+            _regression_predictor = None
+    return _regression_predictor
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -73,13 +81,8 @@ def predict_regression(
 ):
     """
     Predict starting salary and job search duration for an alumni.
-
-    1. Looks up alumni's student_record and alumni_skills from DB.
-    2. Derives the 5 regression inputs (soft_skills_ave, hard_skills_ave, cgpa, internships, program_skills_average).
-    3. Runs both Linear Regression models (salary + duration).
-    4. Persists the result in the `alumni_regression_predictions` table.
-    5. Returns the prediction wrapped in StandardResponse.
     """
+    regression_predictor = get_regression_predictor()
     if regression_predictor is None:
         raise HTTPException(
             status_code=503,

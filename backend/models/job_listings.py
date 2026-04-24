@@ -24,7 +24,7 @@ class ExperienceLevel(str, Enum):
 
 class JobListingBase(SQLModel):
     title: str
-    company: str
+    company: Optional[str] = None
     description: str
     location: str
     job_type: Optional[str] = Field(default=None)

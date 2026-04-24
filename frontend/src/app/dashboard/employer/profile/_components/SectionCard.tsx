@@ -64,35 +64,41 @@ export function SectionCard({
                             {editLabel}
                         </button>
                     )}
-                    {editing && (
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={onCancel}
-                                className="text-xs text-gray-500 hover:text-gray-700 font-medium px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors duration-150"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={onSave}
-                                disabled={saving}
-                                className="flex items-center gap-2 text-xs text-white bg-emerald-700 hover:bg-emerald-800 disabled:opacity-70 disabled:cursor-not-allowed font-medium px-3.5 py-1.5 rounded-lg transition-colors duration-150 shadow-sm"
-                            >
-                                {saving ? (
-                                    <>
-                                        <Loader2 className="w-3 h-3 animate-spin" />
-                                        Updating...
-                                    </>
-                                ) : (
-                                    "Save changes"
-                                )}
-                            </button>
-                        </div>
-                    )}
                 </div>
             </div>
 
             {/* Card Body */}
-            <div className="px-6 py-5">{children}</div>
+            <div className="px-6 py-5">
+                {children}
+
+                {editing && (
+                    <div className="mt-8 pt-6 border-t border-gray-100 flex flex-col sm:flex-row items-center gap-3">
+                        <button
+                            onClick={onCancel}
+                            className="w-full sm:w-auto order-2 sm:order-1 flex items-center justify-center h-[42px] px-6 text-sm font-semibold text-gray-500 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:text-gray-700 transition-all duration-150"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={onSave}
+                            disabled={saving}
+                            className="w-full sm:flex-1 order-1 sm:order-2 flex items-center justify-center gap-2 h-[42px] px-6 text-sm font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-xl transition-all duration-150 shadow-sm shadow-emerald-900/10 disabled:opacity-70 disabled:cursor-not-allowed"
+                        >
+                            {saving ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    <span>Updating...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Check className="w-4 h-4" strokeWidth={2.5} />
+                                    <span>Save Changes</span>
+                                </>
+                            )}
+                        </button>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

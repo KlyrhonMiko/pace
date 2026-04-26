@@ -22,7 +22,7 @@ export default async function InsightsPage() {
 
     if (token) {
         const profile = await getMyProfile(token);
-        predictionData = await getLatestPrediction(token, profile?.alumni_code);
+        predictionData = await getLatestPrediction(token, profile?.alumni_id);
     }
 
     // 3. We no longer fallback to demo data. If no prediction exists, we show the "No Data" state below.

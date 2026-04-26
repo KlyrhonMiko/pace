@@ -4,8 +4,9 @@ from typing import Optional, List
 from enum import Enum
 from sqlmodel import SQLModel, Field
 from pydantic import field_serializer, field_validator, BaseModel, ConfigDict
+from schemas.base import AuditPublicBaseModel
 from utils.timezone import format_datetime_gmt8
-from utils.crypto import hash_password
+from utils.crypto import validate_password_strength
 
 
 class UserType(str, Enum):
@@ -33,15 +34,7 @@ class UserCreate(SQLModel):
     @field_validator("password")
     @classmethod
     def validate_password_strength(cls, v):
-        if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters long")
-        if not re.search(r"[A-Z]", v):
-            raise ValueError("Password must contain at least one uppercase letter")
-        if not re.search(r"[a-z]", v):
-            raise ValueError("Password must contain at least one lowercase letter")
-        if not re.search(r"\d", v):
-            raise ValueError("Password must contain at least one number")
-        return hash_password(v)
+        return validate_password_strength(v)
 
     @field_validator("user_type", mode="before")
     @classmethod
@@ -51,16 +44,13 @@ class UserCreate(SQLModel):
         return v
 
 
-class UserPublic(BaseModel):
+class UserPublic(AuditPublicBaseModel):
     user_id: str
     username: str
     email: str
     user_type: UserType
-    is_deleted: bool = False
     created_at: datetime
     updated_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
 
     @field_serializer("created_at", "updated_at")
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
@@ -94,15 +84,7 @@ class UserUpdate(BaseModel):
     @classmethod
     def validate_password_strength(cls, v):
         if v is not None:
-            if len(v) < 8:
-                raise ValueError("Password must be at least 8 characters long")
-            if not re.search(r"[A-Z]", v):
-                raise ValueError("Password must contain at least one uppercase letter")
-            if not re.search(r"[a-z]", v):
-                raise ValueError("Password must contain at least one lowercase letter")
-            if not re.search(r"\d", v):
-                raise ValueError("Password must contain at least one number")
-            return hash_password(v)
+            return validate_password_strength(v)
         return v
 
 
@@ -184,15 +166,7 @@ class UserBatchUpdateItem(BaseModel):
     @classmethod
     def validate_password_strength(cls, v):
         if v is not None:
-            if len(v) < 8:
-                raise ValueError("Password must be at least 8 characters long")
-            if not re.search(r"[A-Z]", v):
-                raise ValueError("Password must contain at least one uppercase letter")
-            if not re.search(r"[a-z]", v):
-                raise ValueError("Password must contain at least one lowercase letter")
-            if not re.search(r"\d", v):
-                raise ValueError("Password must contain at least one number")
-            return hash_password(v)
+            return validate_password_strength(v)
         return v
 
 

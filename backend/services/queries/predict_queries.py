@@ -13,18 +13,18 @@ from models.employability import EmployabilityPrediction
 # ── Alumni resolution ─────────────────────────────────────────
 
 
-def get_active_alumni_by_code(session: Session, alumni_code: uuid.UUID) -> Alumni | None:
-    """Resolve an active alumni by its UUID code."""
+def get_active_alumni_by_ref_id(session: Session, alumni_ref_id: uuid.UUID) -> Alumni | None:
+    """Resolve an active alumni by its internal UUID id."""
     return session.exec(
-        select(Alumni).where((Alumni.alumni_code == alumni_code) & (Alumni.is_deleted == False))
+        select(Alumni).where((Alumni.id == alumni_ref_id) & (Alumni.is_deleted == False))
     ).first()
 
 
-def get_alumni_by_user_code(session: Session, user_code: uuid.UUID) -> Alumni | None:
-    """Find an active alumni record linked to a specific user_code."""
+def get_alumni_by_user_ref_id(session: Session, user_ref_id: uuid.UUID) -> Alumni | None:
+    """Find an active alumni record linked to a specific user ref id."""
     return session.exec(
         select(Alumni).where(
-            (Alumni.user_code == user_code)
+            (Alumni.user_ref_id == user_ref_id)
             & (Alumni.is_deleted == False)
         )
     ).first()
@@ -33,28 +33,28 @@ def get_alumni_by_user_code(session: Session, user_code: uuid.UUID) -> Alumni | 
 # ── Data lookup for ML models ─────────────────────────────────
 
 
-def get_student_record_by_alumni_code(session: Session, alumni_code: uuid.UUID) -> StudentRecord | None:
-    """Get the student record linked to an alumni (via alumni_code FK on student_records)."""
+def get_student_record_by_alumni_ref_id(session: Session, alumni_ref_id: uuid.UUID) -> StudentRecord | None:
+    """Get the student record linked to an alumni."""
     return session.exec(
         select(StudentRecord).where(
-            (StudentRecord.alumni_code == alumni_code)
+            (StudentRecord.alumni_ref_id == alumni_ref_id)
             & (StudentRecord.is_deleted == False)
         )
     ).first()
 
 
-def get_alumni_skills_by_alumni_code(session: Session, alumni_code: uuid.UUID) -> AlumniSkills | None:
+def get_alumni_skills_by_alumni_ref_id(session: Session, alumni_ref_id: uuid.UUID) -> AlumniSkills | None:
     """Get the alumni_skills record for a given alumni."""
     return session.exec(
-        select(AlumniSkills).where(AlumniSkills.alumni_code == alumni_code)
+        select(AlumniSkills).where(AlumniSkills.alumni_ref_id == alumni_ref_id)
     ).first()
 
 
-def get_course_abbv_by_course_code(session: Session, course_code: uuid.UUID) -> str | None:
-    """Resolve the course abbreviation (degree name) from a course_code."""
+def get_course_abbv_by_course_ref_id(session: Session, course_ref_id: uuid.UUID) -> str | None:
+    """Resolve the course abbreviation (degree name) from a course ref id."""
     course = session.exec(
         select(Course).where(
-            (Course.course_code == course_code)
+            (Course.id == course_ref_id)
             & (Course.is_deleted == False)
         )
     ).first()
@@ -119,11 +119,11 @@ def build_regression_inputs(
 # ── Employability prediction CRUD ─────────────────────────────
 
 
-def get_predictions_by_alumni(session: Session, alumni_code: uuid.UUID, limit: int = 10) -> list[EmployabilityPrediction]:
+def get_predictions_by_alumni_ref_id(session: Session, alumni_ref_id: uuid.UUID, limit: int = 10) -> list[EmployabilityPrediction]:
     """Fetch recent predictions for a specific alumni, newest first."""
     return session.exec(
         select(EmployabilityPrediction)
-        .where(EmployabilityPrediction.alumni_code == alumni_code)
+        .where(EmployabilityPrediction.alumni_ref_id == alumni_ref_id)
         .order_by(EmployabilityPrediction.created_at.desc())
         .limit(limit)
     ).all()

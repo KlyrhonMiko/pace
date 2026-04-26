@@ -17,7 +17,7 @@ from schemas.student_records import (
 )
 from models.response_codes import ErrorCode, SuccessCode
 from utils.logging import log_integrity_error
-from utils.timezone import get_current_time_gmt8
+from services.queries.audit import stamp_create, stamp_restore, stamp_soft_delete, stamp_update
 from services.queries.transaction_logs_queries import create_transaction_log
 
 
@@ -31,7 +31,7 @@ def get_student_record_by_alumni_id(
 ) -> StudentRecord | None:
     return session.exec(
         select(StudentRecord)
-        .join(Alumni, StudentRecord.alumni_code == Alumni.alumni_code)
+        .join(Alumni, StudentRecord.alumni_ref_id == Alumni.id)
         .where(
             (Alumni.alumni_id == alumni_id.upper())
             & (StudentRecord.is_deleted == False)
@@ -45,7 +45,7 @@ def get_student_record_by_alumni_id_any(
 ) -> StudentRecord | None:
     return session.exec(
         select(StudentRecord)
-        .join(Alumni, StudentRecord.alumni_code == Alumni.alumni_code)
+        .join(Alumni, StudentRecord.alumni_ref_id == Alumni.id)
         .where(Alumni.alumni_id == alumni_id.upper())
     ).first()
 
@@ -71,7 +71,7 @@ def create_student_record(
     data: StudentRecordCreate,
     performed_by: str | None = None,
 ) -> StudentRecord:
-    """Resolve Course + Alumni, create StudentRecord, update alumni.student_code."""
+    """Resolve Course + Alumni, create StudentRecord, update alumni.student_ref_id."""
     course = _resolve_course(session, data.course_abbv)
     if not course:
         raise ValueError(f"COURSE_NOT_FOUND:{data.course_abbv}")
@@ -81,19 +81,28 @@ def create_student_record(
         raise ValueError(f"ALUMNI_NOT_FOUND:{data.alumni_id}")
 
     student_dict = data.model_dump(exclude={"alumni_id", "course_abbv"})
-    student_dict["course_code"] = course.course_code
-    student_dict["alumni_code"] = alumni.alumni_code
+    student_dict["course_ref_id"] = course.id
+    student_dict["alumni_ref_id"] = alumni.id
 
     new_student = StudentRecord.model_validate(student_dict)
+    stamp_create(new_student, performed_by)
     session.add(new_student)
-    alumni.student_code = None
+    alumni.student_ref_id = None
+    stamp_update(alumni)
     session.add(alumni)
     session.flush()
-    alumni.student_code = new_student.student_code
+    alumni.student_ref_id = new_student.id
+    stamp_update(alumni)
+
+    # Resolve IDs for return and logging
+    payload = StudentRecordPublic.model_validate(new_student)
+    payload.course_id = course.course_abbv
+    payload.alumni_id = alumni.alumni_id
+
     create_transaction_log(
         session,
         tl_name=f"CREATED student_record {new_student.student_id}",
-        after=new_student,
+        after=payload,
         performed_by=performed_by,
     )
     session.commit()
@@ -107,12 +116,14 @@ def update_student_record(
     data: StudentRecordUpdate,
     performed_by: str | None = None,
 ) -> StudentRecord:
+    before_state = student.model_dump(mode="json")
     if data.alumni_id is not None:
         alumni = _resolve_alumni(session, data.alumni_id)
         if not alumni:
             raise ValueError(f"ALUMNI_NOT_FOUND:{data.alumni_id}")
-        student.alumni_code = alumni.alumni_code
-        alumni.student_code = student.student_code
+        student.alumni_ref_id = alumni.id
+        alumni.student_ref_id = student.id
+        stamp_update(alumni)
         session.add(alumni)
 
     if data.year_graduated is not None:
@@ -130,11 +141,28 @@ def update_student_record(
     if data.act_member_pos is not None:
         student.act_member_pos = data.act_member_pos
 
+    stamp_update(student)
     session.add(student)
+
+    # Resolve IDs for logging and return validation
+    alumni_id = ""
+    course_id = ""
+    alumni_row = session.get(Alumni, student.alumni_ref_id)
+    if alumni_row:
+        alumni_id = alumni_row.alumni_id
+    course_row = session.get(Course, student.course_ref_id)
+    if course_row:
+        course_id = course_row.course_abbv
+
+    payload = StudentRecordPublic.model_validate(student)
+    payload.alumni_id = alumni_id
+    payload.course_id = course_id
+
     create_transaction_log(
         session,
         tl_name=f"UPDATED student_record {student.student_id}",
-        after=student,
+        before=before_state,
+        after=payload,
         performed_by=performed_by,
     )
     session.commit()
@@ -147,8 +175,7 @@ def soft_delete_student_record(
     student: StudentRecord,
     performed_by: str | None = None,
 ) -> None:
-    student.is_deleted = True
-    student.deleted_at = get_current_time_gmt8()
+    stamp_soft_delete(student, performed_by)
     session.add(student)
     create_transaction_log(
         session,
@@ -164,8 +191,7 @@ def restore_student_record(
     student: StudentRecord,
     performed_by: str | None = None,
 ) -> None:
-    student.is_deleted = False
-    student.deleted_at = None
+    stamp_restore(student)
     session.add(student)
     create_transaction_log(
         session,
@@ -201,7 +227,7 @@ def get_all_student_records(
     else:
         base_filter = StudentRecord.is_deleted == False
     query = select(StudentRecord)
-    count_q = select(func.count(StudentRecord.student_code))
+    count_q = select(func.count(StudentRecord.id))
     if base_filter is not None:
         query = query.where(base_filter)
         count_q = count_q.where(base_filter)
@@ -220,7 +246,7 @@ def get_all_student_records(
     if course_abbv:
         course = _resolve_course(session, course_abbv)
         if course:
-            query = query.where(StudentRecord.course_code == course.course_code)
+            query = query.where(StudentRecord.course_ref_id == course.id)
 
     total = session.exec(count_q).one()
 
@@ -234,10 +260,25 @@ def get_all_student_records(
     else:
         query = query.order_by(StudentRecord.student_id.desc() if desc else StudentRecord.student_id)
 
-    if limit > 0:
-        query = query.offset(offset).limit(limit)
+    records = session.exec(query).all()
+    results = []
+    for r in records:
+        alumni_id = ""
+        course_id = ""
+        # Small-scale resolution for listing
+        al_obj = session.get(Alumni, r.alumni_ref_id)
+        if al_obj:
+            alumni_id = al_obj.alumni_id
+        c_obj = session.get(Course, r.course_ref_id)
+        if c_obj:
+            course_id = c_obj.course_abbv
+        
+        obj = StudentRecordPublic.model_validate(r)
+        obj.alumni_id = alumni_id
+        obj.course_id = course_id
+        results.append(obj)
 
-    return session.exec(query).all(), total
+    return results, total
 
 
 # ---------------------------------------------------------------------------
@@ -282,21 +323,27 @@ def batch_create_student_records(
                     continue
 
                 student_dict = item.model_dump(exclude={"alumni_id", "course_abbv"})
-                student_dict["course_code"] = course.course_code
-                student_dict["alumni_code"] = alumni.alumni_code
+                student_dict["course_ref_id"] = course.id
+                student_dict["alumni_ref_id"] = alumni.id
                 new_student = StudentRecord.model_validate(student_dict)
+                stamp_create(new_student, performed_by)
                 session.add(new_student)
                 session.flush()
-                alumni.student_code = new_student.student_code
+                alumni.student_ref_id = new_student.id
+                stamp_update(alumni)
                 session.add(alumni)
                 session.flush()
                 session.refresh(new_student)
+
+                res = StudentRecordPublic.model_validate(new_student)
+                res.alumni_id = alumni.alumni_id
+                res.course_id = course.course_abbv
 
                 results.append(StudentRecordBatchCreateItem(
                     index=index, item=safe, success=True,
                     code=SuccessCode.STUDENT_RECORD_CREATED.value,
                     message="Student record created successfully",
-                    data=StudentRecordPublic.model_validate(new_student),
+                    data=res,
                 ))
                 successful_count += 1
 
@@ -305,7 +352,7 @@ def batch_create_student_records(
             if "ix_student_records_student_id" in error_str or "student_records_student_id_key" in error_str:
                 code = ErrorCode.DUPLICATE_STUDENT_ID.value
                 msg = f"Student ID '{item.student_id}' already exists"
-            elif "student_records_alumni_code_key" in error_str:
+            elif "already has a student record" in error_str:
                 code = ErrorCode.ALUMNI_ALREADY_HAS_STUDENT_RECORD.value
                 msg = "This alumni already has a student record"
             else:
@@ -380,21 +427,31 @@ def batch_update_student_records(
                 if item.act_member_pos is not None:
                     student.act_member_pos = item.act_member_pos
 
+                stamp_update(student)
                 session.add(student)
                 session.flush()
                 session.refresh(student)
+
+                course_id = ""
+                course_row = session.get(Course, student.course_ref_id)
+                if course_row:
+                    course_id = course_row.course_abbv
+
+                res = StudentRecordPublic.model_validate(student)
+                res.alumni_id = item.alumni_id
+                res.course_id = course_id
 
                 results.append(StudentRecordBatchUpdateResult(
                     index=index, item=safe, success=True,
                     code=SuccessCode.STUDENT_RECORD_UPDATED.value,
                     message="Student record updated successfully",
-                    data=StudentRecordPublic.model_validate(student),
+                    data=res,
                 ))
                 successful_count += 1
 
         except IntegrityError as e:
             error_str = str(e).lower()
-            if "student_records_alumni_code_key" in error_str:
+            if "already has a student record" in error_str:
                 code = ErrorCode.ALUMNI_ALREADY_HAS_STUDENT_RECORD.value
                 msg = "This alumni already has a student record"
             elif "ix_student_records_student_id" in error_str or "student_records_student_id_key" in error_str:
@@ -460,8 +517,7 @@ def batch_delete_student_records(
                 failed_count += 1
                 continue
 
-            student.is_deleted = True
-            student.deleted_at = get_current_time_gmt8()
+            stamp_soft_delete(student, performed_by)
             session.add(student)
             session.flush()
 
@@ -533,8 +589,7 @@ def batch_restore_student_records(
                 failed_count += 1
                 continue
 
-            student.is_deleted = False
-            student.deleted_at = None
+            stamp_restore(student)
             session.add(student)
             session.flush()
 

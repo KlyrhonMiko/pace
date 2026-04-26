@@ -2,7 +2,7 @@ import { apiFetch } from "@/lib/api-client";
 import { ResumeData } from "@/components/resumes/AtsResumeTemplate";
 
 export interface AlumniProfile {
-    alumni_code?: string;
+    id?: string;
     alumni_id: string;
     last_name: string;
     first_name: string;

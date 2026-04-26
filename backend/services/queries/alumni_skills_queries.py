@@ -1,7 +1,4 @@
-"""
-DB query functions for alumni_skills domain.
-"""
-import uuid
+"""DB query functions for alumni_skills domain."""
 
 from sqlmodel import Session, select
 from sqlalchemy.exc import IntegrityError
@@ -15,7 +12,7 @@ from schemas.alumni_skills import (
     AlumniSkillsBatchUpdateItem, AlumniSkillsBatchUpdateResult, AlumniSkillsBatchUpdateResponse,
 )
 from models.response_codes import ErrorCode, SuccessCode
-from utils.timezone import get_current_time_gmt8
+from services.queries.audit import stamp_create, stamp_restore, stamp_soft_delete, stamp_update
 from services.queries.transaction_logs_queries import create_transaction_log
 
 
@@ -42,39 +39,27 @@ def _resolve_alumni(session: Session, alumni_id: str) -> Alumni | None:
     ).first()
 
 
-def _resolve_alumni_by_code(session: Session, alumni_code: uuid.UUID) -> Alumni | None:
+def get_alumni_skills_by_alumni_id(session: Session, alumni_id: str) -> AlumniSkills | None:
+    alumni = _resolve_alumni(session, alumni_id)
+    if not alumni:
+        return None
+    return get_alumni_skills_by_alumni_ref_id(session, alumni.id)
+
+
+def get_alumni_skills_by_alumni_ref_id(session: Session, alumni_ref_id) -> AlumniSkills | None:
     return session.exec(
-        select(Alumni).where(
-            (Alumni.alumni_code == alumni_code) &
-            (Alumni.is_deleted == False)
+        select(AlumniSkills).where(
+            (AlumniSkills.alumni_ref_id == alumni_ref_id)
+            & (AlumniSkills.is_deleted == False)
         )
     ).first()
 
 
-def _parse_alumni_code(identifier: str) -> uuid.UUID | None:
-    try:
-        return uuid.UUID(str(identifier).strip())
-    except (ValueError, AttributeError, TypeError):
-        return None
-
-
-def get_alumni_skills_by_alumni_id(session: Session, alumni_id: str) -> AlumniSkills | None:
-    alumni_code = _parse_alumni_code(alumni_id)
-    if alumni_code is not None:
-        alumni = _resolve_alumni_by_code(session, alumni_code)
-        if not alumni:
-            return None
-        return get_alumni_skills_by_alumni_code(session, alumni.alumni_code)
-
-    alumni = _resolve_alumni(session, alumni_id)
-    if not alumni:
-        return None
-    return get_alumni_skills_by_alumni_code(session, alumni.alumni_code)
-
-
-def get_alumni_skills_by_alumni_code(session: Session, alumni_code) -> AlumniSkills | None:
+def _get_alumni_skills_any_by_alumni_ref_id(
+    session: Session, alumni_ref_id
+) -> AlumniSkills | None:
     return session.exec(
-        select(AlumniSkills).where(AlumniSkills.alumni_code == alumni_code)
+        select(AlumniSkills).where(AlumniSkills.alumni_ref_id == alumni_ref_id)
     ).first()
 
 
@@ -87,23 +72,40 @@ def create_alumni_skills(
     data: AlumniSkillsCreate,
     performed_by: str | None = None,
 ) -> AlumniSkills:
-    """Resolve alumni_id → alumni_code, then create the AlumniSkills record."""
+    """Resolve alumni_id to the alumni row, then create the AlumniSkills record."""
     alumni = _resolve_alumni(session, data.alumni_id)
     if not alumni:
         raise ValueError(f"ALUMNI_NOT_FOUND:{data.alumni_id}")
 
     # Check for existing record (1-to-1 guard)
-    existing = get_alumni_skills_by_alumni_code(session, alumni.alumni_code)
-    if existing:
+    existing = _get_alumni_skills_any_by_alumni_ref_id(session, alumni.id)
+    if existing and not existing.is_deleted:
         raise ValueError(f"ALUMNI_SKILLS_ALREADY_EXISTS:{data.alumni_id}")
+    if existing and existing.is_deleted:
+        existing.soft_skills_ave = data.soft_skills_ave
+        existing.hard_skills_ave = data.hard_skills_ave
+        existing.program_skills = data.program_skills
+        existing.program_skills_average = _compute_program_skills_average(data.program_skills)
+        stamp_restore(existing)
+        session.add(existing)
+        create_transaction_log(
+            session,
+            tl_name=f"RESTORED alumni_skills {data.alumni_id}",
+            after=existing,
+            performed_by=performed_by,
+        )
+        session.commit()
+        session.refresh(existing)
+        return existing
 
     skills = AlumniSkills(
-        alumni_code=alumni.alumni_code,
+        alumni_ref_id=alumni.id,
         soft_skills_ave=data.soft_skills_ave,
         hard_skills_ave=data.hard_skills_ave,
         program_skills=data.program_skills,
         program_skills_average=_compute_program_skills_average(data.program_skills),
     )
+    stamp_create(skills, performed_by)
     session.add(skills)
     create_transaction_log(
         session,
@@ -122,6 +124,7 @@ def update_alumni_skills(
     data: AlumniSkillsUpdate,
     performed_by: str | None = None,
 ) -> AlumniSkills:
+    before_state = skills.model_dump(mode="json")
     if data.soft_skills_ave is not None:
         skills.soft_skills_ave = data.soft_skills_ave
     if data.hard_skills_ave is not None:
@@ -129,11 +132,12 @@ def update_alumni_skills(
     if data.program_skills is not None:
         skills.program_skills = data.program_skills
         skills.program_skills_average = _compute_program_skills_average(data.program_skills)
-    skills.updated_at = get_current_time_gmt8()
+    stamp_update(skills)
     session.add(skills)
     create_transaction_log(
         session,
         tl_name="UPDATED alumni_skills",
+        before=before_state,
         after=skills,
         performed_by=performed_by,
     )
@@ -147,13 +151,14 @@ def delete_alumni_skills(
     skills: AlumniSkills,
     performed_by: str | None = None,
 ) -> None:
+    stamp_soft_delete(skills, performed_by)
+    session.add(skills)
     create_transaction_log(
         session,
         tl_name="DELETED alumni_skills",
-        before=skills,
+        after=skills,
         performed_by=performed_by,
     )
-    session.delete(skills)
     session.commit()
 
 
@@ -184,8 +189,8 @@ def batch_create_alumni_skills(
                     failed_count += 1
                     continue
 
-                existing = get_alumni_skills_by_alumni_code(session, alumni.alumni_code)
-                if existing:
+                existing = _get_alumni_skills_any_by_alumni_ref_id(session, alumni.id)
+                if existing and not existing.is_deleted:
                     results.append(AlumniSkillsBatchCreateItem(
                         index=index, item=safe, success=False,
                         code=ErrorCode.ALUMNI_ALREADY_HAS_SKILLS_RECORD.value,
@@ -194,13 +199,22 @@ def batch_create_alumni_skills(
                     failed_count += 1
                     continue
 
-                skills = AlumniSkills(
-                    alumni_code=alumni.alumni_code,
-                    soft_skills_ave=item.soft_skills_ave,
-                    hard_skills_ave=item.hard_skills_ave,
-                    program_skills=item.program_skills,
-                    program_skills_average=_compute_program_skills_average(item.program_skills),
-                )
+                if existing and existing.is_deleted:
+                    skills = existing
+                    skills.soft_skills_ave = item.soft_skills_ave
+                    skills.hard_skills_ave = item.hard_skills_ave
+                    skills.program_skills = item.program_skills
+                    skills.program_skills_average = _compute_program_skills_average(item.program_skills)
+                    stamp_restore(skills)
+                else:
+                    skills = AlumniSkills(
+                        alumni_ref_id=alumni.id,
+                        soft_skills_ave=item.soft_skills_ave,
+                        hard_skills_ave=item.hard_skills_ave,
+                        program_skills=item.program_skills,
+                        program_skills_average=_compute_program_skills_average(item.program_skills),
+                    )
+                    stamp_create(skills, performed_by)
                 session.add(skills)
                 session.flush()
                 session.refresh(skills)
@@ -215,7 +229,7 @@ def batch_create_alumni_skills(
 
         except IntegrityError as e:
             error_str = str(e).lower()
-            if "alumni_skills_alumni_code_key" in error_str:
+            if "alumni_skills_alumni_ref_id_key" in error_str:
                 code = ErrorCode.ALUMNI_ALREADY_HAS_SKILLS_RECORD.value
                 msg = "Alumni already has a skills record"
             else:
@@ -278,7 +292,7 @@ def batch_update_alumni_skills(
                 if item.program_skills is not None:
                     skills.program_skills = item.program_skills
                     skills.program_skills_average = _compute_program_skills_average(item.program_skills)
-                skills.updated_at = get_current_time_gmt8()
+                stamp_update(skills)
 
                 session.add(skills)
                 session.flush()

@@ -3,6 +3,7 @@ from datetime import datetime, date
 from typing import Optional, Any, List, Dict
 from sqlmodel import SQLModel, Field
 from pydantic import field_serializer, field_validator
+from schemas.base import AuditPublicSQLModel
 from utils.timezone import format_datetime_gmt8
 
 
@@ -15,7 +16,6 @@ class AlumniCreate(SQLModel):
     age: int
     birthdate: Optional[date] = None
     consent_for_survey_ml: bool = False
-    student_code: Optional[str] = None  # kept Optional for flexible linking
 
     @field_validator("gender", mode="before")
     @classmethod
@@ -32,7 +32,7 @@ class AlumniCreate(SQLModel):
         return v
 
 
-class AlumniPublic(SQLModel):
+class AlumniPublic(AuditPublicSQLModel):
     alumni_id: str
     last_name: str
     first_name: str
@@ -92,8 +92,8 @@ class ResumeSave(SQLModel):
 
 
 class ResumeRead(SQLModel):
-    resume_code: uuid.UUID
-    alumni_code: uuid.UUID
+    id: Optional[uuid.UUID] = None
+    alumni_id: str
     resume_data: ResumeSchema
     created_at: datetime
     updated_at: datetime

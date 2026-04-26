@@ -19,9 +19,10 @@ from schemas.users import (
     UserBatchRestoreResult, UserBatchRestoreResponse,
 )
 from models.response_codes import ErrorCode, SuccessCode
-from utils.auth import verify_password
+from utils.crypto import hash_password_for_storage, verify_password
 from utils.logging import log_integrity_error
-from utils.timezone import get_current_time_gmt8
+from utils.timezone import get_current_time_gmt8, get_current_time_utc
+from services.queries.audit import stamp_create, stamp_restore, stamp_soft_delete, stamp_update
 from services.queries.transaction_logs_queries import create_transaction_log
 
 
@@ -63,25 +64,44 @@ def get_user_by_id_any(session: Session, user_id: str) -> User | None:
 # Cascade helpers
 # ---------------------------------------------------------------------------
 
-def _cascade_soft_delete(session: Session, user: User) -> None:
+def _cascade_soft_delete(
+    session: Session, user: User, performed_by: str | None = None
+) -> None:
     """Soft-delete all alumni + student records belonging to a user."""
     alumni_records = session.exec(
-        select(Alumni).where(Alumni.user_code == user.user_code)
+        select(Alumni).where(Alumni.user_ref_id == user.id)
     ).all()
     for alumni in alumni_records:
         if not alumni.is_deleted:
-            alumni.is_deleted = True
-            alumni.deleted_at = get_current_time_gmt8()
+            stamp_soft_delete(alumni, performed_by)
             session.add(alumni)
 
         student_records = session.exec(
-            select(StudentRecord).where(StudentRecord.alumni_code == alumni.alumni_code)
+            select(StudentRecord).where(StudentRecord.alumni_ref_id == alumni.id)
         ).all()
         for student in student_records:
             if not student.is_deleted:
-                student.is_deleted = True
-                student.deleted_at = get_current_time_gmt8()
+                stamp_soft_delete(student, performed_by)
                 session.add(student)
+
+
+def _cascade_restore(session: Session, user: User) -> None:
+    """Restore all alumni + student records belonging to a user."""
+    alumni_records = session.exec(
+        select(Alumni).where((Alumni.user_ref_id == user.id) & (Alumni.is_deleted == True))
+    ).all()
+    for alumni in alumni_records:
+        stamp_restore(alumni)
+        session.add(alumni)
+
+        student_records = session.exec(
+            select(StudentRecord).where(
+                (StudentRecord.alumni_ref_id == alumni.id) & (StudentRecord.is_deleted == True)
+            )
+        ).all()
+        for student in student_records:
+            stamp_restore(student)
+            session.add(student)
 
 
 # ---------------------------------------------------------------------------
@@ -99,10 +119,14 @@ def create_user(
         user_id=user_id,
         username=data.username,
         email=data.email,
-        password=data.password,   # already hashed by validator
+        password=hash_password_for_storage(data.password),
         user_type=data.user_type,
     )
+    stamp_create(new_user, performed_by)
     session.add(new_user)
+    session.flush()
+    if performed_by is None and new_user.created_by is None:
+        new_user.created_by = new_user.id
     create_transaction_log(
         session,
         tl_name=f"CREATED user {new_user.user_id}",
@@ -121,16 +145,22 @@ def update_user(
     performed_by: str | None = None,
 ) -> User:
     """Apply a partial update. Password verification is the caller's responsibility."""
+    before_state = user.model_dump(mode="json")
     if data.username is not None:
         user.username = data.username
     if data.email is not None:
         user.email = data.email
     if data.password is not None:
-        user.password = data.password   # already hashed by validator
+        user.password = hash_password_for_storage(data.password)
+        now = get_current_time_utc()
+        user.password_changed_at = now
+        user.auth_revoked_after = now
+    stamp_update(user)
     session.add(user)
     create_transaction_log(
         session,
         tl_name=f"UPDATED user {user.user_id}",
+        before=before_state,
         after=user,
         performed_by=performed_by,
     )
@@ -145,9 +175,9 @@ def soft_delete_user(
     performed_by: str | None = None,
 ) -> None:
     """Cascade soft-delete a user and all associated records."""
-    _cascade_soft_delete(session, user)
-    user.is_deleted = True
-    user.deleted_at = get_current_time_gmt8()
+    _cascade_soft_delete(session, user, performed_by)
+    user.auth_revoked_after = get_current_time_utc()
+    stamp_soft_delete(user, performed_by)
     session.add(user)
     create_transaction_log(
         session,
@@ -164,8 +194,8 @@ def restore_user(
     performed_by: str | None = None,
 ) -> None:
     """Restore a soft-deleted user."""
-    user.is_deleted = False
-    user.deleted_at = None
+    _cascade_restore(session, user)
+    stamp_restore(user)
     session.add(user)
     create_transaction_log(
         session,
@@ -199,7 +229,7 @@ def get_all_users(
     else:
         base_filter = User.is_deleted == False
     query = select(User)
-    count_q = select(func.count(User.user_code))
+    count_q = select(func.count(User.id))
     if base_filter is not None:
         query = query.where(base_filter)
         count_q = count_q.where(base_filter)
@@ -250,7 +280,7 @@ def get_all_users_with_profile(
         base_filter = User.is_deleted == False
 
     query = select(User)
-    count_q = select(func.count(User.user_code))
+    count_q = select(func.count(User.id))
 
     if base_filter is not None:
         query = query.where(base_filter)
@@ -295,7 +325,7 @@ def get_all_users_with_profile(
         if user.user_type == UserType.USER:
             alumni = session.exec(
                 select(Alumni).where(
-                    (Alumni.user_code == user.user_code) & (Alumni.is_deleted == False)
+                    (Alumni.user_ref_id == user.id) & (Alumni.is_deleted == False)
                 )
             ).first()
             if alumni:
@@ -305,7 +335,7 @@ def get_all_users_with_profile(
         elif user.user_type == UserType.EMPLOYER:
             employer = session.exec(
                 select(Employer).where(
-                    (Employer.user_code == user.user_code)
+                    (Employer.user_ref_id == user.id)
                 )
             ).first()
             if employer:
@@ -316,7 +346,7 @@ def get_all_users_with_profile(
         else:
             staff = session.exec(
                 select(Staff).where(
-                    (Staff.user_code == user.user_code) & (Staff.is_deleted == False)
+                    (Staff.user_ref_id == user.id) & (Staff.is_deleted == False)
                 )
             ).first()
             if staff:
@@ -325,6 +355,7 @@ def get_all_users_with_profile(
                 middle_name = staff.middle_name
 
         results.append(UserWithProfile(
+            id=user.id,
             user_id=user.user_id,
             username=user.username,
             email=user.email,
@@ -332,6 +363,9 @@ def get_all_users_with_profile(
             is_deleted=user.is_deleted,
             created_at=user.created_at,
             updated_at=user.updated_at,
+            created_by=user.created_by,
+            deleted_at=user.deleted_at,
+            deleted_by=user.deleted_by,
             first_name=first_name,
             last_name=last_name,
             middle_name=middle_name,
@@ -365,6 +399,7 @@ def batch_create_users(
                 user_dict = item.model_dump()
                 user_dict["user_id"] = user_id
                 new_user = User.model_validate(user_dict)
+                stamp_create(new_user, performed_by)
                 session.add(new_user)
                 session.flush()
                 session.refresh(new_user)
@@ -466,8 +501,12 @@ def batch_update_users(
                 if item.email is not None:
                     user.email = item.email
                 if item.password is not None:
-                    user.password = item.password   # already hashed
+                    user.password = hash_password_for_storage(item.password)
+                    now = get_current_time_utc()
+                    user.password_changed_at = now
+                    user.auth_revoked_after = now
 
+                stamp_update(user)
                 session.add(user)
                 session.flush()
                 session.refresh(user)
@@ -548,9 +587,8 @@ def batch_delete_users(
                 failed_count += 1
                 continue
 
-            _cascade_soft_delete(session, user)
-            user.is_deleted = True
-            user.deleted_at = get_current_time_gmt8()
+            _cascade_soft_delete(session, user, performed_by)
+            stamp_soft_delete(user, performed_by)
             session.add(user)
             session.flush()
 
@@ -622,8 +660,8 @@ def batch_restore_users(
                 failed_count += 1
                 continue
 
-            user.is_deleted = False
-            user.deleted_at = None
+            _cascade_restore(session, user)
+            stamp_restore(user)
             session.add(user)
             session.flush()
 

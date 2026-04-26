@@ -5,6 +5,8 @@ from core.database import get_session
 from core.redis import cache_get_or_set, generate_cache_key, invalidate_cache_namespaces
 from models.auth import CurrentUser
 from models.users import UserType
+from models.alumni import Alumni
+from models.courses import Course
 from schemas.student_records import (
     StudentRecordCreate, StudentRecordUpdate, StudentRecordPublic,
     StudentRecordBatchCreate, StudentRecordBatchUpdate,
@@ -14,7 +16,7 @@ from models.response_codes import ErrorCode, SuccessCode, StandardResponse
 from models.pagination import PaginatedResponse, PaginationMetadata
 from utils.rbac import require_admin, require_authenticated, require_staff_or_admin
 from utils.logging import log_error, log_integrity_error
-from services.queries.alumni_queries import get_alumni_by_code
+from services.queries.alumni_queries import get_alumni_by_id
 from services.queries.student_records_queries import (
     get_student_record_by_alumni_id, get_student_record_by_alumni_id_any,
     create_student_record, update_student_record,
@@ -33,14 +35,13 @@ STUDENT_RECORDS_DETAIL_TTL = 300
 def _ensure_student_owner_or_staff_plus(
     session: Session,
     current_user: CurrentUser,
-    student_alumni_code,
+    student_alumni_id: str,
 ) -> None:
     if current_user.user_type in {UserType.STAFF.value, UserType.ADMIN.value}:
         return
 
-    alumni = get_alumni_by_code(session, student_alumni_code)
-    alumni_user_code = str(alumni.user_code) if alumni and alumni.user_code else None
-    if not current_user.user_code or not alumni_user_code or str(current_user.user_code) != alumni_user_code:
+    alumni = get_alumni_by_id(session, student_alumni_id)
+    if not current_user.id or not alumni or not alumni.user_ref_id or current_user.id != alumni.user_ref_id:
         raise HTTPException(
             status_code=403,
             detail=StandardResponse(
@@ -65,7 +66,7 @@ def batch_create_student_records_route(
     response = batch_create_student_records(
         session,
         batch_data.items,
-        performed_by=current_user.user_code,
+        performed_by=current_user.id,
     )
     invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
@@ -86,7 +87,7 @@ def batch_update_student_records_route(
     response = batch_update_student_records(
         session,
         batch_data.items,
-        performed_by=current_user.user_code,
+        performed_by=current_user.id,
     )
     invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
@@ -107,7 +108,7 @@ def batch_delete_student_records_route(
     response = batch_delete_student_records(
         session,
         batch_data.ids,
-        performed_by=current_user.user_code,
+        performed_by=current_user.id,
     )
     invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
@@ -128,7 +129,7 @@ def batch_restore_student_records_route(
     response = batch_restore_student_records(
         session,
         data.ids,
-        performed_by=current_user.user_code,
+        performed_by=current_user.id,
     )
     invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
@@ -251,20 +252,31 @@ def get_all_student_records_including_deleted(
 def create_student_record_route(
     student_data: StudentRecordCreate,
     session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
 ):
     """Create a new student record linked to an alumni"""
     try:
         new_student = create_student_record(
             session,
             student_data,
-            performed_by=None,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
+        
+        # Enrich for response
+        res = StudentRecordPublic.model_validate(new_student)
+        alumni_row = session.get(Alumni, new_student.alumni_ref_id)
+        if alumni_row:
+            res.alumni_id = alumni_row.alumni_id
+        course_row = session.get(Course, new_student.course_ref_id)
+        if course_row:
+            res.course_id = course_row.course_abbv
+
         return StandardResponse(
             success=True,
             code=SuccessCode.STUDENT_RECORD_CREATED.value,
             message="Student record created successfully",
-            data=StudentRecordPublic.model_validate(new_student)
+            data=res
         )
     except ValueError as e:
         msg = str(e)
@@ -282,11 +294,11 @@ def create_student_record_route(
         error_str = str(e).lower()
         if "ix_student_records_student_id" in error_str or "student_records_student_id_key" in error_str:
             code, msg = ErrorCode.DUPLICATE_STUDENT_ID.value, "Student ID already in use"
-        elif "student_records_alumni_code_key" in error_str:
+        elif "student_records_alumni_ref_id_key" in error_str:
             code, msg = ErrorCode.ALUMNI_ALREADY_HAS_STUDENT_RECORD.value, "This alumni already has a student record"
-        elif "course_code" in error_str:
+        elif "course_ref_id" in error_str:
             code, msg = ErrorCode.COURSE_NOT_FOUND.value, "Specified course does not exist"
-        elif "alumni_code" in error_str:
+        elif "alumni_ref_id" in error_str:
             code, msg = ErrorCode.ALUMNI_NOT_FOUND.value, "Specified alumni does not exist"
         else:
             code, msg = ErrorCode.INVALID_INPUT.value, "Student record creation failed"
@@ -309,7 +321,7 @@ def get_student_record(
             success=False, code=ErrorCode.STUDENT_RECORD_NOT_FOUND.value, message="Student record not found"
         ).model_dump(mode='json'))
 
-    _ensure_student_owner_or_staff_plus(session, current_user, student.alumni_code)
+    _ensure_student_owner_or_staff_plus(session, current_user, alumni_id)
 
     cache_key = generate_cache_key(
         f"{STUDENT_RECORDS_CACHE_NAMESPACE}:detail",
@@ -343,7 +355,7 @@ def update_student_record_route(
             session,
             student,
             student_data,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
@@ -363,11 +375,11 @@ def update_student_record_route(
     except IntegrityError as e:
         session.rollback()
         error_str = str(e).lower()
-        if "student_records_alumni_code_key" in error_str:
+        if "student_records_alumni_ref_id_key" in error_str:
             code, msg = ErrorCode.ALUMNI_ALREADY_HAS_STUDENT_RECORD.value, "This alumni already has a student record"
-        elif "course_code" in error_str:
+        elif "course_ref_id" in error_str:
             code, msg = ErrorCode.COURSE_NOT_FOUND.value, "Specified course does not exist"
-        elif "alumni_code" in error_str:
+        elif "alumni_ref_id" in error_str:
             code, msg = ErrorCode.ALUMNI_NOT_FOUND.value, "Specified alumni does not exist"
         elif "ix_student_records_student_id" in error_str or "student_records_student_id_key" in error_str:
             code, msg = ErrorCode.DUPLICATE_STUDENT_ID.value, "Student ID already in use"
@@ -399,7 +411,7 @@ def delete_student_record(
         ).model_dump(mode='json'))
 
     try:
-        soft_delete_student_record(session, student, performed_by=current_user.user_code)
+        soft_delete_student_record(session, student, performed_by=current_user.id)
         invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.STUDENT_RECORD_DELETED.value,
@@ -436,7 +448,7 @@ def restore_student_record_route(
         ).model_dump(mode='json'))
 
     try:
-        restore_student_record(session, student, performed_by=current_user.user_code)
+        restore_student_record(session, student, performed_by=current_user.id)
         invalidate_cache_namespaces(STUDENT_RECORDS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.STUDENT_RECORD_RESTORED.value,
@@ -477,7 +489,7 @@ def _build_student_records_list_response(
         success=True,
         code=SuccessCode.STUDENT_RECORDS_RETRIEVED.value,
         message=f"Retrieved {returned} student records",
-        data={"student_records": [StudentRecordPublic.model_validate(r) for r in records], "pagination": pagination}
+        data={"student_records": records, "pagination": pagination}
     )
 
 
@@ -502,7 +514,7 @@ def _build_deleted_student_records_response(
         success=True,
         code=SuccessCode.STUDENT_RECORDS_RETRIEVED.value,
         message=f"Retrieved {returned} deleted student records",
-        data=[StudentRecordPublic.model_validate(r) for r in records],
+        data=records,
         pagination=pagination
     )
 
@@ -533,7 +545,7 @@ def _build_all_student_records_response(
         success=True,
         code=SuccessCode.STUDENT_RECORDS_RETRIEVED.value,
         message=f"Retrieved {returned} student records (including deleted)",
-        data=[StudentRecordPublic.model_validate(r) for r in records],
+        data=records,
         pagination=pagination
     )
 
@@ -546,8 +558,17 @@ def _build_student_record_detail_response(session: Session, alumni_id: str) -> S
         raise HTTPException(status_code=404, detail=StandardResponse(
             success=False, code=ErrorCode.STUDENT_RECORD_NOT_FOUND.value, message="Student record not found"
         ).model_dump(mode='json'))
+    # Enrich for response
+    res = StudentRecordPublic.model_validate(student)
+    alumni_row = session.get(Alumni, student.alumni_ref_id)
+    if alumni_row:
+        res.alumni_id = alumni_row.alumni_id
+    course_row = session.get(Course, student.course_ref_id)
+    if course_row:
+        res.course_id = course_row.course_abbv
+
     return StandardResponse(
         success=True, code=SuccessCode.STUDENT_RECORD_RETRIEVED.value,
         message=f"Student record for alumni {alumni_id} retrieved successfully",
-        data=StudentRecordPublic.model_validate(student)
+        data=res
     )

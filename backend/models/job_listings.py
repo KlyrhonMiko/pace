@@ -1,8 +1,11 @@
 import uuid
-from sqlmodel import SQLModel, Field
-from typing import Optional
 from datetime import datetime
 from enum import Enum
+from typing import Optional
+
+from sqlmodel import Field, SQLModel
+
+from models.base import BaseTable
 from utils.timezone import get_current_time_gmt8
 
 class JobType(str, Enum):
@@ -38,21 +41,20 @@ class JobListingBase(SQLModel):
     external_id: Optional[str] = None
     source_url: Optional[str] = None
     is_active: bool = True
-    employer_id: Optional[uuid.UUID] = Field(default=None, foreign_key="employers.employer_id", index=True)
+    employer_ref_id: Optional[uuid.UUID] = Field(default=None, foreign_key="employers.id", index=True)
 
-class JobListing(JobListingBase, table=True):
+class JobListing(BaseTable, JobListingBase, table=True):
     __tablename__ = "job_listings"
-    id: Optional[int] = Field(default=None, primary_key=True)
-    created_at: datetime = Field(default_factory=get_current_time_gmt8)
-    updated_at: datetime = Field(default_factory=get_current_time_gmt8)
 
 class JobListingCreate(JobListingBase):
     pass
 
 class JobListingRead(JobListingBase):
-    id: int
+    id: uuid.UUID
     created_at: datetime
     updated_at: datetime
+    is_deleted: bool
+    deleted_at: Optional[datetime] = None
 
 class JobListingUpdate(SQLModel):
     title: Optional[str] = None
@@ -66,11 +68,10 @@ class JobListingUpdate(SQLModel):
     salary_max: Optional[int] = None
     is_active: Optional[bool] = None
 
-class JobApplication(SQLModel, table=True):
+class JobApplication(BaseTable, SQLModel, table=True):
     __tablename__ = "job_applications"
-    id: Optional[int] = Field(default=None, primary_key=True)
-    job_id: int = Field(foreign_key="job_listings.id", index=True)
-    alumni_code: uuid.UUID = Field(foreign_key="alumni.alumni_code", index=True)
+
+    job_listing_ref_id: uuid.UUID = Field(foreign_key="job_listings.id", index=True)
+    alumni_ref_id: uuid.UUID = Field(foreign_key="alumni.id", index=True)
     status: str = Field(default="Pending") # Pending, Reviewed, Accepted, Rejected
     applied_at: datetime = Field(default_factory=get_current_time_gmt8)
-    updated_at: datetime = Field(default_factory=get_current_time_gmt8)

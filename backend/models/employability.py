@@ -4,7 +4,8 @@ from typing import Optional, Any
 from sqlmodel import SQLModel, Field, Column
 from sqlalchemy import JSON
 from pydantic import field_serializer, field_validator
-from utils.timezone import format_datetime_gmt8, get_current_time_gmt8, get_current_year_gmt8
+from models.base import BaseTable
+from utils.timezone import format_datetime_gmt8, get_current_year_gmt8
 
 
 # ──────────────────────────────────────────────────────────────
@@ -184,15 +185,14 @@ class EmployabilityInput(SQLModel):
 # ──────────────────────────────────────────────────────────────
 
 
-class EmployabilityPrediction(SQLModel, table=True):
+class EmployabilityPrediction(BaseTable, SQLModel, table=True):
     """Persists prediction input + results for audit and history."""
 
     __tablename__ = "employability_predictions"
 
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    alumni_code: Optional[uuid.UUID] = Field(
+    alumni_ref_id: Optional[uuid.UUID] = Field(
         default=None,
-        foreign_key="alumni.alumni_code",
+        foreign_key="alumni.id",
         description="Optional link to an alumni record",
     )
 
@@ -214,8 +214,6 @@ class EmployabilityPrediction(SQLModel, table=True):
         description="0–100, employability likelihood (Model 2)"
     )
 
-    created_at: datetime = Field(default_factory=get_current_time_gmt8)
-
 
 # ──────────────────────────────────────────────────────────────
 # Response schema — for GET endpoints
@@ -226,7 +224,7 @@ class EmployabilityPredictionRead(SQLModel):
     """Public read schema returned by GET /predict/employability/{id}."""
 
     id: uuid.UUID
-    alumni_code: Optional[uuid.UUID]
+    alumni_ref_id: Optional[uuid.UUID]
     input_data: Any
     prediction_result: Any
     realistic_prediction: str

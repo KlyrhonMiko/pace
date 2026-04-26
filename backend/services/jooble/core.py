@@ -109,11 +109,11 @@ async def fetch_jobs(
     background_tasks: Optional["BackgroundTasks"] = None,
     has_salary: bool = False,
     include_inactive: bool = False,
-    employer_id: Optional[uuid.UUID] = None,
+    employer_ref_id: Optional[uuid.UUID] = None,
 ) -> dict:
     """Fetch job listings from Jooble API with lazy caching."""
     print(
-        f"\n[FETCH_JOBS] Searching: keywords={keywords}, location={location}, job_type={job_type}, work_type={work_type}, experience_level={experience_level}, page={page}, employer_id={employer_id}"
+        f"\n[FETCH_JOBS] Searching: keywords={keywords}, location={location}, job_type={job_type}, work_type={work_type}, experience_level={experience_level}, page={page}, employer_ref_id={employer_ref_id}"
     )
 
     # Generate cache key
@@ -129,7 +129,7 @@ async def fetch_jobs(
         salary=salary,
         has_salary=has_salary,
         include_inactive=include_inactive,
-        employer_id=str(employer_id) if employer_id else None,
+        employer_ref_id=str(employer_ref_id) if employer_ref_id else None,
     )
 
     # Check Redis cache
@@ -172,8 +172,8 @@ async def fetch_jobs(
             total_available = 0
             page_num = 1
 
-            # ONLY fetch from API if no employer_id filter is active
-            if not employer_id:
+            # ONLY fetch from API if no employer_ref_id filter is active
+            if not employer_ref_id:
                 # Fetch up to 1000 jobs by fetching multiple pages
                 while len(normalized_jobs) < 1000:
                     payload = {
@@ -224,7 +224,9 @@ async def fetch_jobs(
                     f"[FETCH_JOBS] Fetched {len(normalized_jobs)} jobs from {page_num} page(s)"
                 )
             else:
-                print(f"[FETCH_JOBS] Employer filter active (ID: {employer_id}) - skipping external API fetch")
+                print(
+                    f"[FETCH_JOBS] Employer filter active (ID: {employer_ref_id}) - skipping external API fetch"
+                )
 
             # Trigger background fetch for remaining pages beyond 1000
             if total_available > 1000:
@@ -261,20 +263,29 @@ async def fetch_jobs(
                     query = query.where(JobListing.work_type == work_type)
                 if experience_level:
                     query = query.where(JobListing.experience_level == experience_level)
-                if employer_id:
-                    query = query.where(JobListing.employer_id == employer_id)
+                if employer_ref_id:
+                    query = query.where(JobListing.employer_ref_id == employer_ref_id)
                 
                 local_jobs = session.exec(query).all()
                 
                 # Fetch logos for local jobs
                 from models.employers import Employer
-                employer_ids = {j.employer_id for j in local_jobs if j.employer_id}
+                employer_ref_ids = {
+                    j.employer_ref_id for j in local_jobs if j.employer_ref_id
+                }
                 logo_map = {}
-                if employer_ids:
-                    employers = session.exec(select(Employer.employer_id, Employer.company_logo_url).where(Employer.employer_id.in_(list(employer_ids)))).all()
+                if employer_ref_ids:
+                    employers = session.exec(
+                        select(Employer.id, Employer.company_logo_url).where(
+                            Employer.id.in_(list(employer_ref_ids))
+                        )
+                    ).all()
                     logo_map = {emp_id: logo for emp_id, logo in employers if logo}
                     
-                local_jobs_data = [_map_db_job_to_dict(j, logo_map.get(j.employer_id)) for j in local_jobs]
+                local_jobs_data = [
+                    _map_db_job_to_dict(j, logo_map.get(j.employer_ref_id))
+                    for j in local_jobs
+                ]
 
             # Merge local jobs with API results (giving priority to local jobs)
             # Create a set of external IDs to avoid duplicates if we happen to fetch a job we already have locally

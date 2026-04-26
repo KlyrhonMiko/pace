@@ -26,7 +26,7 @@ from schemas.college_dept import (
 from models.response_codes import ErrorCode, SuccessCode
 from models.pagination import PaginationMetadata
 from utils.logging import log_integrity_error
-from utils.timezone import get_current_time_gmt8
+from services.queries.audit import stamp_create, stamp_restore, stamp_soft_delete, stamp_update
 from services.queries.transaction_logs_queries import create_transaction_log
 
 
@@ -87,6 +87,7 @@ def create_college_dept(
     college_dept_dict = data.model_dump()
     college_dept_dict["college_dept_id"] = college_dept_id
     new_dept = CollegeDept.model_validate(college_dept_dict)
+    stamp_create(new_dept, performed_by)
     session.add(new_dept)
     create_transaction_log(
         session,
@@ -106,6 +107,7 @@ def update_college_dept(
     performed_by: str | None = None,
 ) -> CollegeDept:
     """Apply partial update to a college department and commit."""
+    before_state = college_dept.model_dump(mode="json")
     if data.college_dept_abbv is not None:
         college_dept.college_dept_abbv = data.college_dept_abbv
     if data.college_dept_name is not None:
@@ -113,11 +115,12 @@ def update_college_dept(
     if data.college_dept_desc is not None:
         college_dept.college_dept_desc = data.college_dept_desc
 
-    college_dept.updated_at = get_current_time_gmt8()
+    stamp_update(college_dept)
     session.add(college_dept)
     create_transaction_log(
         session,
         tl_name=f"UPDATED college_dept {college_dept.college_dept_id}",
+        before=before_state,
         after=college_dept,
         performed_by=performed_by,
     )
@@ -132,8 +135,7 @@ def soft_delete_college_dept(
     performed_by: str | None = None,
 ) -> None:
     """Soft-delete a college department (sets is_deleted=True)."""
-    college_dept.is_deleted = True
-    college_dept.deleted_at = get_current_time_gmt8()
+    stamp_soft_delete(college_dept, performed_by)
     session.add(college_dept)
     create_transaction_log(
         session,
@@ -150,8 +152,7 @@ def restore_college_dept(
     performed_by: str | None = None,
 ) -> None:
     """Restore a soft-deleted college department."""
-    college_dept.is_deleted = False
-    college_dept.deleted_at = None
+    stamp_restore(college_dept)
     session.add(college_dept)
     create_transaction_log(
         session,
@@ -166,7 +167,7 @@ def has_active_courses(session: Session, college_dept: CollegeDept) -> bool:
     """Return True if this department has at least one active (non-deleted) course."""
     result = session.exec(
         select(Course).where(
-            (Course.college_dept_code == college_dept.college_dept_code)
+            (Course.college_dept_ref_id == college_dept.id)
             & (Course.is_deleted == False)
         )
     ).first()
@@ -199,7 +200,7 @@ def get_all_college_depts(
         base_filter = CollegeDept.is_deleted == False
 
     query = select(CollegeDept)
-    count_q = select(func.count(CollegeDept.college_dept_code))
+    count_q = select(func.count(CollegeDept.id))
     if base_filter is not None:
         query = query.where(base_filter)
         count_q = count_q.where(base_filter)
@@ -263,6 +264,7 @@ def batch_create_college_depts(
                 dept_dict = item.model_dump()
                 dept_dict["college_dept_id"] = college_dept_id
                 new_dept = CollegeDept.model_validate(dept_dict)
+                stamp_create(new_dept, performed_by)
                 session.add(new_dept)
                 session.flush()
                 session.refresh(new_dept)
@@ -377,7 +379,7 @@ def batch_update_college_depts(
                 if item.college_dept_desc is not None:
                     dept.college_dept_desc = item.college_dept_desc
 
-                dept.updated_at = get_current_time_gmt8()
+                stamp_update(dept)
                 session.add(dept)
                 session.flush()
                 session.refresh(dept)
@@ -507,8 +509,7 @@ def batch_delete_college_depts(
                 failed_count += 1
                 continue
 
-            dept.is_deleted = True
-            dept.deleted_at = get_current_time_gmt8()
+            stamp_soft_delete(dept, performed_by)
             session.add(dept)
             session.flush()
 
@@ -607,8 +608,7 @@ def batch_restore_college_depts(
                 failed_count += 1
                 continue
 
-            dept.is_deleted = False
-            dept.deleted_at = None
+            stamp_restore(dept)
             session.add(dept)
             session.flush()
 

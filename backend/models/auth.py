@@ -1,3 +1,4 @@
+import uuid
 from sqlmodel import SQLModel
 from typing import Optional
 
@@ -22,9 +23,9 @@ class TokenResponse(SQLModel):
 
 class CurrentUser(SQLModel):
     """Current authenticated user from JWT token"""
+    id: Optional[uuid.UUID] = None
     user_id: str
     user_type: str
-    user_code: Optional[str] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     company_name: Optional[str] = None

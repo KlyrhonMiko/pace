@@ -1,13 +1,15 @@
 from pydantic import BaseModel, ConfigDict, Field, EmailStr
+from pydantic import field_validator
 from typing import Optional
-from datetime import datetime
 import uuid
+from schemas.base import AuditPublicBaseModel
+from utils.crypto import validate_password_strength
 
 class EmployerCreate(BaseModel):
     # Base user fields
     username: str = Field(min_length=3, max_length=50)
     email: EmailStr
-    password: str = Field(min_length=8)
+    password: str = Field(min_length=8, max_length=72)
     
     # Employer profile fields
     company_name: str = Field(min_length=2, max_length=255)
@@ -18,6 +20,11 @@ class EmployerCreate(BaseModel):
     company_address: Optional[str] = Field(default=None, max_length=500)
     company_contact_number: Optional[str] = Field(default=None, max_length=20)
 
+    @field_validator("password")
+    @classmethod
+    def validate_password_policy(cls, v: str) -> str:
+        return validate_password_strength(v)
+
 class EmployerUpdate(BaseModel):
     company_name: Optional[str] = Field(default=None, min_length=2, max_length=255)
     contact_person_first_name: Optional[str] = Field(default=None, min_length=2, max_length=150)
@@ -27,10 +34,8 @@ class EmployerUpdate(BaseModel):
     company_address: Optional[str] = Field(default=None, max_length=500)
     company_contact_number: Optional[str] = Field(default=None, max_length=20)
 
-class EmployerResponse(BaseModel):
-
-    employer_id: uuid.UUID
-    user_code: uuid.UUID
+class EmployerResponse(AuditPublicBaseModel):
+    id: uuid.UUID
     user_id: str
     username: str
     email: EmailStr

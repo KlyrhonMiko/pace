@@ -4,7 +4,8 @@ from typing import Optional, Any
 from sqlmodel import SQLModel, Field, Column
 from sqlalchemy import JSON
 from pydantic import field_serializer
-from utils.timezone import format_datetime_gmt8, get_current_time_gmt8
+from models.base import BaseTable
+from utils.timezone import format_datetime_gmt8
 
 
 # ──────────────────────────────────────────────────────────────
@@ -12,15 +13,14 @@ from utils.timezone import format_datetime_gmt8, get_current_time_gmt8
 # ──────────────────────────────────────────────────────────────
 
 
-class AlumniRegressionPrediction(SQLModel, table=True):
+class AlumniRegressionPrediction(BaseTable, SQLModel, table=True):
     """Persists Linear Regression (salary + job search duration) prediction results."""
 
     __tablename__ = "alumni_regression_predictions"
 
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    alumni_code: Optional[uuid.UUID] = Field(
+    alumni_ref_id: Optional[uuid.UUID] = Field(
         default=None,
-        foreign_key="alumni.alumni_code",
+        foreign_key="alumni.id",
         description="Link to the alumni record",
     )
 
@@ -42,8 +42,6 @@ class AlumniRegressionPrediction(SQLModel, table=True):
         max_length=10, description="'Short', 'Moderate', or 'Long'"
     )
 
-    created_at: datetime = Field(default_factory=get_current_time_gmt8)
-
 
 # ──────────────────────────────────────────────────────────────
 # Response schema — for GET endpoints
@@ -54,7 +52,7 @@ class AlumniRegressionPredictionRead(SQLModel):
     """Public read schema returned by GET /predict/regression/{id}."""
 
     id: uuid.UUID
-    alumni_code: Optional[uuid.UUID]
+    alumni_ref_id: Optional[uuid.UUID]
     input_data: Any
     prediction_result: Any
     predicted_salary: float

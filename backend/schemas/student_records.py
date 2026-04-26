@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional, List
 from sqlmodel import SQLModel, Field
 from pydantic import field_serializer, field_validator, BaseModel
+from schemas.base import AuditPublicSQLModel
 from utils.timezone import format_datetime_gmt8, get_current_year_gmt8
 
 
@@ -68,8 +69,10 @@ class StudentRecordUpdate(SQLModel):
         return v
 
 
-class StudentRecordPublic(SQLModel):
+class StudentRecordPublic(AuditPublicSQLModel):
     student_id: str
+    alumni_id: Optional[str] = None
+    course_id: Optional[str] = None
     year_graduated: int
     gwa: float
     avg_prof_grade: Optional[float] = None

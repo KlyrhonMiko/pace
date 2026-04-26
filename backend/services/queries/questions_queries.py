@@ -1,12 +1,11 @@
 """
 DB query functions for questions domain.
 """
-import uuid
 from sqlmodel import Session, select, func, and_
 from models.questions import Question
 from schemas.questions import QuestionCreate, QuestionUpdate, QuestionPublic
 from models.response_codes import ErrorCode, SuccessCode
-from utils.timezone import get_current_time_gmt8
+from services.queries.audit import stamp_create, stamp_restore, stamp_soft_delete, stamp_update
 from services.queries.transaction_logs_queries import create_transaction_log
 
 
@@ -57,7 +56,7 @@ def list_questions(
     question_type: str | None,
 ) -> tuple[list[Question], int]:
     stmt = select(Question).where(Question.is_deleted == False)
-    count_stmt = select(func.count(Question.question_code)).where(Question.is_deleted == False)
+    count_stmt = select(func.count(Question.id)).where(Question.is_deleted == False)
 
     if search:
         stmt = stmt.where(Question.question_text.contains(search))
@@ -78,11 +77,9 @@ def create_question(
 ) -> Question:
     question = Question(
         **data.dict(),
-        question_code=uuid.uuid4(),
         question_id=generate_question_id(session),
-        created_at=get_current_time_gmt8(),
-        updated_at=get_current_time_gmt8()
     )
+    stamp_create(question, performed_by)
     session.add(question)
     create_transaction_log(
         session,
@@ -105,7 +102,7 @@ def update_question(
     update_data = data.dict(exclude_unset=True)
     for key, value in update_data.items():
         setattr(question, key, value)
-    question.updated_at = get_current_time_gmt8()
+    stamp_update(question)
     session.add(question)
     create_transaction_log(
         session,
@@ -124,8 +121,7 @@ def soft_delete_question(
     question: Question,
     performed_by: str | None = None,
 ) -> None:
-    question.is_deleted = True
-    question.deleted_at = get_current_time_gmt8()
+    stamp_soft_delete(question, performed_by)
     session.add(question)
     create_transaction_log(
         session,
@@ -141,8 +137,7 @@ def restore_question(
     question: Question,
     performed_by: str | None = None,
 ) -> Question:
-    question.is_deleted = False
-    question.deleted_at = None
+    stamp_restore(question)
     session.add(question)
     create_transaction_log(
         session,

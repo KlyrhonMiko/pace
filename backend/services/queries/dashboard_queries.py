@@ -16,11 +16,11 @@ def get_admin_dashboard_stats(session: Session) -> dict:
     now = get_current_time_gmt8()
     
     total_users = session.exec(
-        select(func.count(User.user_code)).where(User.is_deleted == False)
+        select(func.count(User.id)).where(User.is_deleted == False)
     ).one()
 
     verified_alumni = session.exec(
-        select(func.count(Alumni.alumni_code)).where(Alumni.is_deleted == False)
+        select(func.count(Alumni.id)).where(Alumni.is_deleted == False)
     ).one()
 
     active_jobs = session.exec(
@@ -28,7 +28,7 @@ def get_admin_dashboard_stats(session: Session) -> dict:
     ).one()
 
     upcoming_events = session.exec(
-        select(func.count(Event.event_code)).where(
+        select(func.count(Event.id)).where(
             (Event.date >= now) & (Event.is_deleted == False)
         )
     ).one()
@@ -40,7 +40,7 @@ def get_admin_dashboard_stats(session: Session) -> dict:
         "upcoming_events": upcoming_events
     }
 
-def get_faculty_dashboard_stats(session: Session, faculty_user_code: uuid.UUID) -> dict:
+def get_faculty_dashboard_stats(session: Session, faculty_user_ref_id: uuid.UUID) -> dict:
     """
     Fetch global alumni statistics for the faculty dashboard.
     """
@@ -52,7 +52,7 @@ def get_faculty_dashboard_stats(session: Session, faculty_user_code: uuid.UUID) 
     
     # 2. Events organized (global count)
     events_organized = session.exec(
-        select(func.count(Event.event_code)).where(Event.is_deleted == False)
+        select(func.count(Event.id)).where(Event.is_deleted == False)
     ).one()
 
     # 3. Placement Metrics for all alumni
@@ -113,8 +113,8 @@ def get_faculty_alumni_progress(session: Session, limit: int = 6) -> list[dict]:
     # Get recent alumni with their student records and course info
     records = session.exec(
         select(Alumni, StudentRecord, Course)
-        .outerjoin(StudentRecord, Alumni.alumni_code == StudentRecord.alumni_code)
-        .outerjoin(Course, StudentRecord.course_code == Course.course_code)
+        .outerjoin(StudentRecord, Alumni.id == StudentRecord.alumni_ref_id)
+        .outerjoin(Course, StudentRecord.course_ref_id == Course.id)
         .where(Alumni.is_deleted == False)
         .order_by(Alumni.created_at.desc())
         .limit(limit)
@@ -131,7 +131,7 @@ def get_faculty_alumni_progress(session: Session, limit: int = 6) -> list[dict]:
         })
     return result
 
-def get_faculty_upcoming_sessions(session: Session, user_code: uuid.UUID, limit: int = 5) -> list[dict]:
+def get_faculty_upcoming_sessions(session: Session, user_ref_id: uuid.UUID, limit: int = 5) -> list[dict]:
     """
     Retrieves upcoming mentoring sessions for the specific faculty.
     """
@@ -143,8 +143,8 @@ def get_faculty_upcoming_sessions(session: Session, user_code: uuid.UUID, limit:
     # Join with User to get student name
     sessions = session.exec(
         select(MentoringSession, User)
-        .join(User, MentoringSession.alumni_user_code == User.user_code)
-        .where(MentoringSession.faculty_user_code == user_code)
+        .join(User, MentoringSession.alumni_user_ref_id == User.id)
+        .where(MentoringSession.faculty_user_ref_id == user_ref_id)
         .where(MentoringSession.scheduled_at >= now)
         .where(MentoringSession.is_deleted == False)
         .order_by(MentoringSession.scheduled_at.asc())
@@ -153,8 +153,8 @@ def get_faculty_upcoming_sessions(session: Session, user_code: uuid.UUID, limit:
     
     result = []
     for s, u in sessions:
-            result.append({
-            "id": str(s.session_code),
+        result.append({
+            "id": str(s.id),
             "title": s.title,
             "student": u.username, # Or full name if available
             "time": s.scheduled_at.isoformat(),
@@ -170,7 +170,7 @@ def get_faculty_activity_feed(session: Session, limit: int = 5) -> list[dict]:
 
     activities = session.exec(
         select(UserActivity, User.username)
-        .join(User, UserActivity.user_code == User.user_code)
+        .join(User, UserActivity.user_ref_id == User.id)
         .order_by(UserActivity.created_at.desc())
         .limit(limit)
     ).all()
@@ -185,7 +185,7 @@ def get_faculty_activity_feed(session: Session, limit: int = 5) -> list[dict]:
         for act, username in activities
     ]
 
-def get_alumni_dashboard_stats(session: Session, user_code: str) -> dict:
+def get_alumni_dashboard_stats(session: Session, user_ref_id: uuid.UUID) -> dict:
     """
     Fetch statistics specific to an alumni user.
     """
@@ -193,15 +193,15 @@ def get_alumni_dashboard_stats(session: Session, user_code: str) -> dict:
     
     # 1. Fetch data
     registrations = session.exec(
-        select(func.count(EventRegistration.registration_code))
-        .where(EventRegistration.user_code == user_code)
+        select(func.count(EventRegistration.id))
+        .where(EventRegistration.user_ref_id == user_ref_id)
         .where(EventRegistration.is_deleted == False)
     ).one()
     
-    alumni = session.exec(select(Alumni).where(Alumni.user_code == user_code)).first()
+    alumni = session.exec(select(Alumni).where(Alumni.user_ref_id == user_ref_id)).first()
     student = None
     if alumni:
-        student = session.exec(select(StudentRecord).where(StudentRecord.alumni_code == alumni.alumni_code)).first()
+        student = session.exec(select(StudentRecord).where(StudentRecord.alumni_ref_id == alumni.id)).first()
         
     from services.queries.alumni_queries import calculate_profile_completeness
     completeness = calculate_profile_completeness(alumni, student) if alumni else 0
@@ -213,12 +213,12 @@ def get_alumni_dashboard_stats(session: Session, user_code: str) -> dict:
         "profile_completeness": completeness
     }
 
-def get_alumni_recent_activity(session: Session, user_code: str, limit: int = 5) -> list[dict]:
+def get_alumni_recent_activity(session: Session, user_ref_id: uuid.UUID, limit: int = 5) -> list[dict]:
     """Get the most recent activities for a specific alumni user."""
     from services.queries.user_activities_queries import get_user_activities
     
     # 1. Fetch activities
-    activities = get_user_activities(session, user_code, limit=limit)
+    activities = get_user_activities(session, user_ref_id, limit=limit)
     
     return [
         {

@@ -3,8 +3,9 @@ from datetime import datetime
 from typing import Optional, List
 from sqlmodel import SQLModel, Field
 from pydantic import BaseModel, field_serializer, field_validator
+from schemas.base import AuditPublicSQLModel
 from utils.timezone import format_datetime_gmt8
-from utils.crypto import hash_password
+from utils.crypto import validate_password_strength
 from models.users import UserType
 
 
@@ -14,7 +15,7 @@ class StaffCreate(SQLModel):
     first_name: str = Field(max_length=50)
     middle_name: Optional[str] = Field(default=None, max_length=50)
     gender: str = Field(max_length=10)
-    college_dept_code: Optional[str] = None
+    college_dept_id: Optional[str] = None
 
     @field_validator("gender", mode="before")
     @classmethod
@@ -24,13 +25,13 @@ class StaffCreate(SQLModel):
         return v
 
 
-class StaffPublic(SQLModel):
+class StaffPublic(AuditPublicSQLModel):
     staff_id: str
     last_name: str
     first_name: str
     middle_name: Optional[str] = None
     gender: str
-    college_dept_code: Optional[str] = None
+    college_dept_id: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -44,7 +45,7 @@ class StaffUpdate(SQLModel):
     first_name: Optional[str] = Field(default=None, max_length=50)
     middle_name: Optional[str] = Field(default=None, max_length=50)
     gender: Optional[str] = Field(default=None, max_length=10)
-    college_dept_code: Optional[str] = None
+    college_dept_id: Optional[str] = None
 
     @field_validator("gender", mode="before")
     @classmethod
@@ -67,7 +68,7 @@ class CompleteStaffRegistration(SQLModel):
     first_name: str
     middle_name: Optional[str] = None
     gender: str
-    college_dept_code: Optional[str] = None
+    college_dept_id: Optional[str] = None
 
     @field_validator('email')
     @classmethod
@@ -80,15 +81,7 @@ class CompleteStaffRegistration(SQLModel):
     @field_validator('password')
     @classmethod
     def validate_password_strength(cls, v):
-        if len(v) < 8:
-            raise ValueError('Password must be at least 8 characters long')
-        if not re.search(r'[A-Z]', v):
-            raise ValueError('Password must contain at least one uppercase letter')
-        if not re.search(r'[a-z]', v):
-            raise ValueError('Password must contain at least one lowercase letter')
-        if not re.search(r'\d', v):
-            raise ValueError('Password must contain at least one number')
-        return hash_password(v)
+        return validate_password_strength(v)
 
     @field_validator('user_type', mode="before")
     @classmethod
@@ -109,7 +102,7 @@ class BatchStaffRegistrationItemSafeDisplay(BaseModel):
     first_name: str
     middle_name: Optional[str] = None
     gender: str
-    college_dept_code: Optional[str] = None
+    college_dept_id: Optional[str] = None
 
 
 class BatchStaffRegistrationItem(BaseModel):
@@ -121,7 +114,7 @@ class BatchStaffRegistrationItem(BaseModel):
     first_name: str
     middle_name: Optional[str] = None
     gender: str
-    college_dept_code: Optional[str] = None
+    college_dept_id: Optional[str] = None
 
     @field_validator('email')
     @classmethod
@@ -134,15 +127,7 @@ class BatchStaffRegistrationItem(BaseModel):
     @field_validator('password')
     @classmethod
     def validate_password_strength(cls, v):
-        if len(v) < 8:
-            raise ValueError('Password must be at least 8 characters long')
-        if not re.search(r'[A-Z]', v):
-            raise ValueError('Password must contain at least one uppercase letter')
-        if not re.search(r'[a-z]', v):
-            raise ValueError('Password must contain at least one lowercase letter')
-        if not re.search(r'\d', v):
-            raise ValueError('Password must contain at least one number')
-        return v
+        return validate_password_strength(v)
 
     @field_validator('user_type', mode="before")
     @classmethod

@@ -5,6 +5,7 @@ import { apiFetch } from "@/lib/api-client";
 
 export interface JoobleJob {
     id: string | number;
+    db_id?: string | number;
     title: string;
     company: string;
     location: string;
@@ -117,7 +118,7 @@ export async function getRecommendedJobs(limit: number = 3, token?: string): Pro
 /**
  * Apply for a job
  */
-export async function applyToJob(jobId: number | string, token?: string): Promise<{ success: boolean; message: string; data?: any }> {
+export async function applyToJob(jobListingId: number | string, token?: string): Promise<{ success: boolean; message: string; data?: any }> {
     try {
         const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
         const requestHeaders: Record<string, string> = { "Content-Type": "application/json" };
@@ -125,7 +126,7 @@ export async function applyToJob(jobId: number | string, token?: string): Promis
             requestHeaders["Authorization"] = `Bearer ${authToken}`;
         }
 
-        const response = await apiFetch<any>(`/jobs/${jobId}/apply`, {
+        const response = await apiFetch<any>(`/jobs/${jobListingId}/apply`, {
             method: "POST",
             headers: requestHeaders
         });

@@ -1,8 +1,7 @@
 import uuid
-from datetime import datetime
 from typing import Optional
 from sqlmodel import SQLModel, Field
-from utils.timezone import get_current_time_gmt8
+from models.base import BaseTable
 
 
 class StudentRecordBase(SQLModel):
@@ -18,13 +17,8 @@ class StudentRecordBase(SQLModel):
     extracurricular: Optional[bool] = Field(default=None, description="Whether student had extracurricular involvement")
 
 
-class StudentRecord(StudentRecordBase, table=True):
+class StudentRecord(BaseTable, StudentRecordBase, table=True):
     __tablename__ = "student_records"
 
-    student_code: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    course_code: Optional[uuid.UUID] = Field(default=None, foreign_key="courses.course_code", ondelete="SET NULL")
-    alumni_code: Optional[uuid.UUID] = Field(default=None, foreign_key="alumni.alumni_code", unique=True, ondelete="SET NULL")
-    created_at: datetime = Field(default_factory=get_current_time_gmt8)
-    updated_at: datetime = Field(default_factory=get_current_time_gmt8)
-    is_deleted: bool = Field(default=False)
-    deleted_at: Optional[datetime] = Field(default=None)
+    course_ref_id: Optional[uuid.UUID] = Field(default=None, foreign_key="courses.id", ondelete="SET NULL")
+    alumni_ref_id: Optional[uuid.UUID] = Field(default=None, foreign_key="alumni.id", unique=True, ondelete="SET NULL")

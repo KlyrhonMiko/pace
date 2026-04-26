@@ -1,22 +1,27 @@
-import jwt
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
-from passlib.context import CryptContext
+from uuid import uuid4
+
+import jwt
 from fastapi import Depends, HTTPException
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.security import OAuth2PasswordBearer
 from sqlmodel import Session, select
+
 from core.config import settings
 from core.database import get_session
-from models.auth import CurrentUser
-from models.response_codes import ErrorCode, StandardResponse
-from models.users import User, UserType
 from models.alumni import Alumni
-from models.staff import Staff
+from models.auth import CurrentUser, TokenResponse
 from models.employers import Employer
-from utils.timezone import get_current_time_utc
-from utils.crypto import hash_password, verify_password
+from models.response_codes import ErrorCode, StandardResponse
+from models.staff import Staff
+from models.users import User, UserType
+from services.queries.transaction_logs_queries import create_transaction_log
+from services.queries.user_activities_queries import ActivityType, create_user_activity
+from utils.crypto import hash_password_for_storage, verify_password
+from utils.logging import log_auth_error
+from utils.timezone import ensure_aware_datetime, get_current_time_utc
 
-# JWT settings
+
 SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = settings.ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
@@ -24,39 +29,190 @@ ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 if not SECRET_KEY:
     raise RuntimeError("JWT_SECRET_KEY environment variable is not set.")
 
-security = HTTPBearer(auto_error=False)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=False)
+
+
+def _get_profile_fields(session: Session, db_user: User) -> dict[str, str | None]:
+    first_name = None
+    last_name = None
+    company_name = None
+    company_logo_url = None
+
+    if db_user.user_type == UserType.USER:
+        alumni = session.exec(select(Alumni).where(Alumni.user_ref_id == db_user.id)).first()
+        if alumni:
+            first_name = alumni.first_name
+            last_name = alumni.last_name
+    elif db_user.user_type in [UserType.STAFF, UserType.ADMIN]:
+        staff = session.exec(select(Staff).where(Staff.user_ref_id == db_user.id)).first()
+        if staff:
+            first_name = staff.first_name
+            last_name = staff.last_name
+        elif db_user.user_type == UserType.ADMIN:
+            first_name = "System"
+            last_name = "Administrator"
+        else:
+            first_name = "Staff"
+            last_name = "Member"
+    elif db_user.user_type == UserType.EMPLOYER:
+        employer = session.exec(select(Employer).where(Employer.user_ref_id == db_user.id)).first()
+        if employer:
+            first_name = employer.contact_person_first_name
+            last_name = employer.contact_person_last_name
+            company_name = employer.company_name
+            company_logo_url = employer.company_logo_url
+
+    return {
+        "first_name": first_name,
+        "last_name": last_name,
+        "company_name": company_name,
+        "company_logo_url": company_logo_url,
+    }
+
+
+def build_current_user(session: Session, db_user: User) -> CurrentUser:
+    """Build the canonical authenticated user payload from the database row."""
+    return CurrentUser(
+        id=db_user.id,
+        user_id=db_user.user_id,
+        user_type=db_user.user_type.value,
+        **_get_profile_fields(session, db_user),
+    )
+
+
+def build_token_response(session: Session, db_user: User, access_token: str) -> TokenResponse:
+    """Build the shared bearer-token response for JSON login and OAuth2 token flow."""
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user_id=db_user.user_id,
+        user_type=db_user.user_type.value,
+        **_get_profile_fields(session, db_user),
+    )
+
+
+def _token_datetime_from_claim(payload: dict, claim_name: str) -> datetime:
+    claim_value = payload.get(claim_name)
+    if not isinstance(claim_value, (int, float)):
+        raise ValueError("Invalid token payload")
+    return datetime.fromtimestamp(claim_value, tz=timezone.utc)
+
+
+def revoke_user_tokens(user: User, revoked_at: Optional[datetime] = None) -> datetime:
+    """Invalidate all previously-issued tokens for a user."""
+    timestamp = revoked_at or get_current_time_utc()
+    user.auth_revoked_after = timestamp
+    return timestamp
+
+
+def update_user_password(user: User, raw_password: str, changed_at: Optional[datetime] = None) -> datetime:
+    """Store a validated password hash and revoke all existing tokens."""
+    timestamp = changed_at or get_current_time_utc()
+    user.password = hash_password_for_storage(raw_password)
+    user.password_changed_at = timestamp
+    user.auth_revoked_after = timestamp
+    return timestamp
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """Create a JWT access token"""
+    """Create a signed JWT access token with issuance and revocation metadata."""
     to_encode = data.copy()
-    if expires_delta:
-        expire = get_current_time_utc() + expires_delta
-    else:
-        expire = get_current_time_utc() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    issued_at = get_current_time_utc()
+    expire = issued_at + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    to_encode.update(
+        {
+            "exp": int(expire.timestamp()),
+            "iat": int(issued_at.timestamp()),
+            "jti": str(uuid4()),
+        }
+    )
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
 def decode_access_token(token: str) -> dict:
-    """Decode and verify a JWT access token"""
+    """Decode and verify a JWT access token."""
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return payload
+        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     except jwt.ExpiredSignatureError:
         raise ValueError("Token has expired")
     except jwt.InvalidTokenError:
         raise ValueError("Invalid token")
 
 
+def authenticate_user(session: Session, username: str, password: str) -> User:
+    """Validate submitted credentials against an active user account."""
+    user = session.exec(select(User).where(User.username == username)).first()
+
+    if not user:
+        log_auth_error("login", username, ErrorCode.INVALID_CREDENTIALS.value, "Invalid username or password - user not found")
+        raise HTTPException(
+            status_code=401,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.INVALID_CREDENTIALS.value,
+                message="Invalid username or password",
+            ).model_dump(mode="json"),
+        )
+
+    if user.is_deleted:
+        log_auth_error("login", username, ErrorCode.ACCOUNT_DEACTIVATED.value, "Login blocked for deactivated account")
+        raise HTTPException(
+            status_code=401,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.ACCOUNT_DEACTIVATED.value,
+                message="Account is deactivated",
+            ).model_dump(mode="json"),
+        )
+
+    if not verify_password(password, user.password):
+        log_auth_error("login", username, ErrorCode.INVALID_CREDENTIALS.value, "Invalid username or password - incorrect password")
+        raise HTTPException(
+            status_code=401,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.INVALID_CREDENTIALS.value,
+                message="Invalid username or password",
+            ).model_dump(mode="json"),
+        )
+
+    return user
+
+
+def authenticate_and_issue_token(session: Session, username: str, password: str) -> TokenResponse:
+    """Authenticate a user, emit login side effects, and return a token payload."""
+    user = authenticate_user(session, username, password)
+    access_token = create_access_token(
+        data={
+            "user_id": user.user_id,
+            "user_type": user.user_type.value,
+        }
+    )
+
+    create_transaction_log(
+        session,
+        tl_name="USER LOGGED IN",
+        after={"user_id": user.user_id},
+        performed_by=user.id,
+    )
+    create_user_activity(
+        session,
+        user_ref_id=user.id,
+        activity_type=ActivityType.LOGIN,
+        description="Logged in to the system",
+    )
+    session.commit()
+    session.refresh(user)
+
+    return build_token_response(session, user, access_token)
+
+
 def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    token: Optional[str] = Depends(oauth2_scheme),
     session: Session = Depends(get_session),
 ) -> CurrentUser:
     """Extract current user from JWT and ensure the account is active."""
-    if credentials is None:
+    if token is None:
         raise HTTPException(
             status_code=401,
             detail=StandardResponse(
@@ -66,14 +222,13 @@ def get_current_user(
             ).model_dump(mode="json"),
         )
 
-    token = credentials.credentials
-
     try:
         payload = decode_access_token(token)
         user_id = payload.get("user_id")
         user_type = payload.get("user_type")
+        token_jti = payload.get("jti")
 
-        if not user_id or not user_type:
+        if not user_id or not user_type or not token_jti:
             raise HTTPException(
                 status_code=401,
                 detail=StandardResponse(
@@ -104,38 +259,31 @@ def get_current_user(
                 ).model_dump(mode="json"),
             )
 
-        first_name = None
-        last_name = None
-        company_name = None
-        company_logo_url = None
-        
-        if db_user.user_type == UserType.USER:
-            alumni = session.exec(select(Alumni).where(Alumni.user_code == db_user.user_code)).first()
-            if alumni:
-                first_name = alumni.first_name
-                last_name = alumni.last_name
-        elif db_user.user_type in [UserType.STAFF, UserType.ADMIN]:
-            staff = session.exec(select(Staff).where(Staff.user_code == db_user.user_code)).first()
-            if staff:
-                first_name = staff.first_name
-                last_name = staff.last_name
-        elif db_user.user_type == UserType.EMPLOYER:
-            employer = session.exec(select(Employer).where(Employer.user_code == db_user.user_code)).first()
-            if employer:
-                first_name = employer.contact_person_first_name
-                last_name = employer.contact_person_last_name
-                company_name = employer.company_name
-                company_logo_url = employer.company_logo_url
+        issued_at = _token_datetime_from_claim(payload, "iat")
+        auth_revoked_after = ensure_aware_datetime(db_user.auth_revoked_after)
+        password_changed_at = ensure_aware_datetime(db_user.password_changed_at)
 
-        return CurrentUser(
-            user_id=user_id,
-            user_type=user_type,
-            user_code=str(db_user.user_code) if db_user.user_code else None,
-            first_name=first_name,
-            last_name=last_name,
-            company_name=company_name,
-            company_logo_url=company_logo_url
-        )
+        if auth_revoked_after and issued_at <= auth_revoked_after:
+            raise HTTPException(
+                status_code=401,
+                detail=StandardResponse(
+                    success=False,
+                    code=ErrorCode.TOKEN_REVOKED.value,
+                    message="Token has been revoked",
+                ).model_dump(mode="json"),
+            )
+
+        if password_changed_at and issued_at <= password_changed_at:
+            raise HTTPException(
+                status_code=401,
+                detail=StandardResponse(
+                    success=False,
+                    code=ErrorCode.TOKEN_REVOKED.value,
+                    message="Token has been revoked",
+                ).model_dump(mode="json"),
+            )
+
+        return build_current_user(session, db_user)
     except HTTPException:
         raise
     except ValueError as exc:

@@ -121,7 +121,7 @@ def create_survey_route(
         survey = create_survey(
             session,
             body,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         survey_data = SurveyPublic.model_validate(survey).dict()
@@ -233,12 +233,12 @@ def update_survey_route(
             session,
             survey,
             body,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         survey_data = SurveyPublic.model_validate(updated).dict()
         survey_data["question_count"] = get_survey_question_count(
-            session, updated.survey_code
+            session, updated.id
         )
         return StandardResponse(
             success=True,
@@ -280,7 +280,7 @@ def delete_survey_route(
         soft_delete_survey(
             session,
             survey,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
@@ -322,12 +322,12 @@ def restore_survey_route(
         restored = restore_survey(
             session,
             survey,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         data = SurveyPublic.model_validate(restored).dict()
         data["question_count"] = get_survey_question_count(
-            session, restored.survey_code
+            session, restored.id
         )
         return StandardResponse(
             success=True,
@@ -380,7 +380,7 @@ def publish_survey_route(
                     message="Only DRAFT surveys can be published",
                 ).model_dump(mode="json"),
             )
-        question_count = get_survey_question_count(session, survey.survey_code)
+        question_count = get_survey_question_count(session, survey.id)
         if question_count == 0:
             raise HTTPException(
                 status_code=400,
@@ -394,7 +394,7 @@ def publish_survey_route(
             session,
             survey,
             SurveyStatus.ACTIVE,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         data = SurveyPublic.model_validate(updated).dict()
@@ -449,12 +449,12 @@ def close_survey_route(
             session,
             survey,
             SurveyStatus.CLOSED,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         data = SurveyPublic.model_validate(updated).dict()
         data["question_count"] = get_survey_question_count(
-            session, updated.survey_code
+            session, updated.id
         )
         return StandardResponse(
             success=True,
@@ -506,12 +506,12 @@ def reopen_survey_route(
             session,
             survey,
             SurveyStatus.ACTIVE,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         data = SurveyPublic.model_validate(updated).dict()
         data["question_count"] = get_survey_question_count(
-            session, updated.survey_code
+            session, updated.id
         )
         return StandardResponse(
             success=True,
@@ -563,12 +563,12 @@ def archive_survey_route(
             session,
             survey,
             SurveyStatus.ARCHIVED,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         data = SurveyPublic.model_validate(updated).dict()
         data["question_count"] = get_survey_question_count(
-            session, updated.survey_code
+            session, updated.id
         )
         return StandardResponse(
             success=True,
@@ -602,12 +602,12 @@ def _build_surveys_list_response(
     status: Optional[str],
 ) -> StandardResponse:
     surveys, total = list_surveys(session, skip, limit, search, status)
-    survey_codes = [s.survey_code for s in surveys]
-    counts = get_survey_question_counts_batch(session, survey_codes)
+    survey_ref_ids = [s.id for s in surveys]
+    counts = get_survey_question_counts_batch(session, survey_ref_ids)
     survey_data = []
     for survey in surveys:
         data = SurveyPublic.model_validate(survey).dict()
-        data["question_count"] = counts.get(survey.survey_code, 0)
+        data["question_count"] = counts.get(survey.id, 0)
         survey_data.append(data)
     return StandardResponse(
         success=True,
@@ -636,7 +636,7 @@ def _build_survey_detail_response(session: Session, survey_id: str) -> StandardR
                 message="Survey not found",
             ).model_dump(mode="json"),
         )
-    questions = get_survey_questions_with_details(session, survey.survey_code)
+    questions = get_survey_questions_with_details(session, survey.id)
     data = SurveyPublic.model_validate(survey).dict()
     data["questions"] = [q.dict() for q in questions]
     data["question_count"] = len(questions)

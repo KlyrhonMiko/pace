@@ -69,7 +69,7 @@ export default function UserManagement() {
     } = useUserManagement();
 
     const [showPassword, setShowPassword] = useState(false);
-    const [depts, setDepts] = useState<{ college_dept_code: string; college_dept_name: string }[]>([]);
+    const [depts, setDepts] = useState<{ college_dept_id: string; college_dept_name: string }[]>([]);
 
     useEffect(() => {
         apiFetch<any>("/college-depts/?limit=0").then((res) => {
@@ -322,15 +322,15 @@ export default function UserManagement() {
                                             <div key="dept-field-segment" className="space-y-1.5">
                                                 <label className="text-sm font-medium text-slate-700">Department</label>
                                                 <Select
-                                                    value={formData.college_dept_code}
-                                                    onValueChange={(v) => setFormData({ ...formData, college_dept_code: v })}
+                                                    value={formData.college_dept_id}
+                                                    onValueChange={(v) => setFormData({ ...formData, college_dept_id: v })}
                                                 >
                                                     <SelectTrigger className="w-full !h-11 bg-slate-50 border-slate-200 focus:border-emerald-600 focus:ring-emerald-700/20">
                                                         <SelectValue placeholder="Select department (optional)" />
                                                     </SelectTrigger>
                                                     <SelectContent className="rounded-xl border-slate-200 z-[110]">
                                                         {depts.map((d, idx) => (
-                                                            <SelectItem key={d.college_dept_code || `dept-${idx}`} value={d.college_dept_code}>
+                                                            <SelectItem key={d.college_dept_id || `dept-${idx}`} value={d.college_dept_id}>
                                                                 {d.college_dept_name}
                                                             </SelectItem>
                                                         ))}

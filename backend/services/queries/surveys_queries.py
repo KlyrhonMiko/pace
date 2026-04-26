@@ -1,8 +1,6 @@
 """
 DB query functions for core survey management (CRUD, status, lookups).
 """
-
-import uuid
 from sqlmodel import Session, select, func, and_, or_
 from models.surveys import Survey, SurveyQuestion
 from schemas.surveys import (
@@ -10,7 +8,7 @@ from schemas.surveys import (
     SurveyUpdate,
     SurveyStatus,
 )
-from utils.timezone import get_current_time_gmt8
+from services.queries.audit import stamp_create, stamp_restore, stamp_soft_delete, stamp_update
 from services.queries.transaction_logs_queries import create_transaction_log
 
 
@@ -56,30 +54,34 @@ def check_duplicate_survey_title(session: Session, title: str) -> Survey | None:
     ).first()
 
 
-def get_survey_question_count(session: Session, survey_code: uuid.UUID) -> int:
+def get_survey_question_count(session: Session, survey_ref_id) -> int:
     return session.exec(
-        select(func.count(SurveyQuestion.survey_question_code)).where(
-            SurveyQuestion.survey_code == survey_code
+        select(func.count(SurveyQuestion.id)).where(
+            (SurveyQuestion.survey_ref_id == survey_ref_id)
+            & (SurveyQuestion.is_deleted == False)
         )
     ).one()
 
 
 def get_survey_question_counts_batch(
-    session: Session, survey_codes: list[uuid.UUID]
-) -> dict[uuid.UUID, int]:
+    session: Session, survey_ref_ids: list
+) -> dict:
     """Fetch question counts for multiple surveys in one grouped query."""
-    if not survey_codes:
+    if not survey_ref_ids:
         return {}
     rows = session.exec(
         select(
-            SurveyQuestion.survey_code, func.count(SurveyQuestion.survey_question_code)
+            SurveyQuestion.survey_ref_id, func.count(SurveyQuestion.id)
         )
-        .where(SurveyQuestion.survey_code.in_(survey_codes))
-        .group_by(SurveyQuestion.survey_code)
+        .where(
+            (SurveyQuestion.survey_ref_id.in_(survey_ref_ids))
+            & (SurveyQuestion.is_deleted == False)
+        )
+        .group_by(SurveyQuestion.survey_ref_id)
     ).all()
     counts = {row[0]: row[1] for row in rows}
     # Surveys with 0 questions won't appear in the grouped result
-    return {code: counts.get(code, 0) for code in survey_codes}
+    return {code: counts.get(code, 0) for code in survey_ref_ids}
 
 
 # ---------------------------------------------------------------------------
@@ -91,7 +93,7 @@ def list_surveys(
     session: Session, skip: int, limit: int, search: str | None, status: str | None
 ) -> tuple[list[Survey], int]:
     stmt = select(Survey).where(Survey.is_deleted == False)
-    count_stmt = select(func.count(Survey.survey_code)).where(
+    count_stmt = select(func.count(Survey.id)).where(
         Survey.is_deleted == False
     )
 
@@ -118,12 +120,10 @@ def create_survey(
 ) -> Survey:
     survey = Survey(
         **data.dict(),
-        survey_code=uuid.uuid4(),
         survey_id=generate_survey_id(session),
         status=SurveyStatus.DRAFT,
-        created_at=get_current_time_gmt8(),
-        updated_at=get_current_time_gmt8(),
     )
+    stamp_create(survey, performed_by)
     session.add(survey)
     create_transaction_log(
         session,
@@ -146,7 +146,7 @@ def update_survey(
     update_data = data.dict(exclude_unset=True)
     for key, value in update_data.items():
         setattr(survey, key, value)
-    survey.updated_at = get_current_time_gmt8()
+    stamp_update(survey)
     session.add(survey)
     create_transaction_log(
         session,
@@ -165,8 +165,7 @@ def soft_delete_survey(
     survey: Survey,
     performed_by: str | None = None,
 ) -> None:
-    survey.is_deleted = True
-    survey.deleted_at = get_current_time_gmt8()
+    stamp_soft_delete(survey, performed_by)
     session.add(survey)
     create_transaction_log(
         session,
@@ -182,8 +181,7 @@ def restore_survey(
     survey: Survey,
     performed_by: str | None = None,
 ) -> Survey:
-    survey.is_deleted = False
-    survey.deleted_at = None
+    stamp_restore(survey)
     session.add(survey)
     create_transaction_log(
         session,
@@ -204,7 +202,7 @@ def set_survey_status(
 ) -> Survey:
     before_state = {"status": survey.status.value if hasattr(survey.status, "value") else survey.status}
     survey.status = status
-    survey.updated_at = get_current_time_gmt8()
+    stamp_update(survey)
     session.add(survey)
     create_transaction_log(
         session,

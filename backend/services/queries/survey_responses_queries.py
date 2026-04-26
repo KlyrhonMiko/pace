@@ -1,8 +1,6 @@
 """
 DB query functions for survey response submission and analytics.
 """
-
-import uuid
 from sqlmodel import Session, select, func, and_
 from models.surveys import (
     Survey,
@@ -11,6 +9,7 @@ from models.surveys import (
 )
 from models.questions import Question
 from utils.timezone import get_current_time_gmt8
+from services.queries.audit import stamp_create
 from services.queries.transaction_logs_queries import create_transaction_log
 from services.queries.user_activities_queries import create_user_activity, ActivityType
 
@@ -52,7 +51,7 @@ def submit_survey_response(
     now = get_current_time_gmt8()
 
     # 1. Resolve alumni if provided (non-anonymous)
-    alumni_code = None
+    alumni_ref_id = None
     if data.alumni_id:
         alumni = session.exec(
             select(Alumni).where(
@@ -64,15 +63,15 @@ def submit_survey_response(
         ).first()
         if not alumni:
             raise ValueError("ALUMNI_NOT_FOUND")
-        alumni_code = alumni.alumni_code
+        alumni_ref_id = alumni.id
 
     # 2. Duplicate guard (if allow_multiple_responses is False)
-    if not survey.allow_multiple_responses and alumni_code:
+    if not survey.allow_multiple_responses and alumni_ref_id:
         existing_response = session.exec(
             select(SurveyResponse).where(
                 and_(
-                    SurveyResponse.survey_code == survey.survey_code,
-                    SurveyResponse.alumni_code == alumni_code,
+                    SurveyResponse.survey_ref_id == survey.id,
+                    SurveyResponse.alumni_ref_id == alumni_ref_id,
                     SurveyResponse.is_deleted == False,
                 )
             )
@@ -83,18 +82,22 @@ def submit_survey_response(
     # 3. Pre-fetch all survey questions in one query for validation
     survey_questions = session.exec(
         select(SurveyQuestion, Question)
-        .join(Question, SurveyQuestion.question_code == Question.question_code)
-        .where(SurveyQuestion.survey_code == survey.survey_code)
+        .join(Question, SurveyQuestion.question_ref_id == Question.id)
+        .where(
+            (SurveyQuestion.survey_ref_id == survey.id)
+            & (SurveyQuestion.is_deleted == False)
+            & (Question.is_deleted == False)
+        )
     ).all()
 
-    # Build lookup maps: question_id → (question_code, question)
-    question_map: dict[str, tuple[uuid.UUID, Question]] = {}
+    # Build lookup maps: question_id → question
+    question_map: dict[str, Question] = {}
     for sq, q in survey_questions:
-        question_map[q.question_id] = (q.question_code, q)
+        question_map[q.question_id] = q
 
     # 4. Validate required questions are answered
     answered_question_ids = {item.question_id for item in data.answers}
-    for q_id, (_, q) in question_map.items():
+    for q_id, q in question_map.items():
         if q.is_required and q_id not in answered_question_ids:
             raise ValueError(f"REQUIRED_QUESTION_MISSING:{q_id}")
 
@@ -105,22 +108,22 @@ def submit_survey_response(
 
     # 6. Create SurveyResponse
     response = SurveyResponse(
-        response_code=uuid.uuid4(),
         response_id=generate_response_id(session),
-        survey_code=survey.survey_code,
-        alumni_code=alumni_code,
+        survey_ref_id=survey.id,
+        alumni_ref_id=alumni_ref_id,
         submitted_at=now,
         is_complete=True,
         is_deleted=False,
     )
+    stamp_create(response, performed_by or alumni_ref_id)
     session.add(response)
     session.flush()
 
     # 7. Add answers to JSON column
-    # The JSON schema is simply the list of answer dicts plus the question_code reference
+    # Answers are stored as a JSON list keyed by question_id.
     answers_json = []
     for item in data.answers:
-        question_code, q = question_map[item.question_id]
+        q = question_map[item.question_id]
         
         answer_dict = {
             "question_id": item.question_id,
@@ -164,7 +167,8 @@ def submit_survey_response(
     if performed_by:
         create_user_activity(
             session,
-            user_code=performed_by,
+            user_ref_id=performed_by,
+            actor_ref_id=performed_by,
             activity_type=ActivityType.SUBMIT_SURVEY,
             description=f"Submitted survey: {survey.title}",
             activity_metadata={"survey_id": survey.survey_id, "response_id": response.response_id}
@@ -194,18 +198,18 @@ def get_survey_results(session: Session, survey: Survey) -> dict:
 
     # Count totals
     total_responses = session.exec(
-        select(func.count(SurveyResponse.response_code)).where(
+        select(func.count(SurveyResponse.id)).where(
             and_(
-                SurveyResponse.survey_code == survey.survey_code,
+                SurveyResponse.survey_ref_id == survey.id,
                 SurveyResponse.is_deleted == False,
             )
         )
     ).one()
 
     complete_responses = session.exec(
-        select(func.count(SurveyResponse.response_code)).where(
+        select(func.count(SurveyResponse.id)).where(
             and_(
-                SurveyResponse.survey_code == survey.survey_code,
+                SurveyResponse.survey_ref_id == survey.id,
                 SurveyResponse.is_deleted == False,
                 SurveyResponse.is_complete == True,
             )
@@ -219,7 +223,7 @@ def get_survey_results(session: Session, survey: Survey) -> dict:
     # Get ordered questions for this survey
     sq_rows = session.exec(
         select(SurveyQuestion)
-        .where(SurveyQuestion.survey_code == survey.survey_code)
+        .where(SurveyQuestion.survey_ref_id == survey.id)
         .order_by(SurveyQuestion.order_index)
     ).all()
 
@@ -227,7 +231,7 @@ def get_survey_results(session: Session, survey: Survey) -> dict:
     responses = session.exec(
         select(SurveyResponse).where(
             and_(
-                SurveyResponse.survey_code == survey.survey_code,
+                SurveyResponse.survey_ref_id == survey.id,
                 SurveyResponse.is_deleted.is_(False),
             )
         )
@@ -237,7 +241,7 @@ def get_survey_results(session: Session, survey: Survey) -> dict:
 
     for sq in sq_rows:
         question = session.exec(
-            select(Question).where(Question.question_code == sq.question_code)
+            select(Question).where(Question.id == sq.question_ref_id)
         ).first()
         if not question:
             continue
@@ -337,7 +341,7 @@ def export_survey_responses(session: Session, survey: Survey) -> dict:
         select(SurveyResponse)
         .where(
             and_(
-                SurveyResponse.survey_code == survey.survey_code,
+                SurveyResponse.survey_ref_id == survey.id,
                 SurveyResponse.is_deleted == False,
             )
         )
@@ -354,9 +358,9 @@ def export_survey_responses(session: Session, survey: Survey) -> dict:
     for resp in responses:
         # Resolve alumni_id if response is not anonymous
         alumni_id = None
-        if resp.alumni_code and not survey.is_anonymous:
+        if resp.alumni_ref_id and not survey.is_anonymous:
             alumni = session.exec(
-                select(Alumni).where(Alumni.alumni_code == resp.alumni_code)
+                select(Alumni).where(Alumni.id == resp.alumni_ref_id)
             ).first()
             if alumni:
                 alumni_id = alumni.alumni_id

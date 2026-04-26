@@ -45,9 +45,9 @@ def get_faculty_stats(
     current_user: CurrentUser = Depends(require_staff_or_admin)
 ):
     """Get statistics for the faculty dashboard"""
-    import uuid
-    faculty_user_code = uuid.UUID(current_user.user_code)
-    cache_key = generate_cache_key(FACULTY_DASHBOARD_CACHE_NAMESPACE, type="stats", user_code=str(faculty_user_code))
+    if not current_user.id:
+        raise ValueError("Authenticated user is missing an internal id")
+    cache_key = generate_cache_key(FACULTY_DASHBOARD_CACHE_NAMESPACE, type="stats", user_id=str(current_user.user_id))
     
     return cache_get_or_set(
         cache_key,
@@ -55,7 +55,7 @@ def get_faculty_stats(
             success=True,
             code=SuccessCode.USERS_RETRIEVED.value,
             message="Faculty statistics retrieved successfully",
-            data=FacultyDashboardStats(**get_faculty_dashboard_stats(session, faculty_user_code))
+            data=FacultyDashboardStats(**get_faculty_dashboard_stats(session, current_user.id))
         ),
         ttl=ALUMNI_STATS_TTL
     )
@@ -80,8 +80,9 @@ def get_faculty_sessions(
     current_user: CurrentUser = Depends(require_staff_or_admin)
 ):
     """Get upcoming mentoring sessions for faculty."""
-    import uuid
-    data = get_faculty_upcoming_sessions(session, uuid.UUID(current_user.user_code))
+    if not current_user.id:
+        raise ValueError("Authenticated user is missing an internal id")
+    data = get_faculty_upcoming_sessions(session, current_user.id)
     return StandardResponse(
         success=True,
         code=SuccessCode.RETRIEVED.value if hasattr(SuccessCode, 'RETRIEVED') else SuccessCode.USER_RETRIEVED.value,
@@ -111,7 +112,7 @@ def get_alumni_stats(
     """Get statistics for the alumni dashboard"""
     cache_key = generate_cache_key(
         ALUMNI_STATS_CACHE_NAMESPACE,
-        user_code=str(current_user.user_code)
+        user_id=str(current_user.user_id)
     )
     
     return cache_get_or_set(
@@ -120,7 +121,7 @@ def get_alumni_stats(
             success=True,
             code=SuccessCode.USERS_RETRIEVED.value,
             message="Alumni statistics retrieved successfully",
-            data=AlumniDashboardStats(**get_alumni_dashboard_stats(session, str(current_user.user_code)))
+            data=AlumniDashboardStats(**get_alumni_dashboard_stats(session, current_user.id))
         ),
         ttl=ALUMNI_STATS_TTL
     )
@@ -132,7 +133,7 @@ def get_alumni_activity(
     limit: int = 5
 ):
     """Get recent activity for the current alumni"""
-    activity = get_alumni_recent_activity(session, current_user.user_code, limit)
+    activity = get_alumni_recent_activity(session, current_user.id, limit)
     return StandardResponse(
         success=True,
         code=SuccessCode.USERS_RETRIEVED.value,

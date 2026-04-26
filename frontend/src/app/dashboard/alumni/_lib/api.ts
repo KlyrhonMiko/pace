@@ -64,7 +64,7 @@ export function normalizeValue(value: number, featureName: string): number {
  */
 export async function getLatestPrediction(
     token?: string,
-    alumniCode?: string
+    alumniId?: string
 ): Promise<EmployabilityResult | null> {
     try {
         const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
@@ -110,9 +110,9 @@ export async function getLatestPrediction(
         let latestPrediction = await fetchLatest();
 
         // If there is no stored prediction yet, attempt to generate one for this exact alumni user.
-        if (!latestPrediction && alumniCode) {
+        if (!latestPrediction && alumniId) {
             try {
-                await apiFetch(`/predict/employability/${alumniCode}`, {
+                await apiFetch(`/predict/employability/${alumniId}`, {
                     method: "POST",
                     headers: requestHeaders,
                     cache: "no-store",
@@ -151,16 +151,16 @@ export interface EmployabilityInputPayload {
  */
 export async function runPrediction(
     payload: EmployabilityInputPayload,
-    alumniCode?: string
+    alumniId?: string
 ): Promise<EmployabilityResult | null> {
     try {
-        const code = alumniCode || (typeof window !== "undefined" ? JSON.parse(localStorage.getItem("user") || "{}").alumni_code : null);
+        const targetAlumniId = alumniId;
         
-        if (!code) {
-            throw new Error("Alumni profile code not found. Please ensure you are logged in correctly.");
+        if (!targetAlumniId) {
+            throw new Error("Alumni profile ID not found. Please ensure your profile is loaded.");
         }
 
-        const json = await apiFetch<any>(`/predict/employability/${code}`, {
+        const json = await apiFetch<any>(`/predict/employability/${targetAlumniId}`, {
             method: "POST",
             body: payload,
         });
@@ -215,5 +215,4 @@ export async function getPredictionHistory(limit: number = 10): Promise<Predicti
         return [];
     }
 }
-
 

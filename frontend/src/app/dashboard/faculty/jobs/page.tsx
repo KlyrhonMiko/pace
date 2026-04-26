@@ -26,7 +26,7 @@ interface UnifiedJob {
     snippet?: string;
     description?: string;
     isActive: boolean;
-    dbId?: number;
+    dbId?: number | string;
 }
 
 function convertApiJob(job: any, index: number): UnifiedJob {

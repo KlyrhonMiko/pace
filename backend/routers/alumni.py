@@ -15,7 +15,7 @@ from models.pagination import PaginatedResponse, PaginationMetadata
 from utils.rbac import require_admin, require_authenticated, require_staff_or_admin
 from utils.logging import log_error, log_integrity_error
 from services.queries.alumni_queries import (
-    get_alumni_by_id, get_alumni_by_id_any,
+    get_alumni_by_id, get_alumni_by_id_any, get_alumni_by_user_ref_id,
     register_complete_alumni, update_alumni, soft_delete_alumni, restore_alumni,
     get_all_alumni, build_full_profile,
     batch_register_alumni, batch_update_alumni, batch_delete_alumni, batch_restore_alumni,
@@ -34,11 +34,11 @@ ALUMNI_LIST_TTL = 300
 ALUMNI_DETAIL_TTL = 300
 
 
-def _ensure_alumni_owner_or_staff_plus(current_user: CurrentUser, alumni_user_code: str | None) -> None:
+def _ensure_alumni_owner_or_staff_plus(current_user: CurrentUser, alumni_user_ref_id) -> None:
     if current_user.user_type in {UserType.STAFF.value, UserType.ADMIN.value}:
         return
 
-    if not current_user.user_code or not alumni_user_code or str(current_user.user_code) != str(alumni_user_code):
+    if not current_user.id or not alumni_user_ref_id or current_user.id != alumni_user_ref_id:
         raise HTTPException(
             status_code=403,
             detail=StandardResponse(
@@ -115,7 +115,7 @@ def batch_register_alumni_route(
     response = batch_register_alumni(
         session,
         batch_data.items,
-        performed_by=current_user.user_code,
+        performed_by=current_user.id,
     )
     invalidate_cache_namespaces(ALUMNI_CACHE_NAMESPACE, "users")
     return StandardResponse(
@@ -140,7 +140,7 @@ def batch_update_alumni_route(
     response = batch_update_alumni(
         session,
         batch_data.items,
-        performed_by=current_user.user_code,
+        performed_by=current_user.id,
     )
     invalidate_cache_namespaces(ALUMNI_CACHE_NAMESPACE)
     return StandardResponse(
@@ -161,7 +161,7 @@ def batch_delete_alumni_route(
     response = batch_delete_alumni(
         session,
         batch_data.ids,
-        performed_by=current_user.user_code,
+        performed_by=current_user.id,
     )
     invalidate_cache_namespaces(ALUMNI_CACHE_NAMESPACE)
     return StandardResponse(
@@ -182,7 +182,7 @@ def batch_restore_alumni_route(
     response = batch_restore_alumni(
         session,
         data.ids,
-        performed_by=current_user.user_code,
+        performed_by=current_user.id,
     )
     invalidate_cache_namespaces(ALUMNI_CACHE_NAMESPACE)
     return StandardResponse(
@@ -300,7 +300,7 @@ def get_my_alumni_profile(
             ).model_dump(mode='json')
         )
 
-    if not current_user.user_code:
+    if not current_user.id:
         raise HTTPException(
             status_code=404,
             detail=StandardResponse(
@@ -310,9 +310,7 @@ def get_my_alumni_profile(
             ).model_dump(mode='json')
         )
 
-    # Fetch alumni first
-    from services.queries.alumni_queries import get_alumni_by_user_code
-    alumni = get_alumni_by_user_code(session, str(current_user.user_code))
+    alumni = get_alumni_by_user_ref_id(session, current_user.id)
     
     if not alumni:
         raise HTTPException(
@@ -327,7 +325,7 @@ def get_my_alumni_profile(
     # Caching
     cache_key = generate_cache_key(
         ALUMNI_PROFILE_CACHE_NAMESPACE,
-        user_code=str(current_user.user_code)
+        user_id=str(current_user.user_id)
     )
 
     return cache_get_or_set(
@@ -351,7 +349,7 @@ def get_my_activity_history(
 ):
     cache_key = generate_cache_key(
         ALUMNI_ACTIVITY_CACHE_NAMESPACE,
-        user_code=str(current_user.user_code),
+        user_id=str(current_user.user_id),
         limit=limit,
         offset=offset
     )
@@ -364,10 +362,10 @@ def get_my_activity_history(
         lambda: StandardResponse(
             success=True,
             code=SuccessCode.ALUMNI_ACTIVITY_RETRIEVED.value,
-            message="User activity history retrieved successfully",
-            data=[UserActivityPublic.model_validate(act) for act in get_user_activities(
+                message="User activity history retrieved successfully",
+                data=[UserActivityPublic.model_validate(act) for act in get_user_activities(
                 session, 
-                str(current_user.user_code), 
+                current_user.id, 
                 limit=limit, 
                 offset=offset
             )]
@@ -390,8 +388,9 @@ def save_resume_route(
     if current_user.user_type != UserType.USER.value:
         raise HTTPException(status_code=403, detail="Only alumni can save resumes")
 
-    from services.queries.alumni_queries import get_alumni_by_user_code
-    alumni = get_alumni_by_user_code(session, str(current_user.user_code))
+    if not current_user.id:
+        raise HTTPException(status_code=401, detail="Authenticated user is missing an internal id")
+    alumni = get_alumni_by_user_ref_id(session, current_user.id)
     if not alumni:
         raise HTTPException(status_code=404, detail=StandardResponse(
             success=False,
@@ -399,12 +398,19 @@ def save_resume_route(
             message="Alumni profile not found"
         ).model_dump(mode='json'))
 
-    res = save_alumni_resume(session, alumni.alumni_code, data, performed_by=current_user.user_code)
+    res = save_alumni_resume(session, alumni.id, data, performed_by=current_user.id)
+    resume_payload = ResumeRead(
+        id=res.id,
+        alumni_id=alumni.alumni_id,
+        resume_data=res.resume_data,
+        created_at=res.created_at,
+        updated_at=res.updated_at,
+    )
     return StandardResponse(
         success=True,
         code=SuccessCode.ALUMNI_UPDATED.value, # Reusing updated code
         message="Resume saved successfully",
-        data=ResumeRead.model_validate(res)
+        data=resume_payload
     )
 
 
@@ -417,8 +423,9 @@ def get_resume_route(
     if current_user.user_type != UserType.USER.value:
         raise HTTPException(status_code=403, detail="Only alumni can access resumes")
 
-    from services.queries.alumni_queries import get_alumni_by_user_code
-    alumni = get_alumni_by_user_code(session, str(current_user.user_code))
+    if not current_user.id:
+        raise HTTPException(status_code=401, detail="Authenticated user is missing an internal id")
+    alumni = get_alumni_by_user_ref_id(session, current_user.id)
     if not alumni:
         raise HTTPException(status_code=404, detail=StandardResponse(
             success=False,
@@ -426,7 +433,7 @@ def get_resume_route(
             message="Alumni profile not found"
         ).model_dump(mode='json'))
 
-    res = get_alumni_resume(session, alumni.alumni_code)
+    res = get_alumni_resume(session, alumni.id)
     if not res:
         return StandardResponse(
             success=True,
@@ -435,11 +442,18 @@ def get_resume_route(
             data=None
         )
 
+    resume_payload = ResumeRead(
+        id=res.id,
+        alumni_id=alumni.alumni_id,
+        resume_data=res.resume_data,
+        created_at=res.created_at,
+        updated_at=res.updated_at,
+    )
     return StandardResponse(
         success=True,
         code=SuccessCode.ALUMNI_RETRIEVED.value,
         message="Resume retrieved successfully",
-        data=ResumeRead.model_validate(res)
+        data=resume_payload
     )
 
 
@@ -461,7 +475,7 @@ def get_alumni(
             success=False, code=ErrorCode.ALUMNI_NOT_FOUND.value, message="Alumni not found"
         ).model_dump(mode='json'))
 
-    _ensure_alumni_owner_or_staff_plus(current_user, str(alumni.user_code) if alumni.user_code else None)
+    _ensure_alumni_owner_or_staff_plus(current_user, alumni.user_ref_id)
 
     cache_key = generate_cache_key(
         f"{ALUMNI_CACHE_NAMESPACE}:detail",
@@ -490,19 +504,19 @@ def update_alumni_route(
             success=False, code=ErrorCode.ALUMNI_NOT_FOUND.value, message="Alumni not found"
         ).model_dump(mode='json'))
 
-    _ensure_alumni_owner_or_staff_plus(current_user, str(alumni.user_code) if alumni.user_code else None)
+    _ensure_alumni_owner_or_staff_plus(current_user, alumni.user_ref_id)
 
     try:
         updated = update_alumni(
             session,
             alumni,
             alumni_data,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(ALUMNI_CACHE_NAMESPACE)
         # User-specific profile and stats cache
-        cache_key_profile = generate_cache_key(ALUMNI_PROFILE_CACHE_NAMESPACE, user_code=str(current_user.user_code))
-        cache_key_stats = generate_cache_key(ALUMNI_STATS_CACHE_NAMESPACE, user_code=str(current_user.user_code))
+        cache_key_profile = generate_cache_key(ALUMNI_PROFILE_CACHE_NAMESPACE, user_id=str(current_user.user_id))
+        cache_key_stats = generate_cache_key(ALUMNI_STATS_CACHE_NAMESPACE, user_id=str(current_user.user_id))
         from core.redis import cache_delete
         cache_delete(cache_key_profile)
         cache_delete(cache_key_stats)
@@ -542,7 +556,7 @@ def delete_alumni(
         ).model_dump(mode='json'))
 
     try:
-        soft_delete_alumni(session, alumni, performed_by=current_user.user_code)
+        soft_delete_alumni(session, alumni, performed_by=current_user.id)
         invalidate_cache_namespaces(ALUMNI_CACHE_NAMESPACE)
         return StandardResponse(
             success=True, code=SuccessCode.ALUMNI_DELETED.value,
@@ -578,7 +592,7 @@ def restore_alumni_route(
         ).model_dump(mode='json'))
 
     try:
-        restore_alumni(session, alumni, performed_by=current_user.user_code)
+        restore_alumni(session, alumni, performed_by=current_user.id)
         invalidate_cache_namespaces(ALUMNI_CACHE_NAMESPACE)
         return StandardResponse(
             success=True, code=SuccessCode.ALUMNI_RESTORED.value,
@@ -693,4 +707,3 @@ def _build_alumni_detail_response(session: Session, alumni_id: str) -> StandardR
         message=f"Alumni {alumni_id} retrieved successfully",
         data=build_full_profile(session, alumni)
     )
-

@@ -12,8 +12,6 @@ from schemas.surveys import SurveyStatus
 from schemas.questions import QuestionType
 from services.queries.surveys_queries import generate_survey_id
 from services.queries.questions_queries import generate_question_id
-from utils.timezone import get_current_time_gmt8
-
 
 # ---------------------------------------------------------------------------
 # CHED Tracer Study — standard 10-question template
@@ -101,7 +99,6 @@ def _get_or_create_question(session: Session, q_def: dict) -> Question:
         return existing
 
     question = Question(
-        question_code=uuid.uuid4(),
         question_id=generate_question_id(session),
         question_text=q_def["question_text"],
         question_type=q_def["question_type"],
@@ -112,12 +109,9 @@ def _get_or_create_question(session: Session, q_def: dict) -> Question:
         scale_label_max=q_def.get("scale_label_max"),
         placeholder=q_def.get("placeholder"),
         is_required=q_def.get("is_required", True),
-        created_at=get_current_time_gmt8(),
-        updated_at=get_current_time_gmt8(),
-        is_deleted=False,
     )
     session.add(question)
-    session.flush()  # flush so question_code is available for the join table
+    session.flush()
     return question
 
 
@@ -129,7 +123,6 @@ def create_tracer_study_template(session: Session) -> Survey:
     """
     # 1. Create the survey
     survey = Survey(
-        survey_code=uuid.uuid4(),
         survey_id=generate_survey_id(session),
         title="CHED Tracer Study",
         description=(
@@ -139,9 +132,6 @@ def create_tracer_study_template(session: Session) -> Survey:
         status=SurveyStatus.DRAFT,
         is_anonymous=False,
         allow_multiple_responses=False,
-        created_at=get_current_time_gmt8(),
-        updated_at=get_current_time_gmt8(),
-        is_deleted=False,
     )
     session.add(survey)
     session.flush()
@@ -151,9 +141,8 @@ def create_tracer_study_template(session: Session) -> Survey:
         question = _get_or_create_question(session, q_def)
 
         sq = SurveyQuestion(
-            survey_question_code=uuid.uuid4(),
-            survey_code=survey.survey_code,
-            question_code=question.question_code,
+            survey_ref_id=survey.id,
+            question_ref_id=question.id,
             order_index=order_index,
         )
         session.add(sq)

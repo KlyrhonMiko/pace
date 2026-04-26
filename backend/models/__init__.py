@@ -1,3 +1,4 @@
+from .base import BaseTable
 from .users import User
 from .courses import Course
 from .college_dept import CollegeDept
@@ -25,6 +26,7 @@ from .employers import Employer
 __all__ = [
     # ORM table classes only — schemas live in schemas/
     "User",
+    "BaseTable",
     "Course",
     "CollegeDept",
     "StudentRecord",

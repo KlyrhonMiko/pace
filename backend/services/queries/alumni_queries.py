@@ -20,9 +20,10 @@ from schemas.composite import (
     BatchAlumniRestoreResult, BatchAlumniRestoreResponse,
 )
 from models.response_codes import ErrorCode, SuccessCode
-from utils.crypto import hash_password
+from utils.crypto import hash_password_for_storage
 from utils.logging import log_integrity_error
 from utils.timezone import get_current_time_gmt8
+from services.queries.audit import stamp_create, stamp_restore, stamp_soft_delete, stamp_update
 from services.queries.transaction_logs_queries import create_transaction_log
 from datetime import date
 
@@ -60,26 +61,26 @@ def build_full_profile(session: Session, alumni: Alumni) -> AlumniFullProfile:
     """Build an AlumniFullProfile by joining User, StudentRecord, and Course."""
     student = None
     course = None
-    if alumni.student_code:
+    if alumni.student_ref_id:
         student = session.exec(
-            select(StudentRecord).where(StudentRecord.student_code == alumni.student_code)
+            select(StudentRecord).where(StudentRecord.id == alumni.student_ref_id)
         ).first()
         if student:
             course = session.exec(
-                select(Course).where(Course.course_code == student.course_code)
+                select(Course).where(Course.id == student.course_ref_id)
             ).first()
 
     user = None
-    if alumni.user_code:
+    if alumni.user_ref_id:
         user = session.exec(
-            select(User).where(User.user_code == alumni.user_code)
+            select(User).where(User.id == alumni.user_ref_id)
         ).first()
 
     # Calculate completeness
     completeness = calculate_profile_completeness(alumni, student)
 
     return AlumniFullProfile(
-        alumni_code=str(alumni.alumni_code),
+        id=alumni.id,
         alumni_id=alumni.alumni_id,
         last_name=alumni.last_name,
         first_name=alumni.first_name,
@@ -115,27 +116,28 @@ def build_full_profile(session: Session, alumni: Alumni) -> AlumniFullProfile:
 # Cascade helpers
 # ---------------------------------------------------------------------------
 
-def _cascade_soft_delete_alumni(session: Session, alumni: Alumni) -> None:
+def _cascade_soft_delete_alumni(
+    session: Session, alumni: Alumni, performed_by: str | None = None
+) -> None:
     student_records = session.exec(
-        select(StudentRecord).where(StudentRecord.alumni_code == alumni.alumni_code)
+        select(StudentRecord).where(StudentRecord.alumni_ref_id == alumni.id)
     ).all()
     for student in student_records:
         if not student.is_deleted:
-            student.is_deleted = True
-            student.deleted_at = get_current_time_gmt8()
+            stamp_soft_delete(student, performed_by)
             session.add(student)
 
 
 def _cascade_restore_alumni(session: Session, alumni: Alumni) -> None:
     student_records = session.exec(
         select(StudentRecord).where(
-            (StudentRecord.alumni_code == alumni.alumni_code) &
+            (StudentRecord.alumni_ref_id == alumni.id) &
             StudentRecord.is_deleted
         )
     ).all()
     for student in student_records:
         if student.is_deleted:
-            student.is_deleted = False
+            stamp_restore(student)
         session.add(student)
 
 
@@ -157,20 +159,11 @@ def get_alumni_by_id_any(session: Session, alumni_id: str) -> Alumni | None:
     ).first()
 
 
-def get_alumni_by_user_code(session: Session, user_code: str) -> Alumni | None:
-    """Retrieve an alumni record by the associated user_code."""
+def get_alumni_by_user_ref_id(session: Session, user_ref_id: uuid.UUID) -> Alumni | None:
+    """Retrieve an alumni record by the associated internal user id."""
     return session.exec(
         select(Alumni).where(
-            (Alumni.user_code == user_code) & (Alumni.is_deleted == False)
-        )
-    ).first()
-
-
-def get_alumni_by_code(session: Session, alumni_code: str) -> Alumni | None:
-    """Retrieve an active alumni record by its UUID code."""
-    return session.exec(
-        select(Alumni).where(
-            (Alumni.alumni_code == alumni_code) & (Alumni.is_deleted == False)
+            (Alumni.user_ref_id == user_ref_id) & (Alumni.is_deleted == False)
         )
     ).first()
 
@@ -183,7 +176,7 @@ def register_complete_alumni(
     session: Session,
     username: str,
     email: str,
-    password: str,   # already hashed by schema validator
+    password: str,
     last_name: str,
     first_name: str,
     middle_name: str | None,
@@ -201,11 +194,14 @@ def register_complete_alumni(
         user_id=user_id,
         username=username,
         email=email,
-        password=password,
+        password=hash_password_for_storage(password),
         user_type=UserType.USER,
     )
+    stamp_create(new_user, performed_by)
     session.add(new_user)
     session.flush()
+    if performed_by is None and new_user.created_by is None:
+        new_user.created_by = new_user.id
 
     new_alumni = Alumni(
         alumni_id=alumni_id,
@@ -216,8 +212,9 @@ def register_complete_alumni(
         age=age,
         birthdate=birthdate,
         consent_for_survey_ml=consent_for_survey_ml,
-        user_code=new_user.user_code,
+        user_ref_id=new_user.id,
     )
+    stamp_create(new_alumni, performed_by or new_user.id)
     session.add(new_alumni)
     create_transaction_log(
         session,
@@ -235,6 +232,7 @@ def update_alumni(
     data: AlumniUpdate,
     performed_by: str | None = None,
 ) -> Alumni:
+    before_state = alumni.model_dump(mode="json")
     if data.last_name is not None:
         alumni.last_name = data.last_name
     if data.first_name is not None:
@@ -257,10 +255,12 @@ def update_alumni(
         alumni.salary_package = data.salary_package
     if data.offers_received is not None:
         alumni.offers_received = data.offers_received
+    stamp_update(alumni)
     session.add(alumni)
     create_transaction_log(
         session,
         tl_name=f"UPDATED alumni {alumni.alumni_id}",
+        before=before_state,
         after=alumni,
         performed_by=performed_by,
     )
@@ -274,9 +274,8 @@ def soft_delete_alumni(
     alumni: Alumni,
     performed_by: str | None = None,
 ) -> None:
-    _cascade_soft_delete_alumni(session, alumni)
-    alumni.is_deleted = True
-    alumni.deleted_at = get_current_time_gmt8()
+    _cascade_soft_delete_alumni(session, alumni, performed_by)
+    stamp_soft_delete(alumni, performed_by)
     session.add(alumni)
     create_transaction_log(
         session,
@@ -293,8 +292,7 @@ def restore_alumni(
     performed_by: str | None = None,
 ) -> None:
     _cascade_restore_alumni(session, alumni)
-    alumni.is_deleted = False
-    alumni.deleted_at = None
+    stamp_restore(alumni)
     session.add(alumni)
     create_transaction_log(
         session,
@@ -327,7 +325,7 @@ def get_all_alumni(
     else:
         base_filter = Alumni.is_deleted == False
     query = select(Alumni)
-    count_q = select(func.count(Alumni.alumni_code))
+    count_q = select(func.count(Alumni.id))
     if base_filter is not None:
         query = query.where(base_filter)
         count_q = count_q.where(base_filter)
@@ -395,12 +393,15 @@ def batch_register_alumni(
                     user_id=user_id,
                     username=item.username,
                     email=item.email,
-                    password=hash_password(item.password),
+                    password=hash_password_for_storage(item.password),
                     user_type=UserType.USER,
                 )
+                stamp_create(new_user, performed_by)
                 session.add(new_user)
                 session.flush()
                 session.refresh(new_user)
+                if performed_by is None and new_user.created_by is None:
+                    new_user.created_by = new_user.id
 
                 new_alumni = Alumni(
                     alumni_id=alumni_id,
@@ -411,8 +412,9 @@ def batch_register_alumni(
                     age=item.age,
                     birthdate=item.birthdate,
                     consent_for_survey_ml=item.consent_for_survey_ml,
-                    user_code=new_user.user_code,
+                    user_ref_id=new_user.id,
                 )
+                stamp_create(new_alumni, performed_by or new_user.id)
                 session.add(new_alumni)
                 session.flush()
                 session.refresh(new_alumni)
@@ -502,6 +504,7 @@ def batch_update_alumni(
                 if item.consent_for_survey_ml is not None:
                     alumni.consent_for_survey_ml = item.consent_for_survey_ml
 
+                stamp_update(alumni)
                 session.add(alumni)
                 session.flush()
                 session.refresh(alumni)
@@ -576,9 +579,8 @@ def batch_delete_alumni(
                 failed_count += 1
                 continue
 
-            _cascade_soft_delete_alumni(session, alumni)
-            alumni.is_deleted = True
-            alumni.deleted_at = get_current_time_gmt8()
+            _cascade_soft_delete_alumni(session, alumni, performed_by)
+            stamp_soft_delete(alumni, performed_by)
             session.add(alumni)
             session.flush()
 
@@ -652,8 +654,7 @@ def batch_restore_alumni(
                 continue
 
             _cascade_restore_alumni(session, alumni)
-            alumni.is_deleted = False
-            alumni.deleted_at = None
+            stamp_restore(alumni)
             session.add(alumni)
             session.flush()
 
@@ -713,29 +714,31 @@ def calculate_profile_completeness(alumni: Alumni, student: StudentRecord | None
 
 def save_alumni_resume(
     session: Session,
-    alumni_code: uuid.UUID,
+    alumni_ref_id: uuid.UUID,
     data: ResumeSave,
     performed_by: str | None = None,
 ) -> AlumniResume:
     """Create or update the resume for an alumni."""
     existing = session.exec(
-        select(AlumniResume).where(AlumniResume.alumni_code == alumni_code)
+        select(AlumniResume).where(AlumniResume.alumni_ref_id == alumni_ref_id)
     ).first()
 
     if existing:
         existing.resume_data = data.resume_data.model_dump()
+        stamp_update(existing)
         session.add(existing)
         res = existing
     else:
         res = AlumniResume(
-            alumni_code=alumni_code,
+            alumni_ref_id=alumni_ref_id,
             resume_data=data.resume_data.model_dump()
         )
+        stamp_create(res, performed_by)
         session.add(res)
 
     create_transaction_log(
         session,
-        tl_name=f"SAVED resume for alumni {alumni_code}",
+        tl_name=f"SAVED resume for alumni ref {alumni_ref_id}",
         after=res,
         performed_by=performed_by,
     )
@@ -744,8 +747,8 @@ def save_alumni_resume(
     return res
 
 
-def get_alumni_resume(session: Session, alumni_code: uuid.UUID) -> AlumniResume | None:
+def get_alumni_resume(session: Session, alumni_ref_id: uuid.UUID) -> AlumniResume | None:
     """Retrieve the resume for an alumni."""
     return session.exec(
-        select(AlumniResume).where(AlumniResume.alumni_code == alumni_code)
+        select(AlumniResume).where(AlumniResume.alumni_ref_id == alumni_ref_id)
     ).first()

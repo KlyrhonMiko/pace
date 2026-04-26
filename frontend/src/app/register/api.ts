@@ -20,7 +20,7 @@ export async function fetchCollegeDepts() {
   const result = await apiFetch<any>("/college-depts/?limit=0");
   if (result.success && result.data?.college_depts) {
     return result.data.college_depts.map((d: any) => ({
-      college_dept_code: d.college_dept_code,
+      college_dept_id: d.college_dept_id,
       college_dept_name: d.college_dept_name,
     }));
   }

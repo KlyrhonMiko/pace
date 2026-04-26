@@ -53,7 +53,7 @@ def create_event_route(
         event = create_event(
             session,
             event_create,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(EVENTS_CACHE_NAMESPACE)
         return StandardResponse(
@@ -105,7 +105,7 @@ def list_events(
             include_deleted=include_deleted,
             sort_by=sort_by,
             sort_order=sort_order,
-            user_code=str(current_user.user_code),
+            user_id=str(current_user.user_id),
         )
         return cache_get_or_set(
             cache_key,
@@ -119,7 +119,7 @@ def list_events(
                 include_deleted,
                 sort_by,
                 sort_order,
-                user_code=str(current_user.user_code),
+                user_ref_id=current_user.id,
             ),
             ttl=EVENTS_LIST_TTL,
         )
@@ -150,12 +150,12 @@ def get_event(
         cache_key = generate_cache_key(
             f"{EVENTS_CACHE_NAMESPACE}:detail",
             event_id=event_id,
-            user_code=str(current_user.user_code),
+            user_id=str(current_user.user_id),
         )
         return cache_get_or_set(
             cache_key,
             lambda: _build_event_detail_response(
-                session, event_id, user_code=str(current_user.user_code)
+                session, event_id, user_ref_id=current_user.id
             ),
             ttl=EVENTS_DETAIL_TTL,
         )
@@ -200,7 +200,7 @@ def update_event_route(
             session,
             event,
             event_update,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(EVENTS_CACHE_NAMESPACE)
         return StandardResponse(
@@ -245,7 +245,7 @@ def delete_event(
                     message="Event is already deleted",
                 ).model_dump(mode="json"),
             )
-        soft_delete_event(session, event, performed_by=current_user.user_code)
+        soft_delete_event(session, event, performed_by=current_user.id)
         invalidate_cache_namespaces(EVENTS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
@@ -291,7 +291,7 @@ def restore_event_route(
         restored = restore_event(
             session,
             event,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(EVENTS_CACHE_NAMESPACE)
         return StandardResponse(
@@ -377,7 +377,7 @@ async def upload_event_image(
             session,
             event,
             image_path,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(EVENTS_CACHE_NAMESPACE)
         image_url = storage_service.get_public_url(image_path)
@@ -435,7 +435,7 @@ async def delete_event_image(
                 ).model_dump(mode="json"),
             )
 
-        clear_event_image(session, event, performed_by=current_user.user_code)
+        clear_event_image(session, event, performed_by=current_user.id)
         invalidate_cache_namespaces(EVENTS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,
@@ -496,7 +496,7 @@ def _build_events_list_response(
     include_deleted: bool,
     sort_by: str,
     sort_order: str,
-    user_code: str | None = None,
+    user_ref_id=None,
 ) -> StandardResponse:
     events, total = get_all_events(
         session,
@@ -511,17 +511,17 @@ def _build_events_list_response(
     )
 
     # Populate is_registered for the current user
-    registered_event_codes = set()
-    if user_code and events:
-        event_codes = [e.event_code for e in events]
-        registered_event_codes = get_user_registration_status(
-            session, user_code, event_codes
+    registered_event_ids = set()
+    if user_ref_id and events:
+        event_ref_ids = [e.id for e in events]
+        registered_event_ids = get_user_registration_status(
+            session, user_ref_id, event_ref_ids
         )
 
     event_data = []
     for e in events:
         public_event = EventPublic.model_validate(e)
-        public_event.is_registered = e.event_code in registered_event_codes
+        public_event.is_registered = e.id in registered_event_ids
         event_data.append(public_event)
 
     # Calculate facets (counts per event type) across all active events
@@ -548,7 +548,7 @@ def _build_events_list_response(
 
 
 def _build_event_detail_response(
-    session: Session, event_id: str, user_code: str | None = None
+    session: Session, event_id: str, user_ref_id=None
 ) -> StandardResponse:
     event = get_active_event_by_id(session, event_id)
     if not event:
@@ -562,11 +562,11 @@ def _build_event_detail_response(
         )
 
     public_event = EventPublic.model_validate(event)
-    if user_code:
-        registered_codes = get_user_registration_status(
-            session, user_code, [event.event_code]
+    if user_ref_id:
+        registered_ids = get_user_registration_status(
+            session, user_ref_id, [event.id]
         )
-        public_event.is_registered = event.event_code in registered_codes
+        public_event.is_registered = event.id in registered_ids
 
     return StandardResponse(
         success=True,

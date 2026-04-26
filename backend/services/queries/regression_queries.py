@@ -24,12 +24,12 @@ def get_regression_prediction_by_id(
 
 
 def get_regression_predictions_by_alumni(
-    session: Session, alumni_code: uuid.UUID, limit: int = 10
+    session: Session, alumni_ref_id: uuid.UUID, limit: int = 10
 ) -> list[AlumniRegressionPrediction]:
     """Fetch recent regression predictions for a specific alumni, newest first."""
     return session.exec(
         select(AlumniRegressionPrediction)
-        .where(AlumniRegressionPrediction.alumni_code == alumni_code)
+        .where(AlumniRegressionPrediction.alumni_ref_id == alumni_ref_id)
         .order_by(AlumniRegressionPrediction.created_at.desc())
         .limit(limit)
     ).all()

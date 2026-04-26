@@ -40,8 +40,8 @@ export default function JobDetailModal({ job, onClose }: JobDetailModalProps) {
                 setIsLoadingStatus(true);
                 try {
                     const apps = await getMyApplications();
-                    const activeApp = apps.find((app: any) => (app.job_id === job.id || String(app.job_id) === String(job.id)) && app.status !== "Rejected");
-                    const rejectedApp = apps.find((app: any) => (app.job_id === job.id || String(app.job_id) === String(job.id)) && app.status === "Rejected");
+                    const activeApp = apps.find((app: any) => (app.job_listing_id === job.id || String(app.job_listing_id) === String(job.id)) && app.status !== "Rejected");
+                    const rejectedApp = apps.find((app: any) => (app.job_listing_id === job.id || String(app.job_listing_id) === String(job.id)) && app.status === "Rejected");
 
                     setHasApplied(!!activeApp);
                     setIsRejected(!!rejectedApp && !activeApp);

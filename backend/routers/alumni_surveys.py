@@ -125,7 +125,7 @@ def get_responded_survey_ids(
     """
     from models.alumni import Alumni
 
-    if not current_user.user_code:
+    if not current_user.id:
         return StandardResponse(
             success=True,
             code=SuccessCode.SURVEYS_RETRIEVED.value,
@@ -137,7 +137,7 @@ def get_responded_survey_ids(
     alumni = session.exec(
         select(Alumni).where(
             and_(
-                Alumni.user_code == current_user.user_code,
+                Alumni.user_ref_id == current_user.id,
                 Alumni.is_deleted.is_(False),
             )
         )
@@ -155,10 +155,10 @@ def get_responded_survey_ids(
     # Fetch all response rows for this alumni, joining surveys to get survey_id
     rows = session.exec(
         select(SurveyResponse, Survey)
-        .join(Survey, SurveyResponse.survey_code == Survey.survey_code)
+        .join(Survey, SurveyResponse.survey_ref_id == Survey.id)
         .where(
             and_(
-                SurveyResponse.alumni_code == alumni.alumni_code,
+                SurveyResponse.alumni_ref_id == alumni.id,
                 SurveyResponse.is_deleted.is_(False),
             )
         )
@@ -191,13 +191,13 @@ def _build_alumni_survey_list(session: Session) -> StandardResponse:
         )
     ).all()
 
-    survey_codes = [s.survey_code for s in surveys]
-    counts = get_survey_question_counts_batch(session, survey_codes)
+    survey_ref_ids = [s.id for s in surveys]
+    counts = get_survey_question_counts_batch(session, survey_ref_ids)
 
     survey_data = []
     for survey in surveys:
         data = SurveyPublic.model_validate(survey).model_dump(mode="json")
-        data["question_count"] = counts.get(survey.survey_code, 0)
+        data["question_count"] = counts.get(survey.id, 0)
         survey_data.append(data)
 
     return StandardResponse(
@@ -233,7 +233,7 @@ def _build_alumni_survey_detail(session: Session, survey_id: str) -> StandardRes
             ).model_dump(mode="json"),
         )
 
-    questions_with_details = get_survey_questions_with_details(session, survey.survey_code)
+    questions_with_details = get_survey_questions_with_details(session, survey.id)
 
     data = SurveyPublic.model_validate(survey).model_dump(mode="json")
     data["question_count"] = len(questions_with_details)

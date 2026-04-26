@@ -9,12 +9,13 @@ import {
     Loader2,
     Briefcase,
     Calendar,
-    Target
+    Target,
+    FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Application {
-    id: number;
+    id: string;
     applicant: string;
     job: string;
     status: string;
@@ -27,8 +28,9 @@ interface EmployerApplicationListProps {
     isLoading: boolean;
     totalApplications: number;
     onContact?: (email: string) => void;
-    onApprove?: (id: number) => void;
-    onReject?: (id: number) => void;
+    onApprove?: (id: string) => void;
+    onReject?: (id: string) => void;
+    onViewDetails?: (id: string) => void;
 }
 
 export default function EmployerApplicationList({
@@ -37,7 +39,8 @@ export default function EmployerApplicationList({
     totalApplications,
     onContact,
     onApprove,
-    onReject
+    onReject,
+    onViewDetails
 }: EmployerApplicationListProps) {
     const getStatusStyle = (status: string) => {
         switch (status.toLowerCase()) {
@@ -183,10 +186,11 @@ export default function EmployerApplicationList({
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className="h-8 w-8 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
-                                                title="More Options"
+                                                className="h-8 w-8 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg cursor-pointer"
+                                                title="View Details"
+                                                onClick={(e) => { e.stopPropagation(); if (onViewDetails) onViewDetails(app.id); }}
                                             >
-                                                <MoreHorizontal size={14} />
+                                                <FileText size={14} />
                                             </Button>
                                         </div>
                                     </td>

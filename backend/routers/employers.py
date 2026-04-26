@@ -1,3 +1,4 @@
+from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlmodel import Session, select
 from sqlalchemy.exc import IntegrityError
@@ -21,6 +22,7 @@ from services.queries.jobs_queries import (
     update_job_application_status,
 )
 from models.alumni import Alumni
+from models.alumni_resumes import AlumniResume
 from models.job_listings import JobApplication
 from schemas.users import UserCreate
 from utils.auth import get_current_user
@@ -269,6 +271,7 @@ def update_employer_me(
 
 @router.get("/applications", response_model=StandardResponse)
 def get_my_applications_route(
+    limit: Optional[int] = None,
     db: Session = Depends(get_session),
     current_user: CurrentUser = Depends(get_current_user)
 ):
@@ -284,7 +287,7 @@ def get_my_applications_route(
     if not employer:
         raise HTTPException(status_code=404, detail="Employer profile not found.")
     
-    applications = get_employer_applications(db, employer.id)
+    applications = get_employer_applications(db, employer.id, limit=limit)
     
     # Enrich with alumni and job details
     result = []
@@ -322,6 +325,70 @@ def get_my_applications_route(
         code=SuccessCode.EMPLOYER_APPLICATIONS_RETRIEVED.value if hasattr(SuccessCode, 'EMPLOYER_APPLICATIONS_RETRIEVED') else 200,
         message="Applications retrieved successfully",
         data=result
+    )
+
+
+@router.get("/applications/{application_ref_id}", response_model=StandardResponse)
+def get_application_details_route(
+    application_ref_id: str,
+    db: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(get_current_user)
+):
+    """
+    Get detailed information about a specific job application, including the alumni's full profile and resume.
+    """
+    if current_user.user_type != UserType.EMPLOYER.value:
+        raise HTTPException(status_code=403, detail="Only employers can perform this action.")
+    
+    if not current_user.id:
+        raise HTTPException(status_code=401, detail="Authenticated user is missing an internal id.")
+    employer = get_employer_by_user_ref_id(db, current_user.id)
+    if not employer:
+        raise HTTPException(status_code=404, detail="Employer profile not found.")
+
+    application = get_job_application_by_ref_id(db, application_ref_id)
+    if not application:
+        raise HTTPException(status_code=404, detail="Job application not found.")
+        
+    # Verify the application belongs to a job posted by the employer
+    job = get_job_listing(db, application.job_listing_ref_id)
+    if not job or job.employer_ref_id != employer.id:
+         raise HTTPException(status_code=403, detail="Not authorized to view this application.")
+
+    from services.queries.alumni_queries import build_full_profile, get_alumni_resume
+    
+    alumni = db.exec(select(Alumni).where(Alumni.id == application.alumni_ref_id)).first()
+    if not alumni:
+        raise HTTPException(status_code=404, detail="Alumni profile not found.")
+
+    user = db.exec(select(User).where(User.id == alumni.user_ref_id)).first()
+
+    # Get full profile
+    alumni_profile = build_full_profile(db, alumni)
+    
+    # Get resume
+    alumni_resume = get_alumni_resume(db, alumni.id)
+
+    result_data = {
+        "application": {
+            "id": str(application.id),
+            "status": application.status,
+            "applied_at": application.applied_at.isoformat() if application.applied_at else None,
+            "resume_file_url": application.resume_file_url,
+        },
+        "job": {
+            "id": job.id,
+            "title": job.title,
+        },
+        "alumni": alumni_profile.model_dump() if alumni_profile else None,
+        "resume": alumni_resume.resume_data if alumni_resume else None
+    }
+
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.SUCCESS.value if hasattr(SuccessCode, 'SUCCESS') else 200,
+        message="Application details retrieved successfully",
+        data=result_data
     )
 
 

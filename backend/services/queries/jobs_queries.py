@@ -125,10 +125,15 @@ def create_job_application(
     db: Session,
     job_listing: JobListing,
     alumni_ref_id: uuid.UUID,
+    resume_file_url: Optional[str] = None,
     performed_by: str | uuid.UUID | None = None,
 ) -> JobApplication:
     """Create a new job application."""
-    application = JobApplication(job_listing_ref_id=job_listing.id, alumni_ref_id=alumni_ref_id)
+    application = JobApplication(
+        job_listing_ref_id=job_listing.id, 
+        alumni_ref_id=alumni_ref_id,
+        resume_file_url=resume_file_url
+    )
     stamp_create(application, performed_by)
     db.add(application)
     create_transaction_log(
@@ -207,15 +212,12 @@ def get_job_applicants(db: Session, job_listing_id: uuid.UUID | str) -> List[Job
         .order_by(JobApplication.applied_at.desc())
     ).all()
 
-def get_employer_applications(db: Session, employer_ref_id: uuid.UUID) -> List[JobApplication]:
+def get_employer_applications(db: Session, employer_ref_id: uuid.UUID, limit: Optional[int] = None) -> List[JobApplication]:
     """Get all applications for all jobs owned by a specific employer."""
-    return db.exec(
-        select(JobApplication)
-        .join(JobListing)
-        .where(JobListing.employer_ref_id == employer_ref_id)
-        .where(JobApplication.is_deleted == False)
-        .order_by(JobApplication.applied_at.desc())
-    ).all()
+    query = select(JobApplication).join(JobListing).where(JobListing.employer_ref_id == employer_ref_id).where(JobApplication.is_deleted == False).order_by(JobApplication.applied_at.desc())
+    if limit:
+        query = query.limit(limit)
+    return db.exec(query).all()
 
 def update_job_application_status(
     db: Session,

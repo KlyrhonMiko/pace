@@ -7,9 +7,12 @@ import EmployerApplicationList from "./_components/EmployerApplicationList";
 import ApplicationFilters from "./_components/ApplicationFilters";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api-client";
+import ApplicationDetailsDrawer from "./_components/ApplicationDetailsDrawer";
+import { ConfirmationModal } from "@/components/ConfirmationModal";
+import { CheckCircle2, XCircle } from "lucide-react";
 
 interface Application {
-    id: number;
+    id: string;
     applicant: string;
     job: string;
     status: string;
@@ -29,6 +32,14 @@ export default function EmployerApplicationsPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedJobs, setSelectedJobs] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
+    const [confirmAction, setConfirmAction] = useState<{ id: string, status: "Accepted" | "Rejected", applicantName: string } | null>(null);
+    const [modalAction, setModalAction] = useState<{ id: string, status: "Accepted" | "Rejected", applicantName: string }>({ id: "", status: "Accepted", applicantName: "" });
+    const [isUpdating, setIsUpdating] = useState(false);
+
+    useEffect(() => {
+        if (confirmAction) setModalAction(confirmAction);
+    }, [confirmAction]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -71,7 +82,9 @@ export default function EmployerApplicationsPage() {
         window.location.href = `mailto:${email}`;
     };
 
-    const handleUpdateStatus = async (id: number, status: "Accepted" | "Rejected") => {
+    const handleUpdateStatus = async (id: string, status: "Accepted" | "Rejected") => {
+        if (isUpdating) return;
+        setIsUpdating(true);
         try {
             const result = await apiFetch<any>(`/employers/applications/${id}/status?status=${status}`, {
                 method: "PATCH"
@@ -87,6 +100,9 @@ export default function EmployerApplicationsPage() {
         } catch (error: any) {
             console.error("Error updating status:", error);
             toast.error(error.message || "An unexpected error occurred");
+        } finally {
+            setIsUpdating(false);
+            setConfirmAction(null);
         }
     };
 
@@ -116,8 +132,15 @@ export default function EmployerApplicationsPage() {
                         isLoading={isLoading}
                         totalApplications={filteredApplications.length}
                         onContact={handleContactCandidate}
-                        onApprove={(id) => handleUpdateStatus(id, "Accepted")}
-                        onReject={(id) => handleUpdateStatus(id, "Rejected")}
+                        onApprove={(id: string) => {
+                            const app = applications.find(a => a.id === id);
+                            if (app) setConfirmAction({ id, status: "Accepted", applicantName: app.applicant });
+                        }}
+                        onReject={(id: string) => {
+                            const app = applications.find(a => a.id === id);
+                            if (app) setConfirmAction({ id, status: "Rejected", applicantName: app.applicant });
+                        }}
+                        onViewDetails={(id: string) => setSelectedAppId(id)}
                     />
                 </div>
 
@@ -133,6 +156,30 @@ export default function EmployerApplicationsPage() {
                     </div>
                 </div>
             </div>
+
+            <ApplicationDetailsDrawer
+                applicationId={selectedAppId}
+                onClose={() => setSelectedAppId(null)}
+                onStatusChange={(id, newStatus) => {
+                    setApplications(prev => prev.map(app => app.id === id ? { ...app, status: newStatus } : app))
+                }}
+            />
+
+            <ConfirmationModal
+                isOpen={confirmAction !== null}
+                onClose={() => setConfirmAction(null)}
+                onConfirm={() => handleUpdateStatus(modalAction.id, modalAction.status)}
+                title={modalAction.status === "Accepted" ? "Approve Application" : "Reject Application"}
+                description={
+                    modalAction.status === "Accepted"
+                        ? `Are you sure you want to approve ${modalAction.applicantName}'s application? This will mark them as accepted for this role.`
+                        : `Are you sure you want to reject ${modalAction.applicantName}'s application? This will mark them as rejected for this role.`
+                }
+                confirmText={modalAction.status === "Accepted" ? "Approve" : "Reject"}
+                variant={modalAction.status === "Accepted" ? "success" : "danger"}
+                isLoading={isUpdating}
+                icon={modalAction.status === "Accepted" ? CheckCircle2 : XCircle}
+            />
         </div>
     );
 }

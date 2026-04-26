@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, MapPin, CircleDollarSign, Calendar, ExternalLink, Link as LinkIcon, Briefcase, Building2, Loader2, CheckCircle2 } from "lucide-react";
+import { X, MapPin, CircleDollarSign, Calendar, ExternalLink, Link as LinkIcon, Briefcase, Building2, Loader2, CheckCircle2, FileText } from "lucide-react";
 import { applyToJob, getMyApplications } from "@/app/dashboard/_lib/jobs-api";
 import { toast } from "sonner";
+import { ResumeUploadModal } from "./ResumeUploadModal";
 
 interface JobDetailModalProps {
     job: {
@@ -33,6 +34,7 @@ export default function JobDetailModal({ job, onClose }: JobDetailModalProps) {
     const [hasApplied, setHasApplied] = useState(false);
     const [isRejected, setIsRejected] = useState(false);
     const [isLoadingStatus, setIsLoadingStatus] = useState(false);
+    const [showingResumePrompt, setShowingResumePrompt] = useState(false);
 
     useEffect(() => {
         const checkApplicationStatus = async () => {
@@ -56,15 +58,23 @@ export default function JobDetailModal({ job, onClose }: JobDetailModalProps) {
         checkApplicationStatus();
     }, [job.id, job.source]);
 
-    const handleApply = async () => {
+    const handleApply = async (file: File | null = null) => {
         if (hasApplied) return;
+
+        // If file is explicitly passed (from modal), use it
+        // If not, we open the modal first
+        if (!showingResumePrompt && !file) {
+            setShowingResumePrompt(true);
+            return;
+        }
 
         setIsApplying(true);
         try {
-            const result = await applyToJob(job.id);
+            const result = await applyToJob(job.id, undefined, file || undefined);
             if (result.success) {
                 setHasApplied(true);
                 setIsRejected(false);
+                setShowingResumePrompt(false);
                 toast.success(isRejected ? "Successfully re-applied for the job!" : "Application submitted successfully!");
             } else {
                 toast.error(result.message || "Failed to submit application");
@@ -649,7 +659,7 @@ export default function JobDetailModal({ job, onClose }: JobDetailModalProps) {
                             </a>
                         ) : job.source === "Internal" ? (
                             <button
-                                onClick={handleApply}
+                                onClick={() => handleApply()}
                                 disabled={isApplying || hasApplied || isLoadingStatus}
                                 className="jdm-cta"
                                 style={{
@@ -711,6 +721,13 @@ export default function JobDetailModal({ job, onClose }: JobDetailModalProps) {
                         )}
                     </div>
                 </div>
+
+                <ResumeUploadModal
+                    isOpen={showingResumePrompt}
+                    onClose={() => setShowingResumePrompt(false)}
+                    onConfirm={(file) => handleApply(file)}
+                    isApplying={isApplying}
+                />
             </div>
         </div>
     );

@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import PageHeader from "@/components/dashboard/PageHeader";
 import { getMyProfile, AlumniProfile, updateMyProfile, updateMyAccount } from "./_lib/api";
 import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -337,6 +338,7 @@ export default function ProfilePage() {
     const [isSavingAccount, setIsSavingAccount] = useState(false);
     const [isSavingPersonal, setIsSavingPersonal] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const { updateUser } = useAuth();
 
     const [userId, setUserId] = useState<string | null>(null);
     const [alumniId, setAlumniId] = useState<string | null>(null);
@@ -349,6 +351,12 @@ export default function ProfilePage() {
                 if (data) {
                     setUserId(data.user_id);
                     setAlumniId(data.alumni_id);
+
+                    // Update AuthContext user state
+                    updateUser({
+                        first_name: data.first_name,
+                        last_name: data.last_name,
+                    });
                     setAccount({
                         username: data.username,
                         password: "",

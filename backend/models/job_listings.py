@@ -75,3 +75,4 @@ class JobApplication(BaseTable, SQLModel, table=True):
     alumni_ref_id: uuid.UUID = Field(foreign_key="alumni.id", index=True)
     status: str = Field(default="Pending") # Pending, Reviewed, Accepted, Rejected
     applied_at: datetime = Field(default_factory=get_current_time_gmt8)
+    resume_file_url: Optional[str] = None

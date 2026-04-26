@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
-from fastapi import APIRouter, Query, Depends, BackgroundTasks, HTTPException, status
+from fastapi import APIRouter, Query, Depends, BackgroundTasks, HTTPException, status, File, UploadFile
+import cloudinary.uploader
 from sqlmodel import Session, select
 from typing import Optional, List
 from services.jooble import fetch_jobs, get_recommended_jobs
@@ -247,6 +248,7 @@ def toggle_hide_job(
 @router.post("/{job_listing_id}/apply", response_model=StandardResponse)
 def apply_for_job(
     job_listing_id: str,
+    resume: Optional[UploadFile] = File(None),
     db: Session = Depends(get_session),
     current_user: CurrentUser = Depends(require_authenticated),
 ):
@@ -280,11 +282,25 @@ def apply_for_job(
             message="You have already applied for this job",
             data={"application_ref_id": existing.id}
         )
+        
+    resume_file_url = None
+    if resume and resume.filename:
+        try:
+            result = cloudinary.uploader.upload(
+                resume.file,
+                folder=f"pace/resumes/{alumni.id}",
+                resource_type="auto"
+            )
+            resume_file_url = result.get("secure_url")
+        except Exception as e:
+            print(f"Failed to upload resume to Cloudinary: {e}")
+            raise HTTPException(status_code=500, detail="Failed to upload resume file")
 
     application = create_job_application(
         db,
         db_job,
         alumni.id,
+        resume_file_url=resume_file_url,
         performed_by=current_user.id,
     )
 

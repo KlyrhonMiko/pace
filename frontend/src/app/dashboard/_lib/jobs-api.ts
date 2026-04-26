@@ -118,17 +118,27 @@ export async function getRecommendedJobs(limit: number = 3, token?: string): Pro
 /**
  * Apply for a job
  */
-export async function applyToJob(jobListingId: number | string, token?: string): Promise<{ success: boolean; message: string; data?: any }> {
+export async function applyToJob(jobListingId: number | string, token?: string, resumeFile?: File): Promise<{ success: boolean; message: string; data?: any }> {
     try {
         const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
-        const requestHeaders: Record<string, string> = { "Content-Type": "application/json" };
+        const requestHeaders: Record<string, string> = {};
         if (authToken) {
             requestHeaders["Authorization"] = `Bearer ${authToken}`;
         }
 
+        let body: any = undefined;
+        if (resumeFile) {
+            const formData = new FormData();
+            formData.append("resume", resumeFile);
+            body = formData;
+        } else {
+            requestHeaders["Content-Type"] = "application/json";
+        }
+
         const response = await apiFetch<any>(`/jobs/${jobListingId}/apply`, {
             method: "POST",
-            headers: requestHeaders
+            headers: requestHeaders,
+            body: body
         });
 
         return {

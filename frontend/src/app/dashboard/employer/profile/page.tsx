@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Info, Loader2 } from "lucide-react";
 import PageHeader from "@/components/dashboard/PageHeader";
 import { getMyEmployerProfile, EmployerProfile } from "./_lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 // Sub-components
 import { ProfileHero } from "./_components/ProfileHero";
@@ -16,12 +17,20 @@ export default function EmployerProfilePage() {
     const [profile, setProfile] = useState<EmployerProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const { updateUser } = useAuth();
 
     const fetchProfile = async () => {
         try {
             const data = await getMyEmployerProfile();
             if (data) {
                 setProfile(data);
+                // Update AuthContext user state to ensure sidebar and header are in sync
+                updateUser({
+                    first_name: data.contact_person_first_name,
+                    last_name: data.contact_person_last_name,
+                    company_name: data.company_name,
+                    company_logo_url: data.company_logo_url
+                });
             } else {
                 setError("Could not load profile data.");
             }

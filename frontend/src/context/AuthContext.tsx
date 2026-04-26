@@ -20,6 +20,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (userData: User) => void;
   logout: (message?: string) => void;
+  updateUser: (updates: Partial<User>) => void;
   getDashboardUrl: () => string;
 }
 
@@ -88,6 +89,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(userData);
   }, []);
 
+  const updateUser = useCallback((updates: Partial<User>) => {
+    setUser((prevUser) => {
+      if (!prevUser) return null;
+      const updatedUser = { ...prevUser, ...updates };
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      return updatedUser;
+    });
+  }, []);
+
   useEffect(() => {
     setIsLoading(false);
   }, []);
@@ -116,6 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         login,
         logout,
+        updateUser,
         getDashboardUrl,
       }}
     >

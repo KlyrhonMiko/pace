@@ -127,15 +127,14 @@ export default function AlumniList({
                         <tr className="bg-slate-50/30 border-b border-slate-100">
                             <th className="px-5 py-3 w-12 font-medium text-xs text-slate-400"></th>
                             <th className="px-5 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Alumni Details</th>
-                            <th className="px-5 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">ID Number</th>
-                            <th className="px-5 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Birthdate</th>
+                            <th className="px-5 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Student ID</th>
                             <th className="px-5 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100/80">
                         {isLoading ? (
                             <tr>
-                                <td colSpan={5} className="px-6 py-32 text-center bg-slate-50/20">
+                                <td colSpan={4} className="px-6 py-32 text-center bg-slate-50/20">
                                     <div className="flex flex-col items-center gap-3">
                                         <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
                                         <p className="text-sm font-semibold text-slate-500 animate-pulse">Loading directory...</p>
@@ -144,7 +143,7 @@ export default function AlumniList({
                             </tr>
                         ) : error ? (
                             <tr>
-                                <td colSpan={5} className="px-6 py-24 text-center">
+                                <td colSpan={4} className="px-6 py-24 text-center">
                                     <div className="flex flex-col items-center gap-3">
                                         <div className="h-14 w-14 rounded-full bg-rose-50 flex items-center justify-center">
                                             <AlertTriangle className="h-7 w-7 text-rose-500" />
@@ -163,7 +162,7 @@ export default function AlumniList({
                             </tr>
                         ) : alumni.length === 0 ? (
                             <tr>
-                                <td colSpan={5} className="px-6 py-32 text-center bg-slate-50/20">
+                                <td colSpan={4} className="px-6 py-32 text-center bg-slate-50/20">
                                     <div className="flex flex-col items-center gap-4">
                                         <div className="h-16 w-16 rounded-2xl bg-white border border-slate-200/60 shadow-sm flex items-center justify-center">
                                             <User className="h-8 w-8 text-slate-300" strokeWidth={1.5} />
@@ -220,16 +219,7 @@ export default function AlumniList({
                                             </td>
                                             <td className="px-5 py-4">
                                                 <span className="text-xs font-mono font-bold text-slate-600 bg-white border border-slate-200/80 shadow-sm px-2.5 py-1 rounded-md">
-                                                    {record.alumni_id}
-                                                </span>
-                                            </td>
-                                            <td className="px-5 py-4">
-                                                <span className="text-sm font-medium text-slate-600">
-                                                    {new Date(record.birthdate).toLocaleDateString("en-US", {
-                                                        month: "short",
-                                                        day: "numeric",
-                                                        year: "numeric",
-                                                    })}
+                                                    {record.student?.student_id || record.alumni_id}
                                                 </span>
                                             </td>
                                             <td className="px-5 py-4 text-right">
@@ -256,7 +246,7 @@ export default function AlumniList({
 
                                         {isExpanded && hasStudent && (
                                             <tr className="bg-slate-50/50 border-b border-slate-200/60 shadow-inner">
-                                                <td colSpan={5} className="p-0 border-none">
+                                                <td colSpan={4} className="p-0 border-none">
                                                     <div className="px-6 py-6 pl-[4.5rem] relative overflow-hidden">
                                                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 max-w-4xl">
 

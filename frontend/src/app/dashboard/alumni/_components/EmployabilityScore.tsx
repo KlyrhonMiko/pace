@@ -133,7 +133,7 @@ export default function EmployabilityScore({
                     </div>
 
                     {/* ── Empty State Body ───────────────────────── */}
-                    <div className="flex items-center gap-6 mt-4">
+                    <div className="flex flex-col xl:flex-row items-center gap-4 xl:gap-8 mt-4 h-full">
                         {/* Decorative empty ring */}
                         <div className="relative flex-shrink-0">
                             <ScoreRing
@@ -193,7 +193,7 @@ export default function EmployabilityScore({
 
     return (
         <div
-            className="relative rounded-2xl bg-white border border-gray-100/80 overflow-hidden h-full group transition-all duration-500 hover:shadow-xl hover:shadow-gray-200/50 hover:-translate-y-0.5"
+            className="relative rounded-2xl bg-white border border-gray-100/80 overflow-hidden h-full w-full group transition-all duration-500 hover:shadow-xl hover:shadow-gray-200/50 hover:-translate-y-0.5"
         >
             <div className="p-5 flex flex-col justify-between h-[calc(100%-4px)]">
                 {/* ── Header ──────────────────────────────────────── */}
@@ -224,7 +224,7 @@ export default function EmployabilityScore({
                 </div>
 
                 {/* ── Score Body ──────────────────────────────────── */}
-                <div className="flex items-center gap-6 mt-4">
+                <div className="flex flex-col xl:flex-row items-center gap-4 xl:gap-8 mt-4">
                     {/* Main circular gauge */}
                     <div className="relative flex-shrink-0">
                         <ScoreRing

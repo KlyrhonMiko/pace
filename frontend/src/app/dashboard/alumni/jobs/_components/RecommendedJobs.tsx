@@ -28,7 +28,7 @@ export default function RecommendedJobs() {
     useEffect(() => {
         async function fetchRecommended() {
             try {
-                const data = await getRecommendedJobs();
+                const data = await getRecommendedJobs(4);
                 setJobs(data);
             } catch (e) {
                 console.error("Failed to fetch recommended jobs", e);
@@ -68,7 +68,7 @@ export default function RecommendedJobs() {
                     <div className="flex-1 flex flex-col gap-3">
                         {isLoading ? (
                             <div className="flex flex-col gap-3">
-                                {[1, 2, 3].map((i) => (
+                                {[1, 2, 3, 4].map((i) => (
                                     <div key={i} className="flex items-start gap-4 p-4 rounded-xl bg-gray-50/50 border border-gray-100/50 animate-pulse">
                                         <Skeleton className="h-11 w-11 rounded-xl flex-shrink-0" />
                                         <div className="flex-1 min-w-0">

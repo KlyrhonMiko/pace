@@ -131,7 +131,7 @@ export default function AlumniManagement() {
                                 </DialogTitle>
                                 <DialogDescription className="text-xs text-gray-500 mt-0.5">
                                     {editingAlumni
-                                        ? `Modifying: ${editingAlumni.alumni_id}`
+                                        ? `Modifying: ${editingAlumni.student?.student_id || editingAlumni.alumni_id}`
                                         : "Update alumni information."}
                                 </DialogDescription>
                             </div>
@@ -255,8 +255,8 @@ export default function AlumniManagement() {
                         {/* Student / Academic Details */}
                         <div>
                             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Student / Academic Details</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-1.5">
+                            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                                <div className="space-y-1.5 md:col-span-1">
                                     <label className="text-sm font-medium text-slate-700">Student ID</label>
                                     <Input
                                         placeholder="e.g. 2020-00112"
@@ -265,7 +265,7 @@ export default function AlumniManagement() {
                                         className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
                                     />
                                 </div>
-                                <div className="space-y-1.5">
+                                <div className="space-y-1.5 md:col-span-4">
                                     <label className="text-sm font-medium text-slate-700">Course</label>
                                     <Select
                                         value={formData.course}
@@ -283,7 +283,7 @@ export default function AlumniManagement() {
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                <div className="space-y-1.5">
+                                <div className="space-y-1.5 md:col-span-1">
                                     <label className="text-sm font-medium text-slate-700">Year Graduated</label>
                                     <Input
                                         placeholder="e.g. 2024"
@@ -292,7 +292,7 @@ export default function AlumniManagement() {
                                         className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
                                     />
                                 </div>
-                                <div className="space-y-1.5">
+                                <div className="space-y-1.5 md:col-span-1">
                                     <label className="text-sm font-medium text-slate-700">GWA</label>
                                     <Input
                                         placeholder="e.g. 1.45"
@@ -301,7 +301,7 @@ export default function AlumniManagement() {
                                         className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
                                     />
                                 </div>
-                                <div className="space-y-1.5">
+                                <div className="space-y-1.5 md:col-span-1">
                                     <label className="text-sm font-medium text-slate-700">Avg Prof Grade</label>
                                     <Input
                                         placeholder="e.g. 1.38"
@@ -310,7 +310,7 @@ export default function AlumniManagement() {
                                         className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
                                     />
                                 </div>
-                                <div className="space-y-1.5">
+                                <div className="space-y-1.5 md:col-span-1">
                                     <label className="text-sm font-medium text-slate-700">Avg Elec Grade</label>
                                     <Input
                                         placeholder="e.g. 1.55"
@@ -319,7 +319,7 @@ export default function AlumniManagement() {
                                         className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
                                     />
                                 </div>
-                                <div className="space-y-1.5">
+                                <div className="space-y-1.5 md:col-span-1">
                                     <label className="text-sm font-medium text-slate-700">OJT Grade</label>
                                     <Input
                                         placeholder="e.g. 95"

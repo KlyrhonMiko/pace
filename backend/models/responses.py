@@ -1,6 +1,6 @@
 import uuid
 from datetime import date, datetime
-from typing import Optional
+from typing import Optional, List
 from sqlmodel import SQLModel
 from pydantic import field_serializer
 from utils.timezone import format_datetime_gmt8
@@ -25,6 +25,7 @@ class AlumniFullProfile(SQLModel):
     employment_sector: Optional[str] = None
     salary_package: Optional[float] = None
     offers_received: Optional[int] = None
+    skills: Optional[List[str]] = []
 
     # User account info
     user_id: Optional[str]

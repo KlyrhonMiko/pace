@@ -1,6 +1,5 @@
 import DashboardHeader from "@/app/dashboard/alumni/_components/DashboardHeader";
 import PageHeader from "@/components/dashboard/PageHeader";
-import StatsGrid from "@/app/dashboard/alumni/_components/StatsGrid";
 import EmployabilityScore from "@/app/dashboard/alumni/_components/EmployabilityScore";
 import RecommendedJobs from "@/app/dashboard/alumni/jobs/_components/RecommendedJobs";
 import ProfileStrength from "@/app/dashboard/alumni/_components/ProfileStrength";
@@ -39,18 +38,16 @@ export default async function AlumniDashboard() {
                 currentPage="Overview"
             />
 
-            {/* Hero */}
-            <DashboardHeader profile={profileData} />
-
-            {/* Employability Score & Stats */}
-            <div className="grid gap-5 lg:grid-cols-4">
-                <div className="lg:col-span-2 flex flex-col">
+            {/* Hero & Employability Score */}
+            <div className="grid gap-5 lg:grid-cols-2">
+                <div className="h-full">
+                    <DashboardHeader profile={profileData} />
+                </div>
+                <div className="h-full">
                     <EmployabilityScore data={predictionData} />
                 </div>
-                <div className="lg:col-span-2 flex flex-col">
-                    <StatsGrid />
-                </div>
             </div>
+
 
             {/* Main Content - Bento Grid */}
             <div className="grid gap-5 lg:grid-cols-3">

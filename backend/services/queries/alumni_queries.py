@@ -93,6 +93,7 @@ def build_full_profile(session: Session, alumni: Alumni) -> AlumniFullProfile:
         employment_sector=alumni.employment_sector,
         salary_package=alumni.salary_package,
         offers_received=alumni.offers_received,
+        skills=alumni.skills,
         user_id=user.user_id if user else None,
         username=user.username if user else None,
         email=user.email if user else None,
@@ -233,28 +234,31 @@ def update_alumni(
     performed_by: str | None = None,
 ) -> Alumni:
     before_state = alumni.model_dump(mode="json")
-    if data.last_name is not None:
+    provided = data.model_fields_set
+    if "last_name" in provided and data.last_name is not None:
         alumni.last_name = data.last_name
-    if data.first_name is not None:
+    if "first_name" in provided and data.first_name is not None:
         alumni.first_name = data.first_name
-    if data.middle_name is not None:
+    if "middle_name" in provided:
         alumni.middle_name = data.middle_name
-    if data.gender is not None:
+    if "gender" in provided and data.gender is not None:
         alumni.gender = data.gender.upper()
-    if data.age is not None:
+    if "age" in provided and data.age is not None:
         alumni.age = data.age
-    if data.birthdate is not None:
+    if "birthdate" in provided and data.birthdate is not None:
         alumni.birthdate = data.birthdate
-    if data.consent_for_survey_ml is not None:
+    if "consent_for_survey_ml" in provided and data.consent_for_survey_ml is not None:
         alumni.consent_for_survey_ml = data.consent_for_survey_ml
-    if data.employment_status is not None:
+    if "employment_status" in provided:
         alumni.employment_status = data.employment_status
-    if data.employment_sector is not None:
+    if "employment_sector" in provided:
         alumni.employment_sector = data.employment_sector
-    if data.salary_package is not None:
+    if "salary_package" in provided:
         alumni.salary_package = data.salary_package
-    if data.offers_received is not None:
+    if "offers_received" in provided:
         alumni.offers_received = data.offers_received
+    if "skills" in provided:
+        alumni.skills = data.skills
     stamp_update(alumni)
     session.add(alumni)
     create_transaction_log(
@@ -692,12 +696,16 @@ def batch_restore_alumni(
 
 def calculate_profile_completeness(alumni: Alumni, student: StudentRecord | None) -> int:
     """Centralized calculation for profile completeness percentage."""
+    # List of fields that are considered essential for a "complete" profile
     alumni_fields = [
         alumni.first_name, alumni.last_name, alumni.gender,
-        alumni.age, alumni.birthdate, alumni.middle_name,
+        alumni.age, alumni.birthdate,
         alumni.employment_status, alumni.employment_sector,
         alumni.salary_package, alumni.offers_received
     ]
+    # Note: middle_name and skills are excluded from core completeness to avoid 
+    # penalizing users who don't have/need them.
+    
     filled_alumni = sum(1 for f in alumni_fields if f is not None and f != "")
     
     student_fields = []
@@ -708,7 +716,7 @@ def calculate_profile_completeness(alumni: Alumni, student: StudentRecord | None
         ]
     filled_student = sum(1 for f in student_fields if f is not None and f != "")
     
-    total_fields = 16 # 10 alumni (including employment) + 6 student
+    total_fields = len(alumni_fields) + 6 # 6 student fields
     total_filled = filled_alumni + filled_student
     return min(int((total_filled / total_fields) * 100), 100) if total_fields > 0 else 0
 
@@ -718,6 +726,16 @@ def save_alumni_resume(
     data: ResumeSave,
     performed_by: str | None = None,
 ) -> AlumniResume:
+    existing_alumni = session.exec(
+        select(Alumni).where(Alumni.id == alumni_ref_id)
+    ).first()
+    if existing_alumni and hasattr(data.resume_data, 'skills'):
+        skills_raw = data.resume_data.skills
+        skills_parsed = [s if isinstance(s, str) else s.get("name", "") for s in skills_raw if s]
+        existing_alumni.skills = [s for s in skills_parsed if s]
+        stamp_update(existing_alumni)
+        session.add(existing_alumni)
+
     """Create or update the resume for an alumni."""
     existing = session.exec(
         select(AlumniResume).where(AlumniResume.alumni_ref_id == alumni_ref_id)

@@ -1,7 +1,8 @@
 import uuid
 from datetime import date
-from typing import Optional
-from sqlmodel import SQLModel, Field
+from typing import Optional, List
+from sqlmodel import SQLModel, Field, Column
+from sqlalchemy import JSON
 from models.base import BaseTable
 
 
@@ -20,6 +21,7 @@ class AlumniBase(SQLModel):
     employment_sector: Optional[str] = Field(default=None, max_length=100)
     salary_package: Optional[float] = Field(default=0.0)
     offers_received: Optional[int] = Field(default=0)
+    skills: Optional[List[str]] = Field(default=[], sa_column=Column(JSON))
 
 
 class Alumni(BaseTable, AlumniBase, table=True):

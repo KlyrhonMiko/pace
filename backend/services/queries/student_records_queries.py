@@ -117,6 +117,8 @@ def update_student_record(
     performed_by: str | None = None,
 ) -> StudentRecord:
     before_state = student.model_dump(mode="json")
+    if data.student_id is not None:
+        student.student_id = data.student_id
     if data.alumni_id is not None:
         alumni = _resolve_alumni(session, data.alumni_id)
         if not alumni:

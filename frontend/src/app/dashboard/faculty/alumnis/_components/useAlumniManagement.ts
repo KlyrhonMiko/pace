@@ -354,7 +354,7 @@ export function useAlumniManagement() {
 
             const softSkillsValue = formData.soft_skills_ave;
             const hardSkillsValue = formData.hard_skills_ave;
-            
+
             // Update Alumni
             await apiFetch(`/alumni/${editingAlumni.alumni_id}`, {
                 method: "PATCH",
@@ -378,6 +378,7 @@ export function useAlumniManagement() {
                     await apiFetch(`/student-records/${editingAlumni.alumni_id}`, {
                         method: "PATCH",
                         body: {
+                            student_id: formData.student_id,
                             year_graduated: parseInt(formData.year_graduated, 10) || 0,
                             gwa: parseFloat(formData.gwa) || 0,
                             avg_prof_grade: formData.avg_prof_grade ? parseFloat(formData.avg_prof_grade) : null,
@@ -515,6 +516,7 @@ export function useAlumniManagement() {
         const matchesSearch =
             fullName.includes(searchQuery.toLowerCase()) ||
             a.alumni_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (a.student?.student_id?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
             (a.student?.course?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
         const matchesGender = filterGender === "all" || a.gender === filterGender;
         const matchesCourse = filterCourse === "all" || a.student?.course === filterCourse;

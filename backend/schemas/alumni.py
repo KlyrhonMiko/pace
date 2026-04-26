@@ -16,6 +16,7 @@ class AlumniCreate(SQLModel):
     age: int
     birthdate: Optional[date] = None
     consent_for_survey_ml: bool = False
+    skills: Optional[List[str]] = []
 
     @field_validator("gender", mode="before")
     @classmethod
@@ -45,6 +46,7 @@ class AlumniPublic(AuditPublicSQLModel):
     employment_sector: Optional[str] = None
     salary_package: Optional[float] = None
     offers_received: Optional[int] = None
+    skills: Optional[List[str]] = []
     created_at: datetime
     updated_at: datetime
 
@@ -65,6 +67,7 @@ class AlumniUpdate(SQLModel):
     employment_sector: Optional[str] = Field(default=None, max_length=100)
     salary_package: Optional[float] = None
     offers_received: Optional[int] = None
+    skills: Optional[List[str]] = None
 
     @field_validator("gender", mode="before")
     @classmethod

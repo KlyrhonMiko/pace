@@ -39,6 +39,7 @@ class StudentRecordCreate(SQLModel):
 
 
 class StudentRecordUpdate(SQLModel):
+    student_id: Optional[str] = Field(default=None, max_length=10)
     year_graduated: Optional[int] = None
     gwa: Optional[float] = None
     avg_prof_grade: Optional[float] = None

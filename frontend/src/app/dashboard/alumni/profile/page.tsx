@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { User, Settings, Check, Pencil, ChevronRight, GraduationCap, CalendarDays, Lock, Clock, Info, Loader2 } from "lucide-react";
+import { User, Settings, Check, Pencil, ChevronRight, GraduationCap, CalendarDays, Lock, Clock, Info, Loader2, Briefcase } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -24,6 +24,7 @@ import PageHeader from "@/components/dashboard/PageHeader";
 import { getMyProfile, AlumniProfile, updateMyProfile, updateMyAccount } from "./_lib/api";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
+import { SkillsInput } from "@/components/ui/skills-input";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -41,6 +42,7 @@ interface PersonalInfo {
     gender: string;
     birthdate: string;
     age: number | string;
+    skills: string[];
 }
 
 interface AcademicInfo {
@@ -54,6 +56,13 @@ interface AcademicInfo {
     leadershipPos: string;
     activeMemberPos: string;
     course: string;
+}
+
+interface EmploymentInfo {
+    status: string;
+    sector: string;
+    salary: string | number;
+    offers: string | number;
 }
 
 
@@ -315,9 +324,20 @@ export default function ProfilePage() {
         gender: "",
         birthdate: "",
         age: "—",
+        skills: [],
     });
     const [personalDraft, setPersonalDraft] = useState<PersonalInfo>(personal);
     const [editingPersonal, setEditingPersonal] = useState(false);
+
+    // ── Employment Info ──
+    const [employment, setEmployment] = useState<EmploymentInfo>({
+        status: "Searching",
+        sector: "",
+        salary: 0,
+        offers: 0,
+    });
+    const [employmentDraft, setEmploymentDraft] = useState<EmploymentInfo>(employment);
+    const [editingEmployment, setEditingEmployment] = useState(false);
 
     // ── Academic Info ──
     const [academic, setAcademic] = useState<AcademicInfo>({
@@ -332,11 +352,11 @@ export default function ProfilePage() {
         activeMemberPos: "",
         course: "",
     });
-    const [academicSkipped, setAcademicSkipped] = useState(false);
 
     const [isLoading, setIsLoading] = useState(true);
     const [isSavingAccount, setIsSavingAccount] = useState(false);
     const [isSavingPersonal, setIsSavingPersonal] = useState(false);
+    const [isSavingEmployment, setIsSavingEmployment] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const { updateUser } = useAuth();
 
@@ -376,6 +396,7 @@ export default function ProfilePage() {
                         gender: normalizeGender(data.gender),
                         birthdate: data.birthdate || "",
                         age: data.age,
+                        skills: data.skills || [],
                     });
                     setPersonalDraft({
                         lastname: data.last_name,
@@ -384,6 +405,19 @@ export default function ProfilePage() {
                         gender: normalizeGender(data.gender),
                         birthdate: data.birthdate || "",
                         age: data.age,
+                        skills: data.skills || [],
+                    });
+                    setEmployment({
+                        status: data.employment_status || "Searching",
+                        sector: data.employment_sector || "",
+                        salary: data.salary_package || 0,
+                        offers: data.offers_received || 0,
+                    });
+                    setEmploymentDraft({
+                        status: data.employment_status || "Searching",
+                        sector: data.employment_sector || "",
+                        salary: data.salary_package || 0,
+                        offers: data.offers_received || 0,
                     });
                     setAcademic({
                         alumniId: data.alumni_id,
@@ -454,6 +488,7 @@ export default function ProfilePage() {
             gender: personalDraft.gender,
             birthdate: personalDraft.birthdate,
             age: Number(computeAge(personalDraft.birthdate)) || 0,
+            skills: personalDraft.skills,
         };
 
         const success = await updateMyProfile(alumniId, updateData as any);
@@ -475,6 +510,35 @@ export default function ProfilePage() {
         setPersonalDraft(personal);
         setEditingPersonal(false);
     }, [personal]);
+
+    // ── Handlers: Employment ──
+    const handleSaveEmployment = useCallback(async () => {
+        if (!alumniId) return;
+        setIsSavingEmployment(true);
+
+        const updateData = {
+            employment_status: employmentDraft.status,
+            employment_sector: employmentDraft.sector,
+            salary_package: Number(employmentDraft.salary) || 0,
+            offers_received: Number(employmentDraft.offers) || 0,
+        };
+
+        const success = await updateMyProfile(alumniId, updateData as any);
+
+        if (success) {
+            setEmployment(employmentDraft);
+            setEditingEmployment(false);
+            toast.success("Employment information updated successfully");
+        } else {
+            toast.error("Failed to update employment information");
+        }
+        setIsSavingEmployment(false);
+    }, [employmentDraft, alumniId]);
+
+    const handleCancelEmployment = useCallback(() => {
+        setEmploymentDraft(employment);
+        setEditingEmployment(false);
+    }, [employment]);
 
     // ── State: Initials ──
     const initials =
@@ -693,68 +757,125 @@ export default function ProfilePage() {
                                     )}
                                 </div>
                             </div>
+
+                            {/* Skills */}
+                            <div className="md:col-span-2">
+                                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">
+                                    Skills
+                                </label>
+                                <SkillsInput
+                                    skills={editingPersonal ? personalDraft.skills : personal.skills}
+                                    onChange={(v) => setPersonalDraft((p) => ({ ...p, skills: v }))}
+                                    disabled={!editingPersonal}
+                                />
+                            </div>
                         </div>
                     </SectionCard>
-
-
                 </div>
 
                 {/* Right Column (Academic) - takes 5 cols */}
                 <div className="lg:col-span-5 flex flex-col gap-6">
 
+                    {/* ── 3. Employment Information ── */}
+                    <SectionCard
+                        title="Employment Information"
+                        subtitle="Current career and placement status"
+                        editable
+                        editing={editingEmployment}
+                        onEdit={() => { setEmploymentDraft(employment); setEditingEmployment(true); }}
+                        onSave={handleSaveEmployment}
+                        onCancel={handleCancelEmployment}
+                        loading={isSavingEmployment}
+                        icon={<Briefcase size={18} />}
+                        iconContainerClass="bg-gradient-to-br from-blue-600 to-indigo-500 shadow-blue-500/20"
+                    >
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Employment Status */}
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                    Employment Status <span className="text-emerald-600">*</span>
+                                </label>
+                                {editingEmployment ? (
+                                    <Select
+                                        value={employmentDraft.status}
+                                        onValueChange={(v) => setEmploymentDraft((p) => ({ ...p, status: v }))}
+                                    >
+                                        <SelectTrigger className="w-full rounded-xl border border-gray-300 bg-white text-sm text-gray-900 px-3.5 h-[42px] transition-all duration-150 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20">
+                                            <SelectValue placeholder="Select status" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Employed">Employed</SelectItem>
+                                            <SelectItem value="Interviewing">Interviewing</SelectItem>
+                                            <SelectItem value="Searching">Searching</SelectItem>
+                                            <SelectItem value="Not Looking">Not Looking</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                ) : (
+                                    <div className="w-full rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-500 px-3.5 py-2.5">
+                                        {employment.status}
+                                    </div>
+                                )}
+                            </div>
+
+                            <Field
+                                label="Employment Sector"
+                                value={employmentDraft.sector}
+                                onChange={(v) => setEmploymentDraft((p) => ({ ...p, sector: v }))}
+                                editing={editingEmployment}
+                                placeholder="e.g. Information Technology"
+                            />
+
+                            <Field
+                                label="Salary Package (Monthly)"
+                                value={employmentDraft.salary}
+                                type="number"
+                                onChange={(v) => setEmploymentDraft((p) => ({ ...p, salary: v }))}
+                                editing={editingEmployment}
+                                placeholder="0.00"
+                            />
+
+                            <Field
+                                label="Job Offers Received"
+                                value={employmentDraft.offers}
+                                type="number"
+                                onChange={(v) => setEmploymentDraft((p) => ({ ...p, offers: v }))}
+                                editing={editingEmployment}
+                                placeholder="0"
+                            />
+                        </div>
+                    </SectionCard>
+
                     {/* ── 3. Academic Information ── */}
                     <SectionCard
                         title="Academic Information"
                         subtitle="Academic records — managed by the registrar"
-                        skipable={!academicSkipped}
-                        onSkip={() => setAcademicSkipped(true)}
                         icon={<GraduationCap className="w-5 h-5" strokeWidth={1.75} />}
                         iconContainerClass="bg-gradient-to-br from-indigo-500 to-purple-600 shadow-indigo-500/20"
                     >
-                        {academicSkipped ? (
-                            <div className="flex flex-col items-center justify-center py-8 text-center">
-                                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 mb-3">
-                                    <Info className="w-6 h-6 text-gray-400" strokeWidth={1.5} />
-                                </div>
-                                <p className="text-sm text-gray-500 mb-3">Academic section skipped</p>
-                                <button
-                                    onClick={() => setAcademicSkipped(false)}
-                                    className="text-xs text-emerald-700 hover:text-emerald-800 font-medium underline underline-offset-2"
-                                >
-                                    Show academic info
-                                </button>
+                        <>
+                            {/* Info notice */}
+                            <div className="flex items-start gap-2.5 text-xs text-amber-700 bg-amber-50 border border-amber-200/70 rounded-xl px-4 py-3 mb-5">
+                                <Info className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-500" strokeWidth={2} />
+                                <p>These records are managed by the Registrar&apos;s Office and cannot be edited directly. Contact your registrar for corrections.</p>
                             </div>
-                        ) : (
-                            <>
-                                {/* Info notice */}
-                                <div className="flex items-start gap-2.5 text-xs text-amber-700 bg-amber-50 border border-amber-200/70 rounded-xl px-4 py-3 mb-5">
-                                    <Info className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-500" strokeWidth={2} />
-                                    <p>These records are managed by the Registrar&apos;s Office and cannot be edited directly. Contact your registrar for corrections.</p>
-                                </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <ReadOnlyField label="Student ID *" value={academic.studentId} />
-                                    <ReadOnlyField label="Year Graduated *" value={academic.yearGraduated} />
-                                    <ReadOnlyField label="GWA / CGPA *" value={academic.gwa} />
-                                    <ReadOnlyField label="Avg. Professional Grade" value={academic.avgProfGrade} />
-                                    <ReadOnlyField label="Avg. Elective Grade" value={academic.avgElecGrade} />
-                                    <ReadOnlyField label="OJT Grade *" value={academic.ojtGrade} />
-                                    <div className="md:col-span-2">
-                                        <ReadOnlyField label="Leadership Position" value={academic.leadershipPos} />
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <ReadOnlyField label="Active Member Position" value={academic.activeMemberPos} />
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <ReadOnlyField label="Course *" value={academic.course} />
-                                    </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <ReadOnlyField label="Student ID *" value={academic.studentId} />
+                                <ReadOnlyField label="Year Graduated *" value={academic.yearGraduated} />
+                                <ReadOnlyField label="GWA / CGPA *" value={academic.gwa} />
+                                <ReadOnlyField label="Avg. Professional Grade" value={academic.avgProfGrade} />
+                                <ReadOnlyField label="Avg. Elective Grade" value={academic.avgElecGrade} />
+                                <ReadOnlyField label="OJT Grade *" value={academic.ojtGrade} />
+                                <ReadOnlyField label="Leadership Position" value={academic.leadershipPos} />
+                                <ReadOnlyField label="Active Member Position" value={academic.activeMemberPos} />
+                                <div className="md:col-span-2">
+                                    <ReadOnlyField label="Course *" value={academic.course} />
                                 </div>
-                            </>
-                        )}
+                            </div>
+                        </>
                     </SectionCard>
                 </div>
             </div>
-
-        </div >
+        </div>
     );
 }

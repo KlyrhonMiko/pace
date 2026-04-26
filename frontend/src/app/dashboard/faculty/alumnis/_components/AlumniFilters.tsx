@@ -53,7 +53,7 @@ export default function AlumniFilters({
                     <div className="relative mb-4">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Input
-                            placeholder="Search name or ID..."
+                            placeholder="Search name or Student ID..."
                             value={searchQuery}
                             onChange={(e) => handleSearch(e.target.value)}
                             className="pl-10 h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"

@@ -268,10 +268,10 @@ export default function ApplicationDetailsDrawer({ applicationId, onClose, onSta
                             )}
 
                             {/* Skills */}
-                            {resume?.skills && resume.skills.length > 0 && (
+                            {(alumni?.skills?.length > 0 || resume?.skills?.length > 0) && (
                                 <Section icon={Award} title="Skills">
                                     <div className="flex flex-wrap gap-1.5">
-                                        {resume.skills.map((skill: any, i: number) => (
+                                        {(alumni?.skills || resume?.skills).map((skill: any, i: number) => (
                                             <span
                                                 key={i}
                                                 className="px-2.5 py-1 bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium rounded-md"

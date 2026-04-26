@@ -25,6 +25,11 @@ export interface AlumniProfile {
     course_id: string | null;
     course_name: string | null;
     profile_completeness: number;
+    employment_status: string | null;
+    employment_sector: string | null;
+    salary_package: number | null;
+    offers_received: number | null;
+    skills: string[];
     created_at: string;
     updated_at: string;
 }

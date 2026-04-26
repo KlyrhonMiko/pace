@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Zap, ChevronRight, User, FileUp, Lightbulb, Briefcase, Calendar, Settings } from "lucide-react";
+import { Zap, ChevronRight, User, FileUp, Lightbulb, Briefcase, Calendar, Settings, TrendingUp, ClipboardList } from "lucide-react";
 
 const actions = [
     {
@@ -17,7 +17,7 @@ const actions = [
     {
         label: "Upload Resume",
         description: "Update your CV",
-        href: "/dashboard/alumni/profile",
+        href: "/dashboard/alumni/resumes",
         icon: FileUp,
         color: "#10b981",
         gradient: "from-emerald-700 to-emerald-800",
@@ -33,6 +33,16 @@ const actions = [
         gradient: "from-yellow-400 to-yellow-500",
         bgTint: "bg-yellow-50",
         ringTint: "ring-yellow-100/60",
+    },
+    {
+        label: "Career Predictions",
+        description: "Salary & job timeline",
+        href: "/dashboard/alumni/predictions",
+        icon: TrendingUp,
+        color: "#3b82f6",
+        gradient: "from-blue-500 to-blue-600",
+        bgTint: "bg-blue-50",
+        ringTint: "ring-blue-100/60",
     },
     {
         label: "View Job Listings",
@@ -55,14 +65,14 @@ const actions = [
         ringTint: "ring-violet-100/60",
     },
     {
-        label: "Settings",
-        description: "Account settings",
-        href: "/dashboard/alumni/settings",
-        icon: Settings,
-        color: "#64748b",
-        gradient: "from-slate-500 to-slate-600",
-        bgTint: "bg-slate-50",
-        ringTint: "ring-slate-100/60",
+        label: "Take Surveys",
+        description: "Share your feedback",
+        href: "/dashboard/alumni/surveys",
+        icon: ClipboardList,
+        color: "#ef4444",
+        gradient: "from-red-500 to-red-600",
+        bgTint: "bg-red-50",
+        ringTint: "ring-red-100/60",
     },
 ];
 

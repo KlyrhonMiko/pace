@@ -13,7 +13,6 @@ import {
     User,
     Settings,
     LogOut,
-    Bell,
     ClipboardList,
     Menu,
     X,
@@ -23,6 +22,7 @@ import {
     Brain,
 } from "lucide-react";
 import DateWidget from "../_components/DateWidget";
+import TopHeader from "../_components/TopHeader";
 
 const navItems = [
     { name: "Overview", href: "/dashboard/admin", icon: () => <Home size={18} /> },
@@ -224,38 +224,11 @@ export default function AdminLayout({
             {/* Main Content Area */}
             <div className="flex flex-1 flex-col overflow-hidden">
                 {/* Top Header */}
-                <header className="flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4 lg:px-8">
-                    <div className="flex items-center gap-4">
-                        <button
-                            className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors duration-150 lg:hidden"
-                            onClick={() => setSidebarOpen(true)}
-                        >
-                            <Menu size={20} />
-                        </button>
-                        <div className="flex items-center gap-3">
-                            <DateWidget />
-                            <div className="h-8 w-px bg-gray-200 hidden md:block" />
-                            <div>
-                                <h1 className="text-base font-semibold text-gray-900">
-                                    {mounted && user?.first_name ? `Welcome back, ${user.first_name}!` : "Admin Dashboard"}
-                                </h1>
-                                <p className="text-xs text-gray-500 hidden sm:block">Manage platform users, content, and analytics</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-
-                        {/* Notifications */}
-                        <button className="relative flex items-center justify-center h-9 w-9 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors duration-150">
-                            <Bell size={20} />
-                            <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-700 text-[9px] font-bold text-white ring-2 ring-white">
-                                5
-                            </span>
-                        </button>
-
-                    </div>
-                </header>
+                <TopHeader
+                    setSidebarOpen={setSidebarOpen}
+                    welcomePrefix="Welcome back"
+                    subtitle="Manage platform users, content, and analytics"
+                />
 
                 {/* Page Content */}
                 <main className="flex-1 overflow-y-auto bg-gray-50/80 p-4 lg:p-6">

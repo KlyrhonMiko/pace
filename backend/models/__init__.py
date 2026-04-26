@@ -22,6 +22,7 @@ from .alumni_regression_prediction import AlumniRegressionPrediction
 from .arima_forecast_result import ArimaForecastResult
 from .staff import Staff
 from .employers import Employer
+from .notifications import Notification
 
 __all__ = [
     # ORM table classes only — schemas live in schemas/
@@ -51,4 +52,5 @@ __all__ = [
     "ArimaForecastResult",
     "Staff",
     "Employer",
+    "Notification",
 ]

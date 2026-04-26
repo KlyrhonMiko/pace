@@ -155,6 +155,33 @@ def create_job_application(
         )
     db.commit()
     db.refresh(application)
+    
+    try:
+        from schemas.notifications import NotificationCreate
+        from services.queries.notifications_queries import create_notification
+        from services.notifications import publish_notification
+        from models.employers import Employer
+        import logging
+
+        if job_listing.employer_ref_id:
+            employer = db.exec(select(Employer).where(Employer.id == job_listing.employer_ref_id)).first()
+            if employer and employer.user_ref_id:
+                from models.alumni import Alumni
+                alumni = db.exec(select(Alumni).where(Alumni.id == alumni_ref_id)).first()
+                alumni_name = f"{alumni.first_name} {alumni.last_name}" if alumni else "Someone"
+                
+                notif = NotificationCreate(
+                    user_ref_id=employer.user_ref_id,
+                    title="New Job Application",
+                    message=f"{alumni_name} applied for your job: {job_listing.title}.",
+                    link=f"/dashboard/employer/jobs/{job_listing.id}/applicants"
+                )
+                created_notif = create_notification(db, notif)
+                publish_notification(employer.user_ref_id, created_notif)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Failed to create job application notification: {e}")
+
     return application
 
 def get_job_application(db: Session, job_listing_ref_id: uuid.UUID, alumni_ref_id: uuid.UUID) -> Optional[JobApplication]:
@@ -245,4 +272,27 @@ def update_job_application_status(
     )
     db.commit()
     db.refresh(application)
+
+    try:
+        from schemas.notifications import NotificationCreate
+        from services.queries.notifications_queries import create_notification
+        from services.notifications import publish_notification
+        from models.alumni import Alumni
+
+        alumni = db.exec(select(Alumni).where(Alumni.id == application.alumni_ref_id)).first()
+        if alumni and alumni.user_ref_id:
+            job = get_job_listing(db, application.job_listing_ref_id)
+            if job:
+                notif = NotificationCreate(
+                    user_ref_id=alumni.user_ref_id,
+                    title="Job Application Update",
+                    message=f"Your application for {job.title} at {job.company or 'the company'} was updated to: {status}.",
+                    link=f"/dashboard/alumni/applications"
+                )
+                created_notif = create_notification(db, notif)
+                publish_notification(alumni.user_ref_id, created_notif)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Failed to create application status notification: {e}")
+
     return application

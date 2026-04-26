@@ -14,22 +14,24 @@ import {
     Calendar,
     FileText,
     ClipboardList,
+    ClipboardCheck,
     User,
     Sparkles,
     TrendingUp,
     Settings,
     LogOut,
-    Bell,
     Menu,
     X,
     ChevronRight,
 } from "lucide-react";
 import DateWidget from "../_components/DateWidget";
+import TopHeader from "../_components/TopHeader";
 
 const navItems = [
     { name: "Overview", href: "/dashboard/alumni", icon: () => <Home size={18} /> },
     { name: "Resumes", href: "/dashboard/alumni/resumes", icon: () => <FileText size={18} /> },
     { name: "Job Listings", href: "/dashboard/alumni/jobs", icon: () => <Briefcase size={18} /> },
+    { name: "My Applications", href: "/dashboard/alumni/applications", icon: () => <ClipboardCheck size={18} /> },
     { name: "Events", href: "/dashboard/alumni/events", icon: () => <Calendar size={18} /> },
     { name: "Surveys", href: "/dashboard/alumni/surveys", icon: () => <ClipboardList size={18} /> },
     { name: "Employability Insights", href: "/dashboard/alumni/insights", icon: () => <Sparkles size={18} /> },
@@ -228,41 +230,11 @@ export default function AlumniLayout({
             {/* Main Content Area */}
             <div className="flex flex-1 flex-col overflow-hidden">
                 {/* Top Header */}
-                <header className="flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4 lg:px-8">
-                    {/* Left Section */}
-                    <div className="flex items-center gap-4">
-                        <button
-                            className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors duration-150 lg:hidden"
-                            onClick={() => setSidebarOpen(true)}
-                        >
-                            <Menu size={20} />
-                        </button>
-                        <div className="flex items-center gap-3">
-                            {/* Date Badge */}
-                            <DateWidget />
-                            <div className="h-8 w-px bg-gray-200 hidden md:block" />
-                            <div>
-                                <h1 className="text-base font-semibold text-gray-900">
-                                    {mounted ? `Welcome back, ${user?.first_name || "Alumni"}!` : "Welcome back!"}
-                                </h1>
-                                <p className="text-xs text-gray-500 hidden sm:block">Here&apos;s what&apos;s happening with your career journey</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Right Section */}
-                    <div className="flex items-center gap-2">
-
-                        {/* Notifications */}
-                        <button className="relative flex items-center justify-center h-9 w-9 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors duration-150">
-                            <Bell size={20} />
-                            <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-700 text-[9px] font-bold text-white ring-2 ring-white">
-                                3
-                            </span>
-                        </button>
-
-                    </div>
-                </header>
+                <TopHeader
+                    setSidebarOpen={setSidebarOpen}
+                    welcomePrefix="Welcome back"
+                    subtitle="Here's what's happening with your career journey"
+                />
 
                 {/* Page Content */}
                 <main className="flex-1 overflow-y-auto bg-gray-50/80 p-4 lg:p-6">

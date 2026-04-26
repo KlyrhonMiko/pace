@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Zap, ChevronRight, User, FileUp, Lightbulb, Briefcase, Calendar, Settings, TrendingUp, ClipboardList } from "lucide-react";
+import { Zap, ChevronRight, User, FileUp, Lightbulb, Briefcase, Calendar, Settings, TrendingUp, ClipboardList, ClipboardCheck } from "lucide-react";
 
 const actions = [
     {
@@ -53,6 +53,16 @@ const actions = [
         gradient: "from-orange-500 to-orange-600",
         bgTint: "bg-orange-50",
         ringTint: "ring-orange-100/60",
+    },
+    {
+        label: "My Applications",
+        description: "Track your applications",
+        href: "/dashboard/alumni/applications",
+        icon: ClipboardCheck,
+        color: "#059669",
+        gradient: "from-emerald-500 to-emerald-600",
+        bgTint: "bg-emerald-50",
+        ringTint: "ring-emerald-100/60",
     },
     {
         label: "Find Events",

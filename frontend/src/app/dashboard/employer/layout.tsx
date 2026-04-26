@@ -14,13 +14,13 @@ import {
   FileText,
   Settings,
   LogOut,
-  Bell,
   Menu,
   X,
   ChevronRight,
   User,
 } from "lucide-react";
 import DateWidget from "../_components/DateWidget";
+import TopHeader from "../_components/TopHeader";
 
 const navItems = [
   { name: "Overview", href: "/dashboard/employer", icon: () => <LayoutDashboard size={18} /> },
@@ -223,36 +223,11 @@ export default function EmployerLayout({
       {/* Main Content Area */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top Header */}
-        <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 lg:px-8">
-          <div className="flex items-center gap-4">
-            <button
-              className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors duration-150 lg:hidden"
-              onClick={() => setSidebarOpen(true)}
-            >
-              <Menu size={20} />
-            </button>
-            <div className="flex items-center gap-3">
-              <DateWidget />
-              <div className="h-8 w-px bg-slate-200 hidden md:block" />
-              <div>
-                <h1 className="text-base font-semibold text-slate-900">
-                  Welcome, {mounted ? (user?.first_name || "Employer") : "Employer"}!
-                </h1>
-                <p className="text-xs text-slate-500 hidden sm:block">Manage job postings and evaluate candidate applications</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Notifications */}
-            <button className="relative flex items-center justify-center h-9 w-9 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors duration-150">
-              <Bell size={20} />
-              <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-700 text-[9px] font-bold text-white ring-2 ring-white">
-                2
-              </span>
-            </button>
-          </div>
-        </header>
+        <TopHeader
+          setSidebarOpen={setSidebarOpen}
+          welcomePrefix="Welcome"
+          subtitle="Manage job postings and evaluate candidate applications"
+        />
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto bg-gray-50/80 p-4 lg:p-6">

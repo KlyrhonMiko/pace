@@ -47,6 +47,9 @@ export default function UserFilters({
                     <div className="relative mb-4">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Input
+                            type="search"
+                            name="user-search-filter"
+                            autoComplete="off"
                             placeholder="Search name, email, ID..."
                             value={searchQuery}
                             onChange={(e) => handleSearch(e.target.value)}

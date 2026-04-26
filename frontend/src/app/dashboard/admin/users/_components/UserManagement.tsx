@@ -248,6 +248,8 @@ export default function UserManagement() {
                                     <Input
                                         type="text"
                                         inputMode="email"
+                                        name="user-management-email"
+                                        autoComplete="off"
                                         placeholder="e.g. m.garcia@plp.edu.ph"
                                         value={formData.email}
                                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -261,6 +263,8 @@ export default function UserManagement() {
                                 <div className="space-y-1.5">
                                     <label className="text-sm font-medium text-slate-700">Username*</label>
                                     <Input
+                                        name="user-management-username"
+                                        autoComplete="off"
                                         placeholder="e.g. m.garcia"
                                         value={formData.username}
                                         onChange={(e) => setFormData({ ...formData, username: e.target.value })}
@@ -278,6 +282,8 @@ export default function UserManagement() {
                                     <div className="relative">
                                         <Input
                                             type={showPassword ? "text" : "password"}
+                                            name="user-management-password"
+                                            autoComplete="new-password"
                                             placeholder={editingUser ? "Leave blank to keep current" : "Min 8 chars, uppercase, number"}
                                             value={formData.password}
                                             onChange={(e) => setFormData({ ...formData, password: e.target.value })}

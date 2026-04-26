@@ -133,7 +133,7 @@ export default function JobList({
                             </tr>
                         ) : (
                             filteredJobs.map((job) => {
-                                const isLocal = !job.link || job.id.toString().startsWith("local") || (typeof job.id === "number");
+                                const isLocal = Boolean(job.dbId) || !job.link || job.id.toString().startsWith("local");
                                 return (
                                     <tr key={job.id} onClick={() => setSelectedJob(job)} className="group transition-all duration-200 hover:bg-slate-50/50 cursor-pointer">
                                         <td className="px-5 py-4">
@@ -275,4 +275,3 @@ export default function JobList({
         </div>
     );
 }
-

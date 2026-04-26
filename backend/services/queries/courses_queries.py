@@ -26,7 +26,7 @@ from schemas.courses import (
 )
 from models.response_codes import ErrorCode, SuccessCode
 from utils.logging import log_integrity_error
-from utils.timezone import get_current_time_gmt8
+from services.queries.audit import stamp_create, stamp_restore, stamp_soft_delete, stamp_update
 from services.queries.transaction_logs_queries import create_transaction_log
 
 
@@ -59,10 +59,10 @@ def get_college_dept_by_abbv(session: Session, abbv: str) -> CollegeDept | None:
     ).first()
 
 
-def get_college_dept_by_code(session: Session, college_dept_code) -> CollegeDept | None:
-    """Look up a college department by its UUID code."""
+def get_college_dept_by_ref_id(session: Session, college_dept_ref_id) -> CollegeDept | None:
+    """Look up a college department by its internal UUID id."""
     return session.exec(
-        select(CollegeDept).where(CollegeDept.college_dept_code == college_dept_code)
+        select(CollegeDept).where(CollegeDept.id == college_dept_ref_id)
     ).first()
 
 
@@ -71,7 +71,7 @@ def build_course_public(
 ) -> CoursePublic:
     """Build a CoursePublic response, resolving college dept display fields."""
     return CoursePublic(
-        **course.model_dump(exclude={"college_dept_code"}),
+        **course.model_dump(exclude={"college_dept_ref_id"}),
         college_dept_id=college_dept.college_dept_id if college_dept else "UNKNOWN",
         college_dept_name=college_dept.college_dept_name
         if college_dept
@@ -83,7 +83,7 @@ def has_active_student_records(session: Session, course: Course) -> bool:
     """Return True if this course has at least one active student record."""
     result = session.exec(
         select(StudentRecord).where(
-            (StudentRecord.course_code == course.course_code)
+            (StudentRecord.course_ref_id == course.id)
             & (StudentRecord.is_deleted == False)
         )
     ).first()
@@ -124,9 +124,10 @@ def create_course(
     course_id = generate_course_id(session)
     course_dict = data.model_dump(exclude={"college_dept_abbv"})
     course_dict["course_id"] = course_id
-    course_dict["college_dept_code"] = college_dept.college_dept_code
+    course_dict["college_dept_ref_id"] = college_dept.id
 
     new_course = Course.model_validate(course_dict)
+    stamp_create(new_course, performed_by)
     session.add(new_course)
     create_transaction_log(
         session,
@@ -146,12 +147,13 @@ def update_course(
     performed_by: str | None = None,
 ) -> tuple[Course, CollegeDept]:
     """Apply partial update to a course and commit. Returns (course, college_dept)."""
+    before_state = course.model_dump(mode="json")
     college_dept = None
     if data.college_dept_abbv is not None:
         college_dept = get_college_dept_by_abbv(session, data.college_dept_abbv)
         if not college_dept:
             raise ValueError(f"College department '{data.college_dept_abbv}' not found")
-        course.college_dept_code = college_dept.college_dept_code
+        course.college_dept_ref_id = college_dept.id
 
     if data.course_abbv is not None:
         course.course_abbv = data.course_abbv
@@ -160,11 +162,12 @@ def update_course(
     if data.course_desc is not None:
         course.course_desc = data.course_desc
 
-    course.updated_at = get_current_time_gmt8()
+    stamp_update(course)
     session.add(course)
     create_transaction_log(
         session,
         tl_name=f"UPDATED course {course.course_id}",
+        before=before_state,
         after=course,
         performed_by=performed_by,
     )
@@ -172,7 +175,7 @@ def update_course(
     session.refresh(course)
 
     if college_dept is None:
-        college_dept = get_college_dept_by_code(session, course.college_dept_code)
+        college_dept = get_college_dept_by_ref_id(session, course.college_dept_ref_id)
 
     return course, college_dept
 
@@ -183,8 +186,7 @@ def soft_delete_course(
     performed_by: str | None = None,
 ) -> None:
     """Soft-delete a course."""
-    course.is_deleted = True
-    course.deleted_at = get_current_time_gmt8()
+    stamp_soft_delete(course, performed_by)
     session.add(course)
     create_transaction_log(
         session,
@@ -201,8 +203,7 @@ def restore_course(
     performed_by: str | None = None,
 ) -> None:
     """Restore a soft-deleted course."""
-    course.is_deleted = False
-    course.deleted_at = None
+    stamp_restore(course)
     session.add(course)
     create_transaction_log(
         session,
@@ -240,7 +241,7 @@ def get_all_courses(
     else:
         base_filter = Course.is_deleted == False
     query = select(Course)
-    count_q = select(func.count(Course.course_code))
+    count_q = select(func.count(Course.id))
     if base_filter is not None:
         query = query.where(base_filter)
         count_q = count_q.where(base_filter)
@@ -256,7 +257,7 @@ def get_all_courses(
     if college_dept_abbv:
         dept = get_college_dept_by_abbv(session, college_dept_abbv)
         if dept:
-            query = query.where(Course.college_dept_code == dept.college_dept_code)
+            query = query.where(Course.college_dept_ref_id == dept.id)
 
     total = session.exec(count_q).one()
 
@@ -280,7 +281,7 @@ def get_all_courses(
     courses = session.exec(query).all()
     result = []
     for course in courses:
-        dept = get_college_dept_by_code(session, course.college_dept_code)
+        dept = get_college_dept_by_ref_id(session, course.college_dept_ref_id)
         result.append(build_course_public(course, dept))
 
     return result, total
@@ -321,9 +322,10 @@ def batch_create_courses(
                 course_id = generate_course_id(session)
                 course_dict = item.model_dump(exclude={"college_dept_abbv"})
                 course_dict["course_id"] = course_id
-                course_dict["college_dept_code"] = college_dept.college_dept_code
+                course_dict["college_dept_ref_id"] = college_dept.id
 
                 new_course = Course.model_validate(course_dict)
+                stamp_create(new_course, performed_by)
                 session.add(new_course)
                 session.flush()
                 session.refresh(new_course)
@@ -445,10 +447,10 @@ def batch_update_courses(
                         )
                         failed_count += 1
                         continue
-                    course.college_dept_code = college_dept.college_dept_code
+                    course.college_dept_ref_id = college_dept.id
                 else:
-                    college_dept = get_college_dept_by_code(
-                        session, course.college_dept_code
+                    college_dept = get_college_dept_by_ref_id(
+                        session, course.college_dept_ref_id
                     )
 
                 if item.course_abbv is not None:
@@ -458,7 +460,7 @@ def batch_update_courses(
                 if item.course_desc is not None:
                     course.course_desc = item.course_desc
 
-                course.updated_at = get_current_time_gmt8()
+                stamp_update(course)
                 session.add(course)
                 session.flush()
                 session.refresh(course)
@@ -586,8 +588,7 @@ def batch_delete_courses(
                 failed_count += 1
                 continue
 
-            course.is_deleted = True
-            course.deleted_at = get_current_time_gmt8()
+            stamp_soft_delete(course, performed_by)
             session.add(course)
             session.flush()
 
@@ -684,8 +685,7 @@ def batch_restore_courses(
                 failed_count += 1
                 continue
 
-            course.is_deleted = False
-            course.deleted_at = None
+            stamp_restore(course)
             session.add(course)
             session.flush()
 

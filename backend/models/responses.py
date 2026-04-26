@@ -1,3 +1,4 @@
+import uuid
 from datetime import date, datetime
 from typing import Optional
 from sqlmodel import SQLModel
@@ -11,7 +12,7 @@ class AlumniFullProfile(SQLModel):
     """Complete alumni profile with all related information"""
 
     # Alumni info
-    alumni_code: str
+    id: uuid.UUID
     alumni_id: str
     last_name: str
     first_name: str

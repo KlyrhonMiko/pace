@@ -41,7 +41,7 @@ export interface RegressionPredictionResult {
 
 export interface RegressionPrediction {
     id: string;
-    alumni_code: string;
+    alumni_ref_id: string;
     input_data: RegressionInput;
     prediction_result: RegressionPredictionResult;
     predicted_salary: number;
@@ -87,11 +87,11 @@ export async function getMyRegressionPredictions(
  * Trigger a new regression prediction for the current alumni.
  */
 export async function triggerRegressionPrediction(
-    alumniCode: string
+    alumniId: string
 ): Promise<RegressionPredictionResult | null> {
     try {
         const json = await apiFetch<any>(
-            `/predict/regression/${alumniCode}`,
+            `/predict/regression/${alumniId}`,
             { method: "POST" }
         );
 

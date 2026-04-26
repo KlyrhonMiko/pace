@@ -33,7 +33,7 @@ export async function deleteJob(jobId: string | number) {
 /**
  * Toggle hide/unhide a local job listing (faculty only)
  */
-export async function hideJob(jobId: number) {
+export async function hideJob(jobId: string | number) {
     return await apiFetch(`/jobs/${jobId}/hide`, {
         method: "PATCH",
     });

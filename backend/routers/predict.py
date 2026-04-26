@@ -19,15 +19,16 @@ from models.employability import (
 from models.response_codes import StandardResponse, ErrorCode, SuccessCode
 from models.users import UserType
 from services.machines.random_forest import EmployabilityPredictor
+from services.queries.alumni_queries import get_alumni_by_id
 from services.queries.predict_queries import (
-    get_active_alumni_by_code,
-    get_alumni_by_user_code,
-    get_predictions_by_alumni,
+    get_active_alumni_by_ref_id,
+    get_alumni_by_user_ref_id,
+    get_predictions_by_alumni_ref_id,
     save_prediction,
     get_prediction_by_id,
-    get_student_record_by_alumni_code,
-    get_alumni_skills_by_alumni_code,
-    get_course_abbv_by_course_code,
+    get_student_record_by_alumni_ref_id,
+    get_alumni_skills_by_alumni_ref_id,
+    get_course_abbv_by_course_ref_id,
     build_employability_dict,
 )
 from utils.rbac import require_authenticated
@@ -39,15 +40,15 @@ PREDICT_DETAIL_TTL = 1800
 PREDICT_ALUMNI_TTL = 300
 
 
-def _resolve_active_alumni(db: Session, alumni_code: uuid.UUID) -> Alumni | None:
-    return get_active_alumni_by_code(db, alumni_code)
+def _resolve_active_alumni(db: Session, alumni_id: str) -> Alumni | None:
+    return get_alumni_by_id(db, alumni_id)
 
 
-def _ensure_owner_or_staff_plus(current_user: CurrentUser, alumni_user_code: str | None) -> None:
+def _ensure_owner_or_staff_plus(current_user: CurrentUser, alumni: Alumni) -> None:
     if current_user.user_type in {UserType.STAFF.value, UserType.ADMIN.value}:
         return
 
-    if not current_user.user_code or not alumni_user_code or str(current_user.user_code) != str(alumni_user_code):
+    if not current_user.id or not alumni.user_ref_id or current_user.id != alumni.user_ref_id:
         raise HTTPException(
             status_code=403,
             detail=StandardResponse(
@@ -74,12 +75,12 @@ def get_predictor() -> Optional[EmployabilityPredictor]:
 
 
 # ─────────────────────────────────────────────────────────────────
-# POST  /predict/employability/{alumni_code}
+# POST  /predict/employability/{alumni_id}
 # ─────────────────────────────────────────────────────────────────
 
-@router.post("/employability/{alumni_code}")
+@router.post("/employability/{alumni_id}")
 def predict_employability(
-    alumni_code: uuid.UUID,
+    alumni_id: str,
     db: Session = Depends(get_session),
     current_user: CurrentUser = Depends(require_authenticated),
 ):
@@ -99,23 +100,23 @@ def predict_employability(
         )
 
     # Resolve and validate alumni
-    alumni = _resolve_active_alumni(db, alumni_code)
+    alumni = _resolve_active_alumni(db, alumni_id)
     if not alumni:
         raise HTTPException(
             status_code=404,
             detail=StandardResponse(
                 success=False,
                 code=ErrorCode.ALUMNI_NOT_FOUND.value,
-                message=f"Alumni with code '{alumni_code}' not found",
+                message=f"Alumni with ID '{alumni_id}' not found",
             ).model_dump(mode="json"),
         )
 
     # Authorization: regular users can only predict for themselves
     if current_user.user_type == UserType.USER.value:
-        _ensure_owner_or_staff_plus(current_user, str(alumni.user_code) if alumni.user_code else None)
+        _ensure_owner_or_staff_plus(current_user, alumni)
 
     # Look up required data from the database
-    student_record = get_student_record_by_alumni_code(db, alumni_code)
+    student_record = get_student_record_by_alumni_ref_id(db, alumni.id)
     if not student_record:
         raise HTTPException(
             status_code=404,
@@ -126,7 +127,7 @@ def predict_employability(
             ).model_dump(mode="json"),
         )
 
-    alumni_skills = get_alumni_skills_by_alumni_code(db, alumni_code)
+    alumni_skills = get_alumni_skills_by_alumni_ref_id(db, alumni.id)
     if not alumni_skills:
         raise HTTPException(
             status_code=404,
@@ -139,8 +140,8 @@ def predict_employability(
 
     # Resolve degree from course
     degree = "BSIT"  # fallback
-    if student_record.course_code:
-        resolved = get_course_abbv_by_course_code(db, student_record.course_code)
+    if student_record.course_ref_id:
+        resolved = get_course_abbv_by_course_ref_id(db, student_record.course_ref_id)
         if resolved:
             degree = resolved
 
@@ -161,7 +162,7 @@ def predict_employability(
 
     # Persist to database
     prediction = EmployabilityPrediction(
-        alumni_code=alumni_code,
+        alumni_ref_id=alumni.id,
         input_data=student_dict,
         prediction_result=result,
         realistic_prediction=result["realistic_assessment"]["prediction"],
@@ -195,7 +196,9 @@ def get_my_predictions(
 ):
     """Get all predictions linked to the current authenticated alumni, newest first."""
     # Find alumni record for the current user
-    alumni = get_alumni_by_user_code(db, uuid.UUID(str(current_user.user_code)))
+    if not current_user.id:
+        raise HTTPException(status_code=401, detail="Authenticated user is missing an internal id")
+    alumni = get_alumni_by_user_ref_id(db, current_user.id)
 
     if not alumni:
         raise HTTPException(
@@ -210,12 +213,12 @@ def get_my_predictions(
     # Cache the result for this specific user
     cache_key = generate_cache_key(
         f"{PREDICT_CACHE_NAMESPACE}:me",
-        user_code=str(current_user.user_code),
+        user_id=str(current_user.user_id),
         limit=limit,
     )
     return cache_get_or_set(
         cache_key,
-        lambda: _build_alumni_predictions_response(db, alumni.alumni_code, limit),
+        lambda: _build_alumni_predictions_response(db, alumni, limit),
         ttl=PREDICT_DETAIL_TTL,
     )
 
@@ -243,7 +246,7 @@ def get_prediction(
         )
 
     if current_user.user_type == UserType.USER.value:
-        if prediction.alumni_code is None:
+        if prediction.alumni_ref_id is None:
             raise HTTPException(
                 status_code=403,
                 detail=StandardResponse(
@@ -252,7 +255,7 @@ def get_prediction(
                     message="You are not allowed to access this prediction",
                 ).model_dump(mode="json"),
             )
-        alumni = _resolve_active_alumni(db, prediction.alumni_code)
+        alumni = get_active_alumni_by_ref_id(db, prediction.alumni_ref_id)
         if not alumni:
             raise HTTPException(
                 status_code=404,
@@ -262,7 +265,7 @@ def get_prediction(
                     message="Alumni not found",
                 ).model_dump(mode="json"),
             )
-        _ensure_owner_or_staff_plus(current_user, str(alumni.user_code) if alumni.user_code else None)
+        _ensure_owner_or_staff_plus(current_user, alumni)
 
     cache_key = generate_cache_key(f"{PREDICT_CACHE_NAMESPACE}:detail", prediction_id=str(prediction_id))
     return cache_get_or_set(
@@ -273,38 +276,38 @@ def get_prediction(
 
 
 # ─────────────────────────────────────────────────────────────────
-# GET  /predict/employability/alumni/{alumni_code}
+# GET  /predict/employability/alumni/{alumni_id}
 # ─────────────────────────────────────────────────────────────────
 
-@router.get("/employability/alumni/{alumni_code}")
+@router.get("/employability/alumni/{alumni_id}")
 def get_alumni_predictions(
-    alumni_code: uuid.UUID,
+    alumni_id: str,
     db: Session = Depends(get_session),
     limit: int = Query(default=10, ge=1, le=50, description="Max results to return"),
     current_user: CurrentUser = Depends(require_authenticated),
 ):
     """Get all predictions linked to a specific alumni, newest first."""
+    alumni = _resolve_active_alumni(db, alumni_id)
+    if not alumni:
+        raise HTTPException(
+            status_code=404,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.ALUMNI_NOT_FOUND.value,
+                message="Alumni not found",
+            ).model_dump(mode="json"),
+        )
     if current_user.user_type == UserType.USER.value:
-        alumni = _resolve_active_alumni(db, alumni_code)
-        if not alumni:
-            raise HTTPException(
-                status_code=404,
-                detail=StandardResponse(
-                    success=False,
-                    code=ErrorCode.ALUMNI_NOT_FOUND.value,
-                    message="Alumni not found",
-                ).model_dump(mode="json"),
-            )
-        _ensure_owner_or_staff_plus(current_user, str(alumni.user_code) if alumni.user_code else None)
+        _ensure_owner_or_staff_plus(current_user, alumni)
 
     cache_key = generate_cache_key(
         f"{PREDICT_CACHE_NAMESPACE}:alumni",
-        alumni_code=str(alumni_code),
+        alumni_id=alumni_id,
         limit=limit,
     )
     return cache_get_or_set(
         cache_key,
-        lambda: _build_alumni_predictions_response(db, alumni_code, limit),
+        lambda: _build_alumni_predictions_response(db, alumni, limit),
         ttl=PREDICT_ALUMNI_TTL,
     )
 
@@ -335,10 +338,10 @@ def _build_prediction_detail_response(
 
 def _build_alumni_predictions_response(
     db: Session,
-    alumni_code: uuid.UUID,
+    alumni: Alumni,
     limit: int,
 ) -> StandardResponse:
-    predictions = get_predictions_by_alumni(db, alumni_code, limit)
+    predictions = get_predictions_by_alumni_ref_id(db, alumni.id, limit)
 
     data = [
         EmployabilityPredictionRead.model_validate(p).model_dump(mode="json")
@@ -348,6 +351,6 @@ def _build_alumni_predictions_response(
     return StandardResponse(
         success=True,
         code=SuccessCode.PREDICTIONS_RETRIEVED.value,
-        message=f"Found {len(data)} prediction(s) for alumni '{alumni_code}'",
+        message=f"Found {len(data)} prediction(s) for alumni '{alumni.alumni_id}'",
         data=data,
     )

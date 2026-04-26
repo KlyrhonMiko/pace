@@ -4,6 +4,7 @@ from typing import Optional, List
 from enum import Enum
 from sqlmodel import SQLModel, Field, JSON
 from pydantic import field_serializer, field_validator
+from schemas.base import AuditPublicSQLModel
 from utils.timezone import format_datetime_gmt8
 
 
@@ -88,7 +89,7 @@ class QuestionUpdate(SQLModel):
         return v
 
 
-class QuestionPublic(SQLModel):
+class QuestionPublic(AuditPublicSQLModel):
     question_id: str
     question_text: str
     question_type: QuestionType

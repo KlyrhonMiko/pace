@@ -1,24 +1,27 @@
 """
 DB query functions for survey questions management.
 """
-
-import uuid
 from sqlmodel import Session, select, func, and_
 from models.surveys import Survey, SurveyQuestion
 from models.questions import Question
 from schemas.surveys import SurveyQuestionCreate, SurveyQuestionWithDetails
 from schemas.questions import QuestionPublic
+from services.queries.audit import stamp_create, stamp_restore, stamp_soft_delete, stamp_update
 from services.queries.transaction_logs_queries import create_transaction_log
 
 
 def get_survey_questions_with_details(
-    session: Session, survey_code: uuid.UUID
+    session: Session, survey_ref_id
 ) -> list[SurveyQuestionWithDetails]:
     """Fetch all questions for a survey in ONE join query (no N+1)."""
     rows = session.exec(
         select(SurveyQuestion, Question)
-        .join(Question, SurveyQuestion.question_code == Question.question_code)
-        .where(SurveyQuestion.survey_code == survey_code)
+        .join(Question, SurveyQuestion.question_ref_id == Question.id)
+        .where(
+            (SurveyQuestion.survey_ref_id == survey_ref_id)
+            & (SurveyQuestion.is_deleted == False)
+            & (Question.is_deleted == False)
+        )
         .order_by(SurveyQuestion.order_index)
     ).all()
     return [
@@ -48,29 +51,35 @@ def add_question_to_survey(
     existing = session.exec(
         select(SurveyQuestion).where(
             and_(
-                SurveyQuestion.survey_code == survey.survey_code,
-                SurveyQuestion.question_code == question.question_code,
+                SurveyQuestion.survey_ref_id == survey.id,
+                SurveyQuestion.question_ref_id == question.id,
             )
         )
     ).first()
-    if existing:
+    if existing and not existing.is_deleted:
         raise ValueError("QUESTION_ALREADY_IN_SURVEY")
 
     order_index = data.order_index
     if order_index is None:
         max_order = session.exec(
             select(func.max(SurveyQuestion.order_index)).where(
-                SurveyQuestion.survey_code == survey.survey_code
+                (SurveyQuestion.survey_ref_id == survey.id)
+                & (SurveyQuestion.is_deleted == False)
             )
         ).one()
         order_index = (max_order or 0) + 1
 
-    sq = SurveyQuestion(
-        survey_question_code=uuid.uuid4(),
-        survey_code=survey.survey_code,
-        question_code=question.question_code,
-        order_index=order_index,
-    )
+    if existing and existing.is_deleted:
+        sq = existing
+        sq.order_index = order_index
+        stamp_restore(sq)
+    else:
+        sq = SurveyQuestion(
+            survey_ref_id=survey.id,
+            question_ref_id=question.id,
+            order_index=order_index,
+        )
+        stamp_create(sq, performed_by)
     session.add(sq)
     create_transaction_log(
         session,
@@ -94,7 +103,8 @@ def add_questions_batch(
     max_order = (
         session.exec(
             select(func.max(SurveyQuestion.order_index)).where(
-                SurveyQuestion.survey_code == survey.survey_code
+                (SurveyQuestion.survey_ref_id == survey.id)
+                & (SurveyQuestion.is_deleted == False)
             )
         ).one()
         or 0
@@ -124,12 +134,12 @@ def add_questions_batch(
             dup = session.exec(
                 select(SurveyQuestion).where(
                     and_(
-                        SurveyQuestion.survey_code == survey.survey_code,
-                        SurveyQuestion.question_code == question.question_code,
+                        SurveyQuestion.survey_ref_id == survey.id,
+                        SurveyQuestion.question_ref_id == question.id,
                     )
                 )
             ).first()
-            if dup:
+            if dup and not dup.is_deleted:
                 failed.append(
                     {
                         "index": idx,
@@ -140,12 +150,17 @@ def add_questions_batch(
                 continue
 
             order_index = item.order_index or (max_order + len(added) + 1)
-            sq = SurveyQuestion(
-                survey_question_code=uuid.uuid4(),
-                survey_code=survey.survey_code,
-                question_code=question.question_code,
-                order_index=order_index,
-            )
+            if dup and dup.is_deleted:
+                sq = dup
+                sq.order_index = order_index
+                stamp_restore(sq)
+            else:
+                sq = SurveyQuestion(
+                    survey_ref_id=survey.id,
+                    question_ref_id=question.id,
+                    order_index=order_index,
+                )
+                stamp_create(sq, performed_by)
             session.add(sq)
             session.flush()
             added.append(
@@ -189,8 +204,8 @@ def remove_question_from_survey(
     sq = session.exec(
         select(SurveyQuestion).where(
             and_(
-                SurveyQuestion.survey_code == survey.survey_code,
-                SurveyQuestion.question_code == question.question_code,
+                SurveyQuestion.survey_ref_id == survey.id,
+                SurveyQuestion.question_ref_id == question.id,
             )
         )
     ).first()
@@ -198,14 +213,16 @@ def remove_question_from_survey(
         raise ValueError("SURVEY_QUESTION_NOT_FOUND")
 
     removed_order = sq.order_index
-    session.delete(sq)
+    stamp_soft_delete(sq, performed_by)
+    session.add(sq)
 
     # Reorder remaining
     lower = session.exec(
         select(SurveyQuestion)
         .where(
             and_(
-                SurveyQuestion.survey_code == survey.survey_code,
+                SurveyQuestion.survey_ref_id == survey.id,
+                SurveyQuestion.is_deleted == False,
                 SurveyQuestion.order_index > removed_order,
             )
         )
@@ -213,6 +230,7 @@ def remove_question_from_survey(
     ).all()
     for remainder in lower:
         remainder.order_index -= 1
+        stamp_update(remainder)
         session.add(remainder)
 
     create_transaction_log(
@@ -231,7 +249,7 @@ def reorder_survey_questions(
     performed_by: str | None = None,
 ) -> None:
     """Reorder questions in a survey. order_map: {question_id: new_order_index}
-    Uses a two-phase approach to avoid unique constraint violations on (survey_code, order_index).
+    Uses a two-phase approach to avoid unique constraint violations on (survey_ref_id, order_index).
     """
     if not order_map:
         return
@@ -239,28 +257,31 @@ def reorder_survey_questions(
     # 1. Fetch all questions in one query
     question_ids = list(order_map.keys())
     questions = session.exec(
-        select(Question).where(Question.question_id.in_(question_ids))
+        select(Question).where(
+            Question.question_id.in_(question_ids), Question.is_deleted == False
+        )
     ).all()
 
     if not questions:
         return
 
-    question_codes = [q.question_code for q in questions]
-    question_code_to_id = {q.question_code: q.question_id for q in questions}
+    question_ref_ids = [q.id for q in questions]
+    question_ref_to_id = {q.id: q.question_id for q in questions}
 
     # 2. Fetch all SurveyQuestion junctions in one query
     sqs = session.exec(
         select(SurveyQuestion).where(
             and_(
-                SurveyQuestion.survey_code == survey.survey_code,
-                SurveyQuestion.question_code.in_(question_codes),
+                SurveyQuestion.survey_ref_id == survey.id,
+                SurveyQuestion.question_ref_id.in_(question_ref_ids),
+                SurveyQuestion.is_deleted == False,
             )
         )
     ).all()
 
     sqs_to_update = []
     for sq in sqs:
-        q_id = question_code_to_id.get(sq.question_code)
+        q_id = question_ref_to_id.get(sq.question_ref_id)
         if q_id and q_id in order_map:
             sqs_to_update.append((sq, order_map[q_id]))
 
@@ -273,6 +294,7 @@ def reorder_survey_questions(
     # Phase 2: Set to final values
     for sq, final_order in sqs_to_update:
         sq.order_index = final_order
+        stamp_update(sq)
         session.add(sq)
     create_transaction_log(
         session,

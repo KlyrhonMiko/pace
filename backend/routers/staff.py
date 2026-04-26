@@ -31,7 +31,7 @@ def register_staff(
         first_name=data.first_name,
         middle_name=data.middle_name,
         gender=data.gender,
-        college_dept_code=data.college_dept_code
+        college_dept_id=data.college_dept_id
     )
  
     if success:

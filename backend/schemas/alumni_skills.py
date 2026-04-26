@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 from sqlmodel import SQLModel, Field
 from pydantic import field_serializer, field_validator, BaseModel
+from schemas.base import AuditPublicSQLModel
 from utils.timezone import format_datetime_gmt8
 
 
@@ -69,7 +70,7 @@ def _validate_program_skills(
 
 
 class AlumniSkillsCreate(SQLModel):
-    alumni_id: str  # Human-readable ID; resolved to alumni_code in query
+    alumni_id: str  # Human-readable ID; resolved to the alumni row in query helpers
     soft_skills_ave: Optional[float] = Field(default=None, ge=0, le=100)
     hard_skills_ave: Optional[float] = Field(default=None, ge=0, le=100)
     program_skills: Optional[Dict[str, float]] = None
@@ -104,7 +105,7 @@ class AlumniSkillsUpdate(SQLModel):
 # ── Public (read) ─────────────────────────────────────────────────────────────
 
 
-class AlumniSkillsPublic(SQLModel):
+class AlumniSkillsPublic(AuditPublicSQLModel):
     soft_skills_ave: Optional[float]
     hard_skills_ave: Optional[float]
     program_skills: Optional[Any]

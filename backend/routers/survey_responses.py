@@ -94,7 +94,7 @@ def respond_to_survey(
             session,
             survey,
             body,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(

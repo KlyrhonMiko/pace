@@ -8,10 +8,20 @@ from models.auth import CurrentUser
 from models.response_codes import ErrorCode, SuccessCode, StandardResponse
 
 from services.queries.users_queries import create_user
-from services.queries.employers_queries import create_employer_profile, get_employer_by_user_code, update_employer_profile
-from services.queries.jobs_queries import get_employer_applications, get_job_listing, update_job_application_status, get_job_application
+from services.queries.employers_queries import (
+    create_employer_profile,
+    get_employer_by_user_ref_id,
+    update_employer_logo,
+    update_employer_profile,
+)
+from services.queries.jobs_queries import (
+    get_employer_applications,
+    get_job_application_by_ref_id,
+    get_job_listing,
+    update_job_application_status,
+)
 from models.alumni import Alumni
-from models.job_listings import JobListing, JobApplication
+from models.job_listings import JobApplication
 from schemas.users import UserCreate
 from utils.auth import get_current_user
 import uuid
@@ -45,19 +55,21 @@ def register_employer(
         # 2. Create Employer profile
         employer_profile = create_employer_profile(
             session,
-            user_code=new_user.user_code,
+            user_ref_id=new_user.id,
             company_name=employer_data.company_name,
             contact_person_first_name=employer_data.contact_person_first_name,
             contact_person_last_name=employer_data.contact_person_last_name,
             contact_person_position=employer_data.contact_person_position,
             company_website=employer_data.company_website,
             company_address=employer_data.company_address
+            ,
+            company_contact_number=employer_data.company_contact_number,
+            performed_by=new_user.id,
         )
         
         # Manually assemble EmployerResponse since it now needs user fields
         response_data = EmployerResponse(
-            employer_id=employer_profile.employer_id,
-            user_code=employer_profile.user_code,
+            id=employer_profile.id,
             user_id=new_user.user_id,
             username=new_user.username,
             email=new_user.email,
@@ -102,20 +114,19 @@ def get_employer_me(
     if current_user.user_type != UserType.EMPLOYER.value:
         raise HTTPException(status_code=403, detail="Only employers can access this profile.")
     
-    user_code = uuid.UUID(current_user.user_code) if isinstance(current_user.user_code, str) else current_user.user_code
-    
-    employer_profile = get_employer_by_user_code(session, user_code)
+    if not current_user.id:
+        raise HTTPException(status_code=401, detail="Authenticated user is missing an internal id.")
+    employer_profile = get_employer_by_user_ref_id(session, current_user.id)
     if not employer_profile:
         raise HTTPException(status_code=404, detail="Employer profile not found.")
     
     # Get associated user for username and email
-    user = session.exec(select(User).where(User.user_code == user_code)).first()
+    user = session.exec(select(User).where(User.id == current_user.id)).first()
     if not user:
          raise HTTPException(status_code=404, detail="User account not found.")
 
     response_data = EmployerResponse(
-        employer_id=employer_profile.employer_id,
-        user_code=employer_profile.user_code,
+        id=employer_profile.id,
         user_id=user.user_id,
         username=user.username,
         email=user.email,
@@ -146,8 +157,9 @@ def upload_employer_logo(
     if current_user.user_type != UserType.EMPLOYER.value:
         raise HTTPException(status_code=403, detail="Only employers can upload logos.")
 
-    user_code = uuid.UUID(current_user.user_code) if isinstance(current_user.user_code, str) else current_user.user_code
-    employer_profile = get_employer_by_user_code(session, user_code)
+    if not current_user.id:
+        raise HTTPException(status_code=401, detail="Authenticated user is missing an internal id.")
+    employer_profile = get_employer_by_user_ref_id(session, current_user.id)
     if not employer_profile:
         raise HTTPException(status_code=404, detail="Employer profile not found.")
 
@@ -174,17 +186,19 @@ def upload_employer_logo(
 
         result = cloudinary.uploader.upload(
             file.file, 
-            folder=f"pace/employers/{employer_profile.employer_id}",
+            folder=f"pace/employers/{employer_profile.id}",
             resource_type="image"
         )
         logo_url = result.get("secure_url")
         public_id = result.get("public_id")
         
-        employer_profile.company_logo_url = logo_url
-        employer_profile.company_logo_public_id = public_id
-        session.add(employer_profile)
-        session.commit()
-        session.refresh(employer_profile)
+        update_employer_logo(
+            session,
+            employer_profile,
+            logo_url,
+            public_id,
+            performed_by=current_user.id,
+        )
 
         return StandardResponse(
             success=True,
@@ -207,23 +221,27 @@ def update_employer_me(
     if current_user.user_type != UserType.EMPLOYER.value:
         raise HTTPException(status_code=403, detail="Only employers can update this profile.")
     
-    user_code = uuid.UUID(current_user.user_code) if isinstance(current_user.user_code, str) else current_user.user_code
-    
-    employer_profile = get_employer_by_user_code(session, user_code)
+    if not current_user.id:
+        raise HTTPException(status_code=401, detail="Authenticated user is missing an internal id.")
+    employer_profile = get_employer_by_user_ref_id(session, current_user.id)
     if not employer_profile:
         raise HTTPException(status_code=404, detail="Employer profile not found.")
     
     # Get associated user for username and email
-    user = session.exec(select(User).where(User.user_code == user_code)).first()
+    user = session.exec(select(User).where(User.id == current_user.id)).first()
     if not user:
          raise HTTPException(status_code=404, detail="User account not found.")
 
     try:
-        updated_profile = update_employer_profile(session, employer_profile, employer_data)
+        updated_profile = update_employer_profile(
+            session,
+            employer_profile,
+            employer_data,
+            performed_by=current_user.id,
+        )
         
         response_data = EmployerResponse(
-            employer_id=updated_profile.employer_id,
-            user_code=updated_profile.user_code,
+            id=updated_profile.id,
             user_id=user.user_id,
             username=user.username,
             email=user.email,
@@ -260,20 +278,21 @@ def get_my_applications_route(
     if current_user.user_type != UserType.EMPLOYER.value:
         raise HTTPException(status_code=403, detail="Only employers can access this.")
     
-    user_code = uuid.UUID(current_user.user_code) if isinstance(current_user.user_code, str) else current_user.user_code
-    employer = get_employer_by_user_code(db, user_code)
+    if not current_user.id:
+        raise HTTPException(status_code=401, detail="Authenticated user is missing an internal id.")
+    employer = get_employer_by_user_ref_id(db, current_user.id)
     if not employer:
         raise HTTPException(status_code=404, detail="Employer profile not found.")
     
-    applications = get_employer_applications(db, employer.employer_id)
+    applications = get_employer_applications(db, employer.id)
     
     # Enrich with alumni and job details
     result = []
     for app in applications:
         # Join with Alumni and User tables
-        query = select(Alumni, User).join(User, Alumni.user_code == User.user_code).where(Alumni.alumni_code == app.alumni_code)
+        query = select(Alumni, User).join(User, Alumni.user_ref_id == User.id).where(Alumni.id == app.alumni_ref_id)
         alumni_data = db.exec(query).first()
-        job = get_job_listing(db, app.job_id)
+        job = get_job_listing(db, app.job_listing_ref_id)
         
         if alumni_data and job:
             alumni, user = alumni_data
@@ -281,8 +300,8 @@ def get_my_applications_route(
             match_score = 0
             
             # Try to get the latest prediction for this alumni
-            from services.queries.predict_queries import get_predictions_by_alumni
-            predictions = get_predictions_by_alumni(db, alumni.alumni_code, limit=1)
+            from services.queries.predict_queries import get_predictions_by_alumni_ref_id
+            predictions = get_predictions_by_alumni_ref_id(db, alumni.id, limit=1)
             if predictions:
                 match_score = int(predictions[0].realistic_probability)
             else:
@@ -306,9 +325,9 @@ def get_my_applications_route(
     )
 
 
-@router.patch("/applications/{application_id}/status", response_model=StandardResponse)
+@router.patch("/applications/{application_ref_id}/status", response_model=StandardResponse)
 def update_application_status_route(
-    application_id: int,
+    application_ref_id: str,
     status: str,
     db: Session = Depends(get_session),
     current_user: CurrentUser = Depends(get_current_user)
@@ -320,29 +339,35 @@ def update_application_status_route(
     if current_user.user_type != UserType.EMPLOYER.value:
         raise HTTPException(status_code=403, detail="Only employers can perform this action.")
     
-    user_code = uuid.UUID(current_user.user_code) if isinstance(current_user.user_code, str) else current_user.user_code
-    employer = get_employer_by_user_code(db, user_code)
+    if not current_user.id:
+        raise HTTPException(status_code=401, detail="Authenticated user is missing an internal id.")
+    employer = get_employer_by_user_ref_id(db, current_user.id)
     if not employer:
         raise HTTPException(status_code=404, detail="Employer profile not found.")
-        
-    application = db.get(JobApplication, application_id)
+
+    application = get_job_application_by_ref_id(db, application_ref_id)
     if not application:
         raise HTTPException(status_code=404, detail="Job application not found.")
         
     # Verify the application belongs to a job posted by the employer
-    job = get_job_listing(db, application.job_id)
-    if not job or job.employer_id != employer.employer_id:
+    job = get_job_listing(db, application.job_listing_ref_id)
+    if not job or job.employer_ref_id != employer.id:
          raise HTTPException(status_code=403, detail="Not authorized to update this application.")
          
     valid_statuses = ["Pending", "Reviewed", "Accepted", "Rejected"]
     if status not in valid_statuses:
          raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of {valid_statuses}")
          
-    updated_app = update_job_application_status(db, application_id, status)
+    updated_app = update_job_application_status(
+        db,
+        application_ref_id,
+        status,
+        performed_by=current_user.id,
+    )
     
     return StandardResponse(
         success=True,
-        code=200,
+        code=SuccessCode.JOB_UPDATED.value,
         message=f"Application status updated to {status}",
-        data={"application_id": updated_app.id, "status": updated_app.status}
+        data={"application_ref_id": updated_app.id, "status": updated_app.status}
     )

@@ -155,11 +155,16 @@ async def http_exception_handler(request, exc: HTTPException):
 
     if exc.status_code in (401, 403):
         message = exc.detail if isinstance(exc.detail, str) else "Unauthorized"
-        code = ErrorCode.UNAUTHORIZED.value
-        if "expired" in message.lower():
+        if exc.status_code == 403:
+            code = ErrorCode.FORBIDDEN.value
+        elif "expired" in message.lower():
             code = ErrorCode.TOKEN_EXPIRED.value
+        elif "revoked" in message.lower():
+            code = ErrorCode.TOKEN_REVOKED.value
+        else:
+            code = ErrorCode.UNAUTHORIZED.value
         response = StandardResponse(success=False, code=code, message=message)
-        return JSONResponse(status_code=401, content=response.model_dump(mode="json"))
+        return JSONResponse(status_code=exc.status_code, content=response.model_dump(mode="json"))
 
     fallback = StandardResponse(
         success=False,

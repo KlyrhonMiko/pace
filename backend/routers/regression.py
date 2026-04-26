@@ -18,11 +18,12 @@ from models.auth import CurrentUser
 from models.response_codes import StandardResponse, ErrorCode, SuccessCode
 from models.users import UserType
 from services.machines.alumni_regression import AlumniPredictor
+from services.queries.alumni_queries import get_alumni_by_id
 from services.queries.predict_queries import (
-    get_active_alumni_by_code,
-    get_alumni_by_user_code,
-    get_student_record_by_alumni_code,
-    get_alumni_skills_by_alumni_code,
+    get_active_alumni_by_ref_id,
+    get_alumni_by_user_ref_id,
+    get_student_record_by_alumni_ref_id,
+    get_alumni_skills_by_alumni_ref_id,
     build_regression_inputs,
 )
 from services.queries.regression_queries import (
@@ -39,10 +40,10 @@ REGRESSION_DETAIL_TTL = 1800
 REGRESSION_ALUMNI_TTL = 300
 
 
-def _ensure_owner_or_staff_plus(current_user: CurrentUser, alumni_user_code: str | None) -> None:
+def _ensure_owner_or_staff_plus(current_user: CurrentUser, alumni) -> None:
     if current_user.user_type in {UserType.STAFF.value, UserType.ADMIN.value}:
         return
-    if not current_user.user_code or not alumni_user_code or str(current_user.user_code) != str(alumni_user_code):
+    if not current_user.id or not alumni.user_ref_id or current_user.id != alumni.user_ref_id:
         raise HTTPException(
             status_code=403,
             detail=StandardResponse(
@@ -70,12 +71,12 @@ def get_regression_predictor() -> Optional[AlumniPredictor]:
 
 
 # ─────────────────────────────────────────────────────────────────
-# POST  /predict/regression/{alumni_code}
+# POST  /predict/regression/{alumni_id}
 # ─────────────────────────────────────────────────────────────────
 
-@router.post("/regression/{alumni_code}")
+@router.post("/regression/{alumni_id}")
 def predict_regression(
-    alumni_code: uuid.UUID,
+    alumni_id: str,
     db: Session = Depends(get_session),
     current_user: CurrentUser = Depends(require_authenticated),
 ):
@@ -94,23 +95,23 @@ def predict_regression(
         )
 
     # Resolve and validate alumni
-    alumni = get_active_alumni_by_code(db, alumni_code)
+    alumni = get_alumni_by_id(db, alumni_id)
     if not alumni:
         raise HTTPException(
             status_code=404,
             detail=StandardResponse(
                 success=False,
                 code=ErrorCode.ALUMNI_NOT_FOUND.value,
-                message=f"Alumni with code '{alumni_code}' not found",
+                message=f"Alumni with ID '{alumni_id}' not found",
             ).model_dump(mode="json"),
         )
 
     # Authorization
     if current_user.user_type == UserType.USER.value:
-        _ensure_owner_or_staff_plus(current_user, str(alumni.user_code) if alumni.user_code else None)
+        _ensure_owner_or_staff_plus(current_user, alumni)
 
     # Look up required data
-    student_record = get_student_record_by_alumni_code(db, alumni_code)
+    student_record = get_student_record_by_alumni_ref_id(db, alumni.id)
     if not student_record:
         raise HTTPException(
             status_code=404,
@@ -121,7 +122,7 @@ def predict_regression(
             ).model_dump(mode="json"),
         )
 
-    alumni_skills = get_alumni_skills_by_alumni_code(db, alumni_code)
+    alumni_skills = get_alumni_skills_by_alumni_ref_id(db, alumni.id)
     if not alumni_skills:
         raise HTTPException(
             status_code=404,
@@ -159,7 +160,7 @@ def predict_regression(
 
     # Persist to database
     prediction = AlumniRegressionPrediction(
-        alumni_code=alumni_code,
+        alumni_ref_id=alumni.id,
         input_data=regression_inputs,
         prediction_result=result_dict,
         predicted_salary=result.predicted_salary_php,
@@ -192,7 +193,9 @@ def get_my_regression_predictions(
     current_user: CurrentUser = Depends(require_authenticated),
 ):
     """Get all regression predictions for the current authenticated alumni."""
-    alumni = get_alumni_by_user_code(db, uuid.UUID(str(current_user.user_code)))
+    if not current_user.id:
+        raise HTTPException(status_code=401, detail="Authenticated user is missing an internal id")
+    alumni = get_alumni_by_user_ref_id(db, current_user.id)
     if not alumni:
         raise HTTPException(
             status_code=404,
@@ -205,12 +208,12 @@ def get_my_regression_predictions(
 
     cache_key = generate_cache_key(
         f"{REGRESSION_CACHE_NAMESPACE}:me",
-        user_code=str(current_user.user_code),
+        user_id=str(current_user.user_id),
         limit=limit,
     )
     return cache_get_or_set(
         cache_key,
-        lambda: _build_regression_list_response(db, alumni.alumni_code, limit),
+        lambda: _build_regression_list_response(db, alumni, limit),
         ttl=REGRESSION_DETAIL_TTL,
     )
 
@@ -239,7 +242,7 @@ def get_regression_prediction(
 
     # Authorization for regular users
     if current_user.user_type == UserType.USER.value:
-        if prediction.alumni_code is None:
+        if prediction.alumni_ref_id is None:
             raise HTTPException(
                 status_code=403,
                 detail=StandardResponse(
@@ -248,7 +251,7 @@ def get_regression_prediction(
                     message="You are not allowed to access this prediction",
                 ).model_dump(mode="json"),
             )
-        alumni = get_active_alumni_by_code(db, prediction.alumni_code)
+        alumni = get_active_alumni_by_ref_id(db, prediction.alumni_ref_id)
         if not alumni:
             raise HTTPException(
                 status_code=404,
@@ -258,7 +261,7 @@ def get_regression_prediction(
                     message="Alumni not found",
                 ).model_dump(mode="json"),
             )
-        _ensure_owner_or_staff_plus(current_user, str(alumni.user_code) if alumni.user_code else None)
+        _ensure_owner_or_staff_plus(current_user, alumni)
 
     cache_key = generate_cache_key(
         f"{REGRESSION_CACHE_NAMESPACE}:detail",
@@ -272,38 +275,38 @@ def get_regression_prediction(
 
 
 # ─────────────────────────────────────────────────────────────────
-# GET  /predict/regression/alumni/{alumni_code}
+# GET  /predict/regression/alumni/{alumni_id}
 # ─────────────────────────────────────────────────────────────────
 
-@router.get("/regression/alumni/{alumni_code}")
+@router.get("/regression/alumni/{alumni_id}")
 def get_alumni_regression_predictions(
-    alumni_code: uuid.UUID,
+    alumni_id: str,
     db: Session = Depends(get_session),
     limit: int = Query(default=10, ge=1, le=50, description="Max results to return"),
     current_user: CurrentUser = Depends(require_authenticated),
 ):
     """Get all regression predictions for a specific alumni."""
+    alumni = get_alumni_by_id(db, alumni_id)
+    if not alumni:
+        raise HTTPException(
+            status_code=404,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.ALUMNI_NOT_FOUND.value,
+                message="Alumni not found",
+            ).model_dump(mode="json"),
+        )
     if current_user.user_type == UserType.USER.value:
-        alumni = get_active_alumni_by_code(db, alumni_code)
-        if not alumni:
-            raise HTTPException(
-                status_code=404,
-                detail=StandardResponse(
-                    success=False,
-                    code=ErrorCode.ALUMNI_NOT_FOUND.value,
-                    message="Alumni not found",
-                ).model_dump(mode="json"),
-            )
-        _ensure_owner_or_staff_plus(current_user, str(alumni.user_code) if alumni.user_code else None)
+        _ensure_owner_or_staff_plus(current_user, alumni)
 
     cache_key = generate_cache_key(
         f"{REGRESSION_CACHE_NAMESPACE}:alumni",
-        alumni_code=str(alumni_code),
+        alumni_id=alumni_id,
         limit=limit,
     )
     return cache_get_or_set(
         cache_key,
-        lambda: _build_regression_list_response(db, alumni_code, limit),
+        lambda: _build_regression_list_response(db, alumni, limit),
         ttl=REGRESSION_ALUMNI_TTL,
     )
 
@@ -336,10 +339,10 @@ def _build_regression_detail_response(
 
 def _build_regression_list_response(
     db: Session,
-    alumni_code: uuid.UUID,
+    alumni,
     limit: int,
 ) -> StandardResponse:
-    predictions = get_regression_predictions_by_alumni(db, alumni_code, limit)
+    predictions = get_regression_predictions_by_alumni(db, alumni.id, limit)
 
     data = [
         AlumniRegressionPredictionRead.model_validate(p).model_dump(mode="json")
@@ -349,6 +352,6 @@ def _build_regression_list_response(
     return StandardResponse(
         success=True,
         code=SuccessCode.REGRESSION_PREDICTIONS_RETRIEVED.value,
-        message=f"Found {len(data)} regression prediction(s) for alumni '{alumni_code}'",
+        message=f"Found {len(data)} regression prediction(s) for alumni '{alumni.alumni_id}'",
         data=data,
     )

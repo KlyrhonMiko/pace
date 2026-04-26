@@ -9,6 +9,7 @@ from models.alumni import Alumni
 from models.student_records import StudentRecord
 from schemas.events import EventCreate, EventUpdate
 from utils.timezone import get_current_time_gmt8, convert_to_gmt8
+from services.queries.audit import stamp_create, stamp_restore, stamp_soft_delete, stamp_update
 from services.queries.event_types_queries import get_event_type_by_name
 from services.queries.transaction_logs_queries import create_transaction_log
 from services.queries.user_activities_queries import create_user_activity, ActivityType
@@ -68,18 +69,19 @@ def create_event(
 ) -> Event:
     event_id = generate_event_id(session)
 
-    # Resolve event_type_code from the provided event_type_name (case-insensitive)
+    # Resolve event_type_ref_id from the provided event_type_name (case-insensitive)
     event_type = get_event_type_by_name(session, data.event_type_name)
     if not event_type:
         raise ValueError(f"EVENT_TYPE_NOT_FOUND: {data.event_type_name}")
 
     event_data = data.model_dump(exclude={"event_type_name"})
     event_data["event_id"] = event_id
-    event_data["event_type_code"] = event_type.event_type_code
+    event_data["event_type_ref_id"] = event_type.id
 
     if event_data.get("date"):
         event_data["date"] = convert_to_gmt8(event_data["date"])
     event = Event(**event_data)
+    stamp_create(event, performed_by)
     session.add(event)
     create_transaction_log(
         session,
@@ -106,7 +108,7 @@ def update_event(
         event_type = get_event_type_by_name(session, update_data.pop("event_type_name"))
         if not event_type:
             raise ValueError("EVENT_TYPE_NOT_FOUND")
-        update_data["event_type_code"] = event_type.event_type_code
+        update_data["event_type_ref_id"] = event_type.id
     else:
         update_data.pop("event_type_name", None)
 
@@ -114,7 +116,7 @@ def update_event(
         if field == "date" and value:
             value = convert_to_gmt8(value)
         setattr(event, field, value)
-    event.updated_at = get_current_time_gmt8()
+    stamp_update(event)
     session.add(event)
     create_transaction_log(
         session,
@@ -133,8 +135,7 @@ def soft_delete_event(
     event: Event,
     performed_by: str | None = None,
 ) -> None:
-    event.is_deleted = True
-    event.deleted_at = get_current_time_gmt8()
+    stamp_soft_delete(event, performed_by)
     session.add(event)
     create_transaction_log(
         session,
@@ -150,8 +151,7 @@ def restore_event(
     event: Event,
     performed_by: str | None = None,
 ) -> Event:
-    event.is_deleted = False
-    event.deleted_at = None
+    stamp_restore(event)
     session.add(event)
     create_transaction_log(
         session,
@@ -172,6 +172,7 @@ def update_event_image(
 ) -> Event:
     before_state = {"image_path": event.image_path}
     event.image_path = image_path
+    stamp_update(event)
     session.add(event)
     create_transaction_log(
         session,
@@ -192,6 +193,7 @@ def clear_event_image(
 ) -> None:
     before_state = {"image_path": event.image_path}
     event.image_path = None
+    stamp_update(event)
     session.add(event)
     create_transaction_log(
         session,
@@ -223,7 +225,7 @@ def get_all_events(
     base_filter = None if include_deleted else (Event.is_deleted == False)
 
     query = select(Event)
-    count_q = select(func.count(Event.event_code))
+    count_q = select(func.count(Event.id))
     if base_filter is not None:
         query = query.where(base_filter)
         count_q = count_q.where(base_filter)
@@ -252,8 +254,8 @@ def get_all_events(
         # event_type filter is now a name string (case-insensitive)
         et = get_event_type_by_name(session, event_type)
         if et:
-            query = query.where(Event.event_type_code == et.event_type_code)
-            count_q = count_q.where(Event.event_type_code == et.event_type_code)
+            query = query.where(Event.event_type_ref_id == et.id)
+            count_q = count_q.where(Event.event_type_ref_id == et.id)
 
     total = session.exec(count_q).one()
 
@@ -283,14 +285,14 @@ def get_all_events(
 def register_user_for_event(
     session: Session,
     event: Event,
-    user_code: str,
+    user_ref_id,
     performed_by: str | None = None,
 ) -> None:
     """Register a user. Raises ValueError on duplicate or full capacity."""
     existing = session.exec(
         select(EventRegistration)
-        .where(EventRegistration.event_code == event.event_code)
-        .where(EventRegistration.user_code == user_code)
+        .where(EventRegistration.event_ref_id == event.id)
+        .where(EventRegistration.user_ref_id == user_ref_id)
         .where(EventRegistration.is_deleted == False)
     ).first()
     if existing:
@@ -299,19 +301,22 @@ def register_user_for_event(
     if event.attendees >= event.capacity:
         raise ValueError("CAPACITY_FULL")
 
-    registration = EventRegistration(event_code=event.event_code, user_code=user_code)
+    registration = EventRegistration(event_ref_id=event.id, user_ref_id=user_ref_id)
+    stamp_create(registration, performed_by or user_ref_id)
     event.attendees += 1
+    stamp_update(event)
     session.add(registration)
     session.add(event)
     create_transaction_log(
         session,
         tl_name=f"REGISTERED user for event {event.event_id}",
-        after={"event_id": event.event_id, "user_code": user_code},
+        after={"event_id": event.event_id, "user_ref_id": str(user_ref_id)},
         performed_by=performed_by,
     )
     create_user_activity(
         session,
-        user_code=user_code,
+        user_ref_id=user_ref_id,
+        actor_ref_id=performed_by or user_ref_id,
         activity_type=ActivityType.REGISTER_FOR_EVENT,
         description=f"Registered for event: {event.event_name}",
         activity_metadata={"event_id": event.event_id}
@@ -322,33 +327,34 @@ def register_user_for_event(
 def unregister_user_from_event(
     session: Session,
     event: Event,
-    user_code: str,
+    user_ref_id,
     performed_by: str | None = None,
 ) -> None:
     """Soft-delete a registration. Raises ValueError if not found."""
     registration = session.exec(
         select(EventRegistration)
-        .where(EventRegistration.event_code == event.event_code)
-        .where(EventRegistration.user_code == user_code)
+        .where(EventRegistration.event_ref_id == event.id)
+        .where(EventRegistration.user_ref_id == user_ref_id)
         .where(EventRegistration.is_deleted == False)
     ).first()
     if not registration:
         raise ValueError("REGISTRATION_NOT_FOUND")
 
-    registration.is_deleted = True
-    registration.deleted_at = get_current_time_gmt8()
+    stamp_soft_delete(registration, performed_by or user_ref_id)
     event.attendees = max(0, event.attendees - 1)
+    stamp_update(event)
     session.add(registration)
     session.add(event)
     create_transaction_log(
         session,
         tl_name=f"UNREGISTERED user from event {event.event_id}",
-        after={"event_id": event.event_id, "user_code": user_code},
+        after={"event_id": event.event_id, "user_ref_id": str(user_ref_id)},
         performed_by=performed_by,
     )
     create_user_activity(
         session,
-        user_code=user_code,
+        user_ref_id=user_ref_id,
+        actor_ref_id=performed_by or user_ref_id,
         activity_type=ActivityType.UNREGISTER_FROM_EVENT,
         description=f"Unregistered from event: {event.event_name}",
         activity_metadata={"event_id": event.event_id}
@@ -361,17 +367,17 @@ def get_event_registrants(
 ) -> tuple[list[EventRegistrantDetails], int]:
     query = (
         select(EventRegistration, Alumni, StudentRecord)
-        .join(Alumni, Alumni.user_code == EventRegistration.user_code, isouter=True)
+        .join(Alumni, Alumni.user_ref_id == EventRegistration.user_ref_id, isouter=True)
         .join(
-            StudentRecord, StudentRecord.alumni_code == Alumni.alumni_code, isouter=True
+            StudentRecord, StudentRecord.alumni_ref_id == Alumni.id, isouter=True
         )
-        .where(EventRegistration.event_code == event.event_code)
+        .where(EventRegistration.event_ref_id == event.id)
         .where(EventRegistration.is_deleted == False)
         .order_by(EventRegistration.registered_at.desc())
     )
     total = session.exec(
-        select(func.count(EventRegistration.registration_code))
-        .where(EventRegistration.event_code == event.event_code)
+        select(func.count(EventRegistration.id))
+        .where(EventRegistration.event_ref_id == event.id)
         .where(EventRegistration.is_deleted == False)
     ).one()
 
@@ -401,16 +407,16 @@ def get_event_registrants(
 
 
 def get_user_registration_status(
-    session: Session, user_code: str, event_codes: list[int]
-) -> set[int]:
-    """Returns a set of event_codes the user is registered for."""
-    if not event_codes:
+    session: Session, user_ref_id, event_ref_ids: list
+) -> set:
+    """Returns a set of event ids the user is registered for."""
+    if not event_ref_ids:
         return set()
 
     registrations = session.exec(
-        select(EventRegistration.event_code)
-        .where(EventRegistration.user_code == user_code)
-        .where(EventRegistration.event_code.in_(event_codes))
+        select(EventRegistration.event_ref_id)
+        .where(EventRegistration.user_ref_id == user_ref_id)
+        .where(EventRegistration.event_ref_id.in_(event_ref_ids))
         .where(EventRegistration.is_deleted == False)
     ).all()
     return set(registrations)
@@ -421,8 +427,8 @@ def get_event_facets(session: Session) -> dict[str, int]:
     from models.event_types import EventType
 
     facet_results = session.exec(
-        select(EventType.event_name, func.count(Event.event_code))
-        .join(EventType, Event.event_type_code == EventType.event_type_code)
+        select(EventType.event_name, func.count(Event.id))
+        .join(EventType, Event.event_type_ref_id == EventType.id)
         .where(Event.is_deleted == False)
         .group_by(EventType.event_name)
     ).all()

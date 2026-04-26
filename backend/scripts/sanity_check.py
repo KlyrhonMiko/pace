@@ -36,7 +36,6 @@ def check_auth_logic():
         test_data = {
             "user_id": "TEST-001",
             "user_type": "ADMIN",
-            "user_code": "test-uuid-123"
         }
         
         # Test token creation

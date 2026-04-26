@@ -1,8 +1,8 @@
 import uuid
-from datetime import datetime, date
+from datetime import date
 from typing import Optional
 from sqlmodel import SQLModel, Field
-from utils.timezone import get_current_time_gmt8
+from models.base import BaseTable
 
 
 class AlumniBase(SQLModel):
@@ -22,13 +22,8 @@ class AlumniBase(SQLModel):
     offers_received: Optional[int] = Field(default=0)
 
 
-class Alumni(AlumniBase, table=True):
+class Alumni(BaseTable, AlumniBase, table=True):
     __tablename__ = "alumni"
 
-    alumni_code: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    user_code: Optional[uuid.UUID] = Field(default=None, foreign_key="users.user_code", ondelete="SET NULL")
-    student_code: Optional[uuid.UUID] = Field(default=None, foreign_key="student_records.student_code", unique=True, ondelete="SET NULL")
-    created_at: datetime = Field(default_factory=get_current_time_gmt8)
-    updated_at: datetime = Field(default_factory=get_current_time_gmt8)
-    is_deleted: bool = Field(default=False)
-    deleted_at: Optional[datetime] = Field(default=None)
+    user_ref_id: Optional[uuid.UUID] = Field(default=None, foreign_key="users.id", ondelete="SET NULL", unique=True)
+    student_ref_id: Optional[uuid.UUID] = Field(default=None, foreign_key="student_records.id", unique=True, ondelete="SET NULL")

@@ -1,8 +1,7 @@
 import uuid
-from datetime import datetime
 from typing import Optional
 from sqlmodel import SQLModel, Field
-from utils.timezone import get_current_time_gmt8
+from models.base import BaseTable
 
 
 class SkillsBase(SQLModel):
@@ -11,15 +10,10 @@ class SkillsBase(SQLModel):
     hard_skills_avg: Optional[float] = None
 
 
-class Skills(SkillsBase, table=True):
+class Skills(BaseTable, SkillsBase, table=True):
     __tablename__ = "skills"
 
-    skill_code: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    alumni_code: Optional[uuid.UUID] = Field(default=None, foreign_key="alumni.alumni_code", ondelete="SET NULL")
-    created_at: datetime = Field(default_factory=get_current_time_gmt8)
-    updated_at: datetime = Field(default_factory=get_current_time_gmt8)
-    is_deleted: bool = Field(default=False)
-    deleted_at: Optional[datetime] = Field(default=None)
+    alumni_ref_id: Optional[uuid.UUID] = Field(default=None, foreign_key="alumni.id", ondelete="SET NULL")
 
 
 class SkillsListBase(SQLModel):
@@ -27,8 +21,7 @@ class SkillsListBase(SQLModel):
     skill_value: Optional[float] = Field(default=None, ge=0, le=100)
 
 
-class SkillsList(SkillsListBase, table=True):
+class SkillsList(BaseTable, SkillsListBase, table=True):
     __tablename__ = "skills_list"
 
-    sl_code: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    skill_code: uuid.UUID = Field(foreign_key="skills.skill_code", ondelete="CASCADE")
+    skill_ref_id: uuid.UUID = Field(foreign_key="skills.id", ondelete="CASCADE")

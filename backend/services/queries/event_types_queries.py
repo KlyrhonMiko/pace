@@ -9,7 +9,7 @@ from sqlmodel import Session, select, func
 from models.event_types import EventType
 from schemas.event_types import EventTypeCreate, EventTypeUpdate
 from models.pagination import PaginationMetadata
-from utils.timezone import get_current_time_gmt8
+from services.queries.audit import stamp_create, stamp_restore, stamp_soft_delete, stamp_update
 from services.queries.transaction_logs_queries import create_transaction_log
 
 
@@ -73,6 +73,7 @@ def create_event_type(
     event_type_dict = data.model_dump()
     event_type_dict["event_type_id"] = event_type_id
     new_event_type = EventType.model_validate(event_type_dict)
+    stamp_create(new_event_type, performed_by)
     session.add(new_event_type)
     create_transaction_log(
         session,
@@ -101,7 +102,7 @@ def update_event_type(
     if data.is_active is not None:
         event_type.is_active = data.is_active
 
-    event_type.updated_at = get_current_time_gmt8()
+    stamp_update(event_type)
     session.add(event_type)
     create_transaction_log(
         session,
@@ -121,8 +122,7 @@ def soft_delete_event_type(
     performed_by: str | None = None,
 ) -> None:
     """Soft-delete an event type (sets is_deleted=True)."""
-    event_type.is_deleted = True
-    event_type.deleted_at = get_current_time_gmt8()
+    stamp_soft_delete(event_type, performed_by)
     session.add(event_type)
     create_transaction_log(
         session,
@@ -139,9 +139,7 @@ def restore_event_type(
     performed_by: str | None = None,
 ) -> EventType:
     """Restore a soft-deleted event type."""
-    event_type.is_deleted = False
-    event_type.deleted_at = None
-    event_type.updated_at = get_current_time_gmt8()
+    stamp_restore(event_type)
     session.add(event_type)
     create_transaction_log(
         session,

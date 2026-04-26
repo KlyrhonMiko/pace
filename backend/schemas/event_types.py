@@ -2,6 +2,7 @@ from typing import Optional
 from sqlmodel import SQLModel, Field
 from pydantic import field_validator, field_serializer
 from datetime import datetime
+from schemas.base import AuditPublicSQLModel
 from utils.timezone import format_datetime_gmt8
 
 
@@ -30,7 +31,7 @@ class EventTypeUpdate(SQLModel):
         return v
 
 
-class EventTypePublic(SQLModel):
+class EventTypePublic(AuditPublicSQLModel):
     event_type_id: str
     event_name: str
     is_active: bool

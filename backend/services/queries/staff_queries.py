@@ -5,9 +5,11 @@ import uuid
 from sqlmodel import Session, select
 from sqlalchemy.exc import IntegrityError
 
+from models.college_dept import CollegeDept
 from models.staff import Staff
 from models.users import User, UserType
 from models.response_codes import ErrorCode, SuccessCode
+from utils.crypto import hash_password_for_storage
 from utils.logging import log_integrity_error
 
 
@@ -63,11 +65,11 @@ def get_staff_by_id(session: Session, staff_id: str) -> Staff | None:
     ).first()
 
 
-def get_staff_by_user_code(session: Session, user_code: str) -> Staff | None:
-    """Retrieve an staff record by the associated user_code."""
+def get_staff_by_user_ref_id(session: Session, user_ref_id: uuid.UUID) -> Staff | None:
+    """Retrieve a staff record by the associated internal user id."""
     return session.exec(
         select(Staff).where(
-            (Staff.user_code == user_code) & (not Staff.is_deleted)
+            (Staff.user_ref_id == user_ref_id) & (not Staff.is_deleted)
         )
     ).first()
 
@@ -80,13 +82,13 @@ def register_complete_staff(
     session: Session,
     username: str,
     email: str,
-    password: str,   # already hashed by schema validator
+    password: str,
     user_type: UserType,
     last_name: str,
     first_name: str,
     middle_name: str | None,
     gender: str,
-    college_dept_code: str | None
+    college_dept_id: str | None
 ) -> tuple[bool, str, str, str | None, str | None]:
     """
     Registers both User and Staff records in an atomic transaction.
@@ -98,12 +100,20 @@ def register_complete_staff(
         if session.exec(select(User).where(User.username == username)).first():
             return False, ErrorCode.USERNAME_ALREADY_EXISTS.value, "Username already exists", None, None
 
+        college_dept = None
+        if college_dept_id:
+            college_dept = session.exec(
+                select(CollegeDept).where(CollegeDept.college_dept_id == college_dept_id.upper())
+            ).first()
+            if not college_dept:
+                return False, ErrorCode.COLLEGE_DEPT_NOT_FOUND.value, "College department not found", None, None
+
         # Create basic Auth User
         new_user = User(
             user_id=generate_user_id(session, user_type),
             username=username,
             email=email,
-            password=password,
+            password=hash_password_for_storage(password),
             user_type=user_type,
         )
         session.add(new_user)
@@ -119,8 +129,8 @@ def register_complete_staff(
             last_name=last_name,
             middle_name=middle_name,
             gender=gender,
-            user_code=new_user.user_code,
-            college_dept_code=uuid.UUID(college_dept_code) if college_dept_code else None
+            user_ref_id=new_user.id,
+            college_dept_ref_id=college_dept.id if college_dept else None,
         )
 
         session.add(new_staff)

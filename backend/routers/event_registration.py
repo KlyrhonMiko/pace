@@ -20,17 +20,17 @@ ALUMNI_ACTIVITY_CACHE_NAMESPACE = "alumni_activity"
 EVENTS_CACHE_NAMESPACE = "events"
 
 
-def _require_user_code(current_user: CurrentUser) -> str:
-    if not current_user.user_code:
+def _require_user_ref_id(current_user: CurrentUser):
+    if not current_user.id:
         raise HTTPException(
             status_code=401,
             detail=StandardResponse(
                 success=False,
                 code=ErrorCode.UNAUTHORIZED,
-                message="Authenticated user is missing a user_code",
+                message="Authenticated user is missing an internal id",
             ).model_dump(),
         )
-    return current_user.user_code
+    return current_user.id
 
 
 @router.post("/{event_id}/register", response_model=StandardResponse)
@@ -47,16 +47,16 @@ async def register_for_event(
                 success=False, code=ErrorCode.EVENT_NOT_FOUND, message="Event not found"
             ).model_dump())
 
-        user_code = _require_user_code(current_user)
+        user_ref_id = _require_user_ref_id(current_user)
         register_user_for_event(
             session,
             event,
-            user_code,
-            performed_by=current_user.user_code,
+            user_ref_id,
+            performed_by=current_user.id,
         )
         # Invalidate stats, activity, and event cache
-        cache_key_stats = generate_cache_key(ALUMNI_STATS_CACHE_NAMESPACE, user_code=str(user_code))
-        cache_key_activity = generate_cache_key(ALUMNI_ACTIVITY_CACHE_NAMESPACE, user_code=str(user_code))
+        cache_key_stats = generate_cache_key(ALUMNI_STATS_CACHE_NAMESPACE, user_id=str(current_user.user_id))
+        cache_key_activity = generate_cache_key(ALUMNI_ACTIVITY_CACHE_NAMESPACE, user_id=str(current_user.user_id))
         cache_delete(cache_key_stats)
         cache_delete(cache_key_activity)
         invalidate_cache_namespaces(EVENTS_CACHE_NAMESPACE)
@@ -103,16 +103,16 @@ async def unregister_from_event(
                 success=False, code=ErrorCode.EVENT_NOT_FOUND, message="Event not found"
             ).model_dump())
 
-        user_code = _require_user_code(current_user)
+        user_ref_id = _require_user_ref_id(current_user)
         unregister_user_from_event(
             session,
             event,
-            user_code,
-            performed_by=current_user.user_code,
+            user_ref_id,
+            performed_by=current_user.id,
         )
         # Invalidate stats, activity, and event cache
-        cache_key_stats = generate_cache_key(ALUMNI_STATS_CACHE_NAMESPACE, user_code=str(user_code))
-        cache_key_activity = generate_cache_key(ALUMNI_ACTIVITY_CACHE_NAMESPACE, user_code=str(user_code))
+        cache_key_stats = generate_cache_key(ALUMNI_STATS_CACHE_NAMESPACE, user_id=str(current_user.user_id))
+        cache_key_activity = generate_cache_key(ALUMNI_ACTIVITY_CACHE_NAMESPACE, user_id=str(current_user.user_id))
         cache_delete(cache_key_stats)
         cache_delete(cache_key_activity)
         invalidate_cache_namespaces(EVENTS_CACHE_NAMESPACE)

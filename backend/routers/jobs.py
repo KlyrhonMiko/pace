@@ -8,7 +8,8 @@ from services.queries.jobs_queries import (
     create_job_listing,
     update_job_listing,
     delete_job_listing,
-    get_job_listing
+    get_job_listing,
+    toggle_job_listing_visibility,
 )
 from models.job_listings import JobListing, JobListingCreate, JobListingUpdate, JobListingRead, JobApplication
 from core.database import get_session
@@ -16,10 +17,17 @@ from core.redis import cache_invalidate_job_searches
 from models.auth import CurrentUser
 from utils.rbac import require_authenticated, require_role
 from models.employers import Employer
+from models.users import User
 from models import Alumni
 from models.response_codes import StandardResponse, SuccessCode
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
+
+
+def _require_current_user_id(current_user: CurrentUser) -> uuid.UUID:
+    if not current_user.id:
+        raise HTTPException(status_code=401, detail="Authenticated user is missing an internal id")
+    return current_user.id
 
 
 @router.get("/recommended")
@@ -50,23 +58,18 @@ async def search_jobs(
     db: Session = Depends(get_session),
     current_user: CurrentUser = Depends(require_authenticated),
     include_inactive: bool = Query(False, description="Include inactive/hidden jobs"),
-    employer_id: Optional[uuid.UUID] = Query(None, description="Filter by employer ID"),
+    employer_ref_id: Optional[uuid.UUID] = Query(None, description="Filter by employer UUID"),
 ):
     """
     Search for job listings in the Philippines using Jooble API merged with local jobs.
     
     Returns a list of jobs matching the search criteria along with total count.
     """
-    if current_user.user_type.upper() == "EMPLOYER" and not employer_id:
-        try:
-            target_user_code = uuid.UUID(current_user.user_code) if isinstance(current_user.user_code, str) else current_user.user_code
-            employer = db.exec(select(Employer).where(Employer.user_code == target_user_code)).first()
-            if employer:
-                employer_id = employer.employer_id
-            else:
-                employer_id = uuid.UUID(int=0)
-        except (ValueError, TypeError):
-            employer_id = uuid.UUID(int=0)
+    if current_user.user_type.upper() == "EMPLOYER" and not employer_ref_id:
+        employer = db.exec(
+            select(Employer).where(Employer.user_ref_id == _require_current_user_id(current_user))
+        ).first()
+        employer_ref_id = employer.id if employer else uuid.UUID(int=0)
 
     result = await fetch_jobs(
         keywords=keywords,
@@ -81,7 +84,7 @@ async def search_jobs(
         background_tasks=background_tasks,
         has_salary=has_salary,
         include_inactive=include_inactive,
-        employer_id=employer_id
+        employer_ref_id=employer_ref_id
     )
     
     return StandardResponse(
@@ -101,12 +104,13 @@ def create_job(
     """
     Create a new job listing. Accessible by admin, staff, faculty, and employers.
     """
-    employer_id = None
+    employer_ref_id = None
     if current_user.user_type == "EMPLOYER":
-        target_user_code = uuid.UUID(current_user.user_code) if isinstance(current_user.user_code, str) else current_user.user_code
-        employer = db.exec(select(Employer).where(Employer.user_code == target_user_code)).first()
+        employer = db.exec(
+            select(Employer).where(Employer.user_ref_id == _require_current_user_id(current_user))
+        ).first()
         if employer:
-            employer_id = employer.employer_id
+            employer_ref_id = employer.id
             # Auto-populate company name from employer profile
             if not job.company:
                 job.company = employer.company_name
@@ -120,14 +124,19 @@ def create_job(
         elif job.salary_max:
             job.raw_salary = f"₱{job.salary_max:,.0f}"
 
-    result = create_job_listing(db=db, job=job, employer_id=employer_id)
+    result = create_job_listing(
+        db=db,
+        job=job,
+        employer_ref_id=employer_ref_id,
+        performed_by=current_user.id,
+    )
     cache_invalidate_job_searches()
     return result
 
 
-@router.patch("/{job_id}", response_model=JobListingRead)
+@router.patch("/{job_listing_id}", response_model=JobListingRead)
 def update_job(
-    job_id: int,
+    job_listing_id: str,
     job_update: JobListingUpdate,
     db: Session = Depends(get_session),
     current_user: CurrentUser = Depends(require_role(["ADMIN", "STAFF", "FACULTY", "EMPLOYER"])),
@@ -135,15 +144,18 @@ def update_job(
     """
     Update an existing job listing.
     """
-    db_job = get_job_listing(db, job_id)
+    db_job = get_job_listing(db, job_listing_id)
     if not db_job:
         raise HTTPException(status_code=404, detail="Job listing not found")
+    if db_job.is_deleted:
+        raise HTTPException(status_code=400, detail="Job listing has been deleted")
 
     # Ownership check for employers
     if current_user.user_type == "EMPLOYER":
-        target_user_code = uuid.UUID(current_user.user_code) if isinstance(current_user.user_code, str) else current_user.user_code
-        employer = db.exec(select(Employer).where(Employer.user_code == target_user_code)).first()
-        if not employer or db_job.employer_id != employer.employer_id:
+        employer = db.exec(
+            select(Employer).where(Employer.user_ref_id == _require_current_user_id(current_user))
+        ).first()
+        if not employer or db_job.employer_ref_id != employer.id:
             raise HTTPException(status_code=403, detail="Not authorized to update this job listing")
 
     # Update raw_salary if min/max are updated and raw_salary isn't explicitly changed
@@ -158,123 +170,135 @@ def update_job(
             elif s_max:
                 job_update.raw_salary = f"₱{s_max:,.0f}"
 
-    updated_job = update_job_listing(db=db, job_id=job_id, job_update=job_update)
+    updated_job = update_job_listing(
+        db=db,
+        job_listing_id=job_listing_id,
+        job_update=job_update,
+        performed_by=current_user.id,
+    )
     cache_invalidate_job_searches()
     return updated_job
 
 
-@router.delete("/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{job_listing_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_job(
-    job_id: int,
+    job_listing_id: str,
     db: Session = Depends(get_session),
     current_user: CurrentUser = Depends(require_role(["ADMIN", "STAFF", "FACULTY", "EMPLOYER"])),
 ):
     """
     Deactivate a job listing (soft delete).
     """
-    db_job = get_job_listing(db, job_id)
+    db_job = get_job_listing(db, job_listing_id)
     if not db_job:
         raise HTTPException(status_code=404, detail="Job listing not found")
+    if db_job.is_deleted:
+        raise HTTPException(status_code=400, detail="Job listing has already been deleted")
 
     # Ownership check for employers
     if current_user.user_type == "EMPLOYER":
-        target_user_code = uuid.UUID(current_user.user_code) if isinstance(current_user.user_code, str) else current_user.user_code
-        employer = db.exec(select(Employer).where(Employer.user_code == target_user_code)).first()
-        if not employer or db_job.employer_id != employer.employer_id:
+        employer = db.exec(
+            select(Employer).where(Employer.user_ref_id == _require_current_user_id(current_user))
+        ).first()
+        if not employer or db_job.employer_ref_id != employer.id:
             raise HTTPException(status_code=403, detail="Not authorized to delete this job listing")
 
-    success = delete_job_listing(db=db, job_id=job_id)
+    delete_job_listing(
+        db=db,
+        job_listing_id=job_listing_id,
+        performed_by=current_user.id,
+    )
     cache_invalidate_job_searches()
     return None
 
 
-@router.patch("/{job_id}/hide", response_model=JobListingRead)
+@router.patch("/{job_listing_id}/hide", response_model=JobListingRead)
 def toggle_hide_job(
-    job_id: int,
+    job_listing_id: str,
     db: Session = Depends(get_session),
     current_user: CurrentUser = Depends(require_role(["ADMIN", "STAFF", "FACULTY", "EMPLOYER"])),
 ):
     """
     Toggle the visibility (is_active) of a job listing for alumni.
     """
-    db_job = get_job_listing(db, job_id)
+    db_job = get_job_listing(db, job_listing_id)
     if not db_job:
         raise HTTPException(status_code=404, detail="Job listing not found")
+    if db_job.is_deleted:
+        raise HTTPException(status_code=400, detail="Job listing has been deleted")
 
     # Ownership check for employers
     if current_user.user_type == "EMPLOYER":
-        target_user_code = uuid.UUID(current_user.user_code) if isinstance(current_user.user_code, str) else current_user.user_code
-        employer = db.exec(select(Employer).where(Employer.user_code == target_user_code)).first()
-        if not employer or db_job.employer_id != employer.employer_id:
+        employer = db.exec(
+            select(Employer).where(Employer.user_ref_id == _require_current_user_id(current_user))
+        ).first()
+        if not employer or db_job.employer_ref_id != employer.id:
             raise HTTPException(status_code=403, detail="Not authorized to modify this job listing")
 
-    db_job.is_active = not db_job.is_active
-    db.add(db_job)
-    db.commit()
-    db.refresh(db_job)
+    db_job = toggle_job_listing_visibility(
+        db,
+        job_listing_id,
+        performed_by=current_user.id,
+    )
     cache_invalidate_job_searches()
     return db_job
 
 
-@router.post("/{job_id}/apply", response_model=StandardResponse)
+@router.post("/{job_listing_id}/apply", response_model=StandardResponse)
 def apply_for_job(
-    job_id: int,
+    job_listing_id: str,
     db: Session = Depends(get_session),
     current_user: CurrentUser = Depends(require_authenticated),
 ):
     """
     Apply for an internal job listing.
     """
-    from services.queries.alumni_queries import get_alumni_by_user_code
-    from services.queries.jobs_queries import create_job_application, get_job_application
+    from services.queries.alumni_queries import get_alumni_by_user_ref_id
+    from services.queries.jobs_queries import create_job_application
 
-    alumni = get_alumni_by_user_code(db, str(current_user.user_code))
+    alumni = get_alumni_by_user_ref_id(db, _require_current_user_id(current_user))
     if not alumni:
         raise HTTPException(status_code=404, detail="Alumni profile not found")
 
     # Check if job exists
-    db_job = get_job_listing(db, job_id)
+    db_job = get_job_listing(db, job_listing_id)
     if not db_job:
         raise HTTPException(status_code=404, detail="Job listing not found")
+    if db_job.is_deleted or not db_job.is_active:
+        raise HTTPException(status_code=400, detail="Job listing is not available")
 
     if db_job.source_api and db_job.source_api != "Internal":
          raise HTTPException(status_code=400, detail="Cannot apply to external jobs through this platform")
 
     # Check if already applied (active application)
     from services.queries.jobs_queries import get_active_job_application
-    existing = get_active_job_application(db, job_id, alumni.alumni_code)
+    existing = get_active_job_application(db, db_job.id, alumni.id)
     if existing:
         return StandardResponse(
             success=True,
             code=SuccessCode.SUCCESS.value,
             message="You have already applied for this job",
-            data={"application_id": existing.id}
+            data={"application_ref_id": existing.id}
         )
 
-    application = create_job_application(db, job_id, alumni.alumni_code)
-    
-    # Log activity
-    from services.queries.user_activities_queries import create_user_activity
+    application = create_job_application(
+        db,
+        db_job,
+        alumni.id,
+        performed_by=current_user.id,
+    )
+
     from core.redis import cache_delete, generate_cache_key
     
-    create_user_activity(
-        session=db,
-        user_code=current_user.user_code,
-        activity_type="JOB_APPLICATION",
-        description=f"Applied for job: {db_job.title} at {db_job.company}",
-        activity_metadata={"job_id": job_id, "application_id": application.id}
-    )
-    db.commit()
-    
     # Invalidate activity cache
-    cache_key_activity = generate_cache_key("alumni_activity", user_code=str(current_user.user_code))
+    cache_key_activity = generate_cache_key("alumni_activity", user_id=str(current_user.user_id))
     cache_delete(cache_key_activity)
 
     return StandardResponse(
         success=True,
         code=SuccessCode.SUCCESS.value,
         message="Application submitted successfully",
-        data={"application_id": application.id}
+        data={"application_ref_id": application.id}
     )
 
 
@@ -286,23 +310,23 @@ def get_my_applications(
     """
     Get all job applications submitted by the current alumni.
     """
-    from services.queries.alumni_queries import get_alumni_by_user_code
+    from services.queries.alumni_queries import get_alumni_by_user_ref_id
     from services.queries.jobs_queries import get_alumni_applications
 
-    alumni = get_alumni_by_user_code(db, str(current_user.user_code))
+    alumni = get_alumni_by_user_ref_id(db, _require_current_user_id(current_user))
     if not alumni:
         raise HTTPException(status_code=404, detail="Alumni profile not found")
 
-    applications = get_alumni_applications(db, alumni.alumni_code)
+    applications = get_alumni_applications(db, alumni.id)
     
     # Enrich with job details
     result = []
     for app in applications:
-        job = get_job_listing(db, app.job_id)
+        job = get_job_listing(db, app.job_listing_ref_id)
         if job:
             result.append({
-                "application_id": app.id,
-                "job_id": app.job_id,
+                "application_ref_id": app.id,
+                "job_listing_id": str(job.id),
                 "job_title": job.title,
                 "company": job.company,
                 "status": app.status,
@@ -317,9 +341,9 @@ def get_my_applications(
     )
 
 
-@router.get("/{job_id}/applicants", response_model=StandardResponse)
+@router.get("/{job_listing_id}/applicants", response_model=StandardResponse)
 def get_job_applicants_route(
-    job_id: int,
+    job_listing_id: str,
     db: Session = Depends(get_session),
     current_user: CurrentUser = Depends(require_authenticated),
 ):
@@ -329,8 +353,10 @@ def get_job_applicants_route(
     from services.queries.jobs_queries import get_job_applicants, get_job_listing
     from services.queries.alumni_queries import get_alumni_by_id_any
 
-    db_job = get_job_listing(db, job_id)
+    db_job = get_job_listing(db, job_listing_id)
     if not db_job:
+        raise HTTPException(status_code=404, detail="Job listing not found")
+    if db_job.is_deleted:
         raise HTTPException(status_code=404, detail="Job listing not found")
 
     # Authorization Check
@@ -338,28 +364,29 @@ def get_job_applicants_route(
     
     is_owner = False
     if current_user.user_type == "EMPLOYER":
-        from services.queries.employers_queries import get_employer_by_user_code
-        target_user_code = uuid.UUID(current_user.user_code) if isinstance(current_user.user_code, str) else current_user.user_code
-        employer = get_employer_by_user_code(db, target_user_code)
-        if employer and db_job.employer_id == employer.employer_id:
+        from services.queries.employers_queries import get_employer_by_user_ref_id
+        employer = get_employer_by_user_ref_id(db, _require_current_user_id(current_user))
+        if employer and db_job.employer_ref_id == employer.id:
             is_owner = True
 
     if not (is_staff_admin or is_owner):
         raise HTTPException(status_code=403, detail="Not authorized to view applicants for this job")
 
-    applications = get_job_applicants(db, job_id)
+    applications = get_job_applicants(db, job_listing_id)
     
     # Enrich with alumni details
     result = []
     for app in applications:
-        alumni = db.exec(select(Alumni).where(Alumni.alumni_code == app.alumni_code)).first()
+        alumni = db.exec(select(Alumni).where(Alumni.id == app.alumni_ref_id)).first()
         if alumni:
+            user = db.exec(select(User).where(User.id == alumni.user_ref_id)).first()
             result.append({
-                "application_id": app.id,
+                "application_ref_id": app.id,
+                "job_listing_id": str(db_job.id),
                 "alumni_id": alumni.alumni_id,
                 "first_name": alumni.first_name,
                 "last_name": alumni.last_name,
-                "email": alumni.user_code, # Should ideally join with User table for email
+                "email": user.email if user else None,
                 "status": app.status,
                 "applied_at": app.applied_at
             })

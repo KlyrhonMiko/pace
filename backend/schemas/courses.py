@@ -2,6 +2,7 @@ from typing import Optional, List
 from sqlmodel import SQLModel, Field
 from pydantic import field_validator, field_serializer, BaseModel
 from datetime import datetime
+from schemas.base import AuditPublicSQLModel
 from utils.timezone import format_datetime_gmt8
 
 
@@ -51,7 +52,7 @@ class CourseUpdate(SQLModel):
         return v
 
 
-class CoursePublic(SQLModel):
+class CoursePublic(AuditPublicSQLModel):
     course_abbv: str
     course_name: str
     course_desc: Optional[str]

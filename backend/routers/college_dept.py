@@ -41,7 +41,7 @@ def batch_create_college_depts_route(
     response = batch_create_college_depts(
         session,
         batch_data.items,
-        performed_by=current_user.user_code,
+        performed_by=current_user.id,
     )
     invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
     return StandardResponse(
@@ -62,7 +62,7 @@ def batch_update_college_depts_route(
     response = batch_update_college_depts(
         session,
         batch_data.items,
-        performed_by=current_user.user_code,
+        performed_by=current_user.id,
     )
     invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
     return StandardResponse(
@@ -83,7 +83,7 @@ def batch_delete_college_depts_route(
     response = batch_delete_college_depts(
         session,
         batch_data.ids,
-        performed_by=current_user.user_code,
+        performed_by=current_user.id,
     )
     invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
     return StandardResponse(
@@ -104,7 +104,7 @@ def batch_restore_college_depts_route(
     response = batch_restore_college_depts(
         session,
         data.ids,
-        performed_by=current_user.user_code,
+        performed_by=current_user.id,
     )
     invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
     return StandardResponse(
@@ -216,7 +216,7 @@ def create_college_dept_route(
         new_dept = create_college_dept(
             session,
             college_dept_data,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
         return StandardResponse(
@@ -279,7 +279,7 @@ def update_college_dept_route(
             session,
             dept,
             college_dept_data,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
         return StandardResponse(
@@ -333,7 +333,7 @@ def delete_college_dept(
         soft_delete_college_dept(
             session,
             dept,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
         return StandardResponse(
@@ -373,7 +373,7 @@ def restore_college_dept_route(
         restore_college_dept(
             session,
             dept,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(COLLEGE_DEPTS_CACHE_NAMESPACE, "courses")
         return StandardResponse(

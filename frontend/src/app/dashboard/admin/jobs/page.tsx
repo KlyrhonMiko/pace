@@ -30,7 +30,7 @@ interface UnifiedJob {
     snippet?: string;
     description?: string;
     isActive: boolean;
-    dbId?: number;
+    dbId?: number | string;
 }
 
 function convertApiJob(job: any, index: number): UnifiedJob {
@@ -176,7 +176,7 @@ export default function AdminJobBoardPage() {
 
     const handleToggleHide = async (job: UnifiedJob) => {
         try {
-            const res = (await hideJob(job.dbId || (job.id as number))) as any;
+            const res = (await hideJob(job.dbId ?? job.id)) as any;
             if (res.error) {
                 toast.error(res.error);
             } else {
@@ -196,7 +196,7 @@ export default function AdminJobBoardPage() {
         if (!jobToDelete) return;
         setIsDeleting(true);
         try {
-            const res = (await deleteJob(jobToDelete.dbId || (jobToDelete.id as number))) as any;
+            const res = (await deleteJob(jobToDelete.dbId ?? jobToDelete.id)) as any;
             if (res.error) {
                 toast.error(res.error);
             } else {

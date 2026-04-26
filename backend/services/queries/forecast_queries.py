@@ -59,7 +59,7 @@ def get_historical_employment_counts(session: Session) -> list[int] | None:
     # Get all employed alumni with their graduation year
     results = session.exec(
         select(StudentRecord.year_graduated)
-        .join(Alumni, Alumni.alumni_code == StudentRecord.alumni_code)
+        .join(Alumni, Alumni.id == StudentRecord.alumni_ref_id)
         .where(
             Alumni.employment_status == "Employed",
             Alumni.is_deleted == False,

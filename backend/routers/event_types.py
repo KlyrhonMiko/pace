@@ -35,7 +35,7 @@ def create_event_type_route(
         event_type = create_event_type(
             session,
             data,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(EVENT_TYPES_CACHE_NAMESPACE, "events")
         return StandardResponse(
@@ -136,7 +136,7 @@ def update_event_type_route(
             session,
             event_type,
             data,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(EVENT_TYPES_CACHE_NAMESPACE, "events")
         return StandardResponse(
@@ -179,7 +179,7 @@ def delete_event_type_route(
             data=None,
         )
 
-    soft_delete_event_type(session, event_type, performed_by=current_user.user_code)
+    soft_delete_event_type(session, event_type, performed_by=current_user.id)
     invalidate_cache_namespaces(EVENT_TYPES_CACHE_NAMESPACE, "events")
     return StandardResponse(
         success=True,
@@ -216,7 +216,7 @@ def restore_event_type_route(
     restored_event_type = restore_event_type(
         session,
         event_type,
-        performed_by=current_user.user_code,
+        performed_by=current_user.id,
     )
     invalidate_cache_namespaces(EVENT_TYPES_CACHE_NAMESPACE, "events")
     return StandardResponse(

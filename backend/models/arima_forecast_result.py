@@ -4,7 +4,8 @@ from typing import Optional, Any
 from sqlmodel import SQLModel, Field, Column
 from sqlalchemy import JSON
 from pydantic import field_serializer
-from utils.timezone import format_datetime_gmt8, get_current_time_gmt8
+from models.base import BaseTable
+from utils.timezone import format_datetime_gmt8
 
 
 # ──────────────────────────────────────────────────────────────
@@ -12,15 +13,14 @@ from utils.timezone import format_datetime_gmt8, get_current_time_gmt8
 # ──────────────────────────────────────────────────────────────
 
 
-class ArimaForecastResult(SQLModel, table=True):
+class ArimaForecastResult(BaseTable, SQLModel, table=True):
     """Persists ARIMA(1,1,1) employment trend forecast results."""
 
     __tablename__ = "arima_forecast_results"
 
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    requested_by: Optional[uuid.UUID] = Field(
+    requested_by_ref_id: Optional[uuid.UUID] = Field(
         default=None,
-        foreign_key="users.user_code",
+        foreign_key="users.id",
         description="User who requested the forecast",
     )
 
@@ -38,8 +38,6 @@ class ArimaForecastResult(SQLModel, table=True):
         description="Number of years forecasted ahead"
     )
 
-    created_at: datetime = Field(default_factory=get_current_time_gmt8)
-
 
 # ──────────────────────────────────────────────────────────────
 # Response schema — for GET endpoints
@@ -50,7 +48,7 @@ class ArimaForecastResultRead(SQLModel):
     """Public read schema returned by GET /predict/forecast/{id}."""
 
     id: uuid.UUID
-    requested_by: Optional[uuid.UUID]
+    requested_by_ref_id: Optional[uuid.UUID]
     forecast_data: Any
     data_source: str
     observations_count: int

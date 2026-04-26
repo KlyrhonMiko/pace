@@ -3,6 +3,8 @@
 
 # google antigravity agents
 .agents/
+**/AGENTS.md
+.codex
 
 # claude code configurations
 /CLAUDE.md

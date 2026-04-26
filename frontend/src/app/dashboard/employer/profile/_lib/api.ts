@@ -1,8 +1,7 @@
 import { apiFetch } from "@/lib/api-client";
 
 export interface EmployerProfile {
-    employer_id: string;
-    user_code: string;
+    id: string;
     user_id: string;
     username: string;
     email: string;

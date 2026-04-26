@@ -17,7 +17,6 @@ export interface StudentDetails {
 }
 
 export interface Alumni {
-    alumni_code: string;
     alumni_id: string;
     last_name: string;
     first_name: string;
@@ -233,7 +232,6 @@ export function useAlumniManagement() {
             const response = await apiFetch<any>("/alumni?limit=100");
             if (response.success && response.data?.alumni) {
                 const transformed = response.data.alumni.map((a: any) => ({
-                    alumni_code: a.alumni_code,
                     alumni_id: a.alumni_id,
                     last_name: a.last_name,
                     first_name: a.first_name,
@@ -447,7 +445,7 @@ export function useAlumniManagement() {
 
             // 1. Refresh Employability Prediction
             try {
-                await apiFetch(`/predict/employability/${editingAlumni.alumni_code}`, {
+                await apiFetch(`/predict/employability/${editingAlumni.alumni_id}`, {
                     method: "POST",
                 });
             } catch (err: unknown) {
@@ -457,7 +455,7 @@ export function useAlumniManagement() {
 
             // 2. Refresh Regression Prediction
             try {
-                await apiFetch(`/predict/regression/${editingAlumni.alumni_code}`, {
+                await apiFetch(`/predict/regression/${editingAlumni.alumni_id}`, {
                     method: "POST",
                 });
             } catch (err: unknown) {

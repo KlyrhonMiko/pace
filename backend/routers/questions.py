@@ -42,7 +42,7 @@ def create_question_route(
                     message=f"Question with this text already exists (ID: {existing.question_id})"
                 ).model_dump(mode='json')
             )
-        question = create_question(session, body, performed_by=current_user.user_code)
+        question = create_question(session, body, performed_by=current_user.id)
         invalidate_cache_namespaces(QUESTIONS_CACHE_NAMESPACE, "surveys")
         return StandardResponse(
             success=True, code=SuccessCode.QUESTION_CREATED.value,
@@ -122,7 +122,7 @@ def update_question_route(
             session,
             question,
             body,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(QUESTIONS_CACHE_NAMESPACE, "surveys")
         return StandardResponse(
@@ -153,7 +153,7 @@ def delete_question_route(
             raise HTTPException(status_code=404, detail=StandardResponse(
                 success=False, code=ErrorCode.QUESTION_NOT_FOUND.value, message="Question not found"
             ).model_dump(mode='json'))
-        soft_delete_question(session, question, performed_by=current_user.user_code)
+        soft_delete_question(session, question, performed_by=current_user.id)
         invalidate_cache_namespaces(QUESTIONS_CACHE_NAMESPACE, "surveys")
         return StandardResponse(
             success=True, code=SuccessCode.QUESTION_DELETED.value,
@@ -185,7 +185,7 @@ def restore_question_route(
         restored = restore_question(
             session,
             question,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(QUESTIONS_CACHE_NAMESPACE, "surveys")
         return StandardResponse(

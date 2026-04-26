@@ -93,7 +93,7 @@ def run_employment_forecast(
 
     # Persist to database
     forecast_record = ArimaForecastResult(
-        requested_by=uuid.UUID(str(current_user.user_code)) if current_user.user_code else None,
+        requested_by_ref_id=current_user.id,
         forecast_data=result,
         data_source=result["data_source"],
         observations_count=result["observations"],

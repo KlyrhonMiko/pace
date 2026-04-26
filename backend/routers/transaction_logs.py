@@ -10,7 +10,7 @@ from utils.rbac import require_admin
 from services.queries.transaction_logs_queries import (
     get_transaction_logs,
     lookup_transaction_log_by_id,
-    get_user_by_uuid,
+    get_user_by_id_ref,
 )
 
 router = APIRouter(prefix="/transaction-logs", tags=["transaction-logs"])
@@ -18,8 +18,8 @@ router = APIRouter(prefix="/transaction-logs", tags=["transaction-logs"])
 
 def _build_transaction_log_payload(session: Session, log: TransactionLog) -> dict:
     performed_by_user_id = None
-    if log.performed_by:
-        user = get_user_by_uuid(session, log.performed_by)
+    if log.performed_by_ref_id:
+        user = get_user_by_id_ref(session, log.performed_by_ref_id)
         if user:
             performed_by_user_id = user.user_id
 

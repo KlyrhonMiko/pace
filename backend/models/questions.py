@@ -1,8 +1,6 @@
-import uuid
-from datetime import datetime
 from typing import Optional
 from sqlmodel import SQLModel, Field, JSON
-from utils.timezone import get_current_time_gmt8
+from models.base import BaseTable
 from schemas.questions import QuestionType
 
 
@@ -18,12 +16,7 @@ class QuestionBase(SQLModel):
     is_required: bool = Field(default=True)
 
 
-class Question(QuestionBase, table=True):
+class Question(BaseTable, QuestionBase, table=True):
     __tablename__ = "questions"
 
-    question_code: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     question_id: str = Field(max_length=20, unique=True, index=True)
-    created_at: datetime = Field(default_factory=get_current_time_gmt8)
-    updated_at: datetime = Field(default_factory=get_current_time_gmt8)
-    is_deleted: bool = Field(default=False)
-    deleted_at: Optional[datetime] = Field(default=None)

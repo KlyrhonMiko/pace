@@ -39,7 +39,7 @@ def batch_create_courses_route(
     response = batch_create_courses(
         session,
         batch_data.items,
-        performed_by=current_user.user_code,
+        performed_by=current_user.id,
     )
     invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
@@ -60,7 +60,7 @@ def batch_update_courses_route(
     response = batch_update_courses(
         session,
         batch_data.items,
-        performed_by=current_user.user_code,
+        performed_by=current_user.id,
     )
     invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
@@ -81,7 +81,7 @@ def batch_delete_courses_route(
     response = batch_delete_courses(
         session,
         batch_data.ids,
-        performed_by=current_user.user_code,
+        performed_by=current_user.id,
     )
     invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
@@ -102,7 +102,7 @@ def batch_restore_courses_route(
     response = batch_restore_courses(
         session,
         data.ids,
-        performed_by=current_user.user_code,
+        performed_by=current_user.id,
     )
     invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
@@ -217,7 +217,7 @@ def create_course_route(
         new_course, college_dept = create_course(
             session,
             course_data,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
@@ -281,7 +281,7 @@ def update_course_route(
             session,
             course,
             course_data,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
@@ -334,7 +334,7 @@ def delete_course(
         ).model_dump(mode='json'))
 
     try:
-        soft_delete_course(session, course, performed_by=current_user.user_code)
+        soft_delete_course(session, course, performed_by=current_user.id)
         invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.COURSE_DELETED.value,
@@ -370,7 +370,7 @@ def restore_course_route(
         ).model_dump(mode='json'))
 
     try:
-        restore_course(session, course, performed_by=current_user.user_code)
+        restore_course(session, course, performed_by=current_user.id)
         invalidate_cache_namespaces(COURSES_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.COURSE_RESTORED.value,
@@ -479,8 +479,8 @@ def _build_course_detail_response(session: Session, course_id: str) -> StandardR
             success=False, code=ErrorCode.COURSE_NOT_FOUND.value, message="Course not found"
         ).model_dump(mode='json'))
 
-    from services.queries.courses_queries import get_college_dept_by_code
-    college_dept = get_college_dept_by_code(session, course.college_dept_code)
+    from services.queries.courses_queries import get_college_dept_by_ref_id
+    college_dept = get_college_dept_by_ref_id(session, course.college_dept_ref_id)
     return StandardResponse(
         success=True, code=SuccessCode.COURSE_RETRIEVED.value,
         message=f"Course {course_id} retrieved successfully",

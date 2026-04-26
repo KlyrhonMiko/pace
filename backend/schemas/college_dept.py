@@ -1,8 +1,8 @@
-import uuid
 from typing import Optional, List
 from sqlmodel import SQLModel, Field
 from pydantic import field_validator, field_serializer, BaseModel
 from datetime import datetime
+from schemas.base import AuditPublicSQLModel
 from utils.timezone import format_datetime_gmt8
 
 
@@ -50,8 +50,7 @@ class CollegeDeptUpdate(SQLModel):
         return v
 
 
-class CollegeDeptPublic(SQLModel):
-    college_dept_code: uuid.UUID
+class CollegeDeptPublic(AuditPublicSQLModel):
     college_dept_id: str
     college_dept_abbv: str
     college_dept_name: str

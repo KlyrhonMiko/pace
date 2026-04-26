@@ -11,7 +11,7 @@ from models.response_codes import ErrorCode, SuccessCode, StandardResponse
 from models.auth import CurrentUser
 from models.users import UserType
 from models.pagination import PaginatedResponse, PaginationMetadata
-from utils.auth import verify_password
+from utils.crypto import verify_password
 from utils.rbac import require_admin, require_self_or_admin
 from utils.logging import log_error, log_integrity_error, log_auth_error
 from services.queries.users_queries import (
@@ -41,7 +41,7 @@ def batch_create_users_route(
     response = batch_create_users(
         session,
         batch_data.items,
-        performed_by=current_user.user_code,
+        performed_by=current_user.id,
     )
     invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
@@ -62,7 +62,7 @@ def batch_update_users_route(
     response = batch_update_users(
         session,
         batch_data.items,
-        performed_by=current_user.user_code,
+        performed_by=current_user.id,
     )
     invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
@@ -83,7 +83,7 @@ def batch_delete_users_route(
     response = batch_delete_users(
         session,
         batch_data.ids,
-        performed_by=current_user.user_code,
+        performed_by=current_user.id,
     )
     invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
@@ -104,7 +104,7 @@ def batch_restore_users_route(
     response = batch_restore_users(
         session,
         data.ids,
-        performed_by=current_user.user_code,
+        performed_by=current_user.id,
     )
     invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
     return StandardResponse(
@@ -220,7 +220,7 @@ def create_user_route(
         new_user = create_user(
             session,
             user_data,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
@@ -305,7 +305,7 @@ async def update_user_route(
             session,
             user,
             user_data,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         data = UserPublic.model_validate(updated)
         print(f"[DEBUG] User {user_id} updated and validated successfully")
@@ -359,7 +359,7 @@ def delete_user(
         ).model_dump(mode='json'))
 
     try:
-        soft_delete_user(session, user, performed_by=current_user.user_code)
+        soft_delete_user(session, user, performed_by=current_user.id)
         invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.USER_DELETED.value,
@@ -394,14 +394,14 @@ def admin_deactivate_user(
             message="User is already deactivated"
         ).model_dump(mode='json'))
 
-    if user.user_code == current_user.user_code:
+    if user.id == current_user.id:
         raise HTTPException(status_code=400, detail=StandardResponse(
             success=False, code=ErrorCode.FORBIDDEN.value,
             message="Cannot deactivate your own account"
         ).model_dump(mode='json'))
 
     try:
-        soft_delete_user(session, user, performed_by=current_user.user_code)
+        soft_delete_user(session, user, performed_by=current_user.id)
         invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
         return StandardResponse(
             success=True, code=SuccessCode.USER_DELETED.value,
@@ -439,7 +439,7 @@ def restore_user_route(
         ).model_dump(mode='json'))
 
     try:
-        restore_user(session, user, performed_by=current_user.user_code)
+        restore_user(session, user, performed_by=current_user.id)
         invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni", "staff")
         return StandardResponse(
             success=True, code=SuccessCode.USER_RESTORED.value,

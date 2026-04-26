@@ -1,12 +1,11 @@
 import uuid
-from datetime import datetime
 from typing import Optional, Any
 from sqlmodel import SQLModel, Field, Column
 from sqlalchemy import JSON
-from utils.timezone import get_current_time_gmt8
+from models.base import BaseTable
 
 
-class AlumniSkills(SQLModel, table=True):
+class AlumniSkills(BaseTable, SQLModel, table=True):
     """
     Stores an alumni's self-reported skill metrics for employability prediction.
 
@@ -17,9 +16,8 @@ class AlumniSkills(SQLModel, table=True):
     """
     __tablename__ = "alumni_skills"
 
-    skill_code: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    alumni_code: uuid.UUID = Field(
-        foreign_key="alumni.alumni_code",
+    alumni_ref_id: uuid.UUID = Field(
+        foreign_key="alumni.id",
         unique=True,  # 1-to-1 relationship with Alumni
         ondelete="CASCADE",
     )
@@ -30,5 +28,3 @@ class AlumniSkills(SQLModel, table=True):
         sa_column=Column(JSON, nullable=True),
     )
     program_skills_average: Optional[float] = Field(default=None)
-    created_at: datetime = Field(default_factory=get_current_time_gmt8)
-    updated_at: datetime = Field(default_factory=get_current_time_gmt8)

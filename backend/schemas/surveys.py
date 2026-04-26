@@ -4,6 +4,7 @@ from typing import Optional, List
 from enum import Enum
 from sqlmodel import SQLModel, Field
 from pydantic import field_serializer, field_validator
+from schemas.base import AuditPublicSQLModel
 from utils.timezone import format_datetime_gmt8
 from schemas.questions import QuestionPublic
 
@@ -52,7 +53,7 @@ class SurveyUpdate(SQLModel):
         return v
 
 
-class SurveyPublic(SQLModel):
+class SurveyPublic(AuditPublicSQLModel):
     survey_id: str
     title: str
     description: Optional[str] = None
@@ -91,8 +92,8 @@ class SurveyQuestionReorderRequest(SQLModel):
 
 
 class SurveyResponseCreate(SQLModel):
-    survey_code: uuid.UUID
-    alumni_code: Optional[uuid.UUID] = None
+    survey_id: str
+    alumni_id: Optional[str] = None
 
 
 class SurveyResponsePublic(SQLModel):
@@ -106,8 +107,8 @@ class SurveyResponsePublic(SQLModel):
         return format_datetime_gmt8(value)
 
 class SurveyAnswerCreate(SQLModel):
-    response_code: uuid.UUID
-    question_code: uuid.UUID
+    response_id: str
+    question_id: str
     answer_text: Optional[str] = Field(default=None, max_length=5000)
     answer_choice: Optional[str] = Field(default=None, max_length=255)
     answer_choices: Optional[str] = None
@@ -125,9 +126,8 @@ class SurveyAnswerCreate(SQLModel):
 
 
 class SurveyAnswerPublic(SQLModel):
-    answer_code: uuid.UUID
-    response_code: uuid.UUID
-    question_code: uuid.UUID
+    response_id: str
+    question_id: str
     answer_text: Optional[str] = None
     answer_choice: Optional[str] = None
     answer_choices: Optional[str] = None
@@ -135,7 +135,6 @@ class SurveyAnswerPublic(SQLModel):
     answer_number: Optional[float] = None
     answer_date: Optional[datetime] = None
     answer_bool: Optional[bool] = None
-    question_id: Optional[str] = None
     question_text: Optional[str] = None
 
 
@@ -228,5 +227,3 @@ class SurveyExportResponse(SQLModel):
     responses: List[
         dict
     ]  # each: {response_id, submitted_at, is_complete, alumni_id?, answers: [...]}
-
-

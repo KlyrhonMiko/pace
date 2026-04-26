@@ -28,7 +28,7 @@ export interface UserFormData {
     password: string;
     // For STAFF/ADMIN creation
     gender: string;
-    college_dept_code: string;
+    college_dept_id: string;
     // For EMPLOYER creation
     company_name: string;
     contact_person_position: string;
@@ -45,7 +45,7 @@ const EMPTY_FORM: UserFormData = {
     username: "",
     password: "",
     gender: "",
-    college_dept_code: "",
+    college_dept_id: "",
     company_name: "",
     contact_person_position: "",
     user_type: "STAFF",
@@ -149,7 +149,7 @@ export function useUserManagement() {
             username: user.username,
             password: "",
             gender: "",
-            college_dept_code: "",
+            college_dept_id: "",
             company_name: "",
             contact_person_position: "",
             user_type: user.user_type,
@@ -224,7 +224,7 @@ export function useUserManagement() {
                 } else {
                     // STAFF or ADMIN
                     body.gender = formData.gender || "PREFER_NOT_TO_SAY";
-                    body.college_dept_code = formData.college_dept_code || null;
+                    body.college_dept_id = formData.college_dept_id || null;
                 }
 
                 const result = await apiFetch<any>(endpoint, {
@@ -256,7 +256,7 @@ export function useUserManagement() {
                 username: editingUser.username,
                 password: "",
                 gender: "",
-                college_dept_code: "",
+                college_dept_id: "",
                 company_name: "",
                 contact_person_position: "",
                 user_type: editingUser.user_type,

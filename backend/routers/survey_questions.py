@@ -59,7 +59,7 @@ def add_question_to_survey_route(
             session,
             survey,
             body,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
@@ -141,7 +141,7 @@ def add_questions_batch_route(
             session,
             survey,
             body,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         result = {
@@ -215,7 +215,7 @@ def remove_question_from_survey_route(
             session,
             survey,
             question_id,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
@@ -284,7 +284,7 @@ def reorder_survey_questions_route(
             session,
             survey,
             body.order_map,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(SURVEYS_CACHE_NAMESPACE)
         return StandardResponse(
@@ -321,7 +321,7 @@ def _build_survey_questions_response(session: Session, survey_id: str) -> Standa
                 message="Survey not found",
             ).model_dump(mode="json"),
         )
-    questions = get_survey_questions_with_details(session, survey.survey_code)
+    questions = get_survey_questions_with_details(session, survey.id)
     return StandardResponse(
         success=True,
         code=SuccessCode.SURVEY_QUESTIONS_RETRIEVED.value,

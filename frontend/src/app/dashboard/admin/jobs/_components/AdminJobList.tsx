@@ -138,9 +138,9 @@ export default function AdminJobList({
                         ) : (
                             filteredJobs.map((job) => {
                                 const isLocal =
+                                    Boolean(job.dbId) ||
                                     !job.link ||
-                                    job.id.toString().startsWith("local") ||
-                                    typeof job.id === "number";
+                                    job.id.toString().startsWith("local");
                                 return (
                                     <tr
                                         key={job.id}

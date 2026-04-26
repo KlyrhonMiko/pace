@@ -1,47 +1,104 @@
 from sqlmodel import Session, select
 from models.employers import Employer
-from schemas.employers import EmployerCreate, EmployerUpdate
+from schemas.employers import EmployerUpdate
 import uuid
+from services.queries.audit import stamp_create, stamp_update
+from services.queries.transaction_logs_queries import create_transaction_log
 
 def create_employer_profile(
     session: Session,
-    user_code: uuid.UUID,
+    user_ref_id: uuid.UUID,
     company_name: str,
     contact_person_first_name: str,
     contact_person_last_name: str,
     contact_person_position: str | None = None,
     company_website: str | None = None,
     company_address: str | None = None,
+    company_contact_number: str | None = None,
+    performed_by: str | uuid.UUID | None = None,
 ) -> Employer:
     """Creates a new employer profile bound to a base User."""
     employer = Employer(
-        user_code=user_code,
+        user_ref_id=user_ref_id,
         company_name=company_name,
         contact_person_first_name=contact_person_first_name,
         contact_person_last_name=contact_person_last_name,
         contact_person_position=contact_person_position,
         company_website=company_website,
         company_address=company_address,
+        company_contact_number=company_contact_number,
     )
+    stamp_create(employer, performed_by)
     session.add(employer)
+    create_transaction_log(
+        session,
+        tl_name=f"CREATED employer profile {company_name}",
+        after=employer,
+        performed_by=performed_by,
+    )
     session.commit()
     session.refresh(employer)
     return employer
 
-def get_employer_by_user_code(session: Session, user_code: uuid.UUID) -> Employer | None:
-    """Fetch an employer profile by user_code."""
+def get_employer_by_user_ref_id(session: Session, user_ref_id: uuid.UUID) -> Employer | None:
+    """Fetch an employer profile by user_ref_id."""
     return session.exec(
-        select(Employer).where(Employer.user_code == user_code)
+        select(Employer).where(
+            (Employer.user_ref_id == user_ref_id) & (Employer.is_deleted == False)
+        )
     ).first()
 
-def update_employer_profile(session: Session, employer: Employer, data: EmployerUpdate) -> Employer:
+def update_employer_profile(
+    session: Session,
+    employer: Employer,
+    data: EmployerUpdate,
+    performed_by: str | uuid.UUID | None = None,
+) -> Employer:
     """Updates an existing employer profile."""
+    before_state = employer.model_dump(mode="json")
     update_data = data.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(employer, key, value)
-    
+
+    stamp_update(employer)
     session.add(employer)
+    create_transaction_log(
+        session,
+        tl_name=f"UPDATED employer profile {employer.company_name}",
+        before=before_state,
+        after=employer,
+        performed_by=performed_by,
+    )
     session.commit()
     session.refresh(employer)
     return employer
 
+
+def update_employer_logo(
+    session: Session,
+    employer: Employer,
+    logo_url: str,
+    public_id: str | None,
+    performed_by: str | uuid.UUID | None = None,
+) -> Employer:
+    before_state = {
+        "company_logo_url": employer.company_logo_url,
+        "company_logo_public_id": employer.company_logo_public_id,
+    }
+    employer.company_logo_url = logo_url
+    employer.company_logo_public_id = public_id
+    stamp_update(employer)
+    session.add(employer)
+    create_transaction_log(
+        session,
+        tl_name=f"UPDATED employer logo {employer.company_name}",
+        before=before_state,
+        after={
+            "company_logo_url": employer.company_logo_url,
+            "company_logo_public_id": employer.company_logo_public_id,
+        },
+        performed_by=performed_by,
+    )
+    session.commit()
+    session.refresh(employer)
+    return employer

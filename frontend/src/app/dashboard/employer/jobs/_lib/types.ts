@@ -15,7 +15,7 @@ export interface UnifiedJob {
     snippet?: string;
     description?: string;
     isActive: boolean;
-    dbId?: number;
+    dbId?: number | string;
     salary_min?: number;
     salary_max?: number;
 }

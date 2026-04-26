@@ -1,5 +1,3 @@
-import uuid
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from sqlalchemy.exc import IntegrityError
@@ -31,19 +29,6 @@ ALUMNI_SKILLS_DETAIL_CACHE_VERSION = "v3"
 
 
 def _resolve_alumni_for_auth(session: Session, alumni_id: str) -> Alumni | None:
-    alumni_code = None
-    try:
-        alumni_code = uuid.UUID(str(alumni_id).strip())
-    except (ValueError, AttributeError, TypeError):
-        alumni_code = None
-
-    if alumni_code is not None:
-        return session.exec(
-            select(Alumni).where(
-                (Alumni.alumni_code == alumni_code) & (Alumni.is_deleted == False)
-            )
-        ).first()
-
     return session.exec(
         select(Alumni).where(
             (Alumni.alumni_id == alumni_id.upper()) & (Alumni.is_deleted == False)
@@ -51,11 +36,11 @@ def _resolve_alumni_for_auth(session: Session, alumni_id: str) -> Alumni | None:
     ).first()
 
 
-def _ensure_alumni_owner_or_staff_plus(current_user: CurrentUser, alumni_user_code: str | None) -> None:
+def _ensure_alumni_owner_or_staff_plus(current_user: CurrentUser, alumni_user_ref_id) -> None:
     if current_user.user_type in {UserType.STAFF.value, UserType.ADMIN.value}:
         return
 
-    if not current_user.user_code or not alumni_user_code or str(current_user.user_code) != str(alumni_user_code):
+    if not current_user.id or not alumni_user_ref_id or current_user.id != alumni_user_ref_id:
         raise HTTPException(
             status_code=403,
             detail=StandardResponse(
@@ -80,7 +65,7 @@ def batch_create_alumni_skills_route(
     response = batch_create_alumni_skills(
         session,
         batch_data.items,
-        performed_by=current_user.user_code,
+        performed_by=current_user.id,
     )
     invalidate_cache_namespaces(ALUMNI_SKILLS_CACHE_NAMESPACE)
     return StandardResponse(
@@ -101,7 +86,7 @@ def batch_update_alumni_skills_route(
     response = batch_update_alumni_skills(
         session,
         batch_data.items,
-        performed_by=current_user.user_code,
+        performed_by=current_user.id,
     )
     invalidate_cache_namespaces(ALUMNI_SKILLS_CACHE_NAMESPACE)
     return StandardResponse(
@@ -133,7 +118,7 @@ def create_alumni_skills_route(
             ).model_dump(mode="json"),
         )
 
-    # _ensure_alumni_owner_or_staff_plus(current_user, str(alumni.user_code) if alumni.user_code else None)
+    # Creation stays admin-driven or explicitly routed through authenticated flows elsewhere.
 
     try:
         skills = create_alumni_skills(
@@ -171,9 +156,9 @@ def create_alumni_skills_route(
     except IntegrityError as e:
         session.rollback()
         error_str = str(e).lower()
-        if "alumni_skills_alumni_code_key" in error_str:
+        if "alumni_skills_alumni_ref_id_key" in error_str:
             code, msg = ErrorCode.ALUMNI_ALREADY_HAS_SKILLS_RECORD.value, "This alumni already has a skills record"
-        elif "alumni_code" in error_str:
+        elif "alumni_ref_id" in error_str:
             code, msg = ErrorCode.ALUMNI_NOT_FOUND.value, "Specified alumni does not exist"
         else:
             code, msg = ErrorCode.INVALID_INPUT.value, "Skills record creation failed"
@@ -193,7 +178,7 @@ def get_alumni_skills_route(
     """Get the skills record for a specific alumni"""
     alumni = _resolve_alumni_for_auth(session, alumni_id)
     if alumni:
-        _ensure_alumni_owner_or_staff_plus(current_user, str(alumni.user_code) if alumni.user_code else None)
+        _ensure_alumni_owner_or_staff_plus(current_user, alumni.user_ref_id)
 
     cache_key = generate_cache_key(
         f"{ALUMNI_SKILLS_CACHE_NAMESPACE}:detail:{ALUMNI_SKILLS_DETAIL_CACHE_VERSION}",
@@ -216,7 +201,7 @@ def update_alumni_skills_route(
     """Update the skills record for a specific alumni"""
     alumni = _resolve_alumni_for_auth(session, alumni_id)
     if alumni:
-        _ensure_alumni_owner_or_staff_plus(current_user, str(alumni.user_code) if alumni.user_code else None)
+        _ensure_alumni_owner_or_staff_plus(current_user, alumni.user_ref_id)
 
     skills = get_alumni_skills_by_alumni_id(session, alumni_id)
     if not skills:
@@ -234,7 +219,7 @@ def update_alumni_skills_route(
             session,
             skills,
             data,
-            performed_by=current_user.user_code,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(ALUMNI_SKILLS_CACHE_NAMESPACE)
         return StandardResponse(
@@ -264,7 +249,7 @@ def delete_alumni_skills_route(
     """Delete (hard delete) the skills record for a specific alumni"""
     alumni = _resolve_alumni_for_auth(session, alumni_id)
     if alumni:
-        _ensure_alumni_owner_or_staff_plus(current_user, str(alumni.user_code) if alumni.user_code else None)
+        _ensure_alumni_owner_or_staff_plus(current_user, alumni.user_ref_id)
 
     skills = get_alumni_skills_by_alumni_id(session, alumni_id)
     if not skills:
@@ -278,7 +263,7 @@ def delete_alumni_skills_route(
             ).model_dump(mode="json"),
         )
     try:
-        delete_alumni_skills(session, skills, performed_by=current_user.user_code)
+        delete_alumni_skills(session, skills, performed_by=current_user.id)
         invalidate_cache_namespaces(ALUMNI_SKILLS_CACHE_NAMESPACE)
         return StandardResponse(
             success=True,

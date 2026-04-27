@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, ApiError } from "@/lib/api-client";
 import { useAuth } from "@/context/AuthContext";
 
 interface LoginFormProps {
@@ -79,7 +79,21 @@ export function LoginForm({ onSuccess, isModal }: LoginFormProps) {
         }
       }
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Login failed. Please check your credentials.";
+      let message = "Login failed. Please try again.";
+      if (error instanceof ApiError) {
+        switch (error.code) {
+          case "INVALID_CREDENTIALS":
+            message = "Incorrect username or password. Please try again.";
+            break;
+          case "ACCOUNT_DEACTIVATED":
+            message = "Your account has been deactivated. Please contact the administrator.";
+            break;
+          default:
+            message = error.message || message;
+        }
+      } else if (error instanceof Error) {
+        message = error.message;
+      }
       toast.error(message);
     } finally {
       setIsLoading(false);

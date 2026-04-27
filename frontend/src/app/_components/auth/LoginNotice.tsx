@@ -7,16 +7,24 @@ import { toast } from "sonner";
 export function LoginNotice() {
   const searchParams = useSearchParams();
   const isExpired = searchParams.get("expired") === "true";
+  const isDeactivated = searchParams.get("deactivated") === "true";
   const hasShownToast = useRef(false);
 
   useEffect(() => {
-    if (isExpired && !hasShownToast.current) {
+    if (hasShownToast.current) return;
+
+    if (isDeactivated) {
+      toast.error("Your account has been deactivated. Please contact the administrator.", {
+        id: "account-deactivated",
+      });
+      hasShownToast.current = true;
+    } else if (isExpired) {
       toast.error("Your session has expired. Please sign in again to continue.", {
-        id: "session-expired", // Prevent duplicate toasts
+        id: "session-expired",
       });
       hasShownToast.current = true;
     }
-  }, [isExpired]);
+  }, [isExpired, isDeactivated]);
 
   return null;
 }

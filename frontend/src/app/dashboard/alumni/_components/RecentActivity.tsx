@@ -59,13 +59,19 @@ export default function RecentActivity() {
             date = new Date(dateStr);
         }
 
-        const now = new Date();
-        const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-
         if (isNaN(date.getTime())) return "Recent";
-        if (diffInHours < 1) return "Just now";
+
+        const now = new Date();
+        const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+        const diffInMinutes = Math.floor(diffInSeconds / 60);
+        const diffInHours = Math.floor(diffInMinutes / 60);
+        const diffInDays = Math.floor(diffInHours / 24);
+
+        if (diffInSeconds < 120) return "Just now";
+        if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
         if (diffInHours < 24) return `${diffInHours}h ago`;
-        if (diffInHours < 48) return "Yesterday";
+        if (diffInDays === 1) return "Yesterday";
+        if (diffInDays < 7) return `${diffInDays}d ago`;
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     };
 

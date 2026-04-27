@@ -1,7 +1,7 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-interface ApiOptions extends RequestInit {
-  body?: unknown;
+interface ApiOptions extends Omit<RequestInit, "body"> {
+  body?: any;
 }
 
 /** Typed error thrown by apiFetch — carries the backend ErrorCode string. */

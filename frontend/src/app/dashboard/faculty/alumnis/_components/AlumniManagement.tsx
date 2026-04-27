@@ -41,13 +41,6 @@ import AlumniFilters from "./AlumniFilters";
 import { DatePicker } from "@/components/ui/date-picker";
 import CsvImportModal from "./CsvImportModal";
 
-function parseDigitSkillValue(raw: string): number | null {
-    const digitsOnly = raw.replace(/\D/g, "");
-    if (!digitsOnly) return null;
-    const parsed = parseInt(digitsOnly, 10);
-    if (Number.isNaN(parsed)) return null;
-    return Math.min(100, parsed);
-}
 
 export default function AlumniManagement() {
     const {
@@ -58,9 +51,8 @@ export default function AlumniManagement() {
         searchQuery,
         filterGender,
         filterCourse,
-        hasSkillsRecord,
+        alumniSkillsForView,
         isSkillsLoading,
-        activeProgramSkills,
         isSaving,
         isDeleting,
         alumniToDelete,
@@ -80,7 +72,6 @@ export default function AlumniManagement() {
         handleDeleteClick,
         confirmDelete,
         toggleExpand,
-        setSkillScore,
         fetchAlumni,
     } = useAlumniManagement();
 
@@ -346,95 +337,103 @@ export default function AlumniManagement() {
                             </div>
                         </div>
 
-                        {/* Alumni Skills */}
+                        {/* Alumni Skills — Read-Only (alumni manages their own scores) */}
                         <div>
                             <div className="flex items-center justify-between mb-3">
                                 <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                    Alumni Skills (Employability Inputs)
+                                    Alumni Skills (View Only)
                                 </h3>
                                 {isSkillsLoading ? (
                                     <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
                                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                         Loading skills...
                                     </span>
-                                ) : hasSkillsRecord ? (
+                                ) : alumniSkillsForView ? (
                                     <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-md">
-                                        Existing skills record
+                                        Skills on record ✓
                                     </span>
                                 ) : (
                                     <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-md">
-                                        No skills record yet
+                                        Alumni hasn&apos;t set skills yet
                                     </span>
                                 )}
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-1.5">
-                                    <label className="text-sm font-medium text-slate-700">Soft Skills Average</label>
-                                    <Input
-                                        type="text"
-                                        inputMode="numeric"
-                                        pattern="[0-9]*"
-                                        placeholder="0 - 100"
-                                        value={formData.soft_skills_ave ?? ""}
-                                        onChange={(e) => {
-                                            const parsed = parseDigitSkillValue(e.target.value);
-                                            setFormData({ ...formData, soft_skills_ave: parsed });
-                                        }}
-                                        className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
-                                    />
-                                </div>
-
-                                <div className="space-y-1.5">
-                                    <label className="text-sm font-medium text-slate-700">Hard Skills Average</label>
-                                    <Input
-                                        type="text"
-                                        inputMode="numeric"
-                                        pattern="[0-9]*"
-                                        placeholder="0 - 100"
-                                        value={formData.hard_skills_ave ?? ""}
-                                        onChange={(e) => {
-                                            const parsed = parseDigitSkillValue(e.target.value);
-                                            setFormData({ ...formData, hard_skills_ave: parsed });
-                                        }}
-                                        className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
-                                    />
-                                </div>
-
-                                <div className="space-y-1.5 md:col-span-2">
-                                    <label className="text-sm font-medium text-slate-700">Program Skills (Course-based)</label>
-                                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 space-y-4">
-                                        {activeProgramSkills.length === 0 ? (
-                                            <p className="text-xs text-slate-500">
-                                                Select a course first to show the relevant skill sliders.
-                                            </p>
-                                        ) : (
-                                            activeProgramSkills.map((skillName) => {
-                                                const value = formData.program_skill_values[skillName] ?? 0;
-                                                return (
-                                                    <div key={skillName} className="space-y-1.5 border border-slate-200 rounded-lg p-3 bg-white">
-                                                        <div className="flex items-center justify-between gap-4">
-                                                            <span className="text-xs font-medium text-slate-700">{skillName}</span>
-                                                            <Input
-                                                                type="text"
-                                                                inputMode="numeric"
-                                                                pattern="[0-9]*"
-                                                                value={value}
-                                                                onChange={(e) => {
-                                                                    const parsed = parseDigitSkillValue(e.target.value);
-                                                                    setSkillScore(skillName, parsed);
-                                                                }}
-                                                                className="h-8 w-24 text-right bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
-                                                            />
-                                                        </div>
-                                                        <p className="text-[11px] text-slate-500">Allowed range: 0-100</p>
+                            {alumniSkillsForView ? (
+                                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 space-y-3">
+                                    {/* General skills */}
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {[
+                                            { label: "Soft Skills Avg", value: alumniSkillsForView.soft_skills_ave },
+                                            { label: "Hard Skills Avg", value: alumniSkillsForView.hard_skills_ave },
+                                        ].map(({ label, value }) => (
+                                            <div key={label} className="space-y-1">
+                                                <p className="text-xs font-medium text-slate-600">{label}</p>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+                                                        <div
+                                                            className="h-full rounded-full bg-emerald-500"
+                                                            style={{ width: `${value ?? 0}%` }}
+                                                        />
                                                     </div>
-                                                );
-                                            })
-                                        )}
+                                                    <span className="text-xs font-bold text-slate-700 tabular-nums w-8 text-right">
+                                                        {value ?? "—"}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
+
+                                    {/* Program skills */}
+                                    {alumniSkillsForView.program_skills &&
+                                        Object.keys(alumniSkillsForView.program_skills).length > 0 && (
+                                            <div className="space-y-1.5 pt-2 border-t border-slate-200">
+                                                <p className="text-xs font-semibold text-slate-500">Program Skills</p>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {Object.entries(alumniSkillsForView.program_skills).map(
+                                                        ([skill, score]) => (
+                                                            <span
+                                                                key={skill}
+                                                                className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 ring-1 ring-slate-200"
+                                                            >
+                                                                {skill}
+                                                                <span className="font-bold text-emerald-700">{score}</span>
+                                                            </span>
+                                                        )
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                    {alumniSkillsForView.updated_at && (
+                                        <p className="text-[11px] text-slate-400 pt-1">
+                                            Last updated by alumni:{" "}
+                                            {(() => {
+                                                const d = new Date(alumniSkillsForView.updated_at);
+                                                if (!isNaN(d.getTime())) {
+                                                    return d.toLocaleDateString("en-PH", {
+                                                        year: "numeric",
+                                                        month: "short",
+                                                        day: "numeric",
+                                                    });
+                                                }
+                                                // Fallback for backend format: "MM/DD/YYYY - HH:MM:SS"
+                                                if (alumniSkillsForView.updated_at.includes(" - ")) {
+                                                    return alumniSkillsForView.updated_at.split(" - ")[0];
+                                                }
+                                                return alumniSkillsForView.updated_at;
+                                            })()}
+                                        </p>
+                                    )}
                                 </div>
-                            </div>
+                            ) : (
+                                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/40 px-4 py-6 text-center">
+                                    <p className="text-xs text-slate-400">
+                                        This alumni has not set their skill scores yet. They can add them
+                                        from their Employability Insights page.
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     </div>
 

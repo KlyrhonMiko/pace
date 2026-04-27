@@ -18,14 +18,16 @@ from schemas.composite import (
     BatchAlumniUpdateItem, BatchAlumniUpdateResult, BatchAlumniUpdateResponse,
     BatchAlumniDeleteResult, BatchAlumniDeleteResponse,
     BatchAlumniRestoreResult, BatchAlumniRestoreResponse,
+    CsvAlumniRow, CsvAlumniRowResult, CsvAlumniImportResponse,
 )
 from models.response_codes import ErrorCode, SuccessCode
-from utils.crypto import hash_password_for_storage
+from utils.crypto import hash_password, hash_password_for_storage, generate_random_username, generate_random_password
 from utils.logging import log_integrity_error
 from utils.timezone import get_current_time_gmt8
 from services.queries.audit import stamp_create, stamp_restore, stamp_soft_delete, stamp_update
 from services.queries.transaction_logs_queries import create_transaction_log
 from datetime import date
+
 
 
 # ---------------------------------------------------------------------------
@@ -770,3 +772,173 @@ def get_alumni_resume(session: Session, alumni_ref_id: uuid.UUID) -> AlumniResum
     return session.exec(
         select(AlumniResume).where(AlumniResume.alumni_ref_id == alumni_ref_id)
     ).first()
+
+
+# ---------------------------------------------------------------------------
+# CSV mass registration
+# ---------------------------------------------------------------------------
+
+def csv_batch_register_alumni(
+    session: Session,
+    rows: list[CsvAlumniRow],
+    performed_by: str | None = None,
+) -> CsvAlumniImportResponse:
+    """
+    Process a list of CSV rows, each creating User + Alumni + StudentRecord atomically.
+    Each row runs in its own savepoint so failures don't abort the batch.
+    Credentials are auto-generated and emailed on success.
+    """
+    from utils.email import send_credentials_email
+
+    results: list[CsvAlumniRowResult] = []
+    successful_count = 0
+    failed_count = 0
+
+    # Pre-load all existing usernames + accumulate within this batch for collision safety
+    existing_usernames: set[str] = set(
+        session.exec(select(User.username)).all()
+    )
+
+    for idx, row in enumerate(rows):
+        row_num = idx + 1
+        try:
+            with session.begin_nested():
+                # Look up course
+                course = session.exec(
+                    select(Course).where(Course.course_abbv == row.course_abbv.upper())
+                ).first()
+                if not course:
+                    raise ValueError(f"Course abbreviation '{row.course_abbv}' not found")
+
+                # Generate credentials
+                temp_password = generate_random_password()
+                username = generate_random_username(row.first_name, row.last_name, existing_usernames)
+                existing_usernames.add(username)
+
+                # Create User
+                user_id = generate_user_id(session)
+                new_user = User(
+                    user_id=user_id,
+                    username=username,
+                    email=row.email,
+                    password=hash_password(temp_password),  # raw hash, no re-validate
+                    user_type=UserType.USER,
+                    force_password_reset=True,
+                )
+                stamp_create(new_user, performed_by)
+                session.add(new_user)
+                session.flush()
+                session.refresh(new_user)
+                if performed_by is None and new_user.created_by is None:
+                    new_user.created_by = new_user.id
+
+                # Create Alumni
+                alumni_id = generate_alumni_id(session)
+                new_alumni = Alumni(
+                    alumni_id=alumni_id,
+                    last_name=row.last_name,
+                    first_name=row.first_name,
+                    middle_name=row.middle_name,
+                    gender=row.gender.upper(),
+                    age=row.age,
+                    birthdate=row.birthdate,
+                    consent_for_survey_ml=False,
+                    user_ref_id=new_user.id,
+                )
+                stamp_create(new_alumni, performed_by or new_user.id)
+                session.add(new_alumni)
+                session.flush()
+                session.refresh(new_alumni)
+
+                # Create StudentRecord
+                new_student = StudentRecord(
+                    student_id=row.student_id,
+                    year_graduated=row.year_graduated,
+                    gwa=row.gwa,
+                    avg_prof_grade=row.avg_prof_grade,
+                    avg_elec_grade=row.avg_elec_grade,
+                    ojt_grade=row.ojt_grade,
+                    leadership_pos=row.leadership_pos,
+                    act_member_pos=row.act_member_pos,
+                    course_ref_id=course.id,
+                    alumni_ref_id=new_alumni.id,
+                )
+                stamp_create(new_student, performed_by or new_user.id)
+                session.add(new_student)
+                # Link student record back to alumni
+                session.flush()
+                session.refresh(new_student)
+                new_alumni.student_ref_id = new_student.id
+                session.add(new_alumni)
+                session.flush()
+
+                results.append(CsvAlumniRowResult(
+                    row=row_num,
+                    success=True,
+                    code=SuccessCode.ALUMNI_CREATED.value,
+                    message="Alumni registered successfully",
+                    email=row.email,
+                    alumni_id=alumni_id,
+                    username=username,
+                ))
+                successful_count += 1
+
+            # Send email outside savepoint (non-critical; failure doesn't rollback the record)
+            email_ok = send_credentials_email(
+                to_email=row.email,
+                full_name=f"{row.first_name} {row.last_name}",
+                username=username,
+                temp_password=temp_password,
+            )
+            if not email_ok:
+                print(f"[CSV IMPORT] Warning: credentials email failed to send for row {row_num} ({row.email})")
+
+        except IntegrityError as e:
+            error_str = str(e).lower()
+            if "ix_users_email" in error_str or "users_email_key" in error_str:
+                code = ErrorCode.DUPLICATE_EMAIL.value
+                msg = f"Email '{row.email}' already registered"
+            elif "ix_users_username" in error_str or "users_username_key" in error_str:
+                code = ErrorCode.DUPLICATE_USERNAME.value
+                msg = f"Generated username conflict for '{row.email}'"
+            elif "student_records_student_id_key" in error_str or "ix_student_records_student_id" in error_str:
+                code = ErrorCode.DUPLICATE_STUDENT_ID.value
+                msg = f"Student ID '{row.student_id}' already exists"
+            else:
+                code = ErrorCode.REGISTRATION_FAILED.value
+                msg = "Registration failed due to a database constraint"
+            log_integrity_error("alumni", "csv_batch_register_alumni", code, msg, str(e))
+            results.append(CsvAlumniRowResult(
+                row=row_num, success=False, code=code, message=msg, email=row.email,
+            ))
+            failed_count += 1
+
+        except ValueError as e:
+            results.append(CsvAlumniRowResult(
+                row=row_num, success=False,
+                code=ErrorCode.INVALID_INPUT.value, message=str(e), email=row.email,
+            ))
+            failed_count += 1
+
+        except Exception as e:
+            results.append(CsvAlumniRowResult(
+                row=row_num, success=False,
+                code=ErrorCode.REGISTRATION_FAILED.value,
+                message=f"Unexpected error: {str(e)}", email=row.email,
+            ))
+            failed_count += 1
+
+    create_transaction_log(
+        session,
+        tl_name="CSV BATCH REGISTERED alumni",
+        after={"successful": successful_count, "failed": failed_count},
+        performed_by=performed_by,
+    )
+    session.commit()
+    return CsvAlumniImportResponse(
+        total=len(rows),
+        successful=successful_count,
+        failed=failed_count,
+        results=results,
+    )
+

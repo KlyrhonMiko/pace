@@ -216,3 +216,49 @@ export async function getPredictionHistory(limit: number = 10): Promise<Predicti
     }
 }
 
+
+// ── Alumni Skills ─────────────────────────────────────────────────────────────
+
+export interface AlumniSkillsRecord {
+    soft_skills_ave: number | null;
+    hard_skills_ave: number | null;
+    program_skills: Record<string, number> | null;
+    program_skills_average: number | null;
+    updated_at: string | null;
+}
+
+interface SkillsPayload {
+    soft_skills_ave?: number;
+    hard_skills_ave?: number;
+    program_skills?: Record<string, number>;
+}
+
+export async function getMySkills(alumniId: string): Promise<AlumniSkillsRecord | null> {
+    try {
+        const json = await apiFetch<any>(`/alumni-skills/${alumniId}`, { cache: "no-store" });
+        if (json.success && json.data) {
+            return {
+                soft_skills_ave: json.data.soft_skills_ave ?? null,
+                hard_skills_ave: json.data.hard_skills_ave ?? null,
+                program_skills: json.data.program_skills ?? null,
+                program_skills_average: json.data.program_skills_average ?? null,
+                updated_at: json.data.updated_at ?? null,
+            };
+        }
+        return null;
+    } catch { return null; }
+}
+
+export async function createMySkills(alumniId: string, payload: SkillsPayload): Promise<boolean> {
+    try {
+        const json = await apiFetch<any>("/alumni-skills", { method: "POST", body: { alumni_id: alumniId, ...payload } });
+        return json.success === true;
+    } catch { return false; }
+}
+
+export async function updateMySkills(alumniId: string, payload: SkillsPayload): Promise<boolean> {
+    try {
+        const json = await apiFetch<any>(`/alumni-skills/${alumniId}`, { method: "PATCH", body: payload });
+        return json.success === true;
+    } catch { return false; }
+}

@@ -50,15 +50,15 @@ export interface AlumniFormData {
     avg_prof_grade: string;
     avg_elec_grade: string;
     ojt_grade: string;
-    // Alumni Skills Fields
-    soft_skills_ave: number | null;
-    hard_skills_ave: number | null;
-    program_skill_values: Record<string, number>;
 }
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-
-// Mock data removed.
+/** Read-only snapshot of an alumni's skill record (for staff view). */
+export interface AlumniSkillsSnapshot {
+    soft_skills_ave: number | null;
+    hard_skills_ave: number | null;
+    program_skills: Record<string, number> | null;
+    updated_at: string | null;
+}
 
 // ─── Default Form ─────────────────────────────────────────────────────────────
 
@@ -79,94 +79,8 @@ const EMPTY_FORM: AlumniFormData = {
     avg_prof_grade: "",
     avg_elec_grade: "",
     ojt_grade: "",
-    soft_skills_ave: null,
-    hard_skills_ave: null,
-    program_skill_values: {},
 };
 
-const IT_CS_SKILLS = [
-    "Python Programming Skills",
-    "Java Programming Skills",
-    "Database Management Skills",
-    "Web Development Skills",
-    "Networking Skills",
-    "Cloud Computing Skills",
-    "Software Engineering Skills",
-    "Data Structures & Algorithms",
-    "Machine Learning Skills",
-    "System Design Skills",
-    "Cybersecurity Skills",
-    "Artificial Intelligence Skills",
-    "Programming Logic Skills",
-];
-
-const BUSINESS_ACCOUNTING_SKILLS = [
-    "Financial Accounting Skills",
-    "Budgeting & Analysis Skills",
-    "Marketing Skills",
-    "Auditing Skills",
-    "Financial Management Skills",
-    "Taxation Skills",
-    "Strategic Planning Skills",
-    "Risk Management Skills",
-    "Innovation & Business Planning Skills",
-    "Consumer Behavior Analysis",
-    "Sales Management Skills",
-    "Leadership & Decision-Making Skills",
-];
-
-const EDUCATION_SKILLS = [
-    "Teaching Skills",
-    "Classroom Management Skills",
-    "Curriculum Development Skills",
-    "Educational Technology Skills",
-    "English Communication & Writing Skills",
-    "Filipino Communication & Writing Skills",
-];
-
-const ALL_PROGRAM_SKILLS = [
-    ...IT_CS_SKILLS,
-    ...BUSINESS_ACCOUNTING_SKILLS,
-    ...EDUCATION_SKILLS,
-];
-
-function resolveProgramSkillsForCourse(course: string): string[] {
-    const normalized = course.trim().toLowerCase();
-
-    if (!normalized) return [];
-
-    if (
-        normalized.includes("bsit") ||
-        normalized.includes("bscs") ||
-        normalized.includes("information technology") ||
-        normalized.includes("computer science")
-    ) {
-        return IT_CS_SKILLS;
-    }
-
-    if (
-        normalized.includes("bsa") ||
-        normalized.includes("bsba") ||
-        normalized.includes("account") ||
-        normalized.includes("business") ||
-        normalized.includes("marketing")
-    ) {
-        return BUSINESS_ACCOUNTING_SKILLS;
-    }
-
-    if (
-        normalized.includes("bsed") ||
-        normalized.includes("education") ||
-        normalized.includes("filipino") ||
-        normalized.includes("english")
-    ) {
-        return EDUCATION_SKILLS;
-    }
-
-    return ALL_PROGRAM_SKILLS;
-}
-
-// ─── Helper ───────────────────────────────────────────────────────────────────
 
 function computeAge(birthdate: string): number {
     if (!birthdate) return 0;
@@ -177,13 +91,6 @@ function computeAge(birthdate: string): number {
     const m = today.getMonth() - dob.getMonth();
     if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
     return Math.max(age, 0);
-}
-
-function normalizeSkillScore(value: number): number {
-    const safe = Number.isFinite(value) ? Math.trunc(value) : 0;
-    if (safe < 0) return 0;
-    if (safe > 100) return 100;
-    return safe;
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -205,12 +112,12 @@ export function useAlumniManagement() {
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
     const [filterGender, setFilterGender] = useState<string>("all");
     const [filterCourse, setFilterCourse] = useState<string>("all");
-    const [hasSkillsRecord, setHasSkillsRecord] = useState(false);
+    // Read-only skills snapshot loaded when staff opens the edit modal
+    const [alumniSkillsForView, setAlumniSkillsForView] = useState<AlumniSkillsSnapshot | null>(null);
     const [isSkillsLoading, setIsSkillsLoading] = useState(false);
 
     // --- Form State ---
     const [formData, setFormData] = useState<AlumniFormData>(EMPTY_FORM);
-    const activeProgramSkills = resolveProgramSkillsForCourse(formData.course);
 
     // --- Fetch Data ---
     const fetchCourses = useCallback(async () => {
@@ -287,7 +194,7 @@ export function useAlumniManagement() {
 
     const openEditModal = async (targetAlumni: Alumni) => {
         setEditingAlumni(targetAlumni);
-        setHasSkillsRecord(false);
+        setAlumniSkillsForView(null);
         setFormData({
             last_name: targetAlumni.last_name,
             first_name: targetAlumni.first_name,
@@ -305,37 +212,32 @@ export function useAlumniManagement() {
             avg_prof_grade: targetAlumni.student?.avg_prof_grade?.toString() || "",
             avg_elec_grade: targetAlumni.student?.avg_elec_grade?.toString() || "",
             ojt_grade: targetAlumni.student?.ojt_grade?.toString() || "",
-            soft_skills_ave: null,
-            hard_skills_ave: null,
-            program_skill_values: {},
         });
         setIsModalOpen(true);
 
+        // Load skills read-only for display
         setIsSkillsLoading(true);
         try {
-            const response = await apiFetch<any>(`/alumni-skills/${targetAlumni.alumni_id}`);
+            const response = await apiFetch<{ success: boolean; data?: {
+                soft_skills_ave?: unknown;
+                hard_skills_ave?: unknown;
+                program_skills?: unknown;
+                updated_at?: unknown;
+            } }>(`/alumni-skills/${targetAlumni.alumni_id}`);
             const skills = response?.data;
             if (response?.success && skills) {
-                setHasSkillsRecord(true);
-                setFormData((prev) => ({
-                    ...prev,
+                setAlumniSkillsForView({
                     soft_skills_ave: typeof skills.soft_skills_ave === "number" ? skills.soft_skills_ave : null,
                     hard_skills_ave: typeof skills.hard_skills_ave === "number" ? skills.hard_skills_ave : null,
-                    program_skill_values:
+                    program_skills:
                         skills.program_skills && typeof skills.program_skills === "object"
-                            ? Object.fromEntries(
-                                Object.entries(skills.program_skills as Record<string, unknown>)
-                                    .filter(([, value]) => Number.isFinite(Number(value)))
-                                    .map(([key, value]) => [key, normalizeSkillScore(Number(value))])
-                            )
-                            : {},
-                }));
+                            ? (skills.program_skills as Record<string, number>)
+                            : null,
+                    updated_at: typeof skills.updated_at === "string" ? skills.updated_at : null,
+                });
             }
-        } catch (err: any) {
-            const message = typeof err === "string" ? err : (err?.message || "");
-            if (!message.toLowerCase().includes("skills record not found")) {
-                toast.error("Failed to load alumni skills.");
-            }
+        } catch {
+            // No skills record yet — silently leave alumniSkillsForView as null
         } finally {
             setIsSkillsLoading(false);
         }
@@ -351,9 +253,6 @@ export function useAlumniManagement() {
         setIsSaving(true);
         try {
             const age = computeAge(formData.birthdate);
-
-            const softSkillsValue = formData.soft_skills_ave;
-            const hardSkillsValue = formData.hard_skills_ave;
 
             // Update Alumni
             await apiFetch(`/alumni/${editingAlumni.alumni_id}`, {
@@ -404,43 +303,8 @@ export function useAlumniManagement() {
                 }
             }
 
-            const skillsPayload: Record<string, unknown> = {};
-            if (softSkillsValue !== null) {
-                skillsPayload.soft_skills_ave = softSkillsValue;
-            }
-            if (hardSkillsValue !== null) {
-                skillsPayload.hard_skills_ave = hardSkillsValue;
-            }
-            const mergedProgramSkills: Record<string, number> = {
-                ...formData.program_skill_values,
-            };
-            for (const skillName of activeProgramSkills) {
-                if (!(skillName in mergedProgramSkills)) {
-                    mergedProgramSkills[skillName] = 0;
-                }
-            }
-            if (Object.keys(mergedProgramSkills).length > 0) {
-                skillsPayload.program_skills = mergedProgramSkills;
-            }
-
-            if (hasSkillsRecord) {
-                if (Object.keys(skillsPayload).length > 0) {
-                    await apiFetch(`/alumni-skills/${editingAlumni.alumni_id}`, {
-                        method: "PATCH",
-                        body: skillsPayload,
-                    });
-                }
-            } else if (Object.keys(skillsPayload).length > 0) {
-                await apiFetch("/alumni-skills", {
-                    method: "POST",
-                    body: {
-                        alumni_id: editingAlumni.alumni_id,
-                        ...skillsPayload,
-                    },
-                });
-                setHasSkillsRecord(true);
-            }
-
+            // Skills are now alumni-owned. Staff-side save only updates alumni + student records.
+            // Attempt prediction re-run using whatever skills the alumni has stored.
             let employabilityError: string | null = null;
             let regressionError: string | null = null;
 
@@ -469,7 +333,15 @@ export function useAlumniManagement() {
                     employabilityError && `Employability: ${employabilityError}`,
                     regressionError && `Regression: ${regressionError}`,
                 ].filter(Boolean);
-                toast.warning(`Alumni record updated, but some predictions failed: ${errors.join(", ")}`);
+                // Skills not linked is expected if alumni hasn't set theirs yet
+                const isSkillsNotLinked = errors.some(
+                    (e) => typeof e === "string" && e.toLowerCase().includes("skills")
+                );
+                if (isSkillsNotLinked) {
+                    toast.warning("Alumni record updated. Prediction skipped — alumni hasn't set their skill scores yet.");
+                } else {
+                    toast.warning(`Alumni record updated, but some predictions failed: ${errors.join(", ")}`);
+                }
             } else {
                 toast.success("Alumni record updated and all predictions refreshed.");
             }
@@ -487,16 +359,6 @@ export function useAlumniManagement() {
     const handleDeleteClick = (alumniId: string) => {
         setAlumniToDelete(alumniId);
     };
-
-    const setSkillScore = useCallback((skillName: string, value: number | null) => {
-        setFormData((prev) => ({
-            ...prev,
-            program_skill_values: {
-                ...prev.program_skill_values,
-                [skillName]: value === null ? 0 : normalizeSkillScore(value),
-            },
-        }));
-    }, []);
 
     const confirmDelete = async () => {
         if (!alumniToDelete) return;
@@ -535,9 +397,8 @@ export function useAlumniManagement() {
         searchQuery,
         filterGender,
         filterCourse,
-        hasSkillsRecord,
+        alumniSkillsForView,
         isSkillsLoading,
-        activeProgramSkills,
         isSaving,
         isDeleting,
         alumniToDelete,
@@ -558,7 +419,6 @@ export function useAlumniManagement() {
         handleDeleteClick,
         confirmDelete,
         toggleExpand,
-        setSkillScore,
         fetchAlumni,
     };
 }

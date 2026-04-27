@@ -7,6 +7,7 @@ from schemas.alumni import AlumniUpdate, AlumniPublic, ResumeSave, ResumeRead
 from schemas.composite import (
     CompleteAlumniRegistration,
     BatchAlumniRegister, BatchAlumniUpdate, BatchAlumniDelete, BatchAlumniRestore,
+    CsvAlumniImport,
 )
 from models.response_codes import ErrorCode, SuccessCode, StandardResponse
 from models.auth import CurrentUser
@@ -20,6 +21,7 @@ from services.queries.alumni_queries import (
     get_all_alumni, build_full_profile,
     batch_register_alumni, batch_update_alumni, batch_delete_alumni, batch_restore_alumni,
     save_alumni_resume, get_alumni_resume,
+    csv_batch_register_alumni,
 )
 
 router = APIRouter(prefix="/alumni", tags=["alumni"])
@@ -122,6 +124,32 @@ def batch_register_alumni_route(
         success=response.failed == 0,
         code=SuccessCode.ALUMNI_BATCH_REGISTERED.value,
         message=f"Batch registration completed: {response.successful} successful, {response.failed} failed",
+        data=response
+    )
+
+
+@router.post("/csv-import")
+def csv_import_alumni_route(
+    data: CsvAlumniImport,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_staff_or_admin),
+):
+    """
+    Staff/admin mass-register alumni from a CSV payload.
+    Creates User + Alumni + StudentRecord per row, auto-generates credentials
+    and emails them to each alumnus.  Each row runs in its own savepoint so
+    a single failure does not abort the entire batch.
+    """
+    response = csv_batch_register_alumni(
+        session,
+        data.rows,
+        performed_by=current_user.id,
+    )
+    invalidate_cache_namespaces(ALUMNI_CACHE_NAMESPACE, "users")
+    return StandardResponse(
+        success=response.failed == 0,
+        code=SuccessCode.ALUMNI_BATCH_REGISTERED.value,
+        message=f"CSV import completed: {response.successful} successful, {response.failed} failed",
         data=response
     )
 

@@ -25,3 +25,5 @@ class User(BaseTable, UserBase, table=True):
     password: str = Field(max_length=255)  # Hashed password
     auth_revoked_after: datetime | None = Field(default=None, nullable=True)
     password_changed_at: datetime | None = Field(default=None, nullable=True)
+    # Set True for auto-generated alumni accounts; cleared after first-login password change
+    force_password_reset: bool = Field(default=False, nullable=False)

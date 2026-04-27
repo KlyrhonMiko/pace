@@ -87,6 +87,7 @@ def build_token_response(session: Session, db_user: User, access_token: str) -> 
         token_type="bearer",
         user_id=db_user.user_id,
         user_type=db_user.user_type.value,
+        force_password_reset=db_user.force_password_reset,
         **_get_profile_fields(session, db_user),
     )
 

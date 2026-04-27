@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, ApiError } from "@/lib/api-client";
 import { useAuth } from "@/context/AuthContext";
 
 interface LoginFormProps {
@@ -39,6 +39,7 @@ export function LoginForm({ onSuccess, isModal }: LoginFormProps) {
           access_token: string;
           user_type: string;
           user_id: string;
+          force_password_reset?: boolean;
         };
       }>("/auth/login", {
         method: "POST",
@@ -53,6 +54,13 @@ export function LoginForm({ onSuccess, isModal }: LoginFormProps) {
           ...response.data,
           access_token: response.data.access_token
         });
+
+        // If account requires a forced first-login password reset, redirect there first
+        if (response.data.force_password_reset) {
+          router.push("/change-password");
+          if (onSuccess) onSuccess();
+          return;
+        }
 
         // Redirect based on user_type
         if (response.data.user_type === "ADMIN") {
@@ -71,7 +79,21 @@ export function LoginForm({ onSuccess, isModal }: LoginFormProps) {
         }
       }
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Login failed. Please check your credentials.";
+      let message = "Login failed. Please try again.";
+      if (error instanceof ApiError) {
+        switch (error.code) {
+          case "INVALID_CREDENTIALS":
+            message = "Incorrect username or password. Please try again.";
+            break;
+          case "ACCOUNT_DEACTIVATED":
+            message = "Your account has been deactivated. Please contact the administrator.";
+            break;
+          default:
+            message = error.message || message;
+        }
+      } else if (error instanceof Error) {
+        message = error.message;
+      }
       toast.error(message);
     } finally {
       setIsLoading(false);
@@ -203,19 +225,18 @@ export function LoginForm({ onSuccess, isModal }: LoginFormProps) {
         </Button>
       </form>
 
-      {/* Divider */}
-      <div className={`relative ${isModalView ? "my-6" : "my-8"}`}>
+      {/* Employer Register Link */}
+      <div className={`relative ${isModalView ? "my-5" : "my-7"}`}>
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-slate-200/80" />
         </div>
         <div className="relative flex justify-center">
           <span className={`px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400 ${isModalView ? "bg-white" : "bg-slate-50 lg:bg-white"}`}>
-            New to P.A.C.E.?
+            Employers & Partners
           </span>
         </div>
       </div>
 
-      {/* Register Link */}
       <Link href="/register" className="block">
         <Button
           type="button"
@@ -224,10 +245,11 @@ export function LoginForm({ onSuccess, isModal }: LoginFormProps) {
             isModalView ? "h-11 text-[14px]" : "h-12 text-[15px]"
           }`}
         >
-          Create an Account
+          Register your Company
           <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-0.5 transition-transform" />
         </Button>
       </Link>
+
     </div>
   );
 }

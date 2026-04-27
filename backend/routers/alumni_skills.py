@@ -105,8 +105,9 @@ def batch_update_alumni_skills_route(
 def create_alumni_skills_route(
     data: AlumniSkillsCreate,
     session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
 ):
-    """Create a skills record for an alumni"""
+    """Create a skills record for an alumni. Alumni may only create their own record."""
     alumni = _resolve_alumni_for_auth(session, data.alumni_id)
     if not alumni:
         raise HTTPException(
@@ -118,13 +119,14 @@ def create_alumni_skills_route(
             ).model_dump(mode="json"),
         )
 
-    # Creation stays admin-driven or explicitly routed through authenticated flows elsewhere.
+    # Alumni can only create their own record; staff/admin can create for anyone.
+    _ensure_alumni_owner_or_staff_plus(current_user, alumni.user_ref_id)
 
     try:
         skills = create_alumni_skills(
             session,
             data,
-            performed_by=None,
+            performed_by=current_user.id,
         )
         invalidate_cache_namespaces(ALUMNI_SKILLS_CACHE_NAMESPACE)
         return StandardResponse(

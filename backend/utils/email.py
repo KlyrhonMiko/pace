@@ -195,3 +195,81 @@ def send_credentials_email(
         print(f"[EMAIL ERROR] Failed to send credentials to {to_email}: {e}")
         return False
 
+def _build_employer_email_html(applicant_name: str, employer_name: str, company_name: str, message: str) -> str:
+    """Build a styled HTML email body for employer-to-applicant communication."""
+    formatted_message = message.replace('\n', '<br>')
+    return f"""
+    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px;">
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 16px; padding: 32px;">
+            <p style="color: #374151; font-size: 15px; margin: 0 0 16px;">
+                Hello <strong>{applicant_name}</strong>,
+            </p>
+            <div style="color: #374151; font-size: 14px; margin: 16px 0; background-color: #ffffff; padding: 16px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                {formatted_message}
+            </div>
+            <p style="color: #374151; font-size: 14px; margin-top: 16px;">
+                Best regards,<br>
+                <strong>{employer_name}</strong><br>
+                <span style="color: #6b7280; font-size: 13px;">{company_name}</span>
+            </p>
+        </div>
+        <div style="text-align: center; margin-top: 24px;">
+            <p style="color: #9ca3af; font-size: 11px;">
+                You received this email because you applied to a job from {company_name} via PACE.
+            </p>
+        </div>
+    </div>
+    """
+
+def send_employer_email(
+    to_email: str,
+    applicant_name: str,
+    employer_name: str,
+    company_name: str,
+    subject: str,
+    message: str,
+) -> bool:
+    """
+    Send an email from an employer to a job applicant.
+
+    Args:
+        to_email: Recipient applicant email address
+        applicant_name: Applicant's name
+        employer_name: Employer contact person name
+        company_name: Employer company name
+        subject: Email subject
+        message: Email body content
+
+    Returns:
+        True if sent successfully, False otherwise
+    """
+    try:
+        service = _get_gmail_service()
+
+        msg = MIMEMultipart("alternative")
+        msg["To"] = to_email
+        msg["From"] = f"{company_name} (via PACE) <{settings.GMAIL_SENDER_EMAIL}>"
+        msg["Reply-To"] = f"<{settings.GMAIL_SENDER_EMAIL}>"
+        msg["Subject"] = subject
+
+        plain_text = (
+            f"Hello {applicant_name},\n\n"
+            f"{message}\n\n"
+            f"Best regards,\n"
+            f"{employer_name}\n"
+            f"{company_name}\n\n"
+            f"You received this email because you applied to a job from {company_name} via PACE."
+        )
+        msg.attach(MIMEText(plain_text, "plain"))
+        msg.attach(MIMEText(_build_employer_email_html(applicant_name, employer_name, company_name, message), "html"))
+
+        raw = base64.urlsafe_b64encode(msg.as_bytes()).decode("utf-8")
+        service.users().messages().send(userId="me", body={"raw": raw}).execute()
+
+        print(f"[EMAIL] Employer email sent to {to_email} from {company_name}")
+        return True
+
+    except Exception as e:
+        print(f"[EMAIL ERROR] Failed to send employer email to {to_email}: {e}")
+        return False
+

@@ -16,9 +16,10 @@ import { LoginNotice } from "./LoginNotice";
 interface LoginModalProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
+    onSwitchToRegister?: (role: "Alumni" | "Employer") => void;
 }
 
-export function LoginModal({ isOpen, onOpenChange }: LoginModalProps) {
+export function LoginModal({ isOpen, onOpenChange, onSwitchToRegister }: LoginModalProps) {
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent
@@ -60,7 +61,12 @@ export function LoginModal({ isOpen, onOpenChange }: LoginModalProps) {
                         </span>
                     </div>
 
-                    <LoginForm isModal onSuccess={() => onOpenChange(false)} />
+                    <LoginForm
+                        isModal
+                        onSuccess={() => onOpenChange(false)}
+                        onRegisterEmployerClick={() => onSwitchToRegister?.("Employer")}
+                        onRegisterAlumniClick={() => onSwitchToRegister?.("Alumni")}
+                    />
                 </div>
             </DialogContent>
         </Dialog>

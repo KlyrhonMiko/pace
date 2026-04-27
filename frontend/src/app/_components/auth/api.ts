@@ -1,4 +1,4 @@
-import { apiFetch } from "../../lib/api-client";
+import { apiFetch } from "@/lib/api-client";
 
 export interface CourseOption {
   course_abbv: string;

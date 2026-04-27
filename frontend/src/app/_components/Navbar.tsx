@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { Button } from "../../components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { LoginModal } from "./auth/LoginModal";
+import { RegisterModal } from "./auth/RegisterModal";
 
 export function Navbar() {
   return (
@@ -19,6 +20,8 @@ function NavbarContent() {
   const { isAuthenticated, logout, getDashboardUrl } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+  const [registerRole, setRegisterRole] = useState<"Alumni" | "Employer">("Alumni");
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -77,11 +80,12 @@ function NavbarContent() {
               >
                 Sign In
               </Button>
-              <Link href="/register">
-                <Button className="bg-emerald-700 hover:bg-emerald-800 text-white shadow-sm shadow-emerald-200">
-                  For Employers
-                </Button>
-              </Link>
+              <Button onClick={() => {
+                setRegisterRole("Employer");
+                setIsRegisterModalOpen(true);
+              }} className="bg-emerald-700 hover:bg-emerald-800 text-white shadow-sm shadow-emerald-200">
+                For Employers
+              </Button>
             </>
           )}
         </div>
@@ -90,6 +94,21 @@ function NavbarContent() {
       <LoginModal
         isOpen={isLoginModalOpen}
         onOpenChange={setIsLoginModalOpen}
+        onSwitchToRegister={(role) => {
+          setIsLoginModalOpen(false);
+          setRegisterRole(role);
+          setIsRegisterModalOpen(true);
+        }}
+      />
+
+      <RegisterModal
+        isOpen={isRegisterModalOpen}
+        onOpenChange={setIsRegisterModalOpen}
+        role={registerRole}
+        onSwitchToLogin={() => {
+          setIsRegisterModalOpen(false);
+          setIsLoginModalOpen(true);
+        }}
       />
     </nav>
   );

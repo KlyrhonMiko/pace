@@ -50,3 +50,7 @@ class EmployerResponse(AuditPublicBaseModel):
     company_logo_public_id: Optional[str] = None
     
     model_config = ConfigDict(from_attributes=True)
+
+class EmployerEmailRequest(BaseModel):
+    subject: str = Field(min_length=1, max_length=255)
+    message: str = Field(min_length=1)

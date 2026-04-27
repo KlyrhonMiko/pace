@@ -22,12 +22,14 @@ import {
     ExternalLink,
     UserCircle2,
     Sparkles,
+    Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api-client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ConfirmationModal } from "@/components/ConfirmationModal";
+import { Input } from "@/components/ui/input";
 
 interface ApplicationDetailsDrawerProps {
     applicationId: string | null;
@@ -59,6 +61,12 @@ export default function ApplicationDetailsDrawer({ applicationId, onClose, onSta
     const [isUpdating, setIsUpdating] = useState(false);
     const [confirmStatus, setConfirmStatus] = useState<"Accepted" | "Rejected" | null>(null);
     const [modalStatus, setModalStatus] = useState<"Accepted" | "Rejected">("Accepted");
+
+    // Email Modal state
+    const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+    const [emailSubject, setEmailSubject] = useState("");
+    const [emailMessage, setEmailMessage] = useState("");
+    const [isSendingEmail, setIsSendingEmail] = useState(false);
 
     useEffect(() => {
         if (confirmStatus) setModalStatus(confirmStatus);
@@ -116,6 +124,33 @@ export default function ApplicationDetailsDrawer({ applicationId, onClose, onSta
         } finally {
             setIsUpdating(false);
             setConfirmStatus(null);
+        }
+    };
+
+    const handleSendEmail = async () => {
+        if (!applicationId || isSendingEmail || !emailSubject.trim() || !emailMessage.trim()) return;
+        setIsSendingEmail(true);
+        try {
+            const result = await apiFetch<any>(`/employers/applications/${applicationId}/email`, {
+                method: "POST",
+                body: JSON.stringify({
+                    subject: emailSubject,
+                    message: emailMessage,
+                })
+            });
+            if (result.success) {
+                toast.success("Email sent successfully!");
+                setIsEmailModalOpen(false);
+                setEmailSubject("");
+                setEmailMessage("");
+            } else {
+                toast.error(result.message || "Failed to send email");
+            }
+        } catch (error: any) {
+            console.error("Error sending email:", error);
+            toast.error(error.message || "An unexpected error occurred");
+        } finally {
+            setIsSendingEmail(false);
         }
     };
 
@@ -326,14 +361,13 @@ export default function ApplicationDetailsDrawer({ applicationId, onClose, onSta
                         {/* Footer */}
                         <div className="p-6 border-t border-slate-100 bg-slate-50/30 flex items-center justify-between gap-3">
                             <Button
-                                asChild
+                                type="button"
                                 variant="ghost"
+                                onClick={() => setIsEmailModalOpen(true)}
                                 className="px-3 py-2.5 h-auto rounded-xl text-sm font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100"
                             >
-                                <a href={`mailto:${alumni?.email}`}>
-                                    <Mail className="mr-1.5 h-4 w-4" />
-                                    Send Email
-                                </a>
+                                <Mail className="mr-1.5 h-4 w-4" />
+                                Send Email
                             </Button>
 
                             <div className="flex items-center gap-2.5">
@@ -384,6 +418,70 @@ export default function ApplicationDetailsDrawer({ applicationId, onClose, onSta
                             isLoading={isUpdating}
                             icon={modalStatus === "Accepted" ? CheckCircle2 : XCircle}
                         />
+
+                        {/* Email Modal */}
+                        <Dialog open={isEmailModalOpen} onOpenChange={(open) => !isSendingEmail && setIsEmailModalOpen(open)}>
+                            <DialogContent className="sm:max-w-md p-6 rounded-2xl">
+                                <DialogHeader>
+                                    <DialogTitle>Send Email to {alumni?.first_name}</DialogTitle>
+                                    <DialogDescription>
+                                        Send a direct message to the applicant. They will receive this via email.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="space-y-4 py-2">
+                                    <div className="space-y-1.5">
+                                        <label htmlFor="subject" className="text-sm font-semibold text-slate-700">
+                                            Subject
+                                        </label>
+                                        <Input
+                                            id="subject"
+                                            value={emailSubject}
+                                            onChange={(e) => setEmailSubject(e.target.value)}
+                                            placeholder="e.g. Interview Invitation"
+                                            disabled={isSendingEmail}
+                                            className="rounded-xl border-slate-200"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label htmlFor="message" className="text-sm font-semibold text-slate-700">
+                                            Message
+                                        </label>
+                                        <textarea
+                                            id="message"
+                                            value={emailMessage}
+                                            onChange={(e) => setEmailMessage(e.target.value)}
+                                            placeholder="Write your message here..."
+                                            disabled={isSendingEmail}
+                                            className="flex min-h-[140px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-50 resize-none custom-scrollbar"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex justify-end gap-2 pt-2">
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        onClick={() => setIsEmailModalOpen(false)}
+                                        disabled={isSendingEmail}
+                                        className="rounded-xl"
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        onClick={handleSendEmail}
+                                        disabled={isSendingEmail || !emailSubject.trim() || !emailMessage.trim()}
+                                        className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white"
+                                    >
+                                        {isSendingEmail ? (
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <Send className="mr-2 h-4 w-4" />
+                                        )}
+                                        Send Message
+                                    </Button>
+                                </div>
+                            </DialogContent>
+                        </Dialog>
                     </>
                 )}
             </DialogContent>

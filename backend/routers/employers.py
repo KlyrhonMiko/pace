@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlmodel import Session, select
 from sqlalchemy.exc import IntegrityError
 from core.database import get_session
-from schemas.employers import EmployerCreate, EmployerResponse, EmployerUpdate
+from schemas.employers import EmployerCreate, EmployerResponse, EmployerUpdate, EmployerEmailRequest
 from models.users import User, UserType
 from models.auth import CurrentUser
 from models.response_codes import ErrorCode, SuccessCode, StandardResponse
@@ -30,6 +30,7 @@ import uuid
 import cloudinary
 import cloudinary.uploader
 from core.config import settings
+from utils.email import send_employer_email
 
 router = APIRouter(prefix="/employers", tags=["employers"])
 
@@ -437,4 +438,63 @@ def update_application_status_route(
         code=SuccessCode.JOB_UPDATED.value,
         message=f"Application status updated to {status}",
         data={"application_ref_id": updated_app.id, "status": updated_app.status}
+    )
+
+@router.post("/applications/{application_ref_id}/email", response_model=StandardResponse)
+def send_email_to_applicant(
+    application_ref_id: str,
+    email_data: EmployerEmailRequest,
+    db: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(get_current_user)
+):
+    """
+    Send an email from the employer to the applicant of a specific job application.
+    """
+    if current_user.user_type != UserType.EMPLOYER.value:
+        raise HTTPException(status_code=403, detail="Only employers can perform this action.")
+    
+    if not current_user.id:
+        raise HTTPException(status_code=401, detail="Authenticated user is missing an internal id.")
+    employer = get_employer_by_user_ref_id(db, current_user.id)
+    if not employer:
+        raise HTTPException(status_code=404, detail="Employer profile not found.")
+
+    application = get_job_application_by_ref_id(db, application_ref_id)
+    if not application:
+        raise HTTPException(status_code=404, detail="Job application not found.")
+        
+    # Verify the application belongs to a job posted by the employer
+    job = get_job_listing(db, application.job_listing_ref_id)
+    if not job or job.employer_ref_id != employer.id:
+         raise HTTPException(status_code=403, detail="Not authorized to perform this action.")
+         
+    alumni = db.exec(select(Alumni).where(Alumni.id == application.alumni_ref_id)).first()
+    if not alumni:
+        raise HTTPException(status_code=404, detail="Alumni profile not found.")
+
+    user = db.exec(select(User).where(User.id == alumni.user_ref_id)).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User account not found.")
+
+    # Send the email
+    employer_name = f"{employer.contact_person_first_name} {employer.contact_person_last_name}"
+    applicant_name = f"{alumni.first_name} {alumni.last_name}"
+    
+    success = send_employer_email(
+        to_email=user.email,
+        applicant_name=applicant_name,
+        employer_name=employer_name,
+        company_name=employer.company_name,
+        subject=email_data.subject,
+        message=email_data.message
+    )
+
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to send email.")
+
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.SUCCESS.value if hasattr(SuccessCode, 'SUCCESS') else 200,
+        message="Email sent successfully",
+        data={}
     )

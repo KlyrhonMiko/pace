@@ -176,3 +176,26 @@ export async function getMyApplications(token?: string): Promise<any[]> {
         return [];
     }
 }
+
+/**
+ * Get a specific job listing by ID
+ */
+export async function getJobListing(jobListingId: string | number, token?: string): Promise<JoobleJob | null> {
+    try {
+        const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+        const requestHeaders: Record<string, string> = { "Content-Type": "application/json" };
+        if (authToken) {
+            requestHeaders["Authorization"] = `Bearer ${authToken}`;
+        }
+
+        const response = await apiFetch<any>(`/jobs/${jobListingId}`, {
+            headers: requestHeaders
+        });
+
+        // Depending on how backend wraps it
+        return response.data || response;
+    } catch (error) {
+        console.error(`Failed to fetch job listing ${jobListingId}:`, error);
+        return null;
+    }
+}

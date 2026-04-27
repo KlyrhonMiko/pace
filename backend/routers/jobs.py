@@ -213,6 +213,7 @@ def delete_job(
     return None
 
 
+
 @router.patch("/{job_listing_id}/hide", response_model=JobListingRead)
 def toggle_hide_job(
     job_listing_id: str,
@@ -340,11 +341,19 @@ def get_my_applications(
     for app in applications:
         job = get_job_listing(db, app.job_listing_ref_id)
         if job:
+            logo = ""
+            # Fetch logo from Employer if it's an internal job
+            if job.employer_ref_id:
+                employer = db.exec(select(Employer).where(Employer.id == job.employer_ref_id)).first()
+                if employer:
+                    logo = employer.company_logo_url
+            
             result.append({
                 "application_ref_id": app.id,
                 "job_listing_id": str(job.id),
                 "job_title": job.title,
                 "company": job.company,
+                "logo": logo,
                 "status": app.status,
                 "applied_at": app.applied_at
             })
@@ -355,6 +364,24 @@ def get_my_applications(
         message="Applications retrieved successfully",
         data=result
     )
+
+
+@router.get("/{job_listing_id}", response_model=JobListingRead)
+def get_job(
+    job_listing_id: str,
+    db: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
+):
+    """
+    Get a specific job listing by ID.
+    """
+    db_job = get_job_listing(db, job_listing_id)
+    if not db_job:
+        raise HTTPException(status_code=404, detail="Job listing not found")
+    if db_job.is_deleted:
+        raise HTTPException(status_code=404, detail="Job listing not found")
+    
+    return db_job
 
 
 @router.get("/{job_listing_id}/applicants", response_model=StandardResponse)

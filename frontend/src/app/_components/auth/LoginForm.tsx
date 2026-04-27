@@ -14,9 +14,11 @@ import { useAuth } from "@/context/AuthContext";
 interface LoginFormProps {
   onSuccess?: () => void;
   isModal?: boolean;
+  onRegisterAlumniClick?: () => void;
+  onRegisterEmployerClick?: () => void;
 }
 
-export function LoginForm({ onSuccess, isModal }: LoginFormProps) {
+export function LoginForm({ onSuccess, isModal, onRegisterAlumniClick, onRegisterEmployerClick }: LoginFormProps) {
   const router = useRouter();
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
@@ -113,16 +115,14 @@ export function LoginForm({ onSuccess, isModal }: LoginFormProps) {
       {/* Header */}
       <div className={isModalView ? "mb-6" : "mb-8"}>
         <h1
-          className={`font-extrabold text-slate-900 tracking-tight leading-tight ${
-            isModalView ? "text-[24px]" : "text-[28px]"
-          }`}
+          className={`font-extrabold text-slate-900 tracking-tight leading-tight ${isModalView ? "text-[24px]" : "text-[28px]"
+            }`}
         >
           Welcome back
         </h1>
         <p
-          className={`text-slate-500 mt-1.5 leading-relaxed ${
-            isModalView ? "text-[14px]" : "text-[15px] mt-2"
-          }`}
+          className={`text-slate-500 mt-1.5 leading-relaxed ${isModalView ? "text-[14px]" : "text-[15px] mt-2"
+            }`}
         >
           Sign in to your account to continue
         </p>
@@ -146,9 +146,8 @@ export function LoginForm({ onSuccess, isModal }: LoginFormProps) {
             <Input
               type="text"
               placeholder="Enter your username"
-              className={`pl-11 bg-white border-slate-200 shadow-sm hover:border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 transition-all rounded-xl text-slate-900 placeholder:text-slate-400 ${
-                isModalView ? "h-11 text-[14px]" : "h-12 text-[15px]"
-              }`}
+              className={`pl-11 bg-white border-slate-200 shadow-sm hover:border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 transition-all rounded-xl text-slate-900 placeholder:text-slate-400 ${isModalView ? "h-11 text-[14px]" : "h-12 text-[15px]"
+                }`}
               value={formData.username}
               onChange={(e) => setFormData({ ...formData, username: e.target.value })}
               onFocus={() => setFocusedField("username")}
@@ -182,9 +181,8 @@ export function LoginForm({ onSuccess, isModal }: LoginFormProps) {
             <Input
               type={showPassword ? "text" : "password"}
               placeholder="Enter your password"
-              className={`pl-11 pr-11 bg-white border-slate-200 shadow-sm hover:border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 transition-all rounded-xl text-slate-900 placeholder:text-slate-400 ${
-                isModalView ? "h-11 text-[14px]" : "h-12 text-[15px]"
-              }`}
+              className={`pl-11 pr-11 bg-white border-slate-200 shadow-sm hover:border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 transition-all rounded-xl text-slate-900 placeholder:text-slate-400 ${isModalView ? "h-11 text-[14px]" : "h-12 text-[15px]"
+                }`}
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               onFocus={() => setFocusedField("password")}
@@ -210,9 +208,8 @@ export function LoginForm({ onSuccess, isModal }: LoginFormProps) {
         <Button
           type="submit"
           disabled={isLoading}
-          className={`w-full bg-gradient-to-r from-emerald-700 to-emerald-600 hover:from-emerald-700 hover:to-emerald-700 active:from-emerald-800 active:to-emerald-700 text-white rounded-xl font-semibold shadow-lg shadow-emerald-700/25 hover:shadow-emerald-700/35 transition-all duration-200 active:scale-[0.98] mt-2 group ${
-            isModalView ? "h-11 text-[14px]" : "h-12 text-[15px]"
-          }`}
+          className={`w-full bg-gradient-to-r from-emerald-700 to-emerald-600 hover:from-emerald-700 hover:to-emerald-700 active:from-emerald-800 active:to-emerald-700 text-white rounded-xl font-semibold shadow-lg shadow-emerald-700/25 hover:shadow-emerald-700/35 transition-all duration-200 active:scale-[0.98] mt-2 group ${isModalView ? "h-11 text-[14px]" : "h-12 text-[15px]"
+            }`}
         >
           {isLoading ? (
             <Loader2 className="w-5 h-5 animate-spin" />
@@ -237,18 +234,18 @@ export function LoginForm({ onSuccess, isModal }: LoginFormProps) {
         </div>
       </div>
 
-      <Link href="/register" className="block">
+      <div className="block">
         <Button
           type="button"
+          onClick={onRegisterEmployerClick}
           variant="outline"
-          className={`w-full rounded-xl font-semibold text-emerald-700 border-emerald-200 bg-white hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-800 transition-all duration-200 group ${
-            isModalView ? "h-11 text-[14px]" : "h-12 text-[15px]"
-          }`}
+          className={`w-full rounded-xl font-semibold text-emerald-700 border-emerald-200 bg-white hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-800 transition-all duration-200 group ${isModalView ? "h-11 text-[14px]" : "h-12 text-[15px]"
+            }`}
         >
           Register your Company
           <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-0.5 transition-transform" />
         </Button>
-      </Link>
+      </div>
 
     </div>
   );

@@ -1,20 +1,17 @@
 "use client";
 
-import { Search, Filter, X, CheckCircle2, Clock, Eye, XCircle, ChevronDown } from "lucide-react";
-import { ApplicationStatus } from "./ApplicationCard";
+import { Search, Filter, X, CheckCircle2, Clock, Eye, XCircle, SlidersHorizontal } from "lucide-react";
+import { ApplicationStatus } from "./ApplicationList";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import FilterSection from "../../jobs/_components/FilterSection";
 
 interface ApplicationFiltersProps {
     searchQuery: string;
     setSearchQuery: (query: string) => void;
     selectedStatus: string;
     setSelectedStatus: (status: string) => void;
-    onClearFilters: () => void;
-    stats: {
-        total: number;
-        pending: number;
-        accepted: number;
-        rejected: number;
-    };
+    onClearFilters?: () => void;
 }
 
 export default function ApplicationFilters({
@@ -22,111 +19,86 @@ export default function ApplicationFilters({
     setSearchQuery,
     selectedStatus,
     setSelectedStatus,
-    onClearFilters,
-    stats,
 }: ApplicationFiltersProps) {
     const statuses = [
-        { id: "All", label: "All Statuses", icon: Filter, color: "text-gray-400", bg: "bg-gray-50" },
-        { id: "Pending", label: "Under Review", icon: Clock, color: "text-amber-500", bg: "bg-amber-50" },
-        { id: "Reviewed", label: "Reviewed", icon: Eye, color: "text-blue-500", bg: "bg-blue-50" },
-        { id: "Accepted", label: "Accepted", icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-50" },
-        { id: "Rejected", label: "Rejected", icon: XCircle, color: "text-rose-500", bg: "bg-rose-50" },
+        { id: "All", label: "All Statuses", icon: Filter },
+        { id: "Pending", label: "Under Review", icon: Clock },
+        { id: "Reviewed", label: "Reviewed", icon: Eye },
+        { id: "Accepted", label: "Accepted", icon: CheckCircle2 },
+        { id: "Rejected", label: "Rejected", icon: XCircle },
     ];
 
-    const hasActiveFilters = searchQuery !== "" || selectedStatus !== "All";
-
     return (
-        <div className="space-y-6">
-            {/* Search Card */}
-            <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-md">
-                <div className="flex items-center gap-2 mb-4">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
-                        <Search className="h-4 w-4" />
-                    </div>
-                    <h3 className="text-sm font-semibold text-gray-900">Search</h3>
-                </div>
-
-                <div className="relative group">
-                    <input
-                        type="text"
-                        placeholder="Search job or company..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full rounded-xl border border-gray-200 bg-gray-50/50 py-2.5 pl-3 pr-10 text-sm transition-all focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none"
-                    />
-                    {searchQuery ? (
-                        <button
-                            onClick={() => setSearchQuery("")}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                        >
-                            <X className="h-4 w-4" />
-                        </button>
-                    ) : (
-                        <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300 group-focus-within:text-emerald-400 transition-colors" />
-                    )}
-                </div>
-            </div>
-
-            {/* Status Filter Card */}
-            <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-md">
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
-                            <Filter className="h-4 w-4" />
+        <div className="group/card rounded-2xl bg-white border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50 hover:-translate-y-0.5 h-fit">
+            <div className="px-6 pt-6 pb-2">
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 text-white shadow-lg shadow-emerald-500/20">
+                            <SlidersHorizontal className="h-5 w-5" />
                         </div>
-                        <h3 className="text-sm font-semibold text-gray-900">Status</h3>
+                        <div>
+                            <h2 className="text-base font-bold text-gray-900">
+                                Filters
+                            </h2>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                                Refine your applications
+                            </p>
+                        </div>
                     </div>
-                    {hasActiveFilters && (
-                        <button
-                            onClick={onClearFilters}
-                            className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 hover:text-emerald-800 transition-colors"
-                        >
-                            Clear
-                        </button>
-                    )}
                 </div>
 
-                <div className="space-y-1.5">
-                    {statuses.map((status) => {
-                        const isActive = selectedStatus === status.id;
-                        const Icon = status.icon;
-
-                        return (
+                <div className="space-y-1">
+                    {/* Search Bar */}
+                    <div className="relative mb-4">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <Input
+                            type="text"
+                            placeholder="Search applications..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-10 h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20 shadow-none border"
+                        />
+                        {searchQuery && (
                             <button
-                                key={status.id}
-                                onClick={() => setSelectedStatus(status.id)}
-                                className={`
-                                    group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm transition-all
-                                    ${isActive
-                                        ? "bg-emerald-700 text-white shadow-md shadow-emerald-700/20"
-                                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"}
-                                `}
+                                onClick={() => setSearchQuery("")}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                             >
-                                <div className="flex items-center gap-2.5">
-                                    <div className={`
-                                        flex h-7 w-7 items-center justify-center rounded-lg transition-colors
-                                        ${isActive ? "bg-white/20 text-white" : `${status.bg} ${status.color} group-hover:bg-white`}
-                                    `}>
-                                        <Icon className="h-3.5 w-3.5" />
-                                    </div>
-                                    <span className="font-medium">{status.label}</span>
-                                </div>
-                                {isActive && <ChevronDown className="h-3.5 w-3.5 rotate-[-90deg]" />}
+                                <X className="h-4 w-4" />
                             </button>
-                        );
-                    })}
-                </div>
-            </div>
+                        )}
+                    </div>
 
-            {/* Application Tips / Helper Card */}
-            <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-5 shadow-sm">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-800 mb-2">Pro Tip</h4>
-                <p className="text-xs text-emerald-700 leading-relaxed">
-                    Personalized resumes increase your chances of being reviewed by up to <strong>40%</strong>. Make sure your profile is 100% complete!
-                </p>
-                <div className="mt-4 flex items-center gap-2 text-[11px] font-bold text-emerald-800 group cursor-pointer">
-                    <span>Complete Profile</span>
-                    <ChevronDown className="h-3 w-3 rotate-[-90deg] transition-transform group-hover:translate-x-1" strokeWidth={3} />
+                    {/* Status Filter */}
+                    <FilterSection
+                        title="Status"
+                        count={selectedStatus !== "All" ? 1 : undefined}
+                    >
+                        <div className="space-y-1">
+                            {statuses.map((status) => {
+                                const isActive = selectedStatus === status.id;
+                                const Icon = status.icon;
+
+                                return (
+                                    <label
+                                        key={status.id}
+                                        className="flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors hover:bg-slate-50 group/row"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <Checkbox
+                                                checked={isActive}
+                                                onCheckedChange={() => setSelectedStatus(status.id)}
+                                                className="border-slate-300 data-[state=checked]:bg-emerald-700 data-[state=checked]:border-emerald-700"
+                                            />
+                                            <Icon className={`h-4 w-4 transition-colors ${isActive ? "text-emerald-600" : "text-slate-400 group-hover/row:text-slate-600"}`} />
+                                            <span className={`text-sm transition-colors ${isActive ? "text-emerald-900 font-semibold" : "text-slate-700 font-medium"}`}>
+                                                {status.label}
+                                            </span>
+                                        </div>
+                                    </label>
+                                );
+                            })}
+                        </div>
+                    </FilterSection>
                 </div>
             </div>
         </div>

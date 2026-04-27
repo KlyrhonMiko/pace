@@ -182,3 +182,60 @@ class BatchAlumniRestoreResponse(BaseModel):
     successful: int
     failed: int
     results: List[BatchAlumniRestoreResult]
+
+
+# ── CSV Mass Registration ───────────────────────────────────────────────────
+
+class CsvAlumniRow(BaseModel):
+    """One row from a staff-uploaded CSV for mass alumni registration."""
+    # Required: delivery address for credentials email
+    email: str
+
+    # Student record — ALL fields required
+    student_id: str
+    year_graduated: int
+    gwa: float
+    avg_prof_grade: float
+    avg_elec_grade: float
+    ojt_grade: float
+    leadership_pos: bool
+    act_member_pos: bool
+    course_abbv: str
+
+    # Alumni record — only middle_name is optional
+    last_name: str
+    first_name: str
+    middle_name: Optional[str] = None
+    age: int
+    gender: str
+    birthdate: date
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        email_pattern = r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$"
+        if not re.match(email_pattern, v):
+            raise ValueError("Invalid email format")
+        return v.lower()
+
+
+class CsvAlumniImport(BaseModel):
+    rows: List[CsvAlumniRow] = Field(..., min_length=1, max_length=2000)
+
+
+class CsvAlumniRowResult(BaseModel):
+    row: int
+    success: bool
+    code: str
+    message: str
+    email: Optional[str] = None
+    alumni_id: Optional[str] = None
+    username: Optional[str] = None  # only populated on success
+
+
+class CsvAlumniImportResponse(BaseModel):
+    total: int
+    successful: int
+    failed: int
+    results: List[CsvAlumniRowResult]
+

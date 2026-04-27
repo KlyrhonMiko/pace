@@ -79,7 +79,7 @@ function NavbarContent() {
               </Button>
               <Link href="/register">
                 <Button className="bg-emerald-700 hover:bg-emerald-800 text-white shadow-sm shadow-emerald-200">
-                  Get Started
+                  For Employers
                 </Button>
               </Link>
             </>

@@ -101,3 +101,97 @@ def send_otp_email(to_email: str, otp_code: str) -> bool:
     except Exception as e:
         print(f"[EMAIL ERROR] Failed to send OTP to {to_email}: {e}")
         return False
+
+
+def _build_credentials_html(full_name: str, username: str, temp_password: str) -> str:
+    """Build a styled HTML email body for auto-generated alumni credentials."""
+    return f"""
+    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px;">
+        <div style="text-align: center; margin-bottom: 24px;">
+            <h1 style="color: #064e3b; font-size: 22px; margin: 0;">PACE</h1>
+            <p style="color: #6b7280; font-size: 13px; margin-top: 4px;">
+                Pamantasan ng Lungsod ng Pasig
+            </p>
+        </div>
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 16px; padding: 32px;">
+            <p style="color: #374151; font-size: 15px; margin: 0 0 8px;">
+                Hello, <strong>{full_name}</strong>!
+            </p>
+            <p style="color: #374151; font-size: 14px; margin: 12px 0;">
+                Your PACE Alumni Portal account has been created by the registrar. Below are your login credentials:
+            </p>
+            <table style="width:100%; border-collapse:collapse; margin: 16px 0;">
+                <tr>
+                    <td style="padding: 8px 12px; background:#065f46; color:#fff; border-radius:8px 0 0 0; font-size:13px; font-weight:600;">Username</td>
+                    <td style="padding: 8px 12px; background:#ecfdf5; color:#065f46; border-radius:0 8px 0 0; font-size:14px; font-weight:700; letter-spacing:1px;">{username}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 12px; background:#064e3b; color:#fff; border-radius:0 0 0 8px; font-size:13px; font-weight:600;">Temporary Password</td>
+                    <td style="padding: 8px 12px; background:#d1fae5; color:#065f46; border-radius:0 0 8px 0; font-size:14px; font-weight:700; letter-spacing:2px;">{temp_password}</td>
+                </tr>
+            </table>
+            <div style="background:#fff3cd; border:1px solid #ffc107; border-radius:8px; padding:12px 16px; margin-top:16px;">
+                <p style="color:#856404; font-size:13px; margin:0;">
+                    <strong>⚠ Important:</strong> You are required to change both your username and password upon your first login.
+                    These credentials are for one-time use only.
+                </p>
+            </div>
+        </div>
+        <p style="color: #9ca3af; font-size: 11px; text-align: center; margin-top: 24px;">
+            If you did not expect this email, please contact your department registrar.
+        </p>
+    </div>
+    """
+
+
+def send_credentials_email(
+    to_email: str,
+    full_name: str,
+    username: str,
+    temp_password: str,
+) -> bool:
+    """
+    Send auto-generated login credentials to a newly registered alumni.
+
+    Args:
+        to_email: Recipient email address
+        full_name: Alumni full name (for greeting)
+        username: Auto-generated username
+        temp_password: Auto-generated plaintext temporary password
+
+    Returns:
+        True if sent successfully, False otherwise
+    """
+    try:
+        service = _get_gmail_service()
+
+        message = MIMEMultipart("alternative")
+        message["To"] = to_email
+        message["From"] = f"PACE Alumni System <{settings.GMAIL_SENDER_EMAIL}>"
+        message["Subject"] = "Your PACE Alumni Portal Account Credentials"
+
+        plain_text = (
+            f"Hello {full_name},\n\n"
+            f"Your PACE Alumni Portal account has been created.\n\n"
+            f"Username: {username}\n"
+            f"Temporary Password: {temp_password}\n\n"
+            f"IMPORTANT: You must change both your username and password upon first login.\n"
+            f"These are one-time credentials.\n\n"
+            f"If you did not expect this email, please contact your department registrar."
+        )
+        message.attach(MIMEText(plain_text, "plain"))
+        message.attach(MIMEText(_build_credentials_html(full_name, username, temp_password), "html"))
+
+        raw = base64.urlsafe_b64encode(message.as_bytes()).decode("utf-8")
+        service.users().messages().send(userId="me", body={"raw": raw}).execute()
+
+        print(f"[EMAIL] Credentials sent to {to_email}")
+        return True
+
+    except HttpError as e:
+        print(f"[EMAIL ERROR] Gmail API error sending credentials: {e}")
+        return False
+    except Exception as e:
+        print(f"[EMAIL ERROR] Failed to send credentials to {to_email}: {e}")
+        return False
+

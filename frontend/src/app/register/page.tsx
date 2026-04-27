@@ -649,23 +649,10 @@ export default function RegisterPage() {
                         {role === null ? (
                             <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500 py-8">
                                 <div className="text-center">
-                                    <h2 className="text-3xl font-bold text-slate-900">Create an Account</h2>
-                                    <p className="text-slate-500 mt-2">Please select your account type to proceed</p>
+                                    <h2 className="text-3xl font-bold text-slate-900">Employer / Partner Registration</h2>
+                                    <p className="text-slate-500 mt-2">Register your company to post jobs and connect with PLP alumni</p>
                                 </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
-                                    <button
-                                        type="button"
-                                        onClick={() => setRole("Alumni")}
-                                        className="flex flex-col items-center justify-center gap-4 p-8 rounded-2xl border-2 border-slate-100 hover:border-emerald-500 hover:bg-emerald-50 transition-all group focus:outline-none focus:ring-4 focus:ring-emerald-500/20"
-                                    >
-                                        <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                                            <GraduationCap className="w-8 h-8" />
-                                        </div>
-                                        <div className="text-center">
-                                            <h3 className="font-bold text-slate-900">Alumni / Student</h3>
-                                            <span className="text-xs text-slate-500 mt-1 block">Graduates and current students</span>
-                                        </div>
-                                    </button>
+                                <div className="grid grid-cols-1 gap-4 mt-6">
                                     <button
                                         type="button"
                                         onClick={() => setRole("Employer")}
@@ -676,7 +663,7 @@ export default function RegisterPage() {
                                         </div>
                                         <div className="text-center">
                                             <h3 className="font-bold text-slate-900">Employer / Partner</h3>
-                                            <span className="text-xs text-slate-500 mt-1 block">Companies looking to hire</span>
+                                            <span className="text-xs text-slate-500 mt-1 block">Companies looking to hire PLP graduates</span>
                                         </div>
                                     </button>
                                 </div>

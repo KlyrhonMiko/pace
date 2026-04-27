@@ -19,6 +19,7 @@ class TokenResponse(SQLModel):
     last_name: Optional[str] = None
     company_name: Optional[str] = None
     company_logo_url: Optional[str] = None
+    force_password_reset: bool = False
 
 
 class CurrentUser(SQLModel):

@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 
 import {
     Plus,
@@ -15,6 +15,7 @@ import {
     User,
     Briefcase,
     UserCog,
+    Upload,
 } from "lucide-react";
 import { ConfirmationModal } from "@/components/ConfirmationModal";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ import { useAlumniManagement } from "./useAlumniManagement";
 import AlumniList from "./AlumniList";
 import AlumniFilters from "./AlumniFilters";
 import { DatePicker } from "@/components/ui/date-picker";
+import CsvImportModal from "./CsvImportModal";
 
 function parseDigitSkillValue(raw: string): number | null {
     const digitsOnly = raw.replace(/\D/g, "");
@@ -82,10 +84,23 @@ export default function AlumniManagement() {
         fetchAlumni,
     } = useAlumniManagement();
 
+    const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
+
     return (
         <div className="relative grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
             {/* Left Column: Alumni List */}
             <div className="lg:col-span-2">
+                {/* Import CSV Button */}
+                <div className="flex justify-end mb-3">
+                    <button
+                        id="csv-import-btn"
+                        onClick={() => setIsCsvModalOpen(true)}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-200 transition-all"
+                    >
+                        <Upload className="h-4 w-4" />
+                        Import CSV
+                    </button>
+                </div>
                 <AlumniList
                     alumni={alumni}
                     isLoading={isLoading}
@@ -465,6 +480,12 @@ export default function AlumniManagement() {
                 confirmText="Delete Record"
                 variant="danger"
                 isLoading={isDeleting}
+            />
+
+            <CsvImportModal
+                open={isCsvModalOpen}
+                onOpenChange={setIsCsvModalOpen}
+                onImportComplete={fetchAlumni}
             />
         </div>
     );

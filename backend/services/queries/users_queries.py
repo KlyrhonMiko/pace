@@ -155,6 +155,7 @@ def update_user(
         now = get_current_time_utc()
         user.password_changed_at = now
         user.auth_revoked_after = now
+        user.force_password_reset = False  # First-login forced reset satisfied
     stamp_update(user)
     session.add(user)
     create_transaction_log(

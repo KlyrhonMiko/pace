@@ -1,11 +1,12 @@
 from sqlmodel import create_engine, Session, SQLModel
 from .config import settings
 
+from sqlalchemy.pool import NullPool
+
 engine = create_engine(
     settings.DATABASE_URL,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20
+    poolclass=NullPool,
+    pool_pre_ping=True
 )
 
 def init_db():

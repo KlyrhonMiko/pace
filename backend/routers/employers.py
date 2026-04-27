@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlmodel import Session, select
 from sqlalchemy.exc import IntegrityError
 from core.database import get_session
-from schemas.employers import EmployerCreate, EmployerResponse, EmployerUpdate, EmployerEmailRequest
+from schemas.employers import EmployerCreate, EmployerResponse, EmployerUpdate, EmployerEmailRequest, ApplicationScheduleRequest
 from models.users import User, UserType
 from models.auth import CurrentUser
 from models.response_codes import ErrorCode, SuccessCode, StandardResponse
@@ -318,8 +318,11 @@ def get_my_applications_route(
                 "status": app.status,
                 "date": app.applied_at.strftime("%b %d, %Y"),
                 "email": user.email, # Use the real email from User table
-                "matchScore": match_score
+                "matchScore": match_score,
+                "interview_date": app.interview_date.isoformat() if app.interview_date else None,
+                "interview_link": app.interview_link
             })
+
 
     return StandardResponse(
         success=True,
@@ -370,12 +373,16 @@ def get_application_details_route(
     # Get resume
     alumni_resume = get_alumni_resume(db, alumni.id)
 
+    from utils.timezone import convert_to_gmt8
+
     result_data = {
         "application": {
             "id": str(application.id),
             "status": application.status,
-            "applied_at": application.applied_at.isoformat() if application.applied_at else None,
+            "applied_at": convert_to_gmt8(application.applied_at).isoformat() if application.applied_at else None,
             "resume_file_url": application.resume_file_url,
+            "interview_date": convert_to_gmt8(application.interview_date).isoformat() if application.interview_date else None,
+            "interview_link": application.interview_link,
         },
         "job": {
             "id": job.id,
@@ -422,7 +429,7 @@ def update_application_status_route(
     if not job or job.employer_ref_id != employer.id:
          raise HTTPException(status_code=403, detail="Not authorized to update this application.")
          
-    valid_statuses = ["Pending", "Reviewed", "Accepted", "Rejected"]
+    valid_statuses = ["Pending", "Reviewed", "Interview", "Accepted", "Rejected"]
     if status not in valid_statuses:
          raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of {valid_statuses}")
          
@@ -432,11 +439,72 @@ def update_application_status_route(
         status,
         performed_by=current_user.id,
     )
+
+    if status in ["Accepted", "Rejected"]:
+        from models.alumni import Alumni
+        from schemas.notifications import NotificationCreate
+        from services.queries.notifications_queries import create_notification
+        alumni = db.exec(select(Alumni).where(Alumni.id == updated_app.alumni_ref_id)).first()
+        if alumni:
+            action = "approved" if status == "Accepted" else "rejected"
+            title = f"Application {status}"
+            msg = f"Your application for {job.title} at {employer.company_name} has been {action}."
+            link = "/applications"
+            notif_data = NotificationCreate(
+                title=title,
+                message=msg,
+                link=link,
+                user_ref_id=alumni.user_ref_id
+            )
+            create_notification(db, notif_data, performed_by=current_user.id)
     
     return StandardResponse(
         success=True,
         code=SuccessCode.JOB_UPDATED.value,
         message=f"Application status updated to {status}",
+        data={"application_ref_id": updated_app.id, "status": updated_app.status}
+    )
+
+@router.patch("/applications/{application_ref_id}/schedule", response_model=StandardResponse)
+def update_application_schedule_route(
+    application_ref_id: str,
+    schedule_data: ApplicationScheduleRequest,
+    db: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(get_current_user)
+):
+    """
+    Update the schedule for an application.
+    """
+    if current_user.user_type != UserType.EMPLOYER.value:
+        raise HTTPException(status_code=403, detail="Only employers can perform this action.")
+    
+    if not current_user.id:
+        raise HTTPException(status_code=401, detail="Authenticated user is missing an internal id.")
+    employer = get_employer_by_user_ref_id(db, current_user.id)
+    if not employer:
+        raise HTTPException(status_code=404, detail="Employer profile not found.")
+
+    from services.queries.jobs_queries import get_job_application_by_ref_id, get_job_listing, update_job_application_schedule
+    application = get_job_application_by_ref_id(db, application_ref_id)
+    if not application:
+        raise HTTPException(status_code=404, detail="Job application not found.")
+        
+    job = get_job_listing(db, application.job_listing_ref_id)
+    if not job or job.employer_ref_id != employer.id:
+         raise HTTPException(status_code=403, detail="Not authorized to update this application.")
+         
+    updated_app = update_job_application_schedule(
+        db,
+        application_ref_id,
+        interview_date=schedule_data.interview_date,
+        interview_link=schedule_data.interview_link,
+        performed_by=current_user.id,
+    )
+    
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.JOB_UPDATED.value,
+        message=f"Application schedule updated",
         data={"application_ref_id": updated_app.id, "status": updated_app.status}
     )
 

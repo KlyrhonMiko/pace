@@ -22,14 +22,16 @@ import {
     ExternalLink,
     UserCircle2,
     Sparkles,
-    Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api-client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { formatDateTime } from "@/lib/date-utils";
 import { ConfirmationModal } from "@/components/ConfirmationModal";
-import { Input } from "@/components/ui/input";
+
+import MailApplicantModal from "./MailApplicantModal";
+import ScheduleModal from "./ScheduleModal";
 
 interface ApplicationDetailsDrawerProps {
     applicationId: string | null;
@@ -42,6 +44,11 @@ const STATUS_STYLES: Record<string, { label: string; pill: string; dot: string }
         label: "Pending",
         pill: "bg-amber-50 text-amber-700 border-amber-200",
         dot: "bg-amber-500",
+    },
+    Interview: {
+        label: "Interview",
+        pill: "bg-indigo-50 text-indigo-700 border-indigo-200",
+        dot: "bg-indigo-500",
     },
     Accepted: {
         label: "Accepted",
@@ -64,9 +71,9 @@ export default function ApplicationDetailsDrawer({ applicationId, onClose, onSta
 
     // Email Modal state
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
-    const [emailSubject, setEmailSubject] = useState("");
-    const [emailMessage, setEmailMessage] = useState("");
-    const [isSendingEmail, setIsSendingEmail] = useState(false);
+
+    // Schedule Modal state
+    const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
 
     useEffect(() => {
         if (confirmStatus) setModalStatus(confirmStatus);
@@ -127,32 +134,7 @@ export default function ApplicationDetailsDrawer({ applicationId, onClose, onSta
         }
     };
 
-    const handleSendEmail = async () => {
-        if (!applicationId || isSendingEmail || !emailSubject.trim() || !emailMessage.trim()) return;
-        setIsSendingEmail(true);
-        try {
-            const result = await apiFetch<any>(`/employers/applications/${applicationId}/email`, {
-                method: "POST",
-                body: JSON.stringify({
-                    subject: emailSubject,
-                    message: emailMessage,
-                })
-            });
-            if (result.success) {
-                toast.success("Email sent successfully!");
-                setIsEmailModalOpen(false);
-                setEmailSubject("");
-                setEmailMessage("");
-            } else {
-                toast.error(result.message || "Failed to send email");
-            }
-        } catch (error: any) {
-            console.error("Error sending email:", error);
-            toast.error(error.message || "An unexpected error occurred");
-        } finally {
-            setIsSendingEmail(false);
-        }
-    };
+
 
     const alumni = data?.alumni;
     const resume = data?.resume;
@@ -263,6 +245,25 @@ export default function ApplicationDetailsDrawer({ applicationId, onClose, onSta
                                 </Section>
                             )}
 
+                            {/* Interview Schedule Details */}
+                            {application?.interview_date && (
+                                <Section icon={Calendar} title="Interview Schedule">
+                                    <div className="flex flex-col gap-2 p-4 rounded-xl border border-emerald-100 bg-emerald-50/50">
+                                        <p className="text-sm text-slate-800">
+                                            <strong>Date:</strong> {formatDateTime(application.interview_date)}
+                                        </p>
+                                        {application?.interview_link && (
+                                            <p className="text-sm text-slate-800 flex items-center gap-2">
+                                                <strong>Link:</strong>
+                                                <a href={application.interview_link} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline inline-flex items-center gap-0.5">
+                                                    {application.interview_link} <ExternalLink className="h-3 w-3" />
+                                                </a>
+                                            </p>
+                                        )}
+                                    </div>
+                                </Section>
+                            )}
+
                             {/* Experience */}
                             {resume?.work_experience && resume.work_experience.length > 0 && (
                                 <Section icon={Briefcase} title="Experience">
@@ -360,15 +361,26 @@ export default function ApplicationDetailsDrawer({ applicationId, onClose, onSta
 
                         {/* Footer */}
                         <div className="p-6 border-t border-slate-100 bg-slate-50/30 flex items-center justify-between gap-3">
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                onClick={() => setIsEmailModalOpen(true)}
-                                className="px-3 py-2.5 h-auto rounded-xl text-sm font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100"
-                            >
-                                <Mail className="mr-1.5 h-4 w-4" />
-                                Send Email
-                            </Button>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    onClick={() => setIsEmailModalOpen(true)}
+                                    className="px-3 py-2.5 h-auto rounded-xl text-sm font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100"
+                                >
+                                    <Mail className="mr-1.5 h-4 w-4" />
+                                    Send Email
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    onClick={() => setIsScheduleModalOpen(true)}
+                                    className="px-3 py-2.5 h-auto rounded-xl text-sm font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100"
+                                >
+                                    <Calendar className="mr-1.5 h-4 w-4" />
+                                    Schedule
+                                </Button>
+                            </div>
 
                             <div className="flex items-center gap-2.5">
                                 {status !== "Rejected" && (
@@ -420,68 +432,37 @@ export default function ApplicationDetailsDrawer({ applicationId, onClose, onSta
                         />
 
                         {/* Email Modal */}
-                        <Dialog open={isEmailModalOpen} onOpenChange={(open) => !isSendingEmail && setIsEmailModalOpen(open)}>
-                            <DialogContent className="sm:max-w-md p-6 rounded-2xl">
-                                <DialogHeader>
-                                    <DialogTitle>Send Email to {alumni?.first_name}</DialogTitle>
-                                    <DialogDescription>
-                                        Send a direct message to the applicant. They will receive this via email.
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-4 py-2">
-                                    <div className="space-y-1.5">
-                                        <label htmlFor="subject" className="text-sm font-semibold text-slate-700">
-                                            Subject
-                                        </label>
-                                        <Input
-                                            id="subject"
-                                            value={emailSubject}
-                                            onChange={(e) => setEmailSubject(e.target.value)}
-                                            placeholder="e.g. Interview Invitation"
-                                            disabled={isSendingEmail}
-                                            className="rounded-xl border-slate-200"
-                                        />
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <label htmlFor="message" className="text-sm font-semibold text-slate-700">
-                                            Message
-                                        </label>
-                                        <textarea
-                                            id="message"
-                                            value={emailMessage}
-                                            onChange={(e) => setEmailMessage(e.target.value)}
-                                            placeholder="Write your message here..."
-                                            disabled={isSendingEmail}
-                                            className="flex min-h-[140px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-50 resize-none custom-scrollbar"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="flex justify-end gap-2 pt-2">
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        onClick={() => setIsEmailModalOpen(false)}
-                                        disabled={isSendingEmail}
-                                        className="rounded-xl"
-                                    >
-                                        Cancel
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        onClick={handleSendEmail}
-                                        disabled={isSendingEmail || !emailSubject.trim() || !emailMessage.trim()}
-                                        className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white"
-                                    >
-                                        {isSendingEmail ? (
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        ) : (
-                                            <Send className="mr-2 h-4 w-4" />
-                                        )}
-                                        Send Message
-                                    </Button>
-                                </div>
-                            </DialogContent>
-                        </Dialog>
+                        <MailApplicantModal
+                            isOpen={isEmailModalOpen}
+                            onClose={() => setIsEmailModalOpen(false)}
+                            applicationId={applicationId}
+                            applicantName={`${alumni?.first_name} ${alumni?.last_name}`}
+                        />
+
+                        {/* Schedule Modal */}
+                        <ScheduleModal
+                            isOpen={isScheduleModalOpen}
+                            onClose={() => setIsScheduleModalOpen(false)}
+                            applicationId={applicationId}
+                            applicantName={`${alumni?.first_name} ${alumni?.last_name}`}
+                            initialDate={application?.interview_date}
+                            initialLink={application?.interview_link}
+                            onSuccess={(date, link, status) => {
+                                setData((prev: any) => ({
+                                    ...prev,
+                                    application: {
+                                        ...prev.application,
+                                        interview_date: date,
+                                        interview_link: link,
+                                        status: status
+                                    }
+                                }));
+                                if (onStatusChange && applicationId) {
+                                    onStatusChange(applicationId, status);
+                                }
+                            }}
+                        />
+
                     </>
                 )}
             </DialogContent>

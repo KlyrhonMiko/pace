@@ -270,6 +270,16 @@ def update_alumni(
         after=alumni,
         performed_by=performed_by,
     )
+    if alumni.user_ref_id:
+        from models.user_activities import ActivityType
+        from services.queries.user_activities_queries import create_user_activity
+        create_user_activity(
+            session=session,
+            user_ref_id=alumni.user_ref_id,
+            activity_type=ActivityType.UPDATE_PROFILE,
+            description="Updated your career profile details",
+            actor_ref_id=performed_by or alumni.user_ref_id
+        )
     session.commit()
     session.refresh(alumni)
     return alumni

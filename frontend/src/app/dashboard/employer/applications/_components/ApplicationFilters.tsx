@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, SlidersHorizontal, Briefcase } from "lucide-react";
+import { Search, SlidersHorizontal, Briefcase, Target, Clock, CheckCircle, XCircle, SearchIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import FilterSection from "./FilterSection";
@@ -10,6 +10,8 @@ interface ApplicationFiltersProps {
     setSearchQuery: (query: string) => void;
     selectedJobs: string[];
     setSelectedJobs: (jobs: string[]) => void;
+    selectedStatuses: string[];
+    setSelectedStatuses: (statuses: string[]) => void;
     jobList?: string[];
 }
 
@@ -18,6 +20,8 @@ export default function ApplicationFilters({
     setSearchQuery,
     selectedJobs,
     setSelectedJobs,
+    selectedStatuses,
+    setSelectedStatuses,
     jobList = [],
 }: ApplicationFiltersProps) {
     const toggleJob = (job: string) => {
@@ -27,6 +31,21 @@ export default function ApplicationFilters({
             setSelectedJobs([...selectedJobs, job]);
         }
     };
+
+    const toggleStatus = (status: string) => {
+        if (selectedStatuses.includes(status)) {
+            setSelectedStatuses(selectedStatuses.filter((s) => s !== status));
+        } else {
+            setSelectedStatuses([...selectedStatuses, status]);
+        }
+    };
+
+    const statusOptions = [
+        { label: "Pending", icon: <Clock className="h-4 w-4 text-blue-500" /> },
+        { label: "Interview", icon: <Target className="h-4 w-4 text-indigo-500" /> },
+        { label: "Accepted", icon: <CheckCircle className="h-4 w-4 text-emerald-500" /> },
+        { label: "Rejected", icon: <XCircle className="h-4 w-4 text-rose-500" /> },
+    ];
 
     return (
         <div className="group/card rounded-2xl bg-white border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50 hover:-translate-y-0.5">
@@ -81,6 +100,31 @@ export default function ApplicationFilters({
                                         />
                                         <Briefcase className="h-4 w-4 text-slate-400" />
                                         <span className="text-sm text-slate-700">{job}</span>
+                                    </div>
+                                </label>
+                            ))}
+                        </div>
+                    </FilterSection>
+
+                    <FilterSection
+                        title="Application Status"
+                        icon={<Target className="h-4 w-4" />}
+                        count={selectedStatuses.length || undefined}
+                    >
+                        <div className="space-y-1">
+                            {statusOptions.map((status) => (
+                                <label
+                                    key={status.label}
+                                    className="flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors hover:bg-slate-50"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <Checkbox
+                                            checked={selectedStatuses.includes(status.label)}
+                                            onCheckedChange={() => toggleStatus(status.label)}
+                                            className="border-slate-300 data-[state=checked]:bg-emerald-700 data-[state=checked]:border-emerald-700"
+                                        />
+                                        {status.icon}
+                                        <span className="text-sm text-slate-700">{status.label}</span>
                                     </div>
                                 </label>
                             ))}

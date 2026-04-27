@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, Filter, X, CheckCircle2, Clock, Eye, XCircle, SlidersHorizontal } from "lucide-react";
+import { Search, Filter, X, CheckCircle2, Clock, Eye, XCircle, SlidersHorizontal, Calendar } from "lucide-react";
 import { ApplicationStatus } from "./ApplicationList";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -24,6 +24,7 @@ export default function ApplicationFilters({
         { id: "All", label: "All Statuses", icon: Filter },
         { id: "Pending", label: "Under Review", icon: Clock },
         { id: "Reviewed", label: "Reviewed", icon: Eye },
+        { id: "Interview", label: "Interviewing", icon: Calendar },
         { id: "Accepted", label: "Accepted", icon: CheckCircle2 },
         { id: "Rejected", label: "Rejected", icon: XCircle },
     ];

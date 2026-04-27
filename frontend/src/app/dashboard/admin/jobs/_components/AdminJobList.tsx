@@ -152,7 +152,7 @@ export default function AdminJobList({
                                                 <div
                                                     className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${getLogoGradient(
                                                         job.logo
-                                                    )} text-white text-sm font-bold shadow-sm transition-transform duration-300 group-hover:scale-105`}
+                                                    )} text-white text-sm font-bold shadow-sm ring-1 ring-emerald-200 transition-transform duration-300 group-hover:scale-105`}
                                                 >
                                                     {job.logo}
                                                 </div>

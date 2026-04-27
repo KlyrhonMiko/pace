@@ -138,7 +138,7 @@ export default function JobList({
                                     <tr key={job.id} onClick={() => setSelectedJob(job)} className="group transition-all duration-200 hover:bg-slate-50/50 cursor-pointer">
                                         <td className="px-5 py-4">
                                             <div className="flex items-center gap-4">
-                                                <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${getLogoGradient(job.logo)} text-white text-sm font-bold shadow-sm transition-transform duration-300 group-hover:scale-105`}>
+                                                <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${getLogoGradient(job.logo)} text-white text-sm font-bold shadow-sm ring-1 ring-emerald-200 transition-transform duration-300 group-hover:scale-105`}>
                                                     {job.logo}
                                                 </div>
                                                 <div className="min-w-0">

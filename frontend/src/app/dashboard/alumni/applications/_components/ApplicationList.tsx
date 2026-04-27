@@ -11,12 +11,15 @@ import {
     Search,
     CircleSlash,
     FileText,
-    Loader2
+    Loader2,
+    Video,
+    ArrowUpRight
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { format } from "date-fns";
 
-export type ApplicationStatus = "Pending" | "Reviewed" | "Accepted" | "Rejected";
+export type ApplicationStatus = "Pending" | "Reviewed" | "Interview" | "Accepted" | "Rejected";
 
 interface Application {
     application_ref_id: string;
@@ -26,6 +29,8 @@ interface Application {
     status: ApplicationStatus;
     applied_at: string;
     logo?: string;
+    interview_date?: string | null;
+    interview_link?: string | null;
 }
 
 interface ApplicationListProps {
@@ -63,6 +68,13 @@ const STATUS_CONFIG: Record<
         border: "border-blue-200/60",
         icon: Eye,
     },
+    Interview: {
+        label: "Interviewing",
+        bg: "bg-indigo-50",
+        text: "text-indigo-700",
+        border: "border-indigo-200/60",
+        icon: Calendar,
+    },
     Accepted: {
         label: "Accepted",
         bg: "bg-emerald-50",
@@ -86,6 +98,20 @@ export default function ApplicationList({
     onViewDetails,
     searchQuery,
 }: ApplicationListProps) {
+
+    const getLogoGradient = (logo: string) => {
+        const charCode = logo.charCodeAt(0);
+        const gradients = [
+            'from-violet-500 to-purple-600',
+            'from-blue-500 to-cyan-600',
+            'from-emerald-700 to-teal-600',
+            'from-rose-500 to-pink-600',
+            'from-orange-500 to-red-500',
+            'from-indigo-500 to-blue-600',
+            'from-amber-500 to-orange-600',
+        ];
+        return gradients[charCode % gradients.length];
+    };
 
     const formatDate = (dateStr: string) => {
         try {
@@ -173,56 +199,90 @@ export default function ApplicationList({
                             applications.map((app) => {
                                 const config = STATUS_CONFIG[app.status] || STATUS_CONFIG.Pending;
                                 const StatusIcon = config.icon;
+                                const interviewDate = app.interview_date ? new Date(app.interview_date) : null;
+                                const isInterviewPast = interviewDate ? interviewDate.getTime() < Date.now() : false;
+                                const showInterview = !!interviewDate && app.status !== "Rejected" && app.status !== "Accepted";
 
                                 return (
                                     <tr
                                         key={app.application_ref_id}
-                                        className="group transition-all duration-200 hover:bg-slate-50/50 cursor-pointer"
+                                        className="group transition-all duration-200 hover:bg-slate-50/50 cursor-pointer align-middle"
                                         onClick={() => onViewDetails?.(app.job_listing_id)}
                                     >
-                                        <td className="px-6 py-4">
+                                        <td className="px-6 py-5">
                                             <div className="flex items-center gap-4">
-                                                <div className="h-10 w-10 rounded-xl bg-emerald-100 flex justify-center items-center font-bold text-emerald-800 text-xs shadow-sm ring-1 ring-emerald-200 transition-transform duration-300 group-hover:scale-105 overflow-hidden">
+                                                <div className={`h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl ${(app.logo && (app.logo.startsWith('http') || app.logo.startsWith('/'))) ? 'bg-gray-50' : `bg-gradient-to-br ${getLogoGradient(app.logo || app.job_title)}`} text-white text-sm font-bold shadow-sm ring-1 ring-emerald-200 transition-transform duration-300 group-hover:scale-105 group-hover:shadow-md overflow-hidden flex`}>
                                                     {app.logo ? (
-                                                        <img src={app.logo} alt={app.company} className="w-full h-full object-contain" />
+                                                        <img src={app.logo} alt={app.company} className="h-full w-full object-contain" />
                                                     ) : (
-                                                        app.job_title.charAt(0)
+                                                        (app.logo || app.job_title).charAt(0)
                                                     )}
                                                 </div>
                                                 <div className="min-w-0">
                                                     <h4 className="font-bold text-slate-900 text-sm line-clamp-1 group-hover:text-emerald-900 transition-colors">
                                                         {app.job_title}
                                                     </h4>
-                                                    <div className="flex items-center gap-1.5 text-[11px] text-slate-400 mt-1">
-                                                        <Calendar className="h-3 w-3" />
-                                                        Applied {formatDate(app.applied_at)}
-                                                    </div>
+                                                    {showInterview && interviewDate ? (
+                                                        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 mt-1">
+                                                            <Calendar className="h-3 w-3" strokeWidth={2.5} />
+                                                            <span>Interview {format(interviewDate, "MMM d")}</span>
+                                                            <span className="text-emerald-300">·</span>
+                                                            <Clock className="h-3 w-3" strokeWidth={2.5} />
+                                                            <span className="tabular-nums">{format(interviewDate, "h:mm a")}</span>
+                                                        </div>
+                                                    ) : interviewDate && isInterviewPast ? (
+                                                        <div className="flex items-center gap-1.5 text-[11px] text-slate-400 mt-1">
+                                                            <Calendar className="h-3 w-3" />
+                                                            <span>Interviewed {format(interviewDate, "MMM d")}</span>
+                                                            <span className="text-slate-300">·</span>
+                                                            <span className="tabular-nums">{format(interviewDate, "h:mm a")}</span>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center gap-1.5 text-[11px] text-slate-400 mt-1">
+                                                            <Calendar className="h-3 w-3" />
+                                                            Applied {formatDate(app.applied_at)}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4">
+                                        <td className="px-6 py-5">
                                             <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
                                                 <Building2 className="h-3.5 w-3.5 text-slate-400" />
                                                 {app.company}
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border ${config.bg} ${config.text} ${config.border}`}>
+                                        <td className="px-6 py-5">
+                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border w-fit ${config.bg} ${config.text} ${config.border}`}>
                                                 <StatusIcon className="h-3 w-3" strokeWidth={2.5} />
                                                 {config.label}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex items-center justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <td className="px-6 py-5 text-right align-middle">
+                                            <div className="flex items-center justify-end gap-1.5">
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    className="h-8 w-8 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg cursor-pointer"
+                                                    className="h-8 w-8 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
                                                     title="View Details"
                                                     onClick={(e) => { e.stopPropagation(); onViewDetails?.(app.job_listing_id); }}
                                                 >
                                                     <FileText size={14} />
                                                 </Button>
+                                                {showInterview && app.interview_link && (
+                                                    <a
+                                                        href={app.interview_link}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm shadow-emerald-700/20 transition-all hover:bg-emerald-800 active:scale-95"
+                                                        title="Join interview"
+                                                    >
+                                                        <Video className="h-3 w-3" strokeWidth={3} />
+                                                        Join
+                                                        <ArrowUpRight className="h-3 w-3" strokeWidth={3} />
+                                                    </a>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

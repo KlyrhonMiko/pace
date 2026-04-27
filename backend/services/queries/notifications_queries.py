@@ -84,3 +84,36 @@ def get_unread_count(db: Session, user_ref_id: uuid.UUID) -> int:
         Notification.is_deleted == False
     )
     return db.exec(count_query).one()
+
+def mark_all_user_notifications_read(
+    db: Session,
+    user_ref_id: uuid.UUID,
+    performed_by: str | uuid.UUID | None = None,
+) -> int:
+    """Marks all unread notifications for a user as read. Returns the number of affected rows."""
+    from sqlmodel import update
+    
+    # Get all unread notification IDs first to log them if needed, or just do a bulk update
+    # For transaction logging, we might want to be careful. 
+    # But for a simple "mark all as read", a bulk update is most efficient.
+    
+    stmt = update(Notification).where(
+        Notification.user_ref_id == user_ref_id,
+        Notification.is_read == False,
+        Notification.is_deleted == False
+    ).values(is_read=True)
+    
+    # We can't easily use stamp_update on a bulk update statement directly with SQLModel/SQLAlchemy 
+    # without more complex logic, so we'll just set the is_read flag.
+    # If we need timestamps, we can add them to the values() call.
+    
+    result = db.exec(stmt)
+    db.commit()
+    
+    create_transaction_log(
+        db,
+        tl_name=f"MARKED ALL notifications read for user {user_ref_id}",
+        performed_by=performed_by,
+    )
+    
+    return result.rowcount

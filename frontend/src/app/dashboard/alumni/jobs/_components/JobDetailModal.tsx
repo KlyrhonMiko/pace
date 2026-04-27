@@ -313,7 +313,7 @@ export default function JobDetailModal({ job, onClose }: JobDetailModalProps) {
                                 flexShrink: 0,
                                 width: "56px",
                                 height: "56px",
-                                borderRadius: "14px",
+                                borderRadius: "12px",
                                 background: hasImageLogo
                                     ? "#ffffff"
                                     : `linear-gradient(135deg, ${gradStart}, ${gradEnd})`,

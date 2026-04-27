@@ -10,9 +10,14 @@ import {
     Briefcase,
     Calendar,
     Target,
-    FileText
+    FileText,
+    Clock,
+    Video,
+    ArrowUpRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { format } from "date-fns";
+
 
 interface Application {
     id: string;
@@ -21,13 +26,16 @@ interface Application {
     status: string;
     date: string;
     email: string;
+    interview_date?: string | null;
+    interview_link?: string | null;
 }
+
 
 interface EmployerApplicationListProps {
     applications: Application[];
     isLoading: boolean;
     totalApplications: number;
-    onContact?: (email: string) => void;
+    onContact?: (id: string, name: string) => void;
     onApprove?: (id: string) => void;
     onReject?: (id: string) => void;
     onViewDetails?: (id: string) => void;
@@ -50,8 +58,10 @@ export default function EmployerApplicationList({
             case "reviewed":
             case "review":
                 return "bg-amber-50 text-amber-800 border-amber-200";
-            case "accepted":
+            case "interview":
             case "interviewing":
+                return "bg-indigo-50 text-indigo-700 border-indigo-200";
+            case "accepted":
                 return "bg-emerald-50 text-emerald-700 border-emerald-200";
             case "rejected":
                 return "bg-rose-50 text-rose-700 border-rose-200";
@@ -125,7 +135,7 @@ export default function EmployerApplicationList({
                                 >
                                     <td className="px-4 py-4">
                                         <div className="flex items-center gap-4">
-                                            <div className="h-10 w-10 rounded-xl bg-emerald-100 flex justify-center items-center font-bold text-emerald-800 text-xs shadow-sm ring-1 ring-emerald-200 transition-transform duration-300 group-hover:scale-105">
+                                            <div className="h-11 w-11 rounded-xl bg-emerald-100 flex justify-center items-center font-bold text-emerald-800 text-sm shadow-sm ring-1 ring-emerald-200 transition-transform duration-300 group-hover:scale-105">
                                                 {app.applicant.charAt(0)}
                                             </div>
                                             <div className="min-w-0">
@@ -141,59 +151,89 @@ export default function EmployerApplicationList({
                                                 <Briefcase className="h-3.5 w-3.5 text-slate-400" />
                                                 {app.job}
                                             </div>
-                                            <div className="flex items-center gap-1.5 text-[11px] text-slate-400 mt-1">
-                                                <Calendar className="h-3 w-3" />
-                                                Applied {app.date}
-                                            </div>
+                                            {app.status.toLowerCase() === "interview" && app.interview_date ? (
+                                                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 mt-1">
+                                                    <Calendar className="h-3 w-3" strokeWidth={2.5} />
+                                                    <span>Interview {format(new Date(app.interview_date), "MMM d")}</span>
+                                                    <span className="text-emerald-300">·</span>
+                                                    <Clock className="h-3 w-3" strokeWidth={2.5} />
+                                                    <span className="tabular-nums">{format(new Date(app.interview_date), "h:mm a")}</span>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-1.5 text-[11px] text-slate-400 mt-1">
+                                                    <Calendar className="h-3 w-3" />
+                                                    Applied {app.date}
+                                                </div>
+                                            )}
                                         </div>
                                     </td>
                                     <td className="px-4 py-4">
-                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border w-fit ${getStatusStyle(app.status)}`}>
-                                            {app.status}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-4 text-right">
-                                        <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg hover:shadow-sm cursor-pointer"
-                                                title="Contact Candidate"
-                                                asChild
-                                            >
-                                                <a href={`mailto:${app.email}`} onClick={(e) => e.stopPropagation()}>
-                                                    <Mail size={14} />
-                                                </a>
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg hover:shadow-sm cursor-pointer"
-                                                title="Approve"
-                                                onClick={(e) => { e.stopPropagation(); if (onApprove) onApprove(app.id); }}
-                                            >
-                                                <CheckCircle size={14} />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg hover:shadow-sm cursor-pointer"
-                                                title="Reject"
-                                                onClick={(e) => { e.stopPropagation(); if (onReject) onReject(app.id); }}
-                                            >
-                                                <XCircle size={14} />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg cursor-pointer"
-                                                title="View Details"
-                                                onClick={(e) => { e.stopPropagation(); if (onViewDetails) onViewDetails(app.id); }}
-                                            >
-                                                <FileText size={14} />
-                                            </Button>
+                                        <div className="flex items-center gap-2">
+                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border w-fit ${getStatusStyle(app.status)}`}>
+                                                {app.status}
+                                            </span>
                                         </div>
                                     </td>
+
+
+                                    <td className="px-4 py-4 text-right">
+                                        <div className="flex items-center justify-end gap-1.5 min-h-[32px]">
+                                            <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg hover:shadow-sm cursor-pointer"
+                                                    title="Contact Candidate"
+                                                    onClick={(e) => { e.stopPropagation(); if (onContact) onContact(app.id, app.applicant); }}
+                                                >
+                                                    <Mail size={14} />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg hover:shadow-sm cursor-pointer"
+                                                    title="Approve"
+                                                    onClick={(e) => { e.stopPropagation(); if (onApprove) onApprove(app.id); }}
+                                                >
+                                                    <CheckCircle size={14} />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg hover:shadow-sm cursor-pointer"
+                                                    title="Reject"
+                                                    onClick={(e) => { e.stopPropagation(); if (onReject) onReject(app.id); }}
+                                                >
+                                                    <XCircle size={14} />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg cursor-pointer"
+                                                    title="View Details"
+                                                    onClick={(e) => { e.stopPropagation(); if (onViewDetails) onViewDetails(app.id); }}
+                                                >
+                                                    <FileText size={14} />
+                                                </Button>
+                                            </div>
+                                            {app.status.toLowerCase() === "interview" && app.interview_link && (
+                                                <a
+                                                    href={app.interview_link}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm shadow-emerald-700/20 transition-all hover:bg-emerald-800 active:scale-95"
+                                                    title="Join interview"
+                                                >
+                                                    <Video className="h-3 w-3" strokeWidth={3} />
+                                                    Join
+                                                    <ArrowUpRight className="h-3 w-3" strokeWidth={3} />
+                                                </a>
+                                            )}
+                                        </div>
+                                    </td>
+
+
                                 </tr>
                             ))
                         )}

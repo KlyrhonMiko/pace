@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Zap, ChevronRight, User, FileUp, Lightbulb, Briefcase, Calendar, Settings, TrendingUp, ClipboardList, ClipboardCheck } from "lucide-react";
+import { Zap, ChevronRight, User, FileUp, Lightbulb, Briefcase, Calendar, Settings, TrendingUp, ClipboardCheck } from "lucide-react";
 
 const actions = [
     {
@@ -73,16 +73,6 @@ const actions = [
         gradient: "from-violet-500 to-violet-600",
         bgTint: "bg-violet-50",
         ringTint: "ring-violet-100/60",
-    },
-    {
-        label: "Take Surveys",
-        description: "Share your feedback",
-        href: "/dashboard/alumni/surveys",
-        icon: ClipboardList,
-        color: "#ef4444",
-        gradient: "from-red-500 to-red-600",
-        bgTint: "bg-red-50",
-        ringTint: "ring-red-100/60",
     },
 ];
 

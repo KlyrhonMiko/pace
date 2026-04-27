@@ -305,11 +305,10 @@ def apply_for_job(
         performed_by=current_user.id,
     )
 
-    from core.redis import cache_delete, generate_cache_key
+    from core.redis import cache_delete_pattern
     
-    # Invalidate activity cache
-    cache_key_activity = generate_cache_key("alumni_activity", user_id=str(current_user.user_id))
-    cache_delete(cache_key_activity)
+    # Invalidate activity cache for all permutations (limit, offset)
+    cache_delete_pattern(f"alumni_activity:*user_id={str(current_user.user_id)}*")
 
     return StandardResponse(
         success=True,
@@ -355,7 +354,9 @@ def get_my_applications(
                 "company": job.company,
                 "logo": logo,
                 "status": app.status,
-                "applied_at": app.applied_at
+                "applied_at": app.applied_at,
+                "interview_date": app.interview_date.isoformat() if app.interview_date else None,
+                "interview_link": app.interview_link,
             })
 
     return StandardResponse(
@@ -381,6 +382,16 @@ def get_job(
     if db_job.is_deleted:
         raise HTTPException(status_code=404, detail="Job listing not found")
     
+    # Enrich with logo if internal
+    if db_job.employer_ref_id:
+        employer = db.exec(select(Employer).where(Employer.id == db_job.employer_ref_id)).first()
+        if employer:
+            # We use model_validate and then add the logo because logo is not in the DB model
+            # but is in the response model (JobListingRead)
+            result = JobListingRead.model_validate(db_job)
+            result.logo = employer.company_logo_url
+            return result
+            
     return db_job
 
 

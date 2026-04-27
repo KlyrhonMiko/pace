@@ -45,7 +45,13 @@ export default function DashboardHeader({
     }, []);
 
     function formatTime(iso: string) {
-        const d = new Date(iso);
+        // If it's a naive ISO string (no Z or offset), assume UTC
+        let normalizedIso = iso;
+        if (iso.includes("T") && !iso.endsWith("Z") && !iso.includes("+")) {
+            normalizedIso += "Z";
+        }
+
+        const d = new Date(normalizedIso);
         const now = new Date();
         const diffMs = now.getTime() - d.getTime();
         const diffMins = Math.floor(diffMs / 60000);
@@ -128,7 +134,7 @@ export default function DashboardHeader({
                                             title="Mark all as read"
                                         >
                                             <CheckCheck size={13} />
-                                            All read
+                                            Mark all as read
                                         </button>
                                     )}
                                     <button

@@ -10,6 +10,7 @@ import { apiFetch } from "@/lib/api-client";
 import ApplicationDetailsDrawer from "./_components/ApplicationDetailsDrawer";
 import { ConfirmationModal } from "@/components/ConfirmationModal";
 import { CheckCircle2, XCircle } from "lucide-react";
+import MailApplicantModal from "./_components/MailApplicantModal";
 
 interface Application {
     id: string;
@@ -18,7 +19,10 @@ interface Application {
     status: string;
     date: string;
     email: string;
+    interview_date?: string | null;
+    interview_link?: string | null;
 }
+
 
 interface ApplicationResponse {
     success: boolean;
@@ -31,11 +35,17 @@ export default function EmployerApplicationsPage() {
     const [availableJobs, setAvailableJobs] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedJobs, setSelectedJobs] = useState<string[]>([]);
+    const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
     const [confirmAction, setConfirmAction] = useState<{ id: string, status: "Accepted" | "Rejected", applicantName: string } | null>(null);
     const [modalAction, setModalAction] = useState<{ id: string, status: "Accepted" | "Rejected", applicantName: string }>({ id: "", status: "Accepted", applicantName: "" });
     const [isUpdating, setIsUpdating] = useState(false);
+
+    // Email Modal state
+    const [isMailModalOpen, setIsMailModalOpen] = useState(false);
+    const [mailAppId, setMailAppId] = useState<string | null>(null);
+    const [mailAppName, setMailAppName] = useState("");
 
     useEffect(() => {
         if (confirmAction) setModalAction(confirmAction);
@@ -74,12 +84,16 @@ export default function EmployerApplicationsPage() {
             const matchesSearch = app.applicant.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 app.email.toLowerCase().includes(searchQuery.toLowerCase());
             const matchesJob = selectedJobs.length === 0 || selectedJobs.includes(app.job);
-            return matchesSearch && matchesJob;
+            const matchesStatus = selectedStatuses.length === 0 ||
+                selectedStatuses.some(s => s.toLowerCase() === app.status.toLowerCase());
+            return matchesSearch && matchesJob && matchesStatus;
         });
-    }, [searchQuery, selectedJobs, applications]);
+    }, [searchQuery, selectedJobs, selectedStatuses, applications]);
 
-    const handleContactCandidate = (email: string) => {
-        window.location.href = `mailto:${email}`;
+    const handleContactCandidate = (id: string, name: string) => {
+        setMailAppId(id);
+        setMailAppName(name);
+        setIsMailModalOpen(true);
     };
 
     const handleUpdateStatus = async (id: string, status: "Accepted" | "Rejected") => {
@@ -151,6 +165,8 @@ export default function EmployerApplicationsPage() {
                             setSearchQuery={setSearchQuery}
                             selectedJobs={selectedJobs}
                             setSelectedJobs={setSelectedJobs}
+                            selectedStatuses={selectedStatuses}
+                            setSelectedStatuses={setSelectedStatuses}
                             jobList={availableJobs}
                         />
                     </div>
@@ -179,6 +195,17 @@ export default function EmployerApplicationsPage() {
                 variant={modalAction.status === "Accepted" ? "success" : "danger"}
                 isLoading={isUpdating}
                 icon={modalAction.status === "Accepted" ? CheckCircle2 : XCircle}
+            />
+
+            <MailApplicantModal
+                isOpen={isMailModalOpen}
+                onClose={() => {
+                    setIsMailModalOpen(false);
+                    setMailAppId(null);
+                    setMailAppName("");
+                }}
+                applicationId={mailAppId}
+                applicantName={mailAppName}
             />
         </div>
     );

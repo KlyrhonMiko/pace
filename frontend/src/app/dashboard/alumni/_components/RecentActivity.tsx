@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import ActivityItem from "./ActivityItem";
-import { Zap, Send, Edit, CalendarDays, Bookmark, Loader2, Sparkles } from "lucide-react";
+import { Zap, Send, Edit, CalendarDays, Bookmark, Loader2, Sparkles, Briefcase, LogIn, LogOut } from "lucide-react";
 import { fetchAlumniActivity, Activity } from "../../_lib/dashboard";
 
 export default function RecentActivity() {
@@ -29,6 +29,9 @@ export default function RecentActivity() {
         if (n.includes("PROFILE") || n.includes("UPDATED")) return <Edit className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />;
         if (n.includes("APPLICATION") || n.includes("SUBMITTED") || n.includes("SURVEY")) return <Send className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />;
         if (n.includes("CREATED") || n.includes("JOINED")) return <Sparkles className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />;
+        if (n.includes("APPLIED") || n.includes("JOB")) return <Briefcase className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />;
+        if (n.includes("LOGGED IN")) return <LogIn className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />;
+        if (n.includes("LOGGED OUT")) return <LogOut className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />;
         return <Bookmark className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />;
     };
 
@@ -38,6 +41,9 @@ export default function RecentActivity() {
         if (n.includes("PROFILE") || n.includes("UPDATED")) return "bg-blue-500";
         if (n.includes("APPLICATION") || n.includes("SUBMITTED") || n.includes("SURVEY")) return "bg-emerald-700";
         if (n.includes("CREATED") || n.includes("JOINED")) return "bg-indigo-500";
+        if (n.includes("APPLIED") || n.includes("JOB")) return "bg-blue-600";
+        if (n.includes("LOGGED IN")) return "bg-emerald-500";
+        if (n.includes("LOGGED OUT")) return "bg-rose-500";
         return "bg-amber-500";
     };
 
@@ -55,7 +61,7 @@ export default function RecentActivity() {
 
         const now = new Date();
         const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-        
+
         if (isNaN(date.getTime())) return "Recent";
         if (diffInHours < 1) return "Just now";
         if (diffInHours < 24) return `${diffInHours}h ago`;

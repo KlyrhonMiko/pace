@@ -51,9 +51,9 @@ export default function JobCard({
     return (
         <div onClick={onClick} className={`group relative flex items-start gap-4 rounded-xl border border-gray-100 bg-white p-4 transition-all duration-300 hover:bg-slate-50 hover:border-slate-200 hover:shadow-md hover:shadow-slate-200/50 cursor-pointer ${className}`}>
 
-            <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl ${(logo && (logo.startsWith('http') || logo.startsWith('/'))) ? 'bg-gray-50' : `bg-gradient-to-br ${getLogoGradient()}`} text-white text-sm font-bold shadow-sm transition-transform duration-300 group-hover:scale-105 group-hover:shadow-md overflow-hidden`}>
+            <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl ${(logo && (logo.startsWith('http') || logo.startsWith('/'))) ? 'bg-gray-50' : `bg-gradient-to-br ${getLogoGradient()}`} text-white text-sm font-bold shadow-sm ring-1 ring-emerald-200 transition-transform duration-300 group-hover:scale-105 group-hover:shadow-md overflow-hidden`}>
                 {(logo && (logo.startsWith('http') || logo.startsWith('/'))) ? (
-                    <img src={logo} alt={company} className="h-full w-full object-cover" />
+                    <img src={logo} alt={company} className="h-full w-full object-contain" />
                 ) : (
                     logo
                 )}

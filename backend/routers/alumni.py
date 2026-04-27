@@ -545,9 +545,10 @@ def update_alumni_route(
         # User-specific profile and stats cache
         cache_key_profile = generate_cache_key(ALUMNI_PROFILE_CACHE_NAMESPACE, user_id=str(current_user.user_id))
         cache_key_stats = generate_cache_key(ALUMNI_STATS_CACHE_NAMESPACE, user_id=str(current_user.user_id))
-        from core.redis import cache_delete
+        from core.redis import cache_delete, cache_delete_pattern
         cache_delete(cache_key_profile)
         cache_delete(cache_key_stats)
+        cache_delete_pattern(f"{ALUMNI_ACTIVITY_CACHE_NAMESPACE}:*user_id={str(current_user.user_id)}*")
 
         return StandardResponse(
             success=True, code=SuccessCode.ALUMNI_UPDATED.value,

@@ -20,6 +20,8 @@ interface Application {
     status: ApplicationStatus;
     applied_at: string;
     logo?: string;
+    interview_date?: string | null;
+    interview_link?: string | null;
 }
 
 export default function AppliedJobsPage() {

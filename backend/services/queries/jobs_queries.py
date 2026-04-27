@@ -174,7 +174,7 @@ def create_job_application(
                     user_ref_id=employer.user_ref_id,
                     title="New Job Application",
                     message=f"{alumni_name} applied for your job: {job_listing.title}.",
-                    link=f"/dashboard/employer/jobs/{job_listing.id}/applicants"
+                    link=f"/dashboard/employer/applications"
                 )
                 created_notif = create_notification(db, notif)
                 publish_notification(employer.user_ref_id, created_notif)
@@ -296,3 +296,85 @@ def update_job_application_status(
         logging.getLogger(__name__).error(f"Failed to create application status notification: {e}")
 
     return application
+
+def update_job_application_schedule(
+    db: Session,
+    application_ref_id: str | uuid.UUID,
+    interview_date: Optional[str] = None,
+    interview_link: Optional[str] = None,
+    performed_by: str | uuid.UUID | None = None,
+) -> Optional[JobApplication]:
+    from datetime import datetime
+    
+    application = get_job_application_by_ref_id(db, application_ref_id)
+    if not application:
+        return None
+
+    is_reschedule = application.interview_date is not None
+    before_state = {"interview_date": str(application.interview_date) if application.interview_date else None, "interview_link": application.interview_link}
+    
+    if interview_date is not None:
+        try:
+            from utils.timezone import convert_to_gmt8
+            parsed_date = datetime.fromisoformat(interview_date.replace('Z', '+00:00'))
+            # Convert to GMT+8 and strip timezone for naive storage in SQLite
+            application.interview_date = convert_to_gmt8(parsed_date).replace(tzinfo=None)
+        except ValueError:
+            pass # Keep it as is or handle error, for simplicity let's just ignore invalid strings
+    else:
+        application.interview_date = None
+        
+    application.interview_link = interview_link
+    
+    # Auto-update status to Interview if currently Pending or Reviewed
+    if interview_date and application.status in ["Pending", "Reviewed"]:
+        application.status = "Interview"
+        
+    stamp_update(application)
+
+    db.add(application)
+    
+    action_name = "RESCHEDULED" if is_reschedule else "UPDATED"
+    create_transaction_log(
+        db,
+        tl_name=f"{action_name} job application schedule {application.id}",
+        before=before_state,
+        after={"interview_date": str(application.interview_date), "interview_link": application.interview_link},
+        performed_by=performed_by,
+    )
+    db.commit()
+    db.refresh(application)
+
+    try:
+        from schemas.notifications import NotificationCreate
+        from services.queries.notifications_queries import create_notification
+        from services.notifications import publish_notification
+        from models.alumni import Alumni
+        from utils.timezone import format_datetime_gmt8
+
+        alumni = db.exec(select(Alumni).where(Alumni.id == application.alumni_ref_id)).first()
+        if alumni and alumni.user_ref_id:
+            job = get_job_listing(db, application.job_listing_ref_id)
+            if job:
+                verb = "rescheduled" if is_reschedule else "scheduled"
+                title = "Interview Rescheduled" if is_reschedule else "Interview Scheduled"
+                
+                message = f"An interview has been {verb} for your application for {job.title} at {job.company or 'the company'}."
+                if application.interview_date:
+                    formatted_date = format_datetime_gmt8(application.interview_date, fmt='%b %d, %Y at %I:%M %p')
+                    message = f"Your interview for {job.title} at {job.company or 'the company'} has been {verb} for {formatted_date}."
+                
+                notif = NotificationCreate(
+                    user_ref_id=alumni.user_ref_id,
+                    title=title,
+                    message=message,
+                    link=f"/dashboard/alumni/applications"
+                )
+                created_notif = create_notification(db, notif)
+                publish_notification(alumni.user_ref_id, created_notif)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Failed to create application schedule notification: {e}")
+
+    return application
+

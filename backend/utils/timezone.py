@@ -20,6 +20,17 @@ def ensure_aware_datetime(dt: Optional[datetime]) -> Optional[datetime]:
     return dt
 
 
+def ensure_aware_gmt8(dt: Optional[datetime]) -> Optional[datetime]:
+    """Ensure a datetime is timezone-aware, assuming naive values are GMT+8."""
+    if dt is None:
+        return None
+
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=GMT8)
+
+    return dt
+
+
 def get_current_time_gmt8() -> datetime:
     """Get current time in GMT+8 timezone"""
     return datetime.now(GMT8)
@@ -89,6 +100,7 @@ __all__ = [
     "DATE_DISPLAY_FORMAT",
     "TIME_DISPLAY_FORMAT",
     "ensure_aware_datetime",
+    "ensure_aware_gmt8",
     "get_current_time_gmt8",
     "get_current_time_utc",
     "get_current_year_gmt8",

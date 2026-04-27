@@ -51,6 +51,7 @@ class JobListingCreate(JobListingBase):
 
 class JobListingRead(JobListingBase):
     id: uuid.UUID
+    logo: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     is_deleted: bool
@@ -76,3 +77,5 @@ class JobApplication(BaseTable, SQLModel, table=True):
     status: str = Field(default="Pending") # Pending, Reviewed, Accepted, Rejected
     applied_at: datetime = Field(default_factory=get_current_time_gmt8)
     resume_file_url: Optional[str] = None
+    interview_date: Optional[datetime] = None
+    interview_link: Optional[str] = None

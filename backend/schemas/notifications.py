@@ -1,7 +1,8 @@
 import uuid
 from typing import Optional
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+from utils.timezone import ensure_aware_datetime
 
 class NotificationBase(BaseModel):
     title: str = Field(..., max_length=255)
@@ -20,5 +21,12 @@ class NotificationResponse(NotificationBase):
     is_read: bool
     created_at: datetime
     
+    @field_validator("created_at", mode="before")
+    @classmethod
+    def ensure_aware(cls, v):
+        if isinstance(v, datetime):
+            return ensure_aware_datetime(v)
+        return v
+
     class Config:
         from_attributes = True

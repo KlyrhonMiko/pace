@@ -54,3 +54,7 @@ class EmployerResponse(AuditPublicBaseModel):
 class EmployerEmailRequest(BaseModel):
     subject: str = Field(min_length=1, max_length=255)
     message: str = Field(min_length=1)
+
+class ApplicationScheduleRequest(BaseModel):
+    interview_date: Optional[str] = None
+    interview_link: Optional[str] = None

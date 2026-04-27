@@ -85,17 +85,17 @@ async def startup_event():
     try:
         from core.redis import test_redis_connection
         if test_redis_connection():
-            print("[STARTUP] ✓ Redis connection verified")
+            print("[STARTUP] [OK] Redis connection verified")
         else:
-            print("[STARTUP] ⚠ Redis unavailable - performance may be degraded")
+            print("[STARTUP] [WARNING] Redis unavailable - performance may be degraded")
 
-        print("[STARTUP] ✓ PACE Application started - all systems initialized")
+        print("[STARTUP] [OK] PACE Application started - all systems initialized")
         
         # Initialize Jooble shutdown event
         from services.jooble.core import get_shutdown_event
         get_shutdown_event()
     except Exception as e:
-        print(f"[STARTUP] ⚠ Error during startup sequence: {e}")
+        print(f"[STARTUP] [ERROR] Error during startup sequence: {e}")
 
 
 @app.on_event("shutdown")
@@ -105,9 +105,9 @@ async def shutdown_event():
     try:
         from services.jooble.core import signal_shutdown
         signal_shutdown()
-        print("[SHUTDOWN] ✓ Cleanup signals sent")
+        print("[SHUTDOWN] [OK] Cleanup signals sent")
     except Exception as e:
-        print(f"[SHUTDOWN] ⚠ Error during shutdown sequence: {e}")
+        print(f"[SHUTDOWN] [ERROR] Error during shutdown sequence: {e}")
 
 
 @app.exception_handler(RequestValidationError)

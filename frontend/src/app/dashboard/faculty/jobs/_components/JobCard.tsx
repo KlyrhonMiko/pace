@@ -46,7 +46,7 @@ export default function JobCard({
             <div className="absolute left-0 top-3 bottom-3 w-0.5 rounded-full bg-gradient-to-b from-emerald-400 to-teal-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
             {/* Company Logo */}
-            <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${getLogoGradient()} text-white text-sm font-bold shadow-sm transition-transform duration-300 group-hover:scale-105 group-hover:shadow-md`}>
+            <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${getLogoGradient()} text-white text-sm font-bold shadow-sm ring-1 ring-emerald-200 transition-transform duration-300 group-hover:scale-105 group-hover:shadow-md`}>
                 {logo}
             </div>
 

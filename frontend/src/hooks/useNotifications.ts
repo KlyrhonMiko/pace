@@ -104,9 +104,18 @@ export function useNotifications(token: string | null): UseNotificationsReturn {
 
     const markAllAsRead = useCallback(async () => {
         if (!token) return;
-        const unread = notifications.filter((n) => !n.is_read);
-        await Promise.all(unread.map((n) => markAsRead(n.id)));
-    }, [token, notifications, markAsRead]);
+        try {
+            const res = await fetch(`${API_BASE_URL}/notifications/read-all`, {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (res.ok) {
+                setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+            }
+        } catch (e) {
+            console.error("Failed to mark all notifications as read:", e);
+        }
+    }, [token]);
 
     const unreadCount = notifications.filter((n) => !n.is_read).length;
 

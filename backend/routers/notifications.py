@@ -13,7 +13,8 @@ from schemas.notifications import NotificationResponse, NotificationUpdate
 from services.queries.notifications_queries import (
     get_user_notifications,
     update_notification,
-    get_unread_count
+    get_unread_count,
+    mark_all_user_notifications_read
 )
 from services.notifications import subscribe_notifications
 
@@ -55,6 +56,19 @@ def mark_notification_read(
         code="SUCCESS",
         message="Notification marked as read",
         data=NotificationResponse.model_validate(updated)
+    )
+
+@router.post("/read-all")
+def mark_all_read_endpoint(
+    db: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(get_current_user)
+):
+    count = mark_all_user_notifications_read(db, current_user.id, performed_by=current_user.id)
+    return StandardResponse(
+        success=True,
+        code="SUCCESS",
+        message=f"Marked {count} notifications as read",
+        data={"count": count}
     )
 
 @router.get("/stream")

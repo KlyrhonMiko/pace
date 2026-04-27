@@ -197,7 +197,7 @@ export default function ForecastInsightsChat({ forecastData }: { forecastData: F
                                     <div
                                         className={`px-4 py-3 rounded-2xl text-sm ${msg.role === "user"
                                             ? "bg-gray-900 text-white rounded-br-sm"
-                                            : "bg-white border border-gray-100 text-gray-800 shadow-sm rounded-bl-sm prose prose-sm max-w-none prose-p:leading-snug prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-li:my-0.5"
+                                            : "bg-white border border-gray-100 text-gray-800 shadow-sm rounded-bl-sm ai-markdown"
                                             }`}
                                     >
                                         <ReactMarkdown>{msg.content}</ReactMarkdown>

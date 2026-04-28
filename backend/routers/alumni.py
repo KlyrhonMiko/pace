@@ -391,7 +391,7 @@ def get_my_activity_history(
             success=True,
             code=SuccessCode.ALUMNI_ACTIVITY_RETRIEVED.value,
                 message="User activity history retrieved successfully",
-                data=[UserActivityPublic.model_validate(act) for act in get_user_activities(
+                data=[UserActivityPublic.model_validate(act).model_dump(mode="json") for act in get_user_activities(
                 session, 
                 current_user.id, 
                 limit=limit, 

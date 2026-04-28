@@ -1,5 +1,5 @@
 from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from sqlmodel import Session, select
 from sqlalchemy.exc import IntegrityError
 from core.database import get_session
@@ -31,6 +31,8 @@ import cloudinary
 import cloudinary.uploader
 from core.config import settings
 from utils.email import send_employer_email
+from services.queries.user_activities_queries import get_user_activities
+from models.user_activities import UserActivityPublic
 
 router = APIRouter(prefix="/employers", tags=["employers"])
 
@@ -148,6 +150,36 @@ def get_employer_me(
         code=SuccessCode.USER_RETRIEVED.value if hasattr(SuccessCode, 'USER_RETRIEVED') else SuccessCode.USERS_RETRIEVED.value,
         message="Employer profile retrieved successfully",
         data=response_data
+    )
+    
+@router.get("/activity/me", response_model=StandardResponse)
+def get_my_activity_history(
+    limit: int = Query(10, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """Fetch recent activities for the current authenticated employer."""
+    if current_user.user_type != UserType.EMPLOYER.value:
+        raise HTTPException(
+            status_code=403,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.FORBIDDEN.value,
+                message="Only employers can access this endpoint"
+            ).model_dump(mode='json')
+        )
+
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.EMPLOYER_ACTIVITY_RETRIEVED.value,
+        message="User activity history retrieved successfully",
+        data=[UserActivityPublic.model_validate(act).model_dump(mode="json") for act in get_user_activities(
+            session, 
+            current_user.id, 
+            limit=limit, 
+            offset=offset
+        )]
     )
 
 @router.post("/upload-logo", response_model=StandardResponse)

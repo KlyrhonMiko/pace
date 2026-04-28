@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Users, TrendingUp, CalendarDays, Target, Link, Loader2 } from "lucide-react";
+import { Users, TrendingUp, CalendarDays, Target, Briefcase, Loader2 } from "lucide-react";
 import { fetchFacultyStats, FacultyStats } from "../../_lib/dashboard";
 
 export default function FacultyStatsGrid() {
@@ -31,8 +31,8 @@ export default function FacultyStatsGrid() {
 
     const statCards = [
         {
-            label: "Alumni Advised",
-            value: stats?.alumni_advised.toLocaleString() ?? "0",
+            label: "Alumni",
+            value: (stats?.alumni_advised ?? 0).toLocaleString(),
             subValue: "+8",
             icon: Users,
             color: "emerald",
@@ -40,7 +40,7 @@ export default function FacultyStatsGrid() {
         },
         {
             label: "Events Organized",
-            value: stats?.events_organized.toLocaleString() ?? "0",
+            value: (stats?.events_organized ?? 0).toLocaleString(),
             subValue: "+3",
             icon: CalendarDays,
             color: "blue",
@@ -54,13 +54,14 @@ export default function FacultyStatsGrid() {
             color: "violet",
             sparkline: [2, 4, 3, 5, 4, 6, 7, 5, 8, 9]
         },
+
         {
-            label: "Referrals Sent",
-            value: stats?.referrals_sent.toLocaleString() ?? "0",
-            subValue: "+6",
-            icon: Link,
+            label: "Job Listings",
+            value: (stats?.active_jobs ?? 0).toLocaleString(),
+            subValue: "+12",
+            icon: Briefcase,
             color: "amber",
-            sparkline: [1, 2, 1, 3, 2, 4, 3, 5, 4, 6]
+            sparkline: [2, 4, 6, 5, 8, 7, 9, 10, 8, 12]
         }
     ];
 

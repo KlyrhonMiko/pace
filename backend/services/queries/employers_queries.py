@@ -4,6 +4,8 @@ from schemas.employers import EmployerUpdate
 import uuid
 from services.queries.audit import stamp_create, stamp_update
 from services.queries.transaction_logs_queries import create_transaction_log
+from models.user_activities import ActivityType
+from services.queries.user_activities_queries import create_user_activity
 
 def create_employer_profile(
     session: Session,
@@ -69,6 +71,17 @@ def update_employer_profile(
         after=employer,
         performed_by=performed_by,
     )
+    if performed_by is not None:
+        create_user_activity(
+            session=session,
+            user_ref_id=performed_by,
+            actor_ref_id=performed_by,
+            activity_type=ActivityType.UPDATE_COMPANY_PROFILE,
+            description="Updated company profile details",
+            activity_metadata={
+                "employer_ref_id": str(employer.id),
+            },
+        )
     session.commit()
     session.refresh(employer)
     return employer
@@ -99,6 +112,17 @@ def update_employer_logo(
         },
         performed_by=performed_by,
     )
+    if performed_by is not None:
+        create_user_activity(
+            session=session,
+            user_ref_id=performed_by,
+            actor_ref_id=performed_by,
+            activity_type=ActivityType.UPDATE_COMPANY_PROFILE,
+            description="Updated company logo",
+            activity_metadata={
+                "employer_ref_id": str(employer.id),
+            },
+        )
     session.commit()
     session.refresh(employer)
     return employer

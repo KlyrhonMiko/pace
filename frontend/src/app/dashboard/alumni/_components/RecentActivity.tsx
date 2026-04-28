@@ -56,7 +56,13 @@ export default function RecentActivity() {
             const [h, min, s] = timePart.split(":").map(Number);
             date = new Date(y, m - 1, d, h, min, s);
         } else {
-            date = new Date(dateStr);
+            // Handle ISO strings robustly
+            let normalizedDateStr = dateStr;
+            // If it's a naive ISO string (no Z and no offset), assume it's UTC
+            if (!dateStr.includes("Z") && !dateStr.match(/[+-]\d{2}:?\d{2}$/)) {
+                normalizedDateStr = dateStr.includes("T") ? `${dateStr}Z` : `${dateStr.replace(' ', 'T')}Z`;
+            }
+            date = new Date(normalizedDateStr);
         }
 
         if (isNaN(date.getTime())) return "Recent";

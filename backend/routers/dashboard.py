@@ -93,10 +93,11 @@ def get_faculty_sessions(
 @router.get("/faculty/activity", response_model=StandardResponse)
 def get_faculty_activity(
     session: Session = Depends(get_session),
-    current_user: CurrentUser = Depends(require_staff_or_admin)
+    current_user: CurrentUser = Depends(require_staff_or_admin),
+    limit: int = 5
 ):
     """Get general alumni activity for the faculty dashboard"""
-    activity = get_faculty_activity_feed(session)
+    activity = get_faculty_activity_feed(session, limit)
     return StandardResponse(
         success=True,
         code=SuccessCode.USERS_RETRIEVED.value,

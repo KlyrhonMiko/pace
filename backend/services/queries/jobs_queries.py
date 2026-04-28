@@ -28,6 +28,17 @@ def create_job_listing(
         after=db_job,
         performed_by=performed_by,
     )
+    if performed_by is not None:
+        create_user_activity(
+            session=db,
+            user_ref_id=performed_by,
+            actor_ref_id=performed_by,
+            activity_type=ActivityType.POST_JOB,
+            description=f"Posted a new job: {db_job.title}",
+            activity_metadata={
+                "job_listing_ref_id": str(db_job.id),
+            },
+        )
     db.commit()
     db.refresh(db_job)
     return db_job
@@ -63,6 +74,17 @@ def update_job_listing(
         after=db_job,
         performed_by=performed_by,
     )
+    if performed_by is not None:
+        create_user_activity(
+            session=db,
+            user_ref_id=performed_by,
+            actor_ref_id=performed_by,
+            activity_type=ActivityType.UPDATE_JOB,
+            description=f"Updated job details: {db_job.title}",
+            activity_metadata={
+                "job_listing_ref_id": str(db_job.id),
+            },
+        )
     db.commit()
     db.refresh(db_job)
     return db_job
@@ -85,6 +107,17 @@ def delete_job_listing(
         after=db_job,
         performed_by=performed_by,
     )
+    if performed_by is not None:
+        create_user_activity(
+            session=db,
+            user_ref_id=performed_by,
+            actor_ref_id=performed_by,
+            activity_type=ActivityType.DELETE_JOB,
+            description=f"Deleted job listing: {db_job.title}",
+            activity_metadata={
+                "job_listing_title": db_job.title,
+            },
+        )
     db.commit()
     return True
 
@@ -108,6 +141,19 @@ def toggle_job_listing_visibility(
         after={"is_active": db_job.is_active},
         performed_by=performed_by,
     )
+    if performed_by is not None:
+        status_text = "visible" if db_job.is_active else "hidden"
+        create_user_activity(
+            session=db,
+            user_ref_id=performed_by,
+            actor_ref_id=performed_by,
+            activity_type=ActivityType.TOGGLE_JOB_VISIBILITY,
+            description=f"Made job listing {status_text}: {db_job.title}",
+            activity_metadata={
+                "job_listing_ref_id": str(db_job.id),
+                "is_active": db_job.is_active
+            },
+        )
     db.commit()
     db.refresh(db_job)
     return db_job
@@ -270,6 +316,23 @@ def update_job_application_status(
         after={"status": application.status},
         performed_by=performed_by,
     )
+    if performed_by is not None:
+        job = get_job_listing(db, application.job_listing_ref_id)
+        from models.alumni import Alumni
+        alumni = db.exec(select(Alumni).where(Alumni.id == application.alumni_ref_id)).first()
+        alumni_name = f"{alumni.first_name} {alumni.last_name}" if alumni else "an applicant"
+        
+        create_user_activity(
+            session=db,
+            user_ref_id=performed_by,
+            actor_ref_id=performed_by,
+            activity_type=ActivityType.UPDATE_JOB_APPLICATION,
+            description=f"{status} application for {job.title if job else 'job'} from {alumni_name}",
+            activity_metadata={
+                "application_ref_id": str(application.id),
+                "status": status
+            },
+        )
     db.commit()
     db.refresh(application)
 
@@ -342,6 +405,26 @@ def update_job_application_schedule(
         after={"interview_date": str(application.interview_date), "interview_link": application.interview_link},
         performed_by=performed_by,
     )
+
+    if performed_by is not None:
+        job = get_job_listing(db, application.job_listing_ref_id)
+        from models.alumni import Alumni
+        alumni = db.exec(select(Alumni).where(Alumni.id == application.alumni_ref_id)).first()
+        alumni_name = f"{alumni.first_name} {alumni.last_name}" if alumni else "an applicant"
+        
+        verb = "Rescheduled" if is_reschedule else "Scheduled"
+        create_user_activity(
+            session=db,
+            user_ref_id=performed_by,
+            actor_ref_id=performed_by,
+            activity_type=ActivityType.SCHEDULE_INTERVIEW,
+            description=f"{verb} interview for {job.title if job else 'job'} with {alumni_name}",
+            activity_metadata={
+                "application_ref_id": str(application.id),
+                "interview_date": str(application.interview_date)
+            },
+        )
+
     db.commit()
     db.refresh(application)
 

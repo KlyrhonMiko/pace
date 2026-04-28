@@ -47,7 +47,7 @@ export default function PlacementOverview() {
     const circumference = 2 * Math.PI * radius;
 
     return (
-        <div className="group relative rounded-2xl bg-white border border-gray-100/80 shadow-sm transition-all duration-500 hover:shadow-xl hover:shadow-emerald-100/20 hover:border-gray-200/80 overflow-hidden flex flex-col h-full">
+        <div className="group relative rounded-2xl bg-white border border-gray-100/80 shadow-sm transition-all duration-500 hover:shadow-xl hover:shadow-emerald-100/20 hover:border-gray-200/80 overflow-hidden flex flex-col">
 
             {/* Header */}
             <div className="px-5 pt-5 pb-3 flex items-start justify-between">

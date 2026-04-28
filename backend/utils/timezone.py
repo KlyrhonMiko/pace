@@ -63,6 +63,9 @@ def format_datetime_gmt8(
     if gmt8_datetime is None:
         return None
 
+    if fmt == "iso":
+        return gmt8_datetime.isoformat()
+
     return gmt8_datetime.replace(microsecond=0).strftime(fmt)
 
 

@@ -61,7 +61,7 @@ export default function UpcomingSessions() {
             </div>
 
             {/* Sessions List */}
-            <div className="px-6 pb-2 flex-1">
+            <div className="px-6 pb-6 flex-1">
                 <div className="relative">
                     {/* Vertical timeline line */}
                     <div

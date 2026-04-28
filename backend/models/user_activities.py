@@ -17,6 +17,15 @@ class ActivityType(str, Enum):
     UPDATE_PROFILE = "UPDATE_PROFILE"
     PASSWORD_RESET = "PASSWORD_RESET"
     JOB_APPLICATION = "JOB_APPLICATION"
+    # Employer specific
+    POST_JOB = "POST_JOB"
+    UPDATE_JOB = "UPDATE_JOB"
+    DELETE_JOB = "DELETE_JOB"
+    TOGGLE_JOB_VISIBILITY = "TOGGLE_JOB_VISIBILITY"
+    RECEIVE_APPLICATION = "RECEIVE_APPLICATION"
+    UPDATE_JOB_APPLICATION = "UPDATE_JOB_APPLICATION"
+    SCHEDULE_INTERVIEW = "SCHEDULE_INTERVIEW"
+    UPDATE_COMPANY_PROFILE = "UPDATE_COMPANY_PROFILE"
 
 
 class UserActivity(BaseTable, SQLModel, table=True):
@@ -33,8 +42,10 @@ class UserActivity(BaseTable, SQLModel, table=True):
     activity_metadata: Optional[Any] = Field(default=None, sa_type=JSON)
     @field_serializer("created_at")
     def serialize_datetime(self, value: datetime) -> str:
-        """Convert to GMT+8 and format using the shared datetime display format."""
-        return format_datetime_gmt8(value)
+        """Convert to GMT+8 and return ISO format with timezone offset."""
+        from utils.timezone import convert_to_gmt8
+        aware_dt = convert_to_gmt8(value)
+        return aware_dt.isoformat() if aware_dt else None
 
 
 class UserActivityCreate(SQLModel):
@@ -57,4 +68,7 @@ class UserActivityPublic(SQLModel):
 
     @field_serializer("created_at")
     def serialize_datetime(self, value: datetime) -> str:
-        return format_datetime_gmt8(value)
+        """Convert to GMT+8 and return ISO format with timezone offset."""
+        from utils.timezone import convert_to_gmt8
+        aware_dt = convert_to_gmt8(value)
+        return aware_dt.isoformat() if aware_dt else None

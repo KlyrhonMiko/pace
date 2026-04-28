@@ -19,7 +19,7 @@ class FacultyDashboardStats(BaseModel):
     alumni_advised: int
     events_organized: int
     placement_rate: int
-    referrals_sent: int
+    active_jobs: int
     avg_offers: float
     avg_package: float
     top_sector: str

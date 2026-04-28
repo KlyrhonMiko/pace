@@ -58,8 +58,8 @@ export default function UpcomingFacultyEvents() {
             </div>
 
             {/* Events List */}
-            <div className="px-6 pb-2 flex-1 space-y-3">
-                {events.map((event, idx) => {
+            <div className="px-6 pb-6 flex-1 space-y-3">
+                {events.slice(0, 3).map((event, idx) => {
                     const styles = getEventStyles(idx);
                     const eventDate = parseISO(event.date);
                     const month = format(eventDate, "MMM");

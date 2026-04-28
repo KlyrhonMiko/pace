@@ -13,7 +13,7 @@ export interface FacultyStats {
     alumni_advised: number;
     events_organized: number;
     placement_rate: number;
-    referrals_sent: number;
+    active_jobs: number;
     avg_offers: number;
     avg_package: number;
     top_sector: string;
@@ -129,9 +129,9 @@ export async function fetchFacultyAlumniProgress(): Promise<AlumniProgressItem[]
 /**
  * Fetches general alumni activity for the faculty dashboard.
  */
-export async function fetchFacultyActivity(): Promise<FacultyActivity[]> {
+export async function fetchFacultyActivity(limit: number = 5): Promise<FacultyActivity[]> {
     try {
-        const json = await apiFetch<any>("/dashboard/faculty/activity");
+        const json = await apiFetch<any>(`/dashboard/faculty/activity?limit=${limit}`);
         if (json.success && json.data) {
             return json.data as FacultyActivity[];
         }
@@ -170,6 +170,22 @@ export async function fetchAlumniActivity(limit: number = 5): Promise<Activity[]
         return [];
     } catch (error) {
         console.error("Failed to fetch alumni activity:", error);
+        return [];
+    }
+}
+
+/**
+ * Fetches recent activity for the employer dashboard.
+ */
+export async function fetchEmployerActivity(limit: number = 5): Promise<Activity[]> {
+    try {
+        const json = await apiFetch<any>(`/employers/activity/me?limit=${limit}`);
+        if (json.success && json.data) {
+            return json.data as Activity[];
+        }
+        return [];
+    } catch (error) {
+        console.error("Failed to fetch employer activity:", error);
         return [];
     }
 }

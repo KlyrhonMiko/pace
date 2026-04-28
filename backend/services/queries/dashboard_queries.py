@@ -6,7 +6,7 @@ from models.users import User
 from models.alumni import Alumni
 from models.job_listings import JobListing
 from models.events import Event
-from utils.timezone import get_current_time_gmt8
+from utils.timezone import get_current_time_gmt8, format_datetime_gmt8
 
 def get_admin_dashboard_stats(session: Session) -> dict:
     """
@@ -55,7 +55,12 @@ def get_faculty_dashboard_stats(session: Session, faculty_user_ref_id: uuid.UUID
         select(func.count(Event.id)).where(Event.is_deleted == False)
     ).one()
 
-    # 3. Placement Metrics for all alumni
+    # 3. Active jobs
+    active_jobs = session.exec(
+        select(func.count(JobListing.id)).where(JobListing.is_active == True)
+    ).one()
+
+    # 4. Placement Metrics for all alumni
     total_offers = 0
     total_salary = 0
     employed_count = 0
@@ -81,7 +86,7 @@ def get_faculty_dashboard_stats(session: Session, faculty_user_ref_id: uuid.UUID
     
     placement_rate = int((employed_count / alumni_total_count * 100)) if alumni_total_count > 0 else 0
 
-    # 4. Final aggregation
+    # 5. Final aggregation
     avg_offers = round(total_offers / alumni_total_count, 1) if alumni_total_count > 0 else 0.0
     avg_package = round(total_salary / employed_count, 1) if employed_count > 0 else 0.0
     top_sector = max(sectors, key=sectors.get) if sectors else "N/A"
@@ -95,8 +100,8 @@ def get_faculty_dashboard_stats(session: Session, faculty_user_ref_id: uuid.UUID
     return {
         "alumni_advised": alumni_total_count, # Renamed internally but still maps to the same UI field
         "events_organized": events_organized,
+        "active_jobs": active_jobs,
         "placement_rate": placement_rate,
-        "referrals_sent": 0, # Placeholder
         "avg_offers": avg_offers,
         "avg_package": avg_package,
         "top_sector": top_sector,
@@ -163,27 +168,53 @@ def get_faculty_upcoming_sessions(session: Session, user_ref_id: uuid.UUID, limi
         })
     return result
 
-def get_faculty_activity_feed(session: Session, limit: int = 5) -> list[dict]:
-    """Get recent activity on the platform relevant to faculty."""
+def get_faculty_activity_feed(session: Session, limit: int = 20) -> list[dict]:
+    """Get recent activity on the platform enriched with real names/company names."""
     from models.user_activities import UserActivity
-    from models.users import User
+    from models.users import User, UserType
+    from models.alumni import Alumni
+    from models.employers import Employer
+    from models.staff import Staff
 
-    activities = session.exec(
-        select(UserActivity, User.username)
+    # Join with User and enrichment tables
+    query = (
+        select(UserActivity, User, Alumni, Employer, Staff)
         .join(User, UserActivity.user_ref_id == User.id)
+        .outerjoin(Alumni, User.id == Alumni.user_ref_id)
+        .outerjoin(Employer, User.id == Employer.user_ref_id)
+        .outerjoin(Staff, User.id == Staff.user_ref_id)
         .order_by(UserActivity.created_at.desc())
         .limit(limit)
-    ).all()
+    )
+    
+    results = session.exec(query).all()
 
-    return [
-        {
+    enriched_activities = []
+    for act, user, alumni, employer, staff in results:
+        display_name = user.username
+        is_real_name = False
+        
+        if user.user_type == UserType.EMPLOYER and employer:
+            display_name = employer.company_name
+            is_real_name = True
+        elif user.user_type in [UserType.FACULTY, UserType.STAFF, UserType.ADMIN] and staff:
+            display_name = f"{staff.first_name} {staff.last_name}"
+            is_real_name = True
+        elif alumni: # Alumni often have user_type USER
+            display_name = f"{alumni.first_name} {alumni.last_name}"
+            is_real_name = True
+        
+        # Format the description: use @username if no real name, otherwise use the real name/company
+        actor_label = display_name if is_real_name else f"@{display_name}"
+        
+        enriched_activities.append({
             "id": act.activity_id,
-            "description": f"@{username} {act.description}",
+            "description": f"{actor_label} {act.description}",
             "type": act.activity_type.value.lower(),
-            "created_at": act.created_at.isoformat()
-        }
-        for act, username in activities
-    ]
+            "created_at": format_datetime_gmt8(act.created_at, fmt="iso")
+        })
+
+    return enriched_activities
 
 def get_alumni_dashboard_stats(session: Session, user_ref_id: uuid.UUID) -> dict:
     """
@@ -224,7 +255,7 @@ def get_alumni_recent_activity(session: Session, user_ref_id: uuid.UUID, limit: 
         {
             "id": act.activity_id,
             "name": act.description,
-            "date": act.created_at.isoformat(),
+            "date": format_datetime_gmt8(act.created_at, fmt="iso"),
             "type": act.activity_type.value.lower()
         }
         for act in activities

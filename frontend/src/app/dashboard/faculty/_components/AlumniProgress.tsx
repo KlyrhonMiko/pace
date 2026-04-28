@@ -58,7 +58,7 @@ export default function AlumniProgress() {
     }
 
     return (
-        <div className="group relative rounded-2xl bg-white border border-gray-100/80 shadow-sm transition-all duration-500 hover:shadow-xl hover:shadow-gray-200/20 hover:border-gray-200/80 overflow-hidden flex flex-col lg:col-span-2">
+        <div className="group relative rounded-2xl bg-white border border-gray-100/80 shadow-sm transition-all duration-500 hover:shadow-xl hover:shadow-gray-200/20 hover:border-gray-200/80 overflow-hidden flex flex-col">
 
             {/* Header */}
             <div className="px-6 pt-5 pb-4 flex items-start justify-between">
@@ -79,7 +79,7 @@ export default function AlumniProgress() {
             {/* Alumni Card Grid */}
             <div className="px-6 pb-2 flex-1">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {alumnis.slice(0, 6).map((alumnus, idx) => {
+                    {alumnis.slice(0, 12).map((alumnus, idx) => {
                         const { color, statusColor, statusBg } = getStyles(alumnus.initials);
                         const sColor = statusColor[alumnus.status] || "bg-gray-400";
                         const sBg = statusBg[alumnus.status] || "bg-gray-50 text-gray-500 ring-gray-100";

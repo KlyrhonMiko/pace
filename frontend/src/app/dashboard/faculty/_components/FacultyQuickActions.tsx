@@ -1,19 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Zap, ChevronRight, Users, CalendarPlus, Briefcase, BarChart3 } from "lucide-react";
+import { Zap, ChevronRight, Users, CalendarPlus, Briefcase, BarChart3, ClipboardList, Settings, Upload } from "lucide-react";
 
 const actions = [
-    {
-        label: "Schedule Session",
-        description: "Manage alumni meetings",
-        href: "/dashboard/faculty/alumnis",
-        icon: Users,
-        color: "#10b981",
-        gradient: "from-emerald-700 to-emerald-800",
-        bgTint: "bg-emerald-50",
-        ringTint: "ring-emerald-100/60",
-    },
     {
         label: "Create Event",
         description: "Schedule new event",
@@ -21,18 +11,30 @@ const actions = [
         icon: CalendarPlus,
         color: "#3b82f6",
         gradient: "from-blue-500 to-blue-600",
-        bgTint: "bg-blue-50",
-        ringTint: "ring-blue-100/60",
     },
     {
-        label: "View Job Board",
+        label: "Survey HUB",
+        description: "Manage academic surveys",
+        href: "/dashboard/faculty/surveys",
+        icon: ClipboardList,
+        color: "#06b6d4",
+        gradient: "from-cyan-500 to-cyan-600",
+    },
+    {
+        label: "Job Board",
         description: "Browse opportunities",
         href: "/dashboard/faculty/jobs",
         icon: Briefcase,
         color: "#8b5cf6",
         gradient: "from-violet-500 to-violet-600",
-        bgTint: "bg-violet-50",
-        ringTint: "ring-violet-100/60",
+    },
+    {
+        label: "Import Alumni",
+        description: "Batch register graduates",
+        href: "/dashboard/faculty/alumnis",
+        icon: Upload,
+        color: "#f43f5e",
+        gradient: "from-rose-500 to-rose-600",
     },
     {
         label: "View Reports",
@@ -41,8 +43,6 @@ const actions = [
         icon: BarChart3,
         color: "#f59e0b",
         gradient: "from-amber-500 to-amber-600",
-        bgTint: "bg-amber-50",
-        ringTint: "ring-amber-100/60",
     },
 ];
 
@@ -62,7 +62,7 @@ export default function FacultyQuickActions() {
             </div>
 
             {/* Action Items */}
-            <div className="px-4 pb-2 flex-1 space-y-1">
+            <div className="px-4 pb-6 flex-1 space-y-1">
                 {actions.map((action) => (
                     <Link
                         key={action.label}

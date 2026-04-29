@@ -305,10 +305,10 @@ export default function UserManagement() {
                         {!editingUser && (
                             <div>
                                 <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Assignment Details</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                                     {isStaffOrAdmin && (
                                         <>
-                                            <div key="gender-field-segment" className="space-y-1.5">
+                                            <div key="gender-field-segment" className="md:col-span-2 space-y-1.5">
                                                 <label className="text-sm font-medium text-slate-700">Gender*</label>
                                                 <Select
                                                     value={formData.gender}
@@ -325,7 +325,7 @@ export default function UserManagement() {
                                                     </SelectContent>
                                                 </Select>
                                             </div>
-                                            <div key="dept-field-segment" className="space-y-1.5">
+                                            <div key="dept-field-segment" className="md:col-span-3 space-y-1.5">
                                                 <label className="text-sm font-medium text-slate-700">Department</label>
                                                 <Select
                                                     value={formData.college_dept_id}
@@ -348,7 +348,7 @@ export default function UserManagement() {
 
                                     {isEmployer && (
                                         <>
-                                            <div key="company-field-segment" className="md:col-span-2 space-y-1.5">
+                                            <div key="company-field-segment" className="md:col-span-5 space-y-1.5">
                                                 <label className="text-sm font-medium text-slate-700">Company Name*</label>
                                                 <Input
                                                     placeholder="e.g. Acme Corp"
@@ -357,7 +357,7 @@ export default function UserManagement() {
                                                     className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
                                                 />
                                             </div>
-                                            <div key="position-field-segment" className="md:col-span-2 space-y-1.5">
+                                            <div key="position-field-segment" className="md:col-span-5 space-y-1.5">
                                                 <label className="text-sm font-medium text-slate-700">Contact Position</label>
                                                 <Input
                                                     placeholder="e.g. Hiring Manager"

@@ -40,6 +40,7 @@ import AlumniList from "./AlumniList";
 import AlumniFilters from "./AlumniFilters";
 import { DatePicker } from "@/components/ui/date-picker";
 import CsvImportModal from "./CsvImportModal";
+import ActionsCard from "../../../_components/ActionsCard";
 
 
 export default function AlumniManagement() {
@@ -81,17 +82,6 @@ export default function AlumniManagement() {
         <div className="relative grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
             {/* Left Column: Alumni List */}
             <div className="lg:col-span-2">
-                {/* Import CSV Button */}
-                <div className="flex justify-end mb-3">
-                    <button
-                        id="csv-import-btn"
-                        onClick={() => setIsCsvModalOpen(true)}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-200 transition-all"
-                    >
-                        <Upload className="h-4 w-4" />
-                        Import CSV
-                    </button>
-                </div>
                 <AlumniList
                     alumni={alumni}
                     isLoading={isLoading}
@@ -104,8 +94,21 @@ export default function AlumniManagement() {
                 />
             </div>
 
-            {/* Right Column: Filters */}
-            <div className="lg:col-span-1">
+            {/* Right Column: Actions & Filters */}
+            <div className="lg:col-span-1 space-y-6">
+                <ActionsCard
+                    title="Alumni Actions"
+                    description="Bulk management & tools"
+                    icon={<Upload className="h-5 w-5" />}
+                    actions={[
+                        {
+                            label: "Import CSV",
+                            onClick: () => setIsCsvModalOpen(true),
+                            icon: <Upload className="h-4 w-4 stroke-2" />,
+                            variant: "primary"
+                        }
+                    ]}
+                />
                 <AlumniFilters
                     searchQuery={searchQuery}
                     handleSearch={handleSearch}
@@ -295,42 +298,6 @@ export default function AlumniManagement() {
                                         placeholder="e.g. 2024"
                                         value={formData.year_graduated}
                                         onChange={(e) => setFormData({ ...formData, year_graduated: e.target.value })}
-                                        className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
-                                    />
-                                </div>
-                                <div className="space-y-1.5 md:col-span-1">
-                                    <label className="text-sm font-medium text-slate-700">GWA</label>
-                                    <Input
-                                        placeholder="e.g. 1.45"
-                                        value={formData.gwa}
-                                        onChange={(e) => setFormData({ ...formData, gwa: e.target.value })}
-                                        className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
-                                    />
-                                </div>
-                                <div className="space-y-1.5 md:col-span-1">
-                                    <label className="text-sm font-medium text-slate-700">Avg Prof Grade</label>
-                                    <Input
-                                        placeholder="e.g. 1.38"
-                                        value={formData.avg_prof_grade}
-                                        onChange={(e) => setFormData({ ...formData, avg_prof_grade: e.target.value })}
-                                        className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
-                                    />
-                                </div>
-                                <div className="space-y-1.5 md:col-span-1">
-                                    <label className="text-sm font-medium text-slate-700">Avg Elec Grade</label>
-                                    <Input
-                                        placeholder="e.g. 1.55"
-                                        value={formData.avg_elec_grade}
-                                        onChange={(e) => setFormData({ ...formData, avg_elec_grade: e.target.value })}
-                                        className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
-                                    />
-                                </div>
-                                <div className="space-y-1.5 md:col-span-1">
-                                    <label className="text-sm font-medium text-slate-700">OJT Grade</label>
-                                    <Input
-                                        placeholder="e.g. 95"
-                                        value={formData.ojt_grade}
-                                        onChange={(e) => setFormData({ ...formData, ojt_grade: e.target.value })}
                                         className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
                                     />
                                 </div>

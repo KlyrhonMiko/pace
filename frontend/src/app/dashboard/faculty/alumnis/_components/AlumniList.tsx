@@ -276,9 +276,6 @@ export default function AlumniList({
                                                                 </h4>
                                                                 <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm px-4">
                                                                     <DetailRow label="Student ID Number" value={record.student!.student_id} />
-                                                                    <DetailRow label="General Weighted Avg" value={record.student!.gwa.toFixed(2)} />
-                                                                    <DetailRow label="Proficiency Grade" value={record.student!.avg_prof_grade?.toFixed(2) ?? null} />
-                                                                    <DetailRow label="Practicum (OJT) Grade" value={record.student!.ojt_grade} />
                                                                 </div>
                                                             </div>
 

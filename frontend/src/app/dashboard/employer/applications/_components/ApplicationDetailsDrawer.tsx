@@ -160,7 +160,6 @@ export default function ApplicationDetailsDrawer({ applicationId, onClose, onSta
         alumni?.employment_status && { label: "Status", value: alumni.employment_status, className: "sm:col-span-2" },
         alumni?.course_name && { label: "Degree", value: alumni.course_name, className: "sm:col-span-3" },
         alumni?.year_graduated && { label: "Graduation", value: String(alumni.year_graduated), className: "sm:col-span-1" },
-        alumni?.gwa && { label: "GWA", value: String(alumni.gwa), accent: true, className: "sm:col-span-2" },
     ].filter(Boolean) as Array<{ label: string; value: string; isEmail?: boolean; accent?: boolean; className?: string }>;
 
     return (

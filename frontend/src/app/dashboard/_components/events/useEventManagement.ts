@@ -23,6 +23,7 @@ export function useEventManagement() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingEvent, setEditingEvent] = useState<Event | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
+    const [filterType, setFilterType] = useState("all");
     const [isAddingNewType, setIsAddingNewType] = useState(false);
     const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
     const [selectedImagePreview, setSelectedImagePreview] = useState<string | null>(null);
@@ -174,10 +175,12 @@ export function useEventManagement() {
         }
     };
 
-    const filteredEvents = events.filter(e =>
-        e.event_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        e.location.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredEvents = events.filter(e => {
+        const matchesSearch = e.event_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            e.location.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesType = filterType === "all" || e.event_type === filterType;
+        return matchesSearch && matchesType;
+    });
 
     return {
         // State
@@ -187,6 +190,7 @@ export function useEventManagement() {
         isModalOpen,
         editingEvent,
         searchQuery,
+        filterType,
         isAddingNewType,
         isSaving,
         isDeleting,
@@ -199,6 +203,7 @@ export function useEventManagement() {
         setIsModalOpen,
         setIsAddingNewType,
         setFormData,
+        setFilterType,
         setEventToDelete,
         handleSearch,
         openCreateModal,

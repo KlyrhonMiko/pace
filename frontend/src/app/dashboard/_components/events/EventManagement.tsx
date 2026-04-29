@@ -39,6 +39,7 @@ import { useEventManagement } from "./useEventManagement";
 import EventList from "./EventList";
 import EventFilters from "./EventFilters";
 import { DatePicker } from "@/components/ui/date-picker";
+import ActionsCard from "../ActionsCard";
 
 export default function EventManagement() {
     const {
@@ -48,6 +49,7 @@ export default function EventManagement() {
         isModalOpen,
         editingEvent,
         searchQuery,
+        filterType,
         isAddingNewType,
         isSaving,
         isDeleting,
@@ -60,6 +62,7 @@ export default function EventManagement() {
         setIsModalOpen,
         setIsAddingNewType,
         setFormData,
+        setFilterType,
         setEventToDelete,
         handleSearch,
         openCreateModal,
@@ -86,11 +89,26 @@ export default function EventManagement() {
             </div>
 
             {/* Right Column: Actions & Filters */}
-            <div className="lg:col-span-1">
+            <div className="lg:col-span-1 space-y-6">
+                <ActionsCard
+                    title="Event Actions"
+                    description="Schedule & manage events"
+                    icon={<Plus className="h-5 w-5" />}
+                    actions={[
+                        {
+                            label: "Create New Event",
+                            onClick: openCreateModal,
+                            icon: <Plus className="h-4 w-4 stroke-2" />,
+                            variant: "primary"
+                        }
+                    ]}
+                />
                 <EventFilters
                     searchQuery={searchQuery}
                     handleSearch={handleSearch}
-                    openCreateModal={openCreateModal}
+                    filterType={filterType}
+                    setFilterType={setFilterType}
+                    availableTypeNames={availableTypeNames}
                     isLoading={isLoading}
                 />
             </div>

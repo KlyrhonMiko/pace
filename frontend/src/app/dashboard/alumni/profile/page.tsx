@@ -862,10 +862,6 @@ export default function ProfilePage() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <ReadOnlyField label="Student ID *" value={academic.studentId} />
                                 <ReadOnlyField label="Year Graduated *" value={academic.yearGraduated} />
-                                <ReadOnlyField label="GWA / CGPA *" value={academic.gwa} />
-                                <ReadOnlyField label="Avg. Professional Grade" value={academic.avgProfGrade} />
-                                <ReadOnlyField label="Avg. Elective Grade" value={academic.avgElecGrade} />
-                                <ReadOnlyField label="OJT Grade *" value={academic.ojtGrade} />
                                 <ReadOnlyField label="Leadership Position" value={academic.leadershipPos} />
                                 <ReadOnlyField label="Active Member Position" value={academic.activeMemberPos} />
                                 <div className="md:col-span-2">

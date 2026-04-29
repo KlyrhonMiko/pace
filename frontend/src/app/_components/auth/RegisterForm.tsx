@@ -459,7 +459,6 @@ export function RegisterForm({ isModal, onLoginClick, onSuccess, onCancel, initi
         } else if (stepNumber === 3 && role === "Alumni") {
             if (!academic.studentId.trim()) { toast.error("Student ID is required"); return false; }
             if (!academic.yearGraduated.trim()) { toast.error("Graduation year is required"); return false; }
-            if (!academic.gwa.trim()) { toast.error("GWA/CGPA is required"); return false; }
             if (!academic.ojtGrade.trim()) { toast.error("OJT Grade is required"); return false; }
             if (!academic.courseAbbv) { toast.error("Please select your course"); return false; }
         } else if (stepNumber === 2 && role === "Employer") {
@@ -544,9 +543,7 @@ export function RegisterForm({ isModal, onLoginClick, onSuccess, onCancel, initi
                     await createStudentRecord({
                         student_id: academic.studentId,
                         year_graduated: parseInt(academic.yearGraduated, 10),
-                        gwa: parseFloat(academic.gwa),
-                        avg_prof_grade: academic.avgProfGrade ? parseFloat(academic.avgProfGrade) : null,
-                        avg_elec_grade: academic.avgElecGrade ? parseFloat(academic.avgElecGrade) : null,
+                        gwa: 3.0, // Default passing grade
                         ojt_grade: academic.ojtGrade ? parseFloat(academic.ojtGrade) : null,
                         leadership_pos: academic.leadershipPos,
                         act_member_pos: academic.activeMemberPos,
@@ -817,16 +814,8 @@ export function RegisterForm({ isModal, onLoginClick, onSuccess, onCancel, initi
                                             onChange={(v) => setAcademic(p => ({ ...p, yearGraduated: v }))} placeholder="2024" required />
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                                        <InputField label="GWA/CGPA" value={academic.gwa}
-                                            onChange={(v) => setAcademic(p => ({ ...p, gwa: v }))} placeholder="1.50" required />
                                         <InputField label="OJT Grade" value={academic.ojtGrade}
                                             onChange={(v) => setAcademic(p => ({ ...p, ojtGrade: v }))} placeholder="95" required />
-                                    </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                                        <InputField label="Avg. Prof Grade" value={academic.avgProfGrade}
-                                            onChange={(v) => setAcademic(p => ({ ...p, avgProfGrade: v }))} placeholder="1.40" />
-                                        <InputField label="Avg. Elec Grade" value={academic.avgElecGrade}
-                                            onChange={(v) => setAcademic(p => ({ ...p, avgElecGrade: v }))} placeholder="1.60" />
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                                         <SelectField label="Held Leadership Position?"

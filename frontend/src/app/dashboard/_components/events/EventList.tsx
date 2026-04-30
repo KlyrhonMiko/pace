@@ -1,29 +1,33 @@
 "use client";
 
 import {
-    Edit2,
-    Trash2,
     Calendar,
-    Clock,
-    MapPin,
     RefreshCw,
     Loader2,
-    AlertTriangle,
+    ChevronLeft,
+    ChevronRight
 } from "lucide-react";
-import { Button } from "../../../../components/ui/button";
+import EventCard from "./EventCard";
+import { Button } from "@/components/ui/button";
 import {
-    getMonthAbbreviation,
-    getDayNumber,
-    formatEventDate,
     type Event,
-} from "../../_lib/events";
+} from "@/app/dashboard/_lib/events";
 
 interface EventListProps {
     events: Event[];
     isLoading: boolean;
-    openUpdateModal: (event: Event) => void;
-    handleDeleteClick: (eventId: string) => void;
+    // Management handlers (optional)
+    openUpdateModal?: (event: Event) => void;
+    handleDeleteClick?: (eventId: string) => void;
     fetchEvents: () => void;
+    // Registration handler (optional)
+    onToggleRegistration?: (eventId: string) => void;
+    // Pagination (optional)
+    totalEvents?: number;
+    totalPages?: number;
+    currentPage?: number;
+    setCurrentPage?: (page: number) => void;
+    eventsPerPage?: number;
 }
 
 export default function EventList({
@@ -32,137 +36,133 @@ export default function EventList({
     openUpdateModal,
     handleDeleteClick,
     fetchEvents,
+    onToggleRegistration,
+    totalEvents,
+    totalPages,
+    currentPage,
+    setCurrentPage,
+    eventsPerPage,
 }: EventListProps) {
-    return (
-        <div className="group/card rounded-2xl bg-white border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50 hover:-translate-y-0.5 flex flex-col h-full">
-            {/* Header Area */}
-            <div className="p-6 border-b border-slate-50 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 text-white shadow-lg shadow-emerald-500/20">
-                        <Calendar className="h-5 w-5" strokeWidth={2} />
-                    </div>
-                    <div>
-                        <h2 className="text-base font-bold text-gray-900">
-                            Events Directory
-                        </h2>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                            Manage and track upcoming events ({events.length})
-                        </p>
-                    </div>
-                </div>
+    const isManagementMode = !!(openUpdateModal || handleDeleteClick);
+    const hasPagination = totalPages && totalPages > 1 && setCurrentPage && currentPage;
 
-                <div className="flex items-center gap-2">
-                    <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={fetchEvents}
-                        className="h-10 w-10 text-slate-600 hover:text-slate-900 hover:bg-white bg-slate-50 border-slate-200/80 transition-all rounded-xl shadow-sm hover:shadow"
-                        disabled={isLoading}
-                        title="Refresh data"
-                    >
-                        <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
-                    </Button>
-                </div>
+    return (
+        <div className="relative rounded-2xl bg-white border border-slate-200/80 shadow-lg shadow-slate-200/30 hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col h-full">
+            {/* Decorative elements */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute -top-20 -right-20 h-40 w-40 rounded-full bg-emerald-50 opacity-20 blur-3xl" />
+                <div className="absolute -bottom-20 -left-20 h-40 w-40 rounded-full bg-slate-100 opacity-10 blur-3xl" />
             </div>
 
-            {/* Table Area */}
-            <div className="flex-1 overflow-x-auto custom-scrollbar">
-                <table className="w-full text-left border-collapse min-w-[700px]">
-                    <thead>
-                        <tr className="bg-slate-50/30 border-b border-slate-100">
-                            <th className="px-5 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Event Details</th>
-                            <th className="px-5 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Type & Location</th>
-                            <th className="px-5 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Attendance</th>
-                            <th className="px-5 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100/80">
-                        {isLoading ? (
-                            <tr>
-                                <td colSpan={4} className="px-6 py-32 text-center bg-slate-50/20">
-                                    <div className="flex flex-col items-center gap-3">
-                                        <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
-                                        <p className="text-sm font-semibold text-slate-500 animate-pulse">Loading events...</p>
-                                    </div>
-                                </td>
-                            </tr>
-                        ) : events.length === 0 ? (
-                            <tr>
-                                <td colSpan={4} className="px-6 py-32 text-center bg-slate-50/20">
-                                    <div className="flex flex-col items-center gap-4">
-                                        <div className="h-16 w-16 rounded-2xl bg-white border border-slate-200/60 shadow-sm flex items-center justify-center">
-                                            <Calendar className="h-8 w-8 text-slate-300" strokeWidth={1.5} />
-                                        </div>
-                                        <p className="text-sm font-semibold text-slate-500">No events found.</p>
-                                    </div>
-                                </td>
-                            </tr>
-                        ) : (
-                            events.map((event) => (
-                                <tr key={event.event_id} className="group transition-all duration-200 hover:bg-slate-50/50">
-                                    <td className="px-5 py-4">
-                                        <div className="flex items-center gap-4">
-                                            <div className="h-12 w-12 rounded-xl bg-emerald-50 flex flex-col items-center justify-center border border-emerald-100 group-hover:bg-emerald-100 transition-colors">
-                                                <span className="text-emerald-700 font-bold text-[10px] uppercase">{getMonthAbbreviation(event.date)}</span>
-                                                <span className="text-emerald-800 font-extrabold text-lg leading-none">{getDayNumber(event.date)}</span>
-                                            </div>
-                                            <div>
-                                                <h4 className="font-bold text-slate-900 text-sm line-clamp-1">{event.event_name}</h4>
-                                                <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
-                                                    <Clock className="h-3 w-3" /> {formatEventDate(event.date)} • {event.time_start} - {event.time_end}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-5 py-4">
-                                        <div className="flex flex-col">
-                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-600 w-fit border border-slate-200/60 mb-1">
-                                                {event.event_type}
-                                            </span>
-                                            <span className="text-xs text-slate-500 flex items-center gap-1">
-                                                <MapPin className="h-3 w-3 text-slate-400" /> {event.location}
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td className="px-5 py-4">
-                                        <div className="flex flex-col gap-1 w-32">
-                                            <div className="flex justify-between text-[10px] uppercase font-bold text-slate-400">
-                                                <span>{Math.round((event.attendees / (event.capacity || 1)) * 100)}%</span>
-                                                <span>{event.attendees}/{event.capacity}</span>
-                                            </div>
-                                            <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                                                <div
-                                                    className="h-full bg-emerald-500 rounded-full"
-                                                    style={{ width: `${(event.attendees / (event.capacity || 1)) * 100}%` }}
-                                                />
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-5 py-4 text-right">
-                                        <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => openUpdateModal(event)}
-                                                className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg hover:shadow-sm"
-                                            >
-                                                <Edit2 className="h-4 w-4" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => handleDeleteClick(event.event_id)}
-                                                className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg hover:shadow-sm"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
+            <div className="relative z-10 flex flex-col h-full">
+                {/* Header Area */}
+                <div className="p-7 border-b border-slate-50 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 text-white shadow-lg shadow-emerald-500/20">
+                            <Calendar className="h-5 w-5" strokeWidth={2} />
+                        </div>
+                        <div>
+                            <h2 className="text-base font-bold text-gray-900">
+                                {isManagementMode ? "Events Directory" : "Available Events"}
+                            </h2>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                                {isManagementMode 
+                                    ? `Manage and track platform activities`
+                                    : `Discover and register for upcoming events`}
+                                {totalEvents !== undefined && ` (${totalEvents})`}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={fetchEvents}
+                            className="h-10 w-10 text-slate-600 hover:text-slate-900 hover:bg-white bg-slate-50 border-slate-200/80 transition-all rounded-xl shadow-sm hover:shadow"
+                            disabled={isLoading}
+                            title="Refresh data"
+                        >
+                            <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+                        </Button>
+                    </div>
+                </div>
+
+                {/* List Area */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-7">
+                    {isLoading ? (
+                        <div className="py-32 text-center bg-slate-50/20 rounded-2xl border border-dashed border-slate-200">
+                            <div className="flex flex-col items-center gap-3">
+                                <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+                                <p className="text-sm font-semibold text-slate-500 animate-pulse">Loading events...</p>
+                            </div>
+                        </div>
+                    ) : events.length === 0 ? (
+                        <div className="py-32 text-center bg-slate-50/20 rounded-2xl border border-dashed border-slate-200">
+                            <div className="flex flex-col items-center gap-4">
+                                <div className="h-16 w-16 rounded-2xl bg-white border border-slate-200/60 shadow-sm flex items-center justify-center">
+                                    <Calendar className="h-8 w-8 text-slate-300" strokeWidth={1.5} />
+                                </div>
+                                <p className="text-sm font-semibold text-slate-500">No events found.</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-3.5">
+                            {events.map((event) => (
+                                <EventCard
+                                    key={event.event_id}
+                                    event={event}
+                                    onEdit={openUpdateModal}
+                                    onDelete={handleDeleteClick}
+                                    onToggleRegistration={onToggleRegistration}
+                                />
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Pagination */}
+                    {hasPagination && (
+                        <div className="mt-10 pt-6 border-t border-slate-200/50 flex items-center justify-center gap-3">
+                            <button
+                                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                                disabled={currentPage === 1}
+                                className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:shadow-sm"
+                            >
+                                <ChevronLeft className="h-4 w-4" strokeWidth={2} />
+                                Previous
+                            </button>
+
+                            <div className="flex items-center gap-1.5">
+                                {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
+                                    const pageNum = currentPage - 2 + i;
+                                    if (pageNum < 1 || pageNum > totalPages) return null;
+
+                                    return (
+                                        <button
+                                            key={pageNum}
+                                            onClick={() => setCurrentPage(pageNum)}
+                                            className={`h-10 min-w-10 rounded-lg text-sm font-bold transition-all ${currentPage === pageNum
+                                                ? 'bg-gradient-to-br from-emerald-800 to-emerald-700 text-white shadow-lg shadow-emerald-800/30'
+                                                : 'border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
+                                                }`}
+                                        >
+                                            {pageNum}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            <button
+                                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                                disabled={currentPage === totalPages}
+                                className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:shadow-sm"
+                            >
+                                Next
+                                <ChevronRight className="h-4 w-4" strokeWidth={2} />
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );

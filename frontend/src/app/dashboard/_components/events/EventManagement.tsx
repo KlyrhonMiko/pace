@@ -22,19 +22,14 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { EventImageCropperModal } from "./EventImageCropperModal";
 import {
     Dialog,
     DialogContent,
     DialogDescription,
-    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import {
-    getMonthAbbreviation,
-    getDayNumber,
-    formatEventDate,
-} from "../../_lib/events";
 import { useEventManagement } from "./useEventManagement";
 import EventList from "./EventList";
 import EventFilters from "./EventFilters";
@@ -56,6 +51,9 @@ export default function EventManagement() {
         isLoading,
         selectedImagePreview,
         eventToDelete,
+        isDragging,
+        isCropperOpen,
+        cropperImageSrc,
         formData,
 
         // Handlers
@@ -68,6 +66,11 @@ export default function EventManagement() {
         openCreateModal,
         openUpdateModal,
         handleImageChange,
+        handleCropComplete,
+        handleCropCancel,
+        handleDragOver,
+        handleDragLeave,
+        handleDrop,
         handleSave,
         handleDeleteClick,
         handleClearForm,
@@ -76,9 +79,9 @@ export default function EventManagement() {
     } = useEventManagement();
 
     return (
-        <div className="relative grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        <div className="relative grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
             {/* Left Column: Events List */}
-            <div className="lg:col-span-2">
+            <div className="lg:col-span-3">
                 <EventList
                     events={events}
                     isLoading={isLoading}
@@ -271,20 +274,53 @@ export default function EventManagement() {
                             {/* Image Placeholder */}
                             <div className="md:col-span-2 space-y-1.5">
                                 <label className="text-sm font-medium text-slate-700">Event Image</label>
-                                <label className="h-40 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 flex flex-col items-center justify-center gap-2 hover:border-emerald-300 hover:bg-emerald-50 transition-all group cursor-pointer overflow-hidden">
-                                    {selectedImagePreview ? (
-                                        <img
-                                            src={selectedImagePreview}
-                                            alt="Selected event preview"
-                                            className="h-full w-full object-cover"
-                                        />
+                                <label 
+                                    onDragOver={handleDragOver}
+                                    onDragLeave={handleDragLeave}
+                                    onDrop={handleDrop}
+                                    className={`relative w-[350px] h-[200px] mx-auto rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all group overflow-hidden ${
+                                        isDragging 
+                                            ? "border-emerald-500 bg-emerald-50 ring-4 ring-emerald-500/10 scale-[1.02]" 
+                                            : "border-slate-200 bg-slate-50/50 hover:border-emerald-300 hover:bg-emerald-50"
+                                    } ${!selectedImagePreview || isDragging ? 'cursor-pointer' : ''}`}
+                                >
+                                    {selectedImagePreview && !isDragging ? (
+                                        <div className="relative h-full w-full">
+                                            <img
+                                                src={selectedImagePreview}
+                                                alt="Selected event preview"
+                                                className="h-full w-full object-cover"
+                                            />
+                                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        handleImageChange(null);
+                                                    }}
+                                                    className="p-2 rounded-full bg-white/90 text-rose-600 hover:bg-rose-50 transition-colors shadow-lg"
+                                                    title="Remove image"
+                                                >
+                                                    <X className="h-5 w-5" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : isDragging ? (
+                                        <div className="flex flex-col items-center gap-2 animate-pulse">
+                                            <div className="p-3 rounded-2xl bg-emerald-100 text-emerald-600 shadow-inner">
+                                                <ImageIcon className="h-8 w-8" />
+                                            </div>
+                                            <span className="text-base font-bold text-emerald-700">Drop image here</span>
+                                            <span className="text-xs text-emerald-500 font-medium italic">Release to set as event banner</span>
+                                        </div>
                                     ) : (
                                         <>
                                             <div className="p-2.5 rounded-xl bg-white shadow-sm border border-slate-100 group-hover:scale-110 transition-transform text-slate-400 group-hover:text-emerald-600">
                                                 <ImageIcon className="h-6 w-6" />
                                             </div>
                                             <div className="flex flex-col items-center gap-0.5">
-                                                <span className="text-sm font-semibold text-slate-600">Click to upload image</span>
+                                                <span className="text-sm font-semibold text-slate-600">Click to upload or drop image</span>
                                                 <span className="text-[11px] text-slate-400 font-medium">PNG, JPG or WEBP up to 5MB</span>
                                             </div>
                                         </>
@@ -334,6 +370,7 @@ export default function EventManagement() {
                     </div>
                 </DialogContent>
             </Dialog>
+
             <ConfirmationModal
                 isOpen={eventToDelete !== null}
                 onClose={() => setEventToDelete(null)}
@@ -343,6 +380,13 @@ export default function EventManagement() {
                 confirmText="Delete Event"
                 variant="danger"
                 isLoading={isDeleting}
+            />
+
+            <EventImageCropperModal
+                isOpen={isCropperOpen}
+                imageSrc={cropperImageSrc}
+                onClose={handleCropCancel}
+                onCropComplete={handleCropComplete}
             />
         </div>
     );

@@ -168,17 +168,19 @@ def update_event_image(
     session: Session,
     event: Event,
     image_path: str,
+    image_public_id: str | None = None,
     performed_by: str | None = None,
 ) -> Event:
-    before_state = {"image_path": event.image_path}
+    before_state = {"image_path": event.image_path, "image_public_id": event.image_public_id}
     event.image_path = image_path
+    event.image_public_id = image_public_id
     stamp_update(event)
     session.add(event)
     create_transaction_log(
         session,
         tl_name=f"UPDATED event image {event.event_id}",
         before=before_state,
-        after={"image_path": event.image_path},
+        after={"image_path": event.image_path, "image_public_id": event.image_public_id},
         performed_by=performed_by,
     )
     session.commit()
@@ -191,15 +193,16 @@ def clear_event_image(
     event: Event,
     performed_by: str | None = None,
 ) -> None:
-    before_state = {"image_path": event.image_path}
+    before_state = {"image_path": event.image_path, "image_public_id": event.image_public_id}
     event.image_path = None
+    event.image_public_id = None
     stamp_update(event)
     session.add(event)
     create_transaction_log(
         session,
         tl_name=f"REMOVED event image {event.event_id}",
         before=before_state,
-        after={"image_path": None},
+        after={"image_path": None, "image_public_id": None},
         performed_by=performed_by,
     )
     session.commit()

@@ -1,7 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { Filter, ChevronDown } from "lucide-react";
+import { Search, SlidersHorizontal, Tag, Bookmark } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import FilterSection from "@/app/dashboard/_components/events/FilterSection";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface EventFiltersProps {
     eventTypes: { id: string; label: string; count: number }[];
@@ -10,6 +13,8 @@ interface EventFiltersProps {
     showRegisteredOnly: boolean;
     setShowRegisteredOnly: (show: boolean) => void;
     onClearFilters: () => void;
+    searchQuery: string;
+    onSearchChange: (query: string) => void;
 }
 
 export default function EventFilters({
@@ -19,106 +24,104 @@ export default function EventFilters({
     showRegisteredOnly,
     setShowRegisteredOnly,
     onClearFilters,
+    searchQuery,
+    onSearchChange,
 }: EventFiltersProps) {
-    const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-        type: true,
-        status: true,
-    });
-
-    const toggleSection = (section: string) => {
-        setExpandedSections((prev) => ({
-            ...prev,
-            [section]: !prev[section],
-        }));
-    };
-
     return (
-        <div className="rounded-2xl bg-gradient-to-b from-white to-slate-50/50 border border-slate-200/80 p-6 shadow-lg shadow-slate-200/30 h-fit backdrop-blur-sm">
-            {/* Header with Icon */}
-            <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-200/60">
-                <div className="flex items-center gap-2.5">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-100 to-emerald-50 border border-emerald-200/50">
-                        <Filter className="h-5 w-5 text-emerald-800" strokeWidth={2} />
+        <div className="group/card rounded-2xl bg-white border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50 hover:-translate-y-0.5">
+            <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 text-white shadow-lg shadow-emerald-500/20">
+                            <SlidersHorizontal className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <h2 className="text-base font-bold text-gray-900">
+                                Event Filters
+                            </h2>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                                Refine your search
+                            </p>
+                        </div>
                     </div>
-                    <h3 className="font-bold text-slate-900 text-sm">Filters</h3>
+                    <button
+                        onClick={onClearFilters}
+                        className="text-xs font-semibold text-emerald-800 hover:text-emerald-700 transition-all px-2.5 py-1.5 hover:bg-emerald-50 rounded-lg"
+                    >
+                        Reset
+                    </button>
                 </div>
-                <button
-                    onClick={onClearFilters}
-                    className="text-xs font-semibold text-emerald-800 hover:text-emerald-700 transition-all px-2.5 py-1.5 hover:bg-emerald-50/80 rounded-lg border border-emerald-200/0 hover:border-emerald-200/50"
-                >
-                    Reset
-                </button>
-            </div>
 
-            {/* Event Type Filter */}
-            <div className="mb-6 pb-6 border-b border-slate-200/60">
-                <button
-                    onClick={() => toggleSection("type")}
-                    className="flex w-full items-center justify-between mb-3 hover:text-emerald-700 transition-all group"
-                >
-                    <h4 className="font-bold text-sm text-slate-900 group-hover:text-emerald-700 transition-colors">Event Type</h4>
-                    <ChevronDown
-                        className={`h-4 w-4 text-slate-400 transition-transform ${expandedSections.type ? "rotate-180" : ""}`}
-                        strokeWidth={2}
-                    />
-                </button>
-
-                {expandedSections.type && (
-                    <div className="space-y-2.5">
-                        {eventTypes.map((type) => (
-                            <label key={type.id} className="flex items-center gap-3 cursor-pointer group p-2.5 rounded-lg hover:bg-emerald-50/50 transition-all">
-                                <div className="relative flex items-center">
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedType === type.label}
-                                        onChange={(e) =>
-                                            setSelectedType(e.target.checked ? type.label : null)
-                                        }
-                                        className="h-4 w-4 rounded border-slate-300 text-emerald-800 transition-all accent-emerald-800 cursor-pointer"
-                                    />
-                                </div>
-                                <span className="text-sm text-slate-700 group-hover:text-slate-900 transition-colors flex-1 font-medium">
-                                    {type.label}
-                                </span>
-                                <span className="text-xs text-slate-500 bg-slate-100/80 px-2 py-0.5 rounded-full group-hover:bg-emerald-100/60 group-hover:text-emerald-700 transition-all font-semibold">
-                                    {type.count}
-                                </span>
-                            </label>
-                        ))}
+                <div className="space-y-1">
+                    {/* Search Bar */}
+                    <div className="relative mb-4">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <Input
+                            placeholder="Search event name..."
+                            value={searchQuery}
+                            onChange={(e) => onSearchChange(e.target.value)}
+                            className="pl-10 h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20 rounded-xl"
+                        />
                     </div>
-                )}
-            </div>
 
-            {/* Status Filter */}
-            <div className="mb-0">
-                <button
-                    onClick={() => toggleSection("status")}
-                    className="flex w-full items-center justify-between mb-3 hover:text-emerald-700 transition-all group"
-                >
-                    <h4 className="font-bold text-sm text-slate-900 group-hover:text-emerald-700 transition-colors">Status</h4>
-                    <ChevronDown
-                        className={`h-4 w-4 text-slate-400 transition-transform ${expandedSections.status ? "rotate-180" : ""}`}
-                        strokeWidth={2}
-                    />
-                </button>
-
-                {expandedSections.status && (
-                    <div className="space-y-2.5">
-                        <label className="flex items-center gap-3 cursor-pointer group p-2.5 rounded-lg hover:bg-emerald-50/50 transition-all">
-                            <div className="relative flex items-center">
-                                <input
-                                    type="checkbox"
-                                    checked={showRegisteredOnly}
-                                    onChange={(e) => setShowRegisteredOnly(e.target.checked)}
-                                    className="h-4 w-4 rounded border-slate-300 text-emerald-800 transition-all accent-emerald-800 cursor-pointer"
+                    {/* Event Type Filter */}
+                    <FilterSection 
+                        title="Event Type" 
+                        icon={<Tag className="h-4 w-4" />} 
+                        count={selectedType ? 1 : undefined}
+                    >
+                        <div className="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                            <label
+                                className="flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors hover:bg-slate-50"
+                            >
+                                <Checkbox
+                                    checked={selectedType === null}
+                                    onCheckedChange={() => setSelectedType(null)}
+                                    className="border-slate-300 data-[state=checked]:bg-emerald-700 data-[state=checked]:border-emerald-700"
                                 />
-                            </div>
-                            <span className="text-sm text-slate-700 group-hover:text-slate-900 transition-colors flex-1 font-medium">
-                                My Registrations
-                            </span>
-                        </label>
-                    </div>
-                )}
+                                <span className="text-sm text-slate-700">All Types</span>
+                            </label>
+                            {eventTypes.map((type) => (
+                                <label
+                                    key={type.id}
+                                    className="flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors hover:bg-slate-50"
+                                >
+                                    <Checkbox
+                                        checked={selectedType === type.label}
+                                        onCheckedChange={() => setSelectedType(type.label)}
+                                        className="border-slate-300 data-[state=checked]:bg-emerald-700 data-[state=checked]:border-emerald-700"
+                                    />
+                                    <span className="text-sm text-slate-700 flex-1">{type.label}</span>
+                                    {type.count > 0 && (
+                                        <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full">
+                                            {type.count}
+                                        </span>
+                                    )}
+                                </label>
+                            ))}
+                        </div>
+                    </FilterSection>
+
+                    {/* Registration Status Filter */}
+                    <FilterSection 
+                        title="Status" 
+                        icon={<Bookmark className="h-4 w-4" />}
+                        count={showRegisteredOnly ? 1 : undefined}
+                    >
+                        <div className="space-y-2">
+                            <label
+                                className="flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors hover:bg-slate-50"
+                            >
+                                <Checkbox
+                                    checked={showRegisteredOnly}
+                                    onCheckedChange={(checked) => setShowRegisteredOnly(!!checked)}
+                                    className="border-slate-300 data-[state=checked]:bg-emerald-700 data-[state=checked]:border-emerald-700"
+                                />
+                                <span className="text-sm text-slate-700 font-medium">My Registrations</span>
+                            </label>
+                        </div>
+                    </FilterSection>
+                </div>
             </div>
         </div>
     );

@@ -41,7 +41,7 @@ class EventPublic(AuditPublicSQLModel):
     location: str
     capacity: int
     attendees: int
-    image_path: Optional[str] = None
+    image_url: Optional[str] = Field(default=None, validation_alias="image_path")  # Cloudinary secure_url
     is_registered: Optional[bool] = None
     created_at: datetime
     updated_at: datetime
@@ -67,6 +67,8 @@ class EventPublic(AuditPublicSQLModel):
     @field_serializer("time_start", "time_end")
     def serialize_time(self, value: Optional[time]) -> Optional[str]:
         return format_time_value(value)
+
+    model_config = {"populate_by_name": True}
 
 
 class EventRegistrationResponse(SQLModel):

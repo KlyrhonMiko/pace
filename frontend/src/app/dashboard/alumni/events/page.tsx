@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import EventFilters from "./_components/EventFilters";
-import EventList from "./_components/EventList";
+import EventList from "@/app/dashboard/_components/events/EventList";
 import PageHeader from "@/components/dashboard/PageHeader";
 
 import { fetchEvents, fetchEventTypes, registerEvent, unregisterEvent, type Event } from "../../_lib/events";
@@ -171,19 +171,15 @@ export default function EventsPage() {
                 {/* Left Column: Event List */}
                 <div className="lg:col-span-3">
                     <EventList
-                        filteredEvents={paginatedEvents}
+                        events={paginatedEvents}
+                        isLoading={isLoading}
+                        fetchEvents={loadData}
+                        onToggleRegistration={handleToggleRegistration}
                         totalEvents={totalEvents}
                         totalPages={totalPages}
                         currentPage={currentPage}
                         setCurrentPage={setCurrentPage}
-                        EVENTS_PER_PAGE={EVENTS_PER_PAGE}
-                        clearFilters={clearFilters}
-                        searchQuery={searchQuery}
-                        onSearchChange={(query) => {
-                            setSearchQuery(query);
-                            setCurrentPage(1);
-                        }}
-                        onToggleRegistration={handleToggleRegistration}
+                        eventsPerPage={EVENTS_PER_PAGE}
                     />
                 </div>
 
@@ -202,6 +198,11 @@ export default function EventsPage() {
                             setCurrentPage(1);
                         }}
                         onClearFilters={clearFilters}
+                        searchQuery={searchQuery}
+                        onSearchChange={(query) => {
+                            setSearchQuery(query);
+                            setCurrentPage(1);
+                        }}
                     />
                 </div>
             </div>

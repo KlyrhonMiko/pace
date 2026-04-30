@@ -22,12 +22,19 @@ from services.queries.events_queries import (
     get_user_registration_status,
     get_event_facets,
 )
-from services.supabase.supabase_storage import SupabaseStorageService
+import cloudinary
+import cloudinary.uploader
+from core.config import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/events", tags=["events"])
-storage_service = SupabaseStorageService()
-EVENTS_CACHE_NAMESPACE = "events"
+EVENTS_CACHE_NAMESPACE = "events_v2"
+
+if settings.CLOUDINARY_URL:
+    cloudinary.config(url=settings.CLOUDINARY_URL)
+
+SUPPORTED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
 EVENTS_LIST_TTL = 600
 EVENTS_DETAIL_TTL = 600
 
@@ -330,7 +337,39 @@ async def upload_event_image(
     session: Session = Depends(get_session),
     current_user: CurrentUser = Depends(require_staff_or_admin),
 ):
-    """Upload an image for an event (JPEG, PNG, WebP — max 5MB)"""
+    """Upload an image for an event via Cloudinary (JPEG, PNG, WebP — max 5MB)"""
+    if not settings.CLOUDINARY_URL:
+        raise HTTPException(
+            status_code=500,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.INVALID_INPUT.value,
+                message="Cloudinary integration is not configured.",
+            ).model_dump(mode="json"),
+        )
+
+    # Validate file type
+    if file.content_type not in SUPPORTED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.IMAGE_INVALID_TYPE.value,
+                message=f"Unsupported file type: {file.content_type}. Supported: JPEG, PNG, WebP",
+            ).model_dump(mode="json"),
+        )
+
+    # Validate file size
+    if file.size and file.size > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.IMAGE_TOO_LARGE.value,
+                message=f"File too large. Maximum size is 5MB.",
+            ).model_dump(mode="json"),
+        )
+
     try:
         event = get_active_event_by_id(session, event_id)
         if not event:
@@ -343,59 +382,45 @@ async def upload_event_image(
                 ).model_dump(mode="json"),
             )
 
-        success, image_path, error = await storage_service.upload_image(file, event_id)
-        if not success:
-            if "Invalid file type" in str(error):
-                raise HTTPException(
-                    status_code=400,
-                    detail=StandardResponse(
-                        success=False,
-                        code=ErrorCode.IMAGE_INVALID_TYPE.value,
-                        message=error,
-                    ).model_dump(mode="json"),
-                )
-            elif "too large" in str(error).lower():
-                raise HTTPException(
-                    status_code=413,
-                    detail=StandardResponse(
-                        success=False,
-                        code=ErrorCode.IMAGE_TOO_LARGE.value,
-                        message=error,
-                    ).model_dump(mode="json"),
-                )
-            else:
-                raise HTTPException(
-                    status_code=400,
-                    detail=StandardResponse(
-                        success=False,
-                        code=ErrorCode.IMAGE_UPLOAD_FAILED.value,
-                        message=error,
-                    ).model_dump(mode="json"),
-                )
+        # Delete old Cloudinary image if one exists
+        if event.image_public_id:
+            try:
+                cloudinary.uploader.destroy(event.image_public_id)
+            except Exception as e:
+                logger.warning(f"Failed to delete old event image from Cloudinary: {e}")
+
+        # Upload new image to Cloudinary
+        result = cloudinary.uploader.upload(
+            file.file,
+            folder=f"pace/events/{event_id}",
+            resource_type="image",
+        )
+        image_url = result.get("secure_url")
+        public_id = result.get("public_id")
 
         update_event_image(
             session,
             event,
-            image_path,
+            image_path=image_url,
+            image_public_id=public_id,
             performed_by=current_user.id,
         )
         invalidate_cache_namespaces(EVENTS_CACHE_NAMESPACE)
-        image_url = storage_service.get_public_url(image_path)
         return StandardResponse(
             success=True,
             code=SuccessCode.IMAGE_UPLOADED.value,
             message="Image uploaded successfully",
-            data={"image_path": image_path, "image_url": image_url},
+            data={"image_url": image_url},
         )
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error uploading image: {e}")
+        logger.error(f"Error uploading event image: {e}")
         raise HTTPException(
             status_code=400,
             detail=StandardResponse(
                 success=False,
-                code=ErrorCode.INVALID_INPUT.value,
+                code=ErrorCode.IMAGE_UPLOAD_FAILED.value,
                 message=f"Failed to upload image: {e}",
             ).model_dump(mode="json"),
         )
@@ -411,7 +436,7 @@ async def delete_event_image(
     session: Session = Depends(get_session),
     current_user: CurrentUser = Depends(require_staff_or_admin),
 ):
-    """Remove the image from an event"""
+    """Remove the image from an event and delete it from Cloudinary"""
     try:
         event = get_event_by_id(session, event_id)
         if not event.image_path:
@@ -424,16 +449,23 @@ async def delete_event_image(
                 ).model_dump(mode="json"),
             )
 
-        success, error = await storage_service.delete_image(event.image_path)
-        if not success:
-            raise HTTPException(
-                status_code=400,
-                detail=StandardResponse(
-                    success=False,
-                    code=ErrorCode.IMAGE_DELETE_FAILED.value,
-                    message=error,
-                ).model_dump(mode="json"),
-            )
+        # Delete from Cloudinary using stored public_id (preferred) or fallback URL parse
+        if event.image_public_id:
+            try:
+                cloudinary.uploader.destroy(event.image_public_id)
+            except Exception as e:
+                logger.warning(f"Failed to delete event image from Cloudinary: {e}")
+        elif event.image_path:
+            # Fallback: extract public_id from the Cloudinary URL
+            try:
+                url_parts = event.image_path.split('/')
+                if 'upload' in url_parts:
+                    upload_index = url_parts.index('upload')
+                    path_parts = url_parts[upload_index + 2:]
+                    public_id = '/'.join(path_parts).rsplit('.', 1)[0]
+                    cloudinary.uploader.destroy(public_id)
+            except Exception as e:
+                logger.warning(f"Failed to delete event image by URL fallback: {e}")
 
         clear_event_image(session, event, performed_by=current_user.id)
         invalidate_cache_namespaces(EVENTS_CACHE_NAMESPACE)
@@ -445,7 +477,7 @@ async def delete_event_image(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error deleting image: {e}")
+        logger.error(f"Error deleting event image: {e}")
         raise HTTPException(
             status_code=400,
             detail=StandardResponse(
@@ -589,19 +621,10 @@ def _build_event_image_url_response(
                 message="Event has no image",
             ).model_dump(mode="json"),
         )
-    image_url = storage_service.get_public_url(event.image_path)
-    if not image_url:
-        raise HTTPException(
-            status_code=400,
-            detail=StandardResponse(
-                success=False,
-                code=ErrorCode.IMAGE_URL_FAILED.value,
-                message="Failed to generate image URL",
-            ).model_dump(mode="json"),
-        )
+    # image_path now stores the Cloudinary secure_url directly
     return StandardResponse(
         success=True,
         code=SuccessCode.IMAGE_URL_RETRIEVED.value,
         message="Image URL retrieved successfully",
-        data={"image_url": image_url},
+        data={"image_url": event.image_path},
     )

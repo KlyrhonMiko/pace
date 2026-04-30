@@ -26,6 +26,7 @@ class Event(BaseTable, EventBase, table=True):
     event_type_ref_id: uuid.UUID = Field(foreign_key="event_types.id", index=True)
     attendees: int = Field(default=0, ge=0)
     image_path: Optional[str] = Field(default=None, max_length=500)
+    image_public_id: Optional[str] = Field(default=None, max_length=500)
 
     event_type: "EventType" = Relationship(back_populates="events")
     registrants: List["EventRegistration"] = Relationship(back_populates="event")

@@ -74,10 +74,16 @@ export default function UpcomingEvents() {
                                     key={event.event_id || idx}
                                     className="group/event flex gap-4 p-3.5 rounded-xl border border-gray-100/80 hover:border-violet-200/60 hover:bg-gradient-to-r hover:from-violet-50/40 hover:to-purple-50/20 transition-all duration-200 cursor-pointer"
                                 >
-                                    {/* Calendar Date Block */}
-                                    <div className="flex-shrink-0 flex flex-col items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br from-violet-50 to-purple-50 border border-violet-100/80 group-hover/event:border-violet-200 group-hover/event:shadow-sm group-hover/event:from-violet-100/80 group-hover/event:to-purple-100/60 transition-all duration-200">
-                                        <span className="text-lg font-extrabold text-violet-700 leading-none">{getDayNumber(event.date)}</span>
-                                        <span className="text-[10px] font-bold text-violet-500 uppercase tracking-wider mt-0.5">{getMonthAbbreviation(event.date)}</span>
+                                    {/* Calendar Date Block or Image */}
+                                    <div className="flex-shrink-0 flex flex-col items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br from-violet-50 to-purple-50 border border-violet-100/80 group-hover/event:border-violet-200 group-hover/event:shadow-sm group-hover/event:from-violet-100/80 group-hover/event:to-purple-100/60 transition-all duration-200 overflow-hidden">
+                                        {event.image_url ? (
+                                            <img src={event.image_url} alt={event.event_name} className="h-full w-full object-cover" />
+                                        ) : (
+                                            <>
+                                                <span className="text-lg font-extrabold text-violet-700 leading-none">{getDayNumber(event.date)}</span>
+                                                <span className="text-[10px] font-bold text-violet-500 uppercase tracking-wider mt-0.5">{getMonthAbbreviation(event.date)}</span>
+                                            </>
+                                        )}
                                     </div>
 
                                     {/* Event Details */}

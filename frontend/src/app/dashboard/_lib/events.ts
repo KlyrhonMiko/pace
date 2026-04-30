@@ -13,7 +13,7 @@ export interface Event {
     location: string;
     capacity: number;
     attendees: number;
-    image_path?: string | null;
+    image_url?: string | null;
     is_registered?: boolean | null;
     created_at: string;
     updated_at: string;

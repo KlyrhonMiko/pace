@@ -28,6 +28,11 @@ export function useEventManagement() {
     const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
     const [selectedImagePreview, setSelectedImagePreview] = useState<string | null>(null);
     const [eventToDelete, setEventToDelete] = useState<string | null>(null);
+    const [isDragging, setIsDragging] = useState(false);
+
+    // --- Cropper State ---
+    const [isCropperOpen, setIsCropperOpen] = useState(false);
+    const [cropperImageSrc, setCropperImageSrc] = useState("");
 
     // --- Form State ---
     const [formData, setFormData] = useState({
@@ -109,7 +114,9 @@ export function useEventManagement() {
         setIsModalOpen(true);
         setIsAddingNewType(false);
         setSelectedImageFile(null);
-        setSelectedImagePreview(null);
+        // @ts-ignore - Handle potential naming mismatch from older cache/API versions
+        const imageUrl = event.image_url || event.image_path || null;
+        setSelectedImagePreview(imageUrl);
     };
 
     const handleImageChange = (file: File | null) => {
@@ -118,8 +125,50 @@ export function useEventManagement() {
             setSelectedImagePreview(null);
             return;
         }
-        setSelectedImageFile(file);
-        setSelectedImagePreview(URL.createObjectURL(file));
+
+        // Instead of setting immediately, open cropper
+        const reader = new FileReader();
+        reader.addEventListener("load", () => {
+            setCropperImageSrc(reader.result as string);
+            setIsCropperOpen(true);
+        });
+        reader.readAsDataURL(file);
+    };
+
+    const handleCropComplete = (croppedFile: File) => {
+        setSelectedImageFile(croppedFile);
+        setSelectedImagePreview(URL.createObjectURL(croppedFile));
+        setIsCropperOpen(false);
+    };
+
+    const handleCropCancel = () => {
+        setIsCropperOpen(false);
+        setCropperImageSrc("");
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+
+        const file = e.dataTransfer.files?.[0];
+        if (file && file.type.startsWith("image/")) {
+            handleImageChange(file);
+        } else if (file) {
+            toast.error("Please drop a valid image file (PNG, JPG, or WEBP).");
+        }
     };
 
     const handleSave = async () => {
@@ -197,6 +246,9 @@ export function useEventManagement() {
         isLoading,
         selectedImagePreview,
         eventToDelete,
+        isDragging,
+        isCropperOpen,
+        cropperImageSrc,
         formData,
 
         // Handlers
@@ -209,6 +261,11 @@ export function useEventManagement() {
         openCreateModal,
         openUpdateModal,
         handleImageChange,
+        handleCropComplete,
+        handleCropCancel,
+        handleDragOver,
+        handleDragLeave,
+        handleDrop,
         handleSave,
         handleDeleteClick,
         handleClearForm,

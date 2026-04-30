@@ -1,10 +1,10 @@
 "use client";
 
 import { Search, SlidersHorizontal, Tag, Loader2 } from "lucide-react";
-import { Input } from "../../../../components/ui/input";
-import { Button } from "../../../../components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import FilterSection from "./FilterSection";
-import { Checkbox } from "../../../../components/ui/checkbox";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface EventFiltersProps {
     searchQuery: string;

@@ -7,6 +7,7 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
+    DialogDescription,
 } from "@/components/ui/dialog";
 
 interface EventImageCropperModalProps {
@@ -95,9 +96,12 @@ export function EventImageCropperModal({
             <DialogContent className="sm:max-w-2xl p-0 overflow-hidden gap-0 bg-white border-none rounded-2xl shadow-2xl">
                 <DialogHeader className="p-4 border-b border-neutral-100 flex-row items-center gap-2 space-y-0">
                     <Crop className="w-5 h-5 text-emerald-600" />
-                    <DialogTitle className="text-lg font-semibold text-neutral-800 m-0">
-                        Crop Event Banner
-                    </DialogTitle>
+                    <div>
+                        <DialogTitle className="text-lg font-semibold text-neutral-800 m-0">
+                            Crop Event Banner
+                        </DialogTitle>
+                        <DialogDescription className="sr-only">Adjust and crop your event image to fit the banner dimensions.</DialogDescription>
+                    </div>
                 </DialogHeader>
 
                 <div ref={containerRef} className="relative w-full h-[400px] bg-white overflow-hidden">

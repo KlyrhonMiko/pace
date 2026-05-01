@@ -166,6 +166,36 @@ export async function unregisterEvent(eventId: string): Promise<boolean> {
         return false;
     }
 }
+export interface EventRegistrant {
+    event_id: string;
+    alumni_id?: string | null;
+    last_name?: string | null;
+    first_name?: string | null;
+    middle_name?: string | null;
+    student_id?: string | null;
+    year_graduated?: number | null;
+    registered_at: string;
+}
+
+export async function fetchEventRegistrants(
+    eventId: string,
+    limit: number = 10,
+    offset: number = 0
+): Promise<{ registrants: EventRegistrant[]; total: number }> {
+    try {
+        const json = await apiFetch<any>(`/events/${eventId}/registrants?limit=${limit}&offset=${offset}`);
+        if (json.success && json.data) {
+            return {
+                registrants: json.data.registrants ?? [],
+                total: json.data.pagination?.total ?? 0,
+            };
+        }
+        return { registrants: [], total: 0 };
+    } catch (error) {
+        console.error(`Failed to fetch registrants for event ${eventId}:`, error);
+        return { registrants: [], total: 0 };
+    }
+}
 
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

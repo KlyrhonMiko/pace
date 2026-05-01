@@ -83,7 +83,7 @@ class EventRegistrationResponse(SQLModel):
 
     @field_serializer("registered_at")
     def serialize_datetime(self, value: Optional[datetime]) -> Optional[str]:
-        return format_datetime_gmt8(value)
+        return format_datetime_gmt8(value, fmt="iso")
 
 
 class EventRegistrationRequest(SQLModel):

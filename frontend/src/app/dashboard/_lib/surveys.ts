@@ -549,3 +549,86 @@ export async function fetchMySurveyResponse(surveyId: string): Promise<SurveyRes
         return null;
     }
 }
+export interface QuestionStats {
+    question_id: string;
+    question_text: string;
+    question_type: QuestionType;
+    total_responses: number;
+    distribution?: Record<string, number>; // For MULTIPLE_CHOICE, MULTI_SELECT, YES_NO
+    average?: number; // For SCALE, NUMBER
+    min?: number;
+    max?: number;
+    samples?: string[]; // For TEXT
+}
+
+export interface SurveyResults {
+    survey_id: string;
+    title: string;
+    total_responses: number;
+    status: SurveyStatus;
+    questions: QuestionStats[];
+}
+
+export interface IndividualResponse {
+    response_id: string;
+    submitted_at: string;
+    is_complete: boolean;
+    alumni_id: string | null;
+    alumni_name: string;
+    answers: AnswerItem[];
+}
+
+export interface SurveyExportData {
+    survey_id: string;
+    title: string;
+    total_responses: number;
+    responses: IndividualResponse[];
+}
+
+/**
+ * Fetch aggregated statistics for a survey.
+ * Calls GET /surveys/{survey_id}/results
+ */
+export async function fetchSurveyResults(surveyId: string): Promise<SurveyResults | null> {
+    try {
+        const json = await apiFetch<any>(`/surveys/${surveyId}/results`);
+        if (json.success && json.data) {
+            const d = json.data;
+            return {
+                survey_id: d.survey_id,
+                title: d.title,
+                total_responses: d.total_responses,
+                status: d.status || 'ACTIVE',
+                questions: (d.question_summaries || []).map((q: any) => ({
+                    question_id: q.question_id,
+                    question_text: q.question_text,
+                    question_type: q.question_type as QuestionType,
+                    total_responses: q.total_answers || 0,
+                    distribution: q.choice_distribution || q.distribution,
+                    average: q.average,
+                    min: q.min_value || q.min,
+                    max: q.max_value || q.max,
+                    samples: q.sample_answers || q.samples || []
+                }))
+            };
+        }
+        return null;
+    } catch (error) {
+        console.error(`Failed to fetch results for survey ${surveyId}:`, error);
+        return null;
+    }
+}
+
+/**
+ * Fetch raw survey responses for export.
+ * Calls GET /surveys/{survey_id}/export
+ */
+export async function fetchSurveyExport(surveyId: string): Promise<SurveyExportData | null> {
+    try {
+        const json = await apiFetch<any>(`/surveys/${surveyId}/export`);
+        return json.success ? (json.data as SurveyExportData) : null;
+    } catch (error) {
+        console.error(`Failed to export survey ${surveyId}:`, error);
+        return null;
+    }
+}

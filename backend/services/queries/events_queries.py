@@ -368,12 +368,14 @@ def unregister_user_from_event(
 def get_event_registrants(
     session: Session, event: Event, limit: int, offset: int
 ) -> tuple[list[EventRegistrantDetails], int]:
+    from models.staff import Staff
     query = (
-        select(EventRegistration, Alumni, StudentRecord)
+        select(EventRegistration, Alumni, StudentRecord, Staff)
         .join(Alumni, Alumni.user_ref_id == EventRegistration.user_ref_id, isouter=True)
         .join(
             StudentRecord, StudentRecord.alumni_ref_id == Alumni.id, isouter=True
         )
+        .join(Staff, Staff.user_ref_id == EventRegistration.user_ref_id, isouter=True)
         .where(EventRegistration.event_ref_id == event.id)
         .where(EventRegistration.is_deleted == False)
         .order_by(EventRegistration.registered_at.desc())
@@ -389,18 +391,21 @@ def get_event_registrants(
 
     rows = session.exec(query).all()
     registrants: list[EventRegistrantDetails] = []
-    for registration, alumni, student_record in rows:
+    for registration, alumni, student_record, staff in rows:
+        # Priority: Alumni > Staff
+        first_name = (alumni.first_name if alumni else None) or (staff.first_name if staff else None)
+        last_name = (alumni.last_name if alumni else None) or (staff.last_name if staff else None)
+        middle_name = (alumni.middle_name if alumni else None) or (staff.middle_name if staff else None)
+        
         registrants.append(
             EventRegistrantDetails(
                 event_id=event.event_id,
                 alumni_id=alumni.alumni_id if alumni else None,
-                last_name=alumni.last_name if alumni else None,
-                first_name=alumni.first_name if alumni else None,
-                middle_name=alumni.middle_name if alumni else None,
-                student_id=student_record.student_id if student_record else None,
-                year_graduated=student_record.year_graduated
-                if student_record
-                else None,
+                last_name=last_name,
+                first_name=first_name,
+                middle_name=middle_name,
+                student_id=student_record.student_id if student_record else (staff.staff_id if staff else None),
+                year_graduated=student_record.year_graduated if student_record else None,
                 registered_at=registration.registered_at,
             )
         )

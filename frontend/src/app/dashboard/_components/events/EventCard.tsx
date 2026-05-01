@@ -7,6 +7,7 @@ interface EventCardProps {
     onEdit?: (event: Event) => void;
     onDelete?: (eventId: string) => void;
     onToggleRegistration?: (eventId: string) => void;
+    onViewAttendees?: (event: Event) => void;
 }
 
 export default function EventCard({
@@ -14,6 +15,7 @@ export default function EventCard({
     onEdit,
     onDelete,
     onToggleRegistration,
+    onViewAttendees,
 }: EventCardProps) {
     const accent = getAccentColor(event.event_type);
     const capacityPercentage = event.capacity ? Math.round((event.attendees / event.capacity) * 100) : 0;
@@ -146,6 +148,20 @@ export default function EventCard({
                             )}
 
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {onViewAttendees && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onViewAttendees(event);
+                                        }}
+                                        className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                        title="View Attendees"
+                                    >
+                                        <Users className="h-4 w-4" />
+                                    </Button>
+                                )}
                                 {onEdit && (
                                     <Button
                                         variant="ghost"

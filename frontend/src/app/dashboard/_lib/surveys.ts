@@ -535,3 +535,17 @@ export async function submitAlumniSurveyResponse(
         return { success: false, message };
     }
 }
+
+/**
+ * Fetch the current alumni's response for a specific survey.
+ * Calls GET /alumni/surveys/{survey_id}/my-response
+ */
+export async function fetchMySurveyResponse(surveyId: string): Promise<SurveyResponse | null> {
+    try {
+        const json = await apiFetch<any>(`/alumni/surveys/${surveyId}/my-response`);
+        return json.success && json.data?.response ? (json.data.response as SurveyResponse) : null;
+    } catch (error) {
+        console.error(`Failed to fetch my response for survey ${surveyId}:`, error);
+        return null;
+    }
+}

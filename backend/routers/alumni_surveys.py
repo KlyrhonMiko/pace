@@ -176,6 +176,94 @@ def get_responded_survey_ids(
 
 
 # ---------------------------------------------------------------------------
+# GET /alumni/surveys/{survey_id}/my-response — fetch own response
+# ---------------------------------------------------------------------------
+
+
+@router.get("/surveys/{survey_id}/my-response", response_model=StandardResponse)
+def get_my_survey_response(
+    survey_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
+):
+    """
+    Fetch the current alumni's response to a specific survey.
+    Returns 404 if no response is found.
+    """
+    from models.alumni import Alumni
+
+    if not current_user.id:
+        raise HTTPException(
+            status_code=404,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.ALUMNI_NOT_FOUND.value,
+                message="No alumni profile found",
+            ).model_dump(mode="json"),
+        )
+
+    alumni = session.exec(
+        select(Alumni).where(
+            and_(
+                Alumni.user_ref_id == current_user.id,
+                Alumni.is_deleted.is_(False),
+            )
+        )
+    ).first()
+
+    if not alumni:
+        raise HTTPException(
+            status_code=404,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.ALUMNI_NOT_FOUND.value,
+                message="No alumni profile found",
+            ).model_dump(mode="json"),
+        )
+
+    # Resolve survey internal ID
+    survey = get_survey_by_id(session, survey_id)
+    if not survey:
+        raise HTTPException(
+            status_code=404,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.SURVEY_NOT_FOUND.value,
+                message="Survey not found",
+            ).model_dump(mode="json"),
+        )
+
+    # Fetch the response
+    response = session.exec(
+        select(SurveyResponse).where(
+            and_(
+                SurveyResponse.survey_ref_id == survey.id,
+                SurveyResponse.alumni_ref_id == alumni.id,
+                SurveyResponse.is_deleted.is_(False),
+            )
+        )
+    ).first()
+
+    if not response:
+        raise HTTPException(
+            status_code=404,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.INVALID_INPUT.value,
+                message="No response found for this survey",
+            ).model_dump(mode="json"),
+        )
+
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.SURVEY_RETRIEVED.value,
+        message="Survey response retrieved",
+        data={"response": response.model_dump(mode="json")},
+        timestamp=get_current_time_gmt8(),
+    )
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 

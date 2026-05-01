@@ -6,8 +6,8 @@ import { SettingsCard, Toggle, Divider, SelectField, SaveIndicator } from "./Set
 
 export function NotificationPreferences() {
     const [emailNotifications, setEmailNotifications] = useState(true);
+    const [eventInvitations, setEventInvitations] = useState(true);
     const [eventReminders, setEventReminders] = useState(true);
-    const [systemUpdates, setSystemUpdates] = useState(false);
     const [pushNotifications, setPushNotifications] = useState(false);
     const [notificationFrequency, setNotificationFrequency] = useState("daily");
     const [saved, setSaved] = useState(false);
@@ -34,27 +34,32 @@ export function NotificationPreferences() {
                 }}
             />
             <Divider />
-            <div className={`pl-4 border-l-2 border-gray-100 space-y-0 transition-opacity duration-200 ${emailNotifications ? "opacity-100" : "opacity-40 pointer-events-none"}`}>
-                <Toggle
-                    label="Event Reminders"
-                    description="Upcoming events and registration deadlines"
-                    enabled={eventReminders}
-                    onChange={(v) => {
-                        setEventReminders(v);
-                        flashSaved();
-                    }}
-                />
-                <Toggle
-                    label="System Updates"
-                    description="Platform updates and announcements"
-                    enabled={systemUpdates}
-                    onChange={(v) => {
-                        setSystemUpdates(v);
-                        flashSaved();
-                    }}
-                />
+
+            <div className={`space-y-4 transition-opacity duration-200 ${emailNotifications ? "opacity-100" : "opacity-40 pointer-events-none"}`}>
+                <div className="pl-4 border-l-2 border-emerald-100 space-y-4">
+                    <Toggle
+                        label="Event Invitations"
+                        description="Invitations to alumni events and reunions"
+                        enabled={eventInvitations}
+                        onChange={(v) => {
+                            setEventInvitations(v);
+                            flashSaved();
+                        }}
+                    />
+                    <Toggle
+                        label="Event Reminders"
+                        description="Upcoming events and registration deadlines"
+                        enabled={eventReminders}
+                        onChange={(v) => {
+                            setEventReminders(v);
+                            flashSaved();
+                        }}
+                    />
+                </div>
             </div>
+
             <Divider />
+
             <Toggle
                 label="Push Notifications"
                 description="Receive browser push notifications"

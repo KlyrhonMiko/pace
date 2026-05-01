@@ -74,10 +74,10 @@ export default function AlumniSurveyCard({ survey, isCompleted, onTakeSurvey }: 
                 <div className="pt-1">
                     {isCompleted ? (
                         <button
-                            disabled
-                            className="w-full py-2.5 text-sm font-bold text-slate-400 bg-slate-100 rounded-xl border border-slate-200 cursor-not-allowed"
+                            onClick={onTakeSurvey}
+                            className="w-full py-2.5 text-sm font-bold text-emerald-700 bg-emerald-50 rounded-xl border border-emerald-200 hover:bg-emerald-100 transition-colors shadow-sm active:scale-[0.98]"
                         >
-                            ✓ Response Submitted
+                            View Your Response
                         </button>
                     ) : (
                         <button

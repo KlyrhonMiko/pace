@@ -32,6 +32,8 @@ interface SurveyResponseModalProps {
     onSubmit: (surveyId: string, payload: SurveySubmissionPayload) => Promise<boolean>;
     isSubmitting?: boolean;
     isLoadingQuestions?: boolean;
+    readOnly?: boolean;
+    initialAnswers?: any;
 }
 
 // ------------------------------------------------------------------
@@ -53,6 +55,8 @@ export default function SurveyResponseModal({
     onSubmit,
     isSubmitting = false,
     isLoadingQuestions = false,
+    readOnly = false,
+    initialAnswers = null,
 }: SurveyResponseModalProps) {
     // Answer state: keyed by question_id
     const [answers, setAnswers] = useState<Record<string, AnswerItem>>({});
@@ -61,10 +65,19 @@ export default function SurveyResponseModal({
     // Reset answers when a new survey is opened
     useEffect(() => {
         if (survey && isOpen) {
-            setAnswers({});
+            if (readOnly && initialAnswers?.answers) {
+                // Convert list to record
+                const rec: Record<string, AnswerItem> = {};
+                initialAnswers.answers.forEach((a: any) => {
+                    rec[a.question_id] = a;
+                });
+                setAnswers(rec);
+            } else {
+                setAnswers({});
+            }
             setValidationErrors(new Set());
         }
-    }, [survey, isOpen]);
+    }, [survey, isOpen, readOnly, initialAnswers]);
 
     if (!isOpen || !survey) return null;
 
@@ -74,6 +87,7 @@ export default function SurveyResponseModal({
     const getAnswer = (qId: string): AnswerItem => answers[qId] || { question_id: qId };
 
     const setAnswer = (qId: string, patch: Partial<AnswerItem>) => {
+        if (readOnly) return;
         setAnswers(prev => ({
             ...prev,
             [qId]: { ...prev[qId], question_id: qId, ...patch },
@@ -193,8 +207,9 @@ export default function SurveyResponseModal({
                             rows={3}
                             value={a.answer_text || ""}
                             onChange={e => setAnswer(q.question_id, { answer_text: e.target.value })}
-                            placeholder={q.placeholder || "Type your answer here..."}
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors resize-none text-sm"
+                            placeholder={readOnly ? "" : (q.placeholder || "Type your answer here...")}
+                            disabled={readOnly}
+                            className={`w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors resize-none text-sm ${readOnly ? "bg-slate-50 cursor-default" : ""}`}
                         />
                     )}
 
@@ -210,12 +225,12 @@ export default function SurveyResponseModal({
                                     <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center transition-colors ${a.answer_choice === opt
                                         ? "border-emerald-600 bg-emerald-600"
                                         : "border-slate-300 group-hover:border-emerald-400"
-                                        }`}>
+                                        } ${readOnly ? "opacity-80" : ""}`}>
                                         {a.answer_choice === opt && (
                                             <div className="h-2 w-2 rounded-full bg-white" />
                                         )}
                                     </div>
-                                    <span className="text-sm text-slate-700 font-medium">{opt}</span>
+                                    <span className={`text-sm font-medium ${a.answer_choice === opt ? "text-emerald-700" : "text-slate-700"}`}>{opt}</span>
                                 </button>
                             ))}
                         </div>
@@ -243,14 +258,14 @@ export default function SurveyResponseModal({
                                             <div className={`h-5 w-5 rounded-md border-2 flex items-center justify-center transition-colors ${isChecked
                                                 ? "border-emerald-600 bg-emerald-600"
                                                 : "border-slate-300 group-hover:border-emerald-400"
-                                                }`}>
+                                                } ${readOnly ? "opacity-80" : ""}`}>
                                                 {isChecked && (
                                                     <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                                                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                                     </svg>
                                                 )}
                                             </div>
-                                            <span className="text-sm text-slate-700 font-medium">{opt}</span>
+                                            <span className={`text-sm font-medium ${isChecked ? "text-emerald-700" : "text-slate-700"}`}>{opt}</span>
                                         </button>
                                     );
                                 })}
@@ -273,7 +288,7 @@ export default function SurveyResponseModal({
                                             className={`h-10 w-10 rounded-xl border-2 text-sm font-bold transition-all ${a.answer_scale === val
                                                 ? "border-emerald-600 bg-emerald-600 text-white shadow-md scale-110"
                                                 : "border-slate-200 text-slate-600 hover:border-emerald-300 hover:bg-emerald-50"
-                                                }`}
+                                                } ${readOnly && a.answer_scale !== val ? "opacity-40 grayscale" : ""} ${readOnly ? "cursor-default" : ""}`}
                                         >
                                             {val}
                                         </button>
@@ -299,7 +314,7 @@ export default function SurveyResponseModal({
                                     className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${a.answer_bool === val
                                         ? "border-emerald-600 bg-emerald-600 text-white shadow-md"
                                         : "border-slate-200 text-slate-600 hover:border-emerald-300 hover:bg-emerald-50"
-                                        }`}
+                                        } ${readOnly && a.answer_bool !== val ? "opacity-40 grayscale" : ""} ${readOnly ? "cursor-default" : ""}`}
                                 >
                                     {val ? "Yes" : "No"}
                                 </button>
@@ -312,7 +327,8 @@ export default function SurveyResponseModal({
                             <DatePicker
                                 date={a.answer_date || ""}
                                 onChange={(date: string) => setAnswer(q.question_id, { answer_date: date })}
-                                placeholder="Select response date"
+                                placeholder={readOnly ? "" : "Select response date"}
+                                disabled={readOnly}
                             />
                         </div>
                     )}
@@ -322,8 +338,9 @@ export default function SurveyResponseModal({
                             type="number"
                             value={a.answer_number ?? ""}
                             onChange={e => setAnswer(q.question_id, { answer_number: e.target.value ? parseFloat(e.target.value) : null })}
-                            placeholder={q.placeholder || "Enter a number..."}
-                            className="w-full max-w-xs px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors text-sm"
+                            placeholder={readOnly ? "" : (q.placeholder || "Enter a number...")}
+                            disabled={readOnly}
+                            className={`w-full max-w-xs px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors text-sm ${readOnly ? "bg-slate-50 cursor-default" : ""}`}
                         />
                     )}
 
@@ -409,33 +426,48 @@ export default function SurveyResponseModal({
                     </div>
                 </div>
 
-                {/* Footer with Submit/Clear */}
+                {/* Footer with Submit/Clear or Close */}
                 {!isLoadingQuestions && questions.length > 0 && (
                     <div className="p-6 border-t border-slate-100 bg-white shrink-0">
                         <div className="flex items-center gap-3 max-w-2xl mx-auto">
-                            <button
-                                type="button"
-                                onClick={handleClear}
-                                disabled={isSubmitting}
-                                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                            >
-                                <RotateCcw className="h-4 w-4" />
-                                Clear Form
-                            </button>
-                            <div className="flex-1" />
-                            <button
-                                type="button"
-                                onClick={handleSubmit}
-                                disabled={isSubmitting}
-                                className="flex items-center gap-2 px-8 py-2.5 rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all shadow-sm shadow-emerald-200 active:scale-[0.98]"
-                            >
-                                {isSubmitting ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                    <Send className="h-4 w-4" />
-                                )}
-                                {isSubmitting ? "Submitting..." : "Submit Response"}
-                            </button>
+                            {!readOnly && (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={handleClear}
+                                        disabled={isSubmitting}
+                                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        <RotateCcw className="h-4 w-4" />
+                                        Clear Form
+                                    </button>
+                                    <div className="flex-1" />
+                                    <button
+                                        type="button"
+                                        onClick={handleSubmit}
+                                        disabled={isSubmitting}
+                                        className="flex items-center gap-2 px-8 py-2.5 rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all shadow-sm shadow-emerald-200 active:scale-[0.98]"
+                                    >
+                                        {isSubmitting ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <Send className="h-4 w-4" />
+                                        )}
+                                        {isSubmitting ? "Submitting..." : "Submit Response"}
+                                    </button>
+                                </>
+                            )}
+                            {readOnly && (
+                                <div className="w-full flex justify-end">
+                                    <button
+                                        type="button"
+                                        onClick={onClose}
+                                        className="px-8 py-2.5 rounded-xl text-sm font-bold text-white bg-slate-800 hover:bg-slate-900 transition-all shadow-sm active:scale-[0.98]"
+                                    >
+                                        Close
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

@@ -13,6 +13,7 @@ import {
     fetchAlumniSurvey,
     fetchRespondedSurveyIds,
     submitAlumniSurveyResponse,
+    fetchMySurveyResponse,
 } from "../../_lib/surveys";
 
 // ============================================================================
@@ -31,9 +32,10 @@ export default function AlumniSurveysPage() {
     // Track completed survey IDs — pre-populated from backend, then updated on submit
     const [completedSurveyIds, setCompletedSurveyIds] = useState<Set<string>>(new Set());
 
-    // Modal state
     const [selectedSurvey, setSelectedSurvey] = useState<Survey | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isReadOnly, setIsReadOnly] = useState(false);
+    const [initialAnswers, setInitialAnswers] = useState<SurveyResponse | null>(null);
 
     // ── Resolve alumni profile on mount ────────────────────────────────────
     useEffect(() => {
@@ -69,6 +71,34 @@ export default function AlumniSurveysPage() {
 
     // ── Open survey modal — fetch full questions ───────────────────────────
     const handleTakeSurvey = async (survey: Survey) => {
+        const isCompleted = completedSurveyIds.has(survey.survey_id);
+        setIsReadOnly(isCompleted);
+        setInitialAnswers(null);
+
+        // If completed, fetch the response first
+        if (isCompleted) {
+            setIsModalLoading(true);
+            try {
+                const [fullSurvey, myResponse] = await Promise.all([
+                    fetchAlumniSurvey(survey.survey_id),
+                    fetchMySurveyResponse(survey.survey_id)
+                ]);
+
+                if (fullSurvey && myResponse) {
+                    setSelectedSurvey(fullSurvey);
+                    setInitialAnswers(myResponse);
+                    setIsModalOpen(true);
+                } else {
+                    toast.error("Could not load your previous response.");
+                }
+            } catch {
+                toast.error("An error occurred while loading the survey.");
+            } finally {
+                setIsModalLoading(false);
+            }
+            return;
+        }
+
         // If the list already included questions, open immediately
         if (survey.questions && survey.questions.length > 0) {
             setSelectedSurvey(survey);
@@ -177,6 +207,8 @@ export default function AlumniSurveysPage() {
                 onSubmit={handleSubmit}
                 isSubmitting={isSubmitting}
                 isLoadingQuestions={isModalLoading}
+                readOnly={isReadOnly}
+                initialAnswers={initialAnswers}
             />
         </div>
     );

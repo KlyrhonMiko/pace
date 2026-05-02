@@ -23,6 +23,7 @@ from .arima_forecast_result import ArimaForecastResult
 from .staff import Staff
 from .employers import Employer
 from .notifications import Notification
+from .platform_settings import PlatformSettings
 
 __all__ = [
     # ORM table classes only — schemas live in schemas/
@@ -53,4 +54,5 @@ __all__ = [
     "Staff",
     "Employer",
     "Notification",
+    "PlatformSettings",
 ]

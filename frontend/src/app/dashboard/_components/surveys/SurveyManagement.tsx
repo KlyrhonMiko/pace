@@ -5,8 +5,10 @@ import QuestionLibraryView from "./QuestionLibraryView";
 import QuestionModal from "./QuestionModal";
 import SurveysView from "./SurveysView";
 import SurveyModal from "./SurveyModal";
+import { SurveyResultsModal } from "./SurveyResultsModal";
 import { ConfirmationModal } from "@/components/ConfirmationModal";
 import { Question, Survey } from "../../_lib/surveys";
+import { useState } from "react";
 
 interface SurveyManagementProps {
     activeTab: 'surveys' | 'library';
@@ -79,6 +81,14 @@ export default function SurveyManagement({
     setSurveyToDelete,
     setQuestionToDelete,
 }: SurveyManagementProps) {
+    const [isResultsModalOpen, setIsResultsModalOpen] = useState(false);
+    const [selectedSurvey, setSelectedSurvey] = useState<Survey | null>(null);
+
+    const handleOpenResults = (survey: Survey) => {
+        setSelectedSurvey(survey);
+        setIsResultsModalOpen(true);
+    };
+
     return (
         <div className="space-y-6">
             {/* Loading State */}
@@ -103,6 +113,7 @@ export default function SurveyManagement({
                             onCloseSurvey={handleCloseSurvey}
                             onArchiveSurvey={handleArchiveSurvey}
                             onReopenSurvey={handleReopenSurvey}
+                            onViewResults={handleOpenResults}
                         />
                     ) : (
                         <QuestionLibraryView
@@ -157,6 +168,12 @@ export default function SurveyManagement({
                 confirmText="Delete Question"
                 variant="danger"
                 isLoading={isDeleting}
+            />
+
+            <SurveyResultsModal 
+                survey={selectedSurvey}
+                isOpen={isResultsModalOpen}
+                onClose={() => setIsResultsModalOpen(false)}
             />
         </div>
     );

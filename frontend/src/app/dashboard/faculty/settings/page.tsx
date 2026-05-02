@@ -1,9 +1,7 @@
 import PageHeader from "@/components/dashboard/PageHeader";
 
 import { NotificationPreferences } from "./components/NotificationPreferences";
-import { ProfileSettings } from "./components/ProfileSettings";
 import { AccountSecurity } from "./components/AccountSecurity";
-import { PrivacySettings } from "./components/PrivacySettings";
 import { DangerZone } from "./components/DangerZone";
 
 export default function FacultySettingsPage() {
@@ -22,14 +20,12 @@ export default function FacultySettingsPage() {
             <div className="grid gap-6 lg:grid-cols-2">
                 {/* ─── Left Column ─── */}
                 <div className="flex flex-col gap-6">
-                    <ProfileSettings />
                     <NotificationPreferences />
                 </div>
 
                 {/* ─── Right Column ─── */}
                 <div className="flex flex-col gap-6">
                     <AccountSecurity />
-                    <PrivacySettings />
                 </div>
             </div>
 

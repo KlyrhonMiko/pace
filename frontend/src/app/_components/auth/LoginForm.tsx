@@ -16,9 +16,10 @@ interface LoginFormProps {
   isModal?: boolean;
   onRegisterAlumniClick?: () => void;
   onRegisterEmployerClick?: () => void;
+  showRegistration?: boolean;
 }
 
-export function LoginForm({ onSuccess, isModal, onRegisterAlumniClick, onRegisterEmployerClick }: LoginFormProps) {
+export function LoginForm({ onSuccess, isModal, onRegisterAlumniClick, onRegisterEmployerClick, showRegistration = true }: LoginFormProps) {
   const router = useRouter();
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
@@ -89,6 +90,9 @@ export function LoginForm({ onSuccess, isModal, onRegisterAlumniClick, onRegiste
             break;
           case "ACCOUNT_DEACTIVATED":
             message = "Your account has been deactivated. Please contact the administrator.";
+            break;
+          case "MAINTENANCE_MODE":
+            message = "The platform is currently under maintenance. Please try again later.";
             break;
           default:
             message = error.message || message;
@@ -222,30 +226,34 @@ export function LoginForm({ onSuccess, isModal, onRegisterAlumniClick, onRegiste
         </Button>
       </form>
 
-      {/* Employer Register Link */}
-      <div className={`relative ${isModalView ? "my-5" : "my-7"}`}>
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-slate-200/80" />
-        </div>
-        <div className="relative flex justify-center">
-          <span className={`px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400 ${isModalView ? "bg-white" : "bg-slate-50 lg:bg-white"}`}>
-            Employers & Partners
-          </span>
-        </div>
-      </div>
+      {/* Employer Register Link — only shown when public registrations are enabled */}
+      {showRegistration && (
+        <>
+          <div className={`relative ${isModalView ? "my-5" : "my-7"}`}>
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-200/80" />
+            </div>
+            <div className="relative flex justify-center">
+              <span className={`px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400 ${isModalView ? "bg-white" : "bg-slate-50 lg:bg-white"}`}>
+                Employers &amp; Partners
+              </span>
+            </div>
+          </div>
 
-      <div className="block">
-        <Button
-          type="button"
-          onClick={onRegisterEmployerClick}
-          variant="outline"
-          className={`w-full rounded-xl font-semibold text-emerald-700 border-emerald-200 bg-white hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-800 transition-all duration-200 group ${isModalView ? "h-11 text-[14px]" : "h-12 text-[15px]"
-            }`}
-        >
-          Register your Company
-          <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-0.5 transition-transform" />
-        </Button>
-      </div>
+          <div className="block">
+            <Button
+              type="button"
+              onClick={onRegisterEmployerClick}
+              variant="outline"
+              className={`w-full rounded-xl font-semibold text-emerald-700 border-emerald-200 bg-white hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-800 transition-all duration-200 group ${isModalView ? "h-11 text-[14px]" : "h-12 text-[15px]"
+                }`}
+            >
+              Register your Company
+              <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-0.5 transition-transform" />
+            </Button>
+          </div>
+        </>
+      )}
 
     </div>
   );

@@ -31,6 +31,7 @@ interface SurveysViewProps {
     onCloseSurvey: (id: string) => void;
     onArchiveSurvey: (id: string) => void;
     onReopenSurvey: (id: string) => void;
+    onViewResults: (survey: Survey) => void;
 }
 
 // ─── Status Badge Helper ───────────────────────────────────────────────────────
@@ -60,6 +61,7 @@ export default function SurveysView({
     onCloseSurvey,
     onArchiveSurvey,
     onReopenSurvey,
+    onViewResults,
 }: SurveysViewProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
@@ -213,6 +215,7 @@ export default function SurveysView({
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
+                                                            onClick={() => onViewResults(survey)}
                                                             className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
                                                             title="View Results"
                                                         >

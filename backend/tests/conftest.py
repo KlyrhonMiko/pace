@@ -282,7 +282,7 @@ def seeded_accounts(db_session: Session):
         username="faculty_user",
         email="faculty@example.com",
         password="FacultyPass123",
-        user_type=UserType.FACULTY,
+        user_type=UserType.STAFF,
         created_by=admin.id,
     )
     alumni_user = _seed_user(

@@ -19,6 +19,7 @@ interface EventListProps {
     // Management handlers (optional)
     openUpdateModal?: (event: Event) => void;
     handleDeleteClick?: (eventId: string) => void;
+    onViewAttendees?: (event: Event) => void;
     fetchEvents: () => void;
     // Registration handler (optional)
     onToggleRegistration?: (eventId: string) => void;
@@ -35,6 +36,7 @@ export default function EventList({
     isLoading,
     openUpdateModal,
     handleDeleteClick,
+    onViewAttendees,
     fetchEvents,
     onToggleRegistration,
     totalEvents,
@@ -114,6 +116,7 @@ export default function EventList({
                                     event={event}
                                     onEdit={openUpdateModal}
                                     onDelete={handleDeleteClick}
+                                    onViewAttendees={onViewAttendees}
                                     onToggleRegistration={onToggleRegistration}
                                 />
                             ))}

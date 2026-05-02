@@ -73,6 +73,38 @@ def list_transaction_logs(
     )
 
 
+@router.delete("/purge", response_model=StandardResponse)
+def purge_transaction_logs(
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_admin),
+):
+    """Admin-only: soft-delete all transaction logs. Returns count of purged records."""
+    import uuid as _uuid
+    from utils.timezone import get_current_time_gmt8
+    from sqlmodel import select as _select
+
+    logs = session.exec(
+        _select(TransactionLog).where(TransactionLog.is_deleted == False)
+    ).all()
+
+    now = get_current_time_gmt8()
+    count = 0
+    for log in logs:
+        log.is_deleted = True
+        log.deleted_at = now
+        log.deleted_by = current_user.id
+        session.add(log)
+        count += 1
+
+    session.commit()
+
+    return StandardResponse(
+        success=True,
+        code="TRANSACTION_LOGS_PURGED",
+        message=f"Purged {count} transaction log(s)",
+        data={"purged_count": count},
+    )
+
 @router.get("/{tl_id}", response_model=StandardResponse)
 def get_transaction_log_by_id(
     tl_id: str,

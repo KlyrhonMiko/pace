@@ -48,7 +48,6 @@ export default async function AlumniDashboard() {
                 </div>
             </div>
 
-
             {/* Main Content - Bento Grid */}
             <div className="grid gap-5 lg:grid-cols-3">
                 {/* Jobs takes 2 cols */}

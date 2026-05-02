@@ -1,12 +1,41 @@
-from typing import Optional
+from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 
+class RegistrationTrend(BaseModel):
+    month: str
+    count: int
+
+class RecentRegistration(BaseModel):
+    name: str
+    email: str
+    role: str
+    status: str
+    joined_at: str
+    initials: str
+    color: str
+
+class UserDistributionItem(BaseModel):
+    label: str
+    value: int
+    percentage: int
+    color: str
+
+class SystemHealthStats(BaseModel):
+    uptime: str
+    latency: str
+    db_load: int
+    cache_status: str
+
 class AdminDashboardStats(BaseModel):
-    """Schema for high-level platform statistics"""
+    """Schema for comprehensive platform statistics for administrators"""
     total_users: int
     verified_alumni: int
     active_jobs: int
-    upcoming_events: int
+    registration_trend: List[RegistrationTrend]
+    recent_registrations: List[RecentRegistration]
+    user_distribution: List[UserDistributionItem]
+    system_health: SystemHealthStats
+    activity_log: List[Dict[str, Any]]
 
 class PlacementDistribution(BaseModel):
     """Breakdown of alumni employment status"""

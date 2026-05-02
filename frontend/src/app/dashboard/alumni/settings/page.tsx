@@ -2,8 +2,6 @@ import PageHeader from "@/components/dashboard/PageHeader";
 
 import { NotificationPreferences } from "./components/NotificationPreferences";
 import { DataExport } from "./components/DataExport";
-import { PrivacySettings } from "./components/PrivacySettings";
-import { CommunicationPreferences } from "./components/CommunicationPreferences";
 import { DangerZone } from "./components/DangerZone";
 
 export default function SettingsPage() {
@@ -21,18 +19,14 @@ export default function SettingsPage() {
                 {/* ─── Left Column ─── */}
                 <div className="flex flex-col gap-6">
                     <NotificationPreferences />
-                    <DataExport />
                 </div>
 
                 {/* ─── Right Column ─── */}
                 <div className="flex flex-col gap-6">
-                    <PrivacySettings />
-                    <CommunicationPreferences />
+                    <DataExport />
+                    <DangerZone />
                 </div>
             </div>
-
-            {/* 6. Danger Zone — Full width */}
-            <DangerZone />
         </div>
     );
 }

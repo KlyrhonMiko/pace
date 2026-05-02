@@ -2,7 +2,6 @@ import FacultyStatsGrid from "./_components/FacultyStatsGrid";
 import PageHeader from "@/components/dashboard/PageHeader";
 import FacultyQuickActions from "./_components/FacultyQuickActions";
 import AlumniProgress from "./_components/AlumniProgress";
-import PlacementOverview from "./_components/PlacementOverview";
 
 import UpcomingFacultyEvents from "./_components/UpcomingFacultyEvents";
 import RecentAlumniActivity from "./_components/RecentAlumniActivity";
@@ -33,7 +32,6 @@ export default function FacultyDashboard() {
 
                 {/* Right Stack (1/3 width) */}
                 <div className="lg:col-span-1 flex flex-col gap-5">
-                    <PlacementOverview />
                     <UpcomingFacultyEvents />
                     <FacultyQuickActions />
                 </div>

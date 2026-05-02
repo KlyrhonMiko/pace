@@ -1,29 +1,16 @@
-"use client";
+import { Users, ArrowUp, GraduationCap, Briefcase } from "lucide-react";
+import { AdminStats } from "../../_lib/dashboard";
 
-import { useEffect, useState } from "react";
-import { Users, ArrowUp, GraduationCap, Briefcase, Calendar, Loader2 } from "lucide-react";
-import { fetchAdminStats, AdminStats } from "../../_lib/dashboard";
+interface AdminStatsGridProps {
+    stats?: AdminStats;
+}
 
-export default function AdminStatsGrid() {
-    const [stats, setStats] = useState<AdminStats | null>(null);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        async function loadStats() {
-            const data = await fetchAdminStats();
-            if (data) setStats(data);
-            setLoading(false);
-        }
-        loadStats();
-    }, []);
-
-    if (loading) {
+export default function AdminStatsGrid({ stats }: AdminStatsGridProps) {
+    if (!stats) {
         return (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 min-h-[140px]">
-                {[...Array(4)].map((_, i) => (
-                    <div key={i} className="animate-pulse rounded-2xl bg-white border border-gray-100 p-5 flex items-center justify-center">
-                        <Loader2 className="h-6 w-6 animate-spin text-gray-300" />
-                    </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-[120px] rounded-2xl bg-gradient-to-br from-gray-100 to-gray-50 border border-gray-100 animate-pulse" />
                 ))}
             </div>
         );
@@ -32,7 +19,7 @@ export default function AdminStatsGrid() {
     const statCards = [
         {
             label: "Total Users",
-            value: stats?.total_users.toLocaleString() ?? "0",
+            value: stats.total_users.toLocaleString(),
             subValue: "+48",
             icon: Users,
             color: "emerald",
@@ -40,7 +27,7 @@ export default function AdminStatsGrid() {
         },
         {
             label: "Verified Alumni",
-            value: stats?.verified_alumni.toLocaleString() ?? "0",
+            value: stats.verified_alumni.toLocaleString(),
             subValue: "+32",
             icon: GraduationCap,
             color: "blue",
@@ -48,24 +35,16 @@ export default function AdminStatsGrid() {
         },
         {
             label: "Active Jobs",
-            value: stats?.active_jobs.toLocaleString() ?? "0",
+            value: stats.active_jobs.toLocaleString(),
             subValue: "+12",
             icon: Briefcase,
             color: "violet",
             sparkline: [2, 4, 3, 5, 4, 6, 7, 5, 8, 9]
-        },
-        {
-            label: "Upcoming Events",
-            value: stats?.upcoming_events.toLocaleString() ?? "0",
-            subValue: "+5",
-            icon: Calendar,
-            color: "amber",
-            sparkline: [1, 2, 1, 3, 2, 4, 3, 5, 4, 6]
         }
     ];
 
     return (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {statCards.map((card, i) => (
                 <div key={i} className="group relative rounded-2xl bg-white border border-gray-100 p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5">
                     <div className="flex items-center justify-between mb-3">

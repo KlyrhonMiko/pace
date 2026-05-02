@@ -8,37 +8,189 @@ from models.job_listings import JobListing
 from models.events import Event
 from utils.timezone import get_current_time_gmt8, format_datetime_gmt8
 
+import time as _time_mod
+_PROCESS_START_TIME = _time_mod.time()
+
 def get_admin_dashboard_stats(session: Session) -> dict:
+    """Fetch comprehensive platform statistics for the administrator.
+
+    Optimized to minimize database round-trips:
+    - Base stats: 3 simple COUNT queries
+    - Registration trend: 1 query with DATE_TRUNC + GROUP BY
+    - User distribution: 1 query with GROUP BY user_type
+    - Recent registrations: 1 multi-join query
+    - Activity log: 1 multi-join query
+    - System health: latency ping + Redis ping (no Supabase-blocked system functions)
     """
-    Fetch high-level platform statistics for the administrator.
-    Returns counts for users, alumni, jobs, and events.
-    """
-    now = get_current_time_gmt8()
-    
-    total_users = session.exec(
-        select(func.count(User.id)).where(User.is_deleted == False)
-    ).one()
+    import logging
+    import time
+    from datetime import timedelta
+    from models.staff import Staff
+    from models.employers import Employer
 
-    verified_alumni = session.exec(
-        select(func.count(Alumni.id)).where(Alumni.is_deleted == False)
-    ).one()
+    logger = logging.getLogger(__name__)
 
-    active_jobs = session.exec(
-        select(func.count(JobListing.id)).where(JobListing.is_active == True)
-    ).one()
+    try:
+        now = get_current_time_gmt8()
 
-    upcoming_events = session.exec(
-        select(func.count(Event.id)).where(
-            (Event.date >= now) & (Event.is_deleted == False)
+        # ── 1. Base Stats (3 simple queries) ──────────────────────────
+        total_users = session.exec(
+            select(func.count(User.id)).where(User.is_deleted == False)
+        ).one()
+
+        verified_alumni = session.exec(
+            select(func.count(Alumni.id)).where(Alumni.is_deleted == False)
+        ).one()
+
+        active_jobs = session.exec(
+            select(func.count(JobListing.id)).where(JobListing.is_active == True)
+        ).one()
+
+        # ── 2. Registration Trend — single GROUP BY query ─────────────
+        seven_months_ago = (now.replace(day=1) - timedelta(days=6 * 30)).replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
         )
-    ).one()
-    
-    return {
-        "total_users": total_users,
-        "verified_alumni": verified_alumni,
-        "active_jobs": active_jobs,
-        "upcoming_events": upcoming_events
-    }
+
+        trend_rows = session.exec(
+            select(
+                func.date_trunc("month", User.created_at).label("month"),
+                func.count(User.id),
+            )
+            .where(User.created_at >= seven_months_ago)
+            .where(User.is_deleted == False)
+            .group_by(func.date_trunc("month", User.created_at))
+            .order_by(func.date_trunc("month", User.created_at))
+        ).all()
+
+        trend_map = {row[0].strftime("%b %Y"): row[1] for row in trend_rows}
+
+        # Build the full 7-month list (fill in 0 for months with no registrations)
+        trend = []
+        for i in range(6, -1, -1):
+            month_date = (now.replace(day=1) - timedelta(days=i * 30)).replace(day=1)
+            key = month_date.strftime("%b %Y")
+            trend.append({"month": month_date.strftime("%b"), "count": trend_map.get(key, 0)})
+
+        # ── 3. User Distribution — single GROUP BY query ──────────────
+        role_rows = session.exec(
+            select(User.user_type, func.count(User.id))
+            .where(User.is_deleted == False)
+            .group_by(User.user_type)
+        ).all()
+        role_counts = {row[0].value if hasattr(row[0], 'value') else str(row[0]): row[1] for row in role_rows}
+
+        role_meta = [
+            {"label": "Verified Alumni", "type": "USER", "color": "emerald"},
+            {"label": "Active Employers", "type": "EMPLOYER", "color": "blue"},
+            {"label": "Faculty / Staff", "type": "STAFF", "color": "violet"},
+            {"label": "System Admins", "type": "ADMIN", "color": "amber"},
+        ]
+        distribution = []
+        for r in role_meta:
+            count = role_counts.get(r["type"], 0)
+            pct = int((count / total_users * 100)) if total_users > 0 else 0
+            distribution.append({
+                "label": r["label"], "value": count, "percentage": pct, "color": r["color"]
+            })
+
+        # ── 4. Recent Registrations (single multi-join query) ─────────
+        recent_rows = []
+        try:
+            recent_q = (
+                select(User, Alumni, Staff, Employer)
+                .outerjoin(Alumni, User.id == Alumni.user_ref_id)
+                .outerjoin(Staff, User.id == Staff.user_ref_id)
+                .outerjoin(Employer, User.id == Employer.user_ref_id)
+                .where(User.is_deleted == False)
+                .order_by(User.created_at.desc())
+                .limit(5)
+            )
+            recent_rows = session.exec(recent_q).all()
+        except Exception as exc:
+            logger.warning("Recent registrations query failed: %s", exc)
+            session.rollback()
+
+        recent_registrations = []
+        for u, a, s, e in recent_rows:
+            name, initials, color = "Unknown", "??", "from-gray-500 to-gray-600"
+            if a:
+                name = f"{a.first_name} {a.last_name}"
+                initials = f"{a.first_name[0]}{a.last_name[0]}"
+                color = "from-emerald-700 to-emerald-800"
+            elif s:
+                name = f"{s.first_name} {s.last_name}"
+                initials = f"{s.first_name[0]}{s.last_name[0]}"
+                color = "from-violet-500 to-violet-600"
+            elif e:
+                name = e.company_name
+                initials = e.company_name[:2].upper()
+                color = "from-blue-500 to-blue-600"
+
+            recent_registrations.append({
+                "name": name,
+                "email": u.email,
+                "role": str(u.user_type).capitalize(),
+                "status": "verified" if not u.force_password_reset else "pending",
+                "joined_at": format_datetime_gmt8(u.created_at, fmt="iso"),
+                "initials": initials,
+                "color": color,
+            })
+
+        # ── 5. System Health (safe for Supabase) ─────────────────────
+        # Latency ping only — avoid pg_postmaster_start_time / pg_stat_activity
+        try:
+            t0 = time.time()
+            session.exec(select(1)).one()
+            latency = f"{int((time.time() - t0) * 1000)}ms"
+        except Exception:
+            session.rollback()
+            latency = "N/A"
+
+        # Application-level uptime from module load time
+        try:
+            uptime_secs = time.time() - _PROCESS_START_TIME
+            days = int(uptime_secs // 86400)
+            hours = int((uptime_secs % 86400) // 3600)
+            uptime_str = f"{days}d {hours}h" if days > 0 else f"{hours}h"
+        except Exception:
+            uptime_str = "N/A"
+
+        from core.redis import redis_client
+        try:
+            cache_status = "Healthy" if redis_client and redis_client.ping() else "Offline"
+        except Exception:
+            cache_status = "Offline"
+
+        system_health = {
+            "uptime": uptime_str,
+            "latency": latency,
+            "db_load": 0,  # Not available on Supabase managed instances
+            "cache_status": cache_status,
+        }
+
+        # ── 6. Activity Log ───────────────────────────────────────────
+        activity_log = get_platform_activity_feed(session, limit=10)
+
+        return {
+            "total_users": total_users,
+            "verified_alumni": verified_alumni,
+            "active_jobs": active_jobs,
+            "registration_trend": trend,
+            "recent_registrations": recent_registrations,
+            "user_distribution": distribution,
+            "system_health": system_health,
+            "activity_log": activity_log,
+        }
+    except Exception as e:
+        logger.error("CRITICAL ERROR in get_admin_dashboard_stats: %s", e)
+        session.rollback()
+        return {
+            "total_users": 0, "verified_alumni": 0, "active_jobs": 0,
+            "registration_trend": [], "recent_registrations": [], "user_distribution": [],
+            "system_health": {"uptime": "N/A", "latency": "N/A", "db_load": 0, "cache_status": "Error"},
+            "activity_log": [],
+        }
+
 
 def get_faculty_dashboard_stats(session: Session, faculty_user_ref_id: uuid.UUID) -> dict:
     """
@@ -168,7 +320,7 @@ def get_faculty_upcoming_sessions(session: Session, user_ref_id: uuid.UUID, limi
         })
     return result
 
-def get_faculty_activity_feed(session: Session, limit: int = 20) -> list[dict]:
+def get_platform_activity_feed(session: Session, limit: int = 20) -> list[dict]:
     """Get recent activity on the platform enriched with real names/company names."""
     from models.user_activities import UserActivity
     from models.users import User, UserType
@@ -194,10 +346,10 @@ def get_faculty_activity_feed(session: Session, limit: int = 20) -> list[dict]:
         display_name = user.username
         is_real_name = False
         
-        if user.user_type == UserType.EMPLOYER and employer:
+        if user.user_type == "EMPLOYER" and employer:
             display_name = employer.company_name
             is_real_name = True
-        elif user.user_type in [UserType.FACULTY, UserType.STAFF, UserType.ADMIN] and staff:
+        elif user.user_type in ["STAFF", "ADMIN"] and staff:
             display_name = f"{staff.first_name} {staff.last_name}"
             is_real_name = True
         elif alumni: # Alumni often have user_type USER

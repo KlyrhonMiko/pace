@@ -43,17 +43,32 @@ export function useNotifications(token: string | null): UseNotificationsReturn {
         }
     }, [token]);
 
-    // SSE Connection
+    // SSE Connection with exponential backoff
     useEffect(() => {
-        if (!token) return;
+        if (!token) {
+            setIsConnected(false);
+            return;
+        }
+
+        let isMounted = true;
+        let es: EventSource | null = null;
+        let retryDelay = 1000; // Start at 1 second
 
         const connect = () => {
+            if (!token || !isMounted) return;
+            
             const url = `${API_BASE_URL}/notifications/stream?token=${encodeURIComponent(token)}`;
-            const es = new EventSource(url);
+            es = new EventSource(url);
 
-            es.onopen = () => setIsConnected(true);
+            es.onopen = () => {
+                if (isMounted) {
+                    setIsConnected(true);
+                    retryDelay = 1000; // Reset backoff on success
+                }
+            };
 
             es.onmessage = (event) => {
+                if (!isMounted) return;
                 try {
                     const payload = JSON.parse(event.data);
                     if (payload.type === "new_notification" && payload.data) {
@@ -65,10 +80,16 @@ export function useNotifications(token: string | null): UseNotificationsReturn {
             };
 
             es.onerror = () => {
-                setIsConnected(false);
-                es.close();
-                // Reconnect after 5s
-                setTimeout(connect, 5000);
+                if (isMounted) {
+                    setIsConnected(false);
+                    es?.close();
+                    // Exponential backoff: 1s → 2s → 4s → 8s → 16s → 30s (cap)
+                    const delay = Math.min(retryDelay, 30000);
+                    retryDelay = Math.min(retryDelay * 2, 30000);
+                    setTimeout(() => {
+                        if (isMounted) connect();
+                    }, delay);
+                }
             };
 
             eventSourceRef.current = es;
@@ -78,6 +99,7 @@ export function useNotifications(token: string | null): UseNotificationsReturn {
         connect();
 
         return () => {
+            isMounted = false;
             eventSourceRef.current?.close();
         };
     }, [token, fetchNotifications]);

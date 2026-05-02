@@ -2,15 +2,29 @@
 import React from "react";
 import { PieChart, CheckCircle2 } from "lucide-react";
 
-const segments = [
-    { label: "Alumni", value: 892, color: "#10b981", ringColor: "ring-emerald-100", barBg: "bg-emerald-100", pct: 71.5 },
-    { label: "Employers", value: 243, color: "#3b82f6", ringColor: "ring-blue-100", barBg: "bg-blue-100", pct: 19.5 },
-    { label: "Faculty", value: 67, color: "#8b5cf6", ringColor: "ring-violet-100", barBg: "bg-violet-100", pct: 5.4 },
-    { label: "Admin", value: 45, color: "#f59e0b", ringColor: "ring-amber-100", barBg: "bg-amber-100", pct: 3.6 },
-];
+interface UserDistributionProps {
+    distribution: {
+        label: string;
+        value: number;
+        percentage: number;
+        color: string;
+    }[];
+}
 
-export default function UserDistribution() {
-    const total = 1247;
+const colorMap: Record<string, { hex: string; ring: string; bar: string }> = {
+    emerald: { hex: "#10b981", ring: "ring-emerald-100", bar: "bg-emerald-100" },
+    blue: { hex: "#3b82f6", ring: "ring-blue-100", bar: "bg-blue-100" },
+    violet: { hex: "#8b5cf6", ring: "ring-violet-100", bar: "bg-violet-100" },
+    amber: { hex: "#f59e0b", ring: "ring-amber-100", bar: "bg-amber-100" },
+};
+
+export default function UserDistribution({ distribution = [] }: UserDistributionProps) {
+    const segments = (distribution || []).map(d => ({
+        ...d,
+        color: colorMap[d.color]?.hex || "#94a3b8",
+        pct: d.percentage
+    }));
+    const total = (distribution || []).reduce((acc, curr) => acc + curr.value, 0);
     const radius = 46;
     const strokeWidth = 11;
     const circumference = 2 * Math.PI * radius;
@@ -148,21 +162,26 @@ export default function UserDistribution() {
 
             {/* Bottom summary strip */}
             <div className="px-6 pb-5 pt-3 mt-auto">
-                <div className="flex items-center justify-between bg-gradient-to-b from-gray-50/80 to-gray-50/40 rounded-xl py-3 px-4 ring-1 ring-gray-100/60">
-                    <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-lg bg-emerald-50 flex items-center justify-center">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" strokeWidth={2} />
+                {distribution.length > 0 && (() => {
+                    const largest = [...distribution].sort((a, b) => b.value - a.value)[0];
+                    return (
+                        <div className="flex items-center justify-between bg-gradient-to-b from-gray-50/80 to-gray-50/40 rounded-xl py-3 px-4 ring-1 ring-gray-100/60">
+                            <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-lg bg-emerald-50 flex items-center justify-center">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" strokeWidth={2} />
+                                </div>
+                                <div>
+                                    <p className="text-[11px] font-semibold text-gray-700">Largest group</p>
+                                    <p className="text-[10px] text-gray-400">{largest.label} dominates at {largest.percentage}%</p>
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-sm font-extrabold text-emerald-800">{largest.value.toLocaleString()}</p>
+                                <p className="text-[10px] text-gray-400">{largest.label.toLowerCase()}</p>
+                            </div>
                         </div>
-                        <div>
-                            <p className="text-[11px] font-semibold text-gray-700">Largest group</p>
-                            <p className="text-[10px] text-gray-400">Alumni dominates at 71.5%</p>
-                        </div>
-                    </div>
-                    <div className="text-right">
-                        <p className="text-sm font-extrabold text-emerald-800">892</p>
-                        <p className="text-[10px] text-gray-400">alumni</p>
-                    </div>
-                </div>
+                    );
+                })()}
             </div>
         </div>
     );

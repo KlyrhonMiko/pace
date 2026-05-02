@@ -23,6 +23,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { EventImageCropperModal } from "./EventImageCropperModal";
+import { EventAttendeesModal } from "./EventAttendeesModal";
 import {
     Dialog,
     DialogContent,
@@ -31,6 +32,8 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { useEventManagement } from "./useEventManagement";
+import { useState } from "react";
+import { Event } from "../../_lib/events";
 import EventList from "./EventList";
 import EventFilters from "./EventFilters";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -78,6 +81,14 @@ export default function EventManagement() {
         loadData,
     } = useEventManagement();
 
+    const [isAttendeesModalOpen, setIsAttendeesModalOpen] = useState(false);
+    const [viewingEvent, setViewingEvent] = useState<Event | null>(null);
+
+    const handleViewAttendees = (event: Event) => {
+        setViewingEvent(event);
+        setIsAttendeesModalOpen(true);
+    };
+
     return (
         <div className="relative grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
             {/* Left Column: Events List */}
@@ -87,6 +98,7 @@ export default function EventManagement() {
                     isLoading={isLoading}
                     openUpdateModal={openUpdateModal}
                     handleDeleteClick={handleDeleteClick}
+                    onViewAttendees={handleViewAttendees}
                     fetchEvents={loadData}
                 />
             </div>
@@ -387,6 +399,12 @@ export default function EventManagement() {
                 imageSrc={cropperImageSrc}
                 onClose={handleCropCancel}
                 onCropComplete={handleCropComplete}
+            />
+
+            <EventAttendeesModal 
+                event={viewingEvent}
+                isOpen={isAttendeesModalOpen}
+                onClose={() => setIsAttendeesModalOpen(false)}
             />
         </div>
     );

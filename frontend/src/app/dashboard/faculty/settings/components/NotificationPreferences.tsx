@@ -1,16 +1,47 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Bell } from "lucide-react";
 import { SettingsCard, Toggle, Divider, SelectField, SaveIndicator } from "./SettingsUI";
+
+const STORAGE_KEY = "pace_staff_notification_prefs";
 
 export function NotificationPreferences() {
     const [emailNotifications, setEmailNotifications] = useState(true);
     const [surveyResponses, setSurveyResponses] = useState(true);
     const [eventReminders, setEventReminders] = useState(true);
-    const [systemUpdates, setSystemUpdates] = useState(false);
     const [notificationFrequency, setNotificationFrequency] = useState("daily");
     const [saved, setSaved] = useState(false);
+    const [isLoaded, setIsLoaded] = useState(false);
+
+    useEffect(() => {
+        const savedPrefs = localStorage.getItem(STORAGE_KEY);
+        if (savedPrefs) {
+            try {
+                const parsed = JSON.parse(savedPrefs);
+                setEmailNotifications(parsed.emailNotifications ?? true);
+                setSurveyResponses(parsed.surveyResponses ?? true);
+                setEventReminders(parsed.eventReminders ?? true);
+                setNotificationFrequency(parsed.notificationFrequency ?? "daily");
+            } catch (e) {
+                console.error("Failed to parse notification prefs", e);
+            }
+        }
+        setIsLoaded(true);
+    }, []);
+
+    useEffect(() => {
+        if (isLoaded) {
+            const prefs = {
+                emailNotifications,
+                surveyResponses,
+                eventReminders,
+                notificationFrequency
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+            flashSaved();
+        }
+    }, [emailNotifications, surveyResponses, eventReminders, notificationFrequency, isLoaded]);
 
     const flashSaved = () => {
         setSaved(true);
@@ -30,7 +61,6 @@ export function NotificationPreferences() {
                 enabled={emailNotifications}
                 onChange={(v) => {
                     setEmailNotifications(v);
-                    flashSaved();
                 }}
             />
             <Divider />
@@ -41,7 +71,6 @@ export function NotificationPreferences() {
                     enabled={surveyResponses}
                     onChange={(v) => {
                         setSurveyResponses(v);
-                        flashSaved();
                     }}
                 />
                 <Toggle
@@ -50,16 +79,6 @@ export function NotificationPreferences() {
                     enabled={eventReminders}
                     onChange={(v) => {
                         setEventReminders(v);
-                        flashSaved();
-                    }}
-                />
-                <Toggle
-                    label="System Updates"
-                    description="Platform updates and faculty portal announcements"
-                    enabled={systemUpdates}
-                    onChange={(v) => {
-                        setSystemUpdates(v);
-                        flashSaved();
                     }}
                 />
             </div>
@@ -70,7 +89,6 @@ export function NotificationPreferences() {
                 value={notificationFrequency}
                 onChange={(v) => {
                     setNotificationFrequency(v);
-                    flashSaved();
                 }}
                 options={[
                     { value: "instant", label: "Instant" },

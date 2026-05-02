@@ -1,4 +1,4 @@
-import { Calendar, Users, EyeOff, FileText, CheckCircle2, Clock, Archive, Send, XCircle, RefreshCw, Box } from "lucide-react";
+import { Calendar, Users, EyeOff, FileText, CheckCircle2, Clock, Archive, Send, XCircle, RefreshCw, Box, BarChart3 } from "lucide-react";
 import { Survey } from "../../_lib/surveys";
 
 interface SurveyCardProps {
@@ -9,6 +9,7 @@ interface SurveyCardProps {
     onCloseSurvey: () => void;
     onArchive: () => void;
     onReopen: () => void;
+    onViewResults?: (survey: Survey) => void;
 }
 
 export default function SurveyCard({ survey, onEdit, onDelete, onPublish, onCloseSurvey, onArchive, onReopen }: SurveyCardProps) {
@@ -92,7 +93,16 @@ export default function SurveyCard({ survey, onEdit, onDelete, onPublish, onClos
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-2 pt-1">
+                <div className="flex flex-wrap gap-2 pt-1">
+                    {onViewResults && survey.status !== "DRAFT" && (
+                        <button
+                            onClick={() => onViewResults(survey)}
+                            className="flex-1 min-w-[100px] flex items-center justify-center gap-1.5 py-2 text-sm font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors border border-indigo-100 shadow-sm shadow-indigo-100/50"
+                        >
+                            <BarChart3 className="h-3.5 w-3.5" />
+                            Results
+                        </button>
+                    )}
                     {survey.status === "DRAFT" && (
                         <button
                             onClick={onPublish}

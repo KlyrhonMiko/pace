@@ -19,8 +19,8 @@ export default function FacultyStatsGrid() {
 
     if (loading) {
         return (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 min-h-[140px]">
-                {[...Array(4)].map((_, i) => (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 min-h-[140px]">
+                {[...Array(3)].map((_, i) => (
                     <div key={i} className="animate-pulse rounded-2xl bg-white border border-gray-100 p-5 flex items-center justify-center">
                         <Loader2 className="h-6 w-6 animate-spin text-gray-300" />
                     </div>
@@ -47,15 +47,6 @@ export default function FacultyStatsGrid() {
             sparkline: [4, 6, 5, 8, 7, 9, 8, 10, 9, 11]
         },
         {
-            label: "Placement Rate",
-            value: `${stats?.placement_rate ?? 0}%`,
-            subValue: "+5%",
-            icon: Target,
-            color: "violet",
-            sparkline: [2, 4, 3, 5, 4, 6, 7, 5, 8, 9]
-        },
-
-        {
             label: "Job Listings",
             value: (stats?.active_jobs ?? 0).toLocaleString(),
             subValue: "+12",
@@ -66,7 +57,7 @@ export default function FacultyStatsGrid() {
     ];
 
     return (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {statCards.map((card, i) => (
                 <div key={i} className="group relative rounded-2xl bg-white border border-gray-100 p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5">
                     <div className="flex items-center justify-between mb-3">

@@ -327,6 +327,7 @@ def get_survey_results(session: Session, survey: Survey) -> dict:
     return {
         "survey_id": survey.survey_id,
         "title": survey.title,
+        "status": survey.status.value if hasattr(survey.status, "value") else survey.status,
         "total_responses": total_responses,
         "completion_rate": completion_rate,
         "question_summaries": question_summaries,
@@ -356,14 +357,16 @@ def export_survey_responses(session: Session, survey: Survey) -> dict:
 
     output_responses = []
     for resp in responses:
-        # Resolve alumni_id if response is not anonymous
+        # Resolve alumni info if response is not anonymous
         alumni_id = None
+        alumni_name = "Anonymous"
         if resp.alumni_ref_id and not survey.is_anonymous:
             alumni = session.exec(
                 select(Alumni).where(Alumni.id == resp.alumni_ref_id)
             ).first()
             if alumni:
                 alumni_id = alumni.alumni_id
+                alumni_name = f"{alumni.first_name} {alumni.last_name}"
 
         # Fetch answers
         from datetime import datetime
@@ -401,6 +404,7 @@ def export_survey_responses(session: Session, survey: Survey) -> dict:
                 "submitted_at": _fmt(resp.submitted_at),
                 "is_complete": resp.is_complete,
                 "alumni_id": alumni_id,
+                "alumni_name": alumni_name,
                 "answers": answer_list,
             }
         )

@@ -256,6 +256,7 @@ export default function AlumniManagement() {
                                         date={formData.birthdate}
                                         onChange={(date: string) => setFormData({ ...formData, birthdate: date })}
                                         placeholder="Select birthdate"
+                                        className="bg-slate-50"
                                     />
                                 </div>
                             </div>

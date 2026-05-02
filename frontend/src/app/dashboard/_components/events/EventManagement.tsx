@@ -158,134 +158,148 @@ export default function EventManagement() {
                     {/* Body */}
                     <div className="p-6 max-h-[70vh] overflow-y-auto space-y-6 custom-scrollbar">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Name */}
-                            <div className="md:col-span-2 space-y-1.5">
-                                <label className="text-sm font-medium text-slate-700">Event Name*</label>
-                                <Input
-                                    placeholder="e.g. Annual Networking Night"
-                                    value={formData.event_name}
-                                    onChange={(e) => setFormData({ ...formData, event_name: e.target.value })}
-                                    className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
-                                />
-                            </div>
-
-                            {/* Description */}
-                            <div className="md:col-span-2 space-y-1.5">
-                                <label className="text-sm font-medium text-slate-700">Description</label>
-                                <textarea
-                                    placeholder="Tell us more about this event..."
-                                    value={formData.description}
-                                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                    className="w-full min-h-[100px] p-3 rounded-xl border border-slate-200 bg-slate-50 focus:border-emerald-600 focus:ring-emerald-700/20 outline-none text-sm transition-all font-medium resize-none"
-                                />
-                            </div>
-
-                            {/* Type */}
-                            <div className="space-y-1.5">
-                                <label className="text-sm font-medium text-slate-700">Event Type*</label>
-                                {!isAddingNewType ? (
-                                    <Select
-                                        value={formData.event_type_name}
-                                        onValueChange={(value: string) => {
-                                            if (value === "ADD_NEW") {
-                                                setIsAddingNewType(true);
-                                                setFormData({ ...formData, event_type_name: "" });
-                                            } else {
-                                                setFormData({ ...formData, event_type_name: value });
-                                            }
-                                        }}
-                                    >
-                                        <SelectTrigger className="!w-full !h-11 bg-slate-50 border-slate-200 focus:border-emerald-600 focus:ring-emerald-700/20">
-                                            <SelectValue placeholder="Select type" />
-                                        </SelectTrigger>
-                                        <SelectContent className="rounded-xl border-slate-200 z-[110]">
-                                            {availableTypeNames.map(name => (
-                                                <SelectItem key={name} value={name}>{name}</SelectItem>
-                                            ))}
-                                            <div className="h-px bg-slate-100 my-1" />
-                                            <SelectItem value="ADD_NEW" className="text-emerald-600 font-bold focus:text-emerald-700">
-                                                + Add New Type...
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                ) : (
-                                    <div className="relative">
+                            {/* 1. Basic Information */}
+                            <div className="md:col-span-2">
+                                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Basic Information</h3>
+                                <div className="space-y-4">
+                                    <div className="space-y-1.5">
+                                        <label className="text-sm font-medium text-slate-700">Event Name*</label>
                                         <Input
-                                            placeholder="Enter new event type..."
-                                            value={formData.event_type_name}
-                                            autoFocus
-                                            onChange={(e) => setFormData({ ...formData, event_type_name: e.target.value })}
-                                            className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20 pr-10"
+                                            placeholder="e.g. Annual Networking Night"
+                                            value={formData.event_name}
+                                            onChange={(e) => setFormData({ ...formData, event_name: e.target.value })}
+                                            className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
                                         />
-                                        <button
-                                            onClick={() => setIsAddingNewType(false)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
-                                            title="Back to list"
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </button>
                                     </div>
-                                )}
+
+                                    <div className="space-y-1.5">
+                                        <label className="text-sm font-medium text-slate-700">Description</label>
+                                        <textarea
+                                            placeholder="Tell us more about this event..."
+                                            value={formData.description}
+                                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                            className="w-full min-h-[100px] p-3 rounded-lg border border-slate-200 bg-slate-50 focus:border-emerald-600 focus:ring-emerald-700/20 outline-none text-sm transition-all font-medium resize-none placeholder:text-slate-400"
+                                        />
+                                    </div>
+                                </div>
                             </div>
 
-                            {/* Date */}
-                            <div className="space-y-1.5">
-                                <label className="text-sm font-medium text-slate-700">Date*</label>
-                                <DatePicker
-                                    date={formData.date}
-                                    onChange={(date: string) => setFormData({ ...formData, date })}
-                                    placeholder="Select event date"
-                                />
+                            {/* 2. Schedule & Type */}
+                            <div className="md:col-span-2">
+                                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Schedule & Details</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* Type */}
+                                    <div className="space-y-1.5">
+                                        <label className="text-sm font-medium text-slate-700">Event Type*</label>
+                                        {!isAddingNewType ? (
+                                            <Select
+                                                value={formData.event_type_name}
+                                                onValueChange={(value: string) => {
+                                                    if (value === "ADD_NEW") {
+                                                        setIsAddingNewType(true);
+                                                        setFormData({ ...formData, event_type_name: "" });
+                                                    } else {
+                                                        setFormData({ ...formData, event_type_name: value });
+                                                    }
+                                                }}
+                                            >
+                                                <SelectTrigger className="!w-full !h-11 bg-slate-50 border-slate-200 focus:border-emerald-600 focus:ring-emerald-700/20">
+                                                    <SelectValue placeholder="Select type" />
+                                                </SelectTrigger>
+                                                <SelectContent className="rounded-xl border-slate-200 z-[110]">
+                                                    {availableTypeNames.map(name => (
+                                                        <SelectItem key={name} value={name}>{name}</SelectItem>
+                                                    ))}
+                                                    <div className="h-px bg-slate-100 my-1" />
+                                                    <SelectItem value="ADD_NEW" className="text-emerald-600 font-bold focus:text-emerald-700">
+                                                        + Add New Type...
+                                                    </SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        ) : (
+                                            <div className="relative">
+                                                <Input
+                                                    placeholder="Enter new event type..."
+                                                    value={formData.event_type_name}
+                                                    autoFocus
+                                                    onChange={(e) => setFormData({ ...formData, event_type_name: e.target.value })}
+                                                    className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20 pr-10"
+                                                />
+                                                <button
+                                                    onClick={() => setIsAddingNewType(false)}
+                                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                                                    title="Back to list"
+                                                >
+                                                    <X className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Date */}
+                                    <div className="space-y-1.5">
+                                        <label className="text-sm font-medium text-slate-700">Date*</label>
+                                        <DatePicker
+                                            date={formData.date}
+                                            onChange={(date: string) => setFormData({ ...formData, date })}
+                                            placeholder="Select event date"
+                                            className="bg-slate-50"
+                                        />
+                                    </div>
+
+                                    {/* Start Time */}
+                                    <div className="space-y-1.5">
+                                        <label className="text-sm font-medium text-slate-700">Start Time*</label>
+                                        <Input
+                                            type="time"
+                                            value={formData.time_start}
+                                            onChange={(e) => setFormData({ ...formData, time_start: e.target.value })}
+                                            className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
+                                        />
+                                    </div>
+
+                                    {/* End Time */}
+                                    <div className="space-y-1.5">
+                                        <label className="text-sm font-medium text-slate-700">End Time*</label>
+                                        <Input
+                                            type="time"
+                                            value={formData.time_end}
+                                            onChange={(e) => setFormData({ ...formData, time_end: e.target.value })}
+                                            className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
+                                        />
+                                    </div>
+
+                                    {/* Location */}
+                                    <div className="space-y-1.5">
+                                        <label className="text-sm font-medium text-slate-700">Location</label>
+                                        <Input
+                                            placeholder="Room, Building or Link"
+                                            value={formData.location}
+                                            onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                                            className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
+                                        />
+                                    </div>
+
+                                    {/* Capacity */}
+                                    <div className="space-y-1.5">
+                                        <label className="text-sm font-medium text-slate-700">Capacity</label>
+                                        <Input
+                                            type="number"
+                                            placeholder="Max attendees"
+                                            value={formData.capacity}
+                                            onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 0 })}
+                                            className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
+                                        />
+                                    </div>
+                                </div>
                             </div>
 
-                            {/* Start Time */}
-                            <div className="space-y-1.5">
-                                <label className="text-sm font-medium text-slate-700">Start Time*</label>
-                                <Input
-                                    type="time"
-                                    value={formData.time_start}
-                                    onChange={(e) => setFormData({ ...formData, time_start: e.target.value })}
-                                    className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
-                                />
-                            </div>
+                            {/* 3. Visual Identity */}
+                            <div className="md:col-span-2">
+                                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Event Banner</h3>
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-medium text-slate-700">Featured Image</label>
 
-                            {/* End Time */}
-                            <div className="space-y-1.5">
-                                <label className="text-sm font-medium text-slate-700">End Time*</label>
-                                <Input
-                                    type="time"
-                                    value={formData.time_end}
-                                    onChange={(e) => setFormData({ ...formData, time_end: e.target.value })}
-                                    className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
-                                />
-                            </div>
-
-                            {/* Location */}
-                            <div className="space-y-1.5">
-                                <label className="text-sm font-medium text-slate-700">Location</label>
-                                <Input
-                                    placeholder="Room, Building or Link"
-                                    value={formData.location}
-                                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                                    className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
-                                />
-                            </div>
-
-                            {/* Capacity */}
-                            <div className="space-y-1.5">
-                                <label className="text-sm font-medium text-slate-700">Capacity</label>
-                                <Input
-                                    type="number"
-                                    placeholder="Max attendees"
-                                    value={formData.capacity}
-                                    onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 0 })}
-                                    className="h-11 bg-slate-50 border-slate-200 focus-visible:border-emerald-600 focus-visible:ring-emerald-700/20"
-                                />
-                            </div>
-
-                            {/* Image Placeholder */}
-                            <div className="md:col-span-2 space-y-1.5">
-                                <label className="text-sm font-medium text-slate-700">Event Image</label>
                                 <label 
                                     onDragOver={handleDragOver}
                                     onDragLeave={handleDragLeave}
@@ -347,43 +361,43 @@ export default function EventManagement() {
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    {/* Footer */}
-                    <div className="p-6 border-t border-slate-100 bg-slate-50/30 flex items-center justify-between">
+                {/* Footer */}
+                <div className="p-6 border-t border-slate-100 bg-slate-50/30 flex items-center justify-between">
+                    <button
+                        onClick={handleClearForm}
+                        disabled={isSaving}
+                        className="text-sm font-medium text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
+                    >
+                        {editingEvent ? "Reset" : "Clear"}
+                    </button>
+                    <div className="flex items-center gap-2.5">
                         <button
-                            onClick={handleClearForm}
+                            onClick={() => setIsModalOpen(false)}
                             disabled={isSaving}
-                            className="text-sm font-medium text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
+                            className="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50"
                         >
-                            {editingEvent ? "Reset" : "Clear"}
+                            Cancel
                         </button>
-                        <div className="flex items-center gap-2.5">
-                            <Button
-                                variant="outline"
-                                onClick={() => setIsModalOpen(false)}
-                                disabled={isSaving}
-                                className="h-10 px-5 rounded-xl border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition-all"
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                onClick={handleSave}
-                                disabled={isSaving}
-                                className="h-10 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm shadow-emerald-200 transition-all active:scale-95 gap-2"
-                            >
-                                {isSaving ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                    <Check className="h-4 w-4" strokeWidth={2.5} />
-                                )}
-                                {editingEvent ? "Save Changes" : "Create Event"}
-                            </Button>
-                        </div>
+                        <button
+                            onClick={handleSave}
+                            disabled={isSaving}
+                            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-200 transition-all disabled:opacity-50"
+                        >
+                            {isSaving ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Check className="h-4 w-4" strokeWidth={2.5} />
+                            )}
+                            {editingEvent ? "Save Changes" : "Create Event"}
+                        </button>
                     </div>
-                </DialogContent>
-            </Dialog>
+                </div>
+            </DialogContent>
+        </Dialog>
 
-            <ConfirmationModal
+        <ConfirmationModal
                 isOpen={eventToDelete !== null}
                 onClose={() => setEventToDelete(null)}
                 onConfirm={confirmDeleteEvent}

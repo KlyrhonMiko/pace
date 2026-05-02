@@ -123,13 +123,13 @@ function Field({
 }) {
     const isReadOnly = readOnly || !editing;
 
-    const baseInput = "w-full rounded-xl border text-sm px-3.5 py-2.5 transition-all duration-150 outline-none flex items-center gap-2 ";
+    const baseInput = "w-full h-11 rounded-md border text-sm px-3.5 transition-all duration-150 outline-none flex items-center gap-2 ";
     const readonlyClass = "bg-gray-50 border-gray-200 text-gray-500 cursor-default select-none";
     const editableClass = "bg-white border-gray-300 text-gray-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20";
 
     return (
         <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            <label className="text-sm font-medium text-slate-700">
                 {label}
                 {required && <span className="text-emerald-600 ml-0.5">*</span>}
             </label>
@@ -158,7 +158,7 @@ function PasswordRequirements({ password }: { password: string }) {
 
     return (
         <div className={cn(
-            "rounded-xl p-3 border transition-all duration-300 mt-2",
+            "rounded-md p-3 border transition-all duration-300 mt-2",
             password ? "bg-emerald-50/30 border-emerald-100/50" : "bg-gray-50/50 border-gray-100"
         )}>
             <p className={cn(
@@ -486,19 +486,19 @@ export default function FacultyProfilePage() {
                                 required
                             />
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                <label className="text-sm font-medium text-slate-700">
                                     Username
                                 </label>
-                                <div className="w-full rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-500 px-3.5 py-2.5 flex items-center gap-2">
+                                <div className="w-full h-11 rounded-md border border-gray-200 bg-gray-50 text-sm text-gray-500 px-3.5 flex items-center gap-2">
                                     <Fingerprint className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" strokeWidth={2} />
                                     {fullUser?.username}
                                 </div>
                             </div>
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                <label className="text-sm font-medium text-slate-700">
                                     User ID
                                 </label>
-                                <div className="w-full rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-500 px-3.5 py-2.5 flex items-center gap-2">
+                                <div className="w-full h-11 rounded-md border border-gray-200 bg-gray-50 text-sm text-gray-500 px-3.5 flex items-center gap-2">
                                     <Lock className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" strokeWidth={2} />
                                     {fullUser?.user_id}
                                 </div>

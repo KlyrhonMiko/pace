@@ -196,7 +196,7 @@ export default function SurveyModal({ isOpen, onClose, onSubmit, onReset, initia
                                             rows={3}
                                             value={formData.description}
                                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                            className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 focus:border-emerald-600 focus:ring-emerald-700/20 outline-none text-sm transition-all font-medium resize-none"
+                                            className="w-full p-3 rounded-lg border border-slate-200 bg-slate-50 focus:border-emerald-600 focus:ring-emerald-700/20 outline-none text-sm transition-all font-medium resize-none"
                                             placeholder="Briefly explain the purpose of this survey..."
                                         />
                                     </div>
@@ -253,6 +253,7 @@ export default function SurveyModal({ isOpen, onClose, onSubmit, onReset, initia
                                                         date={formData.opens_at || ''}
                                                         onChange={(date: string) => setFormData({ ...formData, opens_at: date || null })}
                                                         placeholder="Select opening date"
+                                                        className="bg-slate-50"
                                                     />
                                                 </div>
                                                 <div className="space-y-1.5">
@@ -263,6 +264,7 @@ export default function SurveyModal({ isOpen, onClose, onSubmit, onReset, initia
                                                         date={formData.closes_at || ''}
                                                         onChange={(date: string) => setFormData({ ...formData, closes_at: date || null })}
                                                         placeholder="Select closing date"
+                                                        className="bg-slate-50"
                                                     />
                                                 </div>
                                             </div>
@@ -418,18 +420,17 @@ export default function SurveyModal({ isOpen, onClose, onSubmit, onReset, initia
                         {initialData ? "Reset" : "Clear"}
                     </button>
                     <div className="flex items-center gap-2.5">
-                        <Button
-                            variant="outline"
+                        <button
                             onClick={onClose}
                             disabled={isSaving}
-                            className="h-10 px-5 rounded-xl border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition-all"
+                            className="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50"
                         >
                             Cancel
-                        </Button>
-                        <Button
+                        </button>
+                        <button
                             onClick={handleSubmit}
                             disabled={isSaving}
-                            className="h-10 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm shadow-emerald-200 transition-all active:scale-95 gap-2"
+                            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-200 transition-all disabled:opacity-50"
                         >
                             {isSaving ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -437,7 +438,7 @@ export default function SurveyModal({ isOpen, onClose, onSubmit, onReset, initia
                                 <Check className="h-4 w-4" strokeWidth={2.5} />
                             )}
                             {isSaving ? "Saving..." : "Save Survey"}
-                        </Button>
+                        </button>
                     </div>
                 </div>
             </DialogContent>

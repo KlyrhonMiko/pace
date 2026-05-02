@@ -130,7 +130,7 @@ export default function QuestionModal({ isOpen, onClose, onSubmit, onReset, init
                                     rows={2}
                                     value={formData.question_text}
                                     onChange={(e) => setFormData({ ...formData, question_text: e.target.value })}
-                                    className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 focus:border-emerald-600 focus:ring-emerald-700/20 outline-none text-sm transition-all font-medium resize-none"
+                                    className="w-full p-3 rounded-lg border border-slate-200 bg-slate-50 focus:border-emerald-600 focus:ring-emerald-700/20 outline-none text-sm transition-all font-medium resize-none"
                                     placeholder="Enter your question here..."
                                 />
                             </div>
@@ -304,18 +304,17 @@ export default function QuestionModal({ isOpen, onClose, onSubmit, onReset, init
                         {initialData ? "Reset" : "Clear"}
                     </button>
                     <div className="flex items-center gap-2.5">
-                        <Button
-                            variant="outline"
+                        <button
                             onClick={onClose}
                             disabled={isSaving}
-                            className="h-10 px-5 rounded-xl border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition-all"
+                            className="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50"
                         >
                             Cancel
-                        </Button>
-                        <Button
+                        </button>
+                        <button
                             onClick={handleSubmit}
                             disabled={isSaving}
-                            className="h-10 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm shadow-emerald-200 transition-all active:scale-95 gap-2"
+                            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-200 transition-all disabled:opacity-50"
                         >
                             {isSaving ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -323,7 +322,7 @@ export default function QuestionModal({ isOpen, onClose, onSubmit, onReset, init
                                 <Check className="h-4 w-4" strokeWidth={2.5} />
                             )}
                             {isSaving ? "Saving..." : (initialData ? "Save Changes" : "Save Question")}
-                        </Button>
+                        </button>
                     </div>
                 </div>
             </DialogContent>

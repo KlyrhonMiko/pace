@@ -57,7 +57,7 @@ export function SkillsInput({
             <div
                 onClick={() => !disabled && inputRef.current?.focus()}
                 className={cn(
-                    "w-full rounded-xl border text-sm px-3 py-2 transition-all duration-150 min-h-[42px] flex flex-wrap items-center gap-1.5 cursor-text",
+                    "w-full rounded-md border text-sm px-3 py-2 transition-all duration-150 min-h-[42px] flex flex-wrap items-center gap-1.5 cursor-text",
                     disabled
                         ? "bg-gray-50 border-gray-200 cursor-default"
                         : isFocused

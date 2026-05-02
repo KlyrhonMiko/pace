@@ -310,7 +310,7 @@ export default function AdminJobFormModal({ isOpen, onClose, editingJob, onSucce
                         <textarea
                             required
                             rows={6}
-                            className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-600 transition-all text-sm resize-none"
+                            className="w-full px-4 py-3 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-600 transition-all text-sm resize-none"
                             placeholder="Provide a detailed description of the job role..."
                             value={formData.description}
                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}

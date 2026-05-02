@@ -45,7 +45,8 @@ export function DatePicker({
     return (
         <div
             className={cn(
-                "relative w-full h-11 rounded-xl border border-slate-200 bg-white transition-all shadow-xs flex items-center overflow-hidden",
+                "relative w-full h-11 border border-slate-200 transition-all flex items-center overflow-hidden",
+                "rounded-md bg-white shadow-xs", // Defaults
                 "focus-within:border-emerald-600 focus-within:ring-2 focus-within:ring-emerald-700/20",
                 disabled && "cursor-not-allowed opacity-60 bg-slate-50",
                 className

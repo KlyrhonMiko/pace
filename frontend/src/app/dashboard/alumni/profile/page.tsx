@@ -235,7 +235,7 @@ function Field({
     const isReadOnly = readOnly || !editing;
 
     const baseInput =
-        "w-full rounded-xl border text-sm px-3.5 py-2.5 transition-all duration-150 outline-none ";
+        "w-full h-[44px] rounded-md border text-sm px-3.5 transition-all duration-150 outline-none shadow-xs ";
     const readonlyClass =
         "bg-gray-50 border-gray-200 text-gray-500 cursor-default select-none";
     const editableClass =
@@ -243,7 +243,7 @@ function Field({
 
     return (
         <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            <label className="text-sm font-medium text-slate-700">
                 {label}
                 {required && <span className="text-emerald-600 ml-0.5">*</span>}
             </label>
@@ -252,7 +252,7 @@ function Field({
                     value={value as string}
                     onValueChange={(v) => onChange?.(v)}
                 >
-                    <SelectTrigger className={cn(baseInput, editableClass, "h-[42px]")}>
+                    <SelectTrigger className={cn(baseInput, editableClass)}>
                         <SelectValue placeholder={placeholder || `Select ${label}`} />
                     </SelectTrigger>
                     <SelectContent>
@@ -293,10 +293,10 @@ function ReadOnlyField({
 }) {
     return (
         <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            <label className="text-sm font-medium text-slate-700">
                 {label}
             </label>
-            <div className="w-full rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-500 px-3.5 py-2.5 min-h-[42px] flex items-center">
+            <div className="w-full h-[44px] rounded-md border border-slate-200 bg-slate-50 text-sm text-slate-500 px-3.5 flex items-center shadow-xs">
                 {value || <span className="text-gray-300 italic text-xs">Not provided</span>}
             </div>
         </div>
@@ -646,11 +646,11 @@ export default function ProfilePage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {/* Username — always read-only */}
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                <label className="text-sm font-medium text-slate-700">
                                     Username <span className="text-emerald-600">*</span>
-                                    <span className="ml-2 text-[10px] font-normal text-gray-400 normal-case tracking-normal">(admin-assigned)</span>
+                                    <span className="ml-2 text-[10px] font-normal text-slate-400 normal-case tracking-normal">(admin-assigned)</span>
                                 </label>
-                                <div className="w-full rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-500 px-3.5 py-2.5 flex items-center gap-2">
+                                <div className="w-full h-11 rounded-md border border-gray-200 bg-gray-50 text-sm text-gray-500 px-3.5 flex items-center gap-2">
                                     <Lock className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" strokeWidth={2} />
                                     {account.username}
                                 </div>
@@ -708,7 +708,7 @@ export default function ProfilePage() {
                             />
                             {/* Gender */}
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                <label className="text-sm font-medium text-slate-700">
                                     Gender <span className="text-emerald-600">*</span>
                                 </label>
                                 {editingPersonal ? (
@@ -716,7 +716,7 @@ export default function ProfilePage() {
                                         value={personalDraft.gender}
                                         onValueChange={(v) => setPersonalDraft((p) => ({ ...p, gender: v }))}
                                     >
-                                        <SelectTrigger className="w-full rounded-xl border border-gray-300 bg-white text-sm text-gray-900 px-3.5 h-[42px] transition-all duration-150 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20">
+                                        <SelectTrigger className="w-full h-11 rounded-md border border-gray-300 bg-white text-sm text-gray-900 px-3.5 transition-all duration-150 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20">
                                             <SelectValue placeholder="Select gender" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -727,7 +727,7 @@ export default function ProfilePage() {
                                         </SelectContent>
                                     </Select>
                                 ) : (
-                                    <div className="w-full rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-500 px-3.5 py-2.5">
+                                    <div className="w-full h-11 rounded-md border border-gray-200 bg-gray-50 text-sm text-gray-500 px-3.5 flex items-center">
                                         {formatGender(personal.gender) || <span className="text-gray-300 italic text-xs">Not provided</span>}
                                     </div>
                                 )}
@@ -745,11 +745,11 @@ export default function ProfilePage() {
 
                             {/* Age — always computed */}
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
+                                <label className="text-sm font-medium text-slate-700">
                                     Age
-                                    <span className="text-[10px] font-normal text-gray-400 normal-case tracking-normal">(auto-computed)</span>
+                                    <span className="ml-1.5 text-[10px] font-normal text-slate-400 normal-case tracking-normal">(auto-computed)</span>
                                 </label>
-                                <div className="w-full rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-500 px-3.5 py-2.5 flex items-center gap-2">
+                                <div className="w-full h-[44px] rounded-md border border-slate-200 bg-slate-50 text-sm text-slate-500 px-3.5 flex items-center gap-2 shadow-xs">
                                     <Clock className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" strokeWidth={2} />
                                     {editingPersonal ? personalDraft.age : personal.age}
                                     {((editingPersonal ? personalDraft.age : personal.age) !== "—") && (
@@ -760,7 +760,7 @@ export default function ProfilePage() {
 
                             {/* Skills */}
                             <div className="md:col-span-2">
-                                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">
+                                <label className="text-sm font-medium text-slate-700 mb-1.5 block">
                                     Skills
                                 </label>
                                 <SkillsInput
@@ -792,7 +792,7 @@ export default function ProfilePage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {/* Employment Status */}
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                <label className="text-sm font-medium text-slate-700">
                                     Employment Status <span className="text-emerald-600">*</span>
                                 </label>
                                 {editingEmployment ? (
@@ -800,7 +800,7 @@ export default function ProfilePage() {
                                         value={employmentDraft.status}
                                         onValueChange={(v) => setEmploymentDraft((p) => ({ ...p, status: v }))}
                                     >
-                                        <SelectTrigger className="w-full rounded-xl border border-gray-300 bg-white text-sm text-gray-900 px-3.5 h-[42px] transition-all duration-150 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20">
+                                        <SelectTrigger className="w-full rounded-md border border-gray-300 bg-white text-sm text-gray-900 px-3.5 h-[42px] transition-all duration-150 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20">
                                             <SelectValue placeholder="Select status" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -811,7 +811,7 @@ export default function ProfilePage() {
                                         </SelectContent>
                                     </Select>
                                 ) : (
-                                    <div className="w-full rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-500 px-3.5 py-2.5">
+                                    <div className="w-full h-11 rounded-md border border-gray-200 bg-gray-50 text-sm text-gray-500 px-3.5 flex items-center">
                                         {employment.status}
                                     </div>
                                 )}
@@ -854,7 +854,7 @@ export default function ProfilePage() {
                     >
                         <>
                             {/* Info notice */}
-                            <div className="flex items-start gap-2.5 text-xs text-amber-700 bg-amber-50 border border-amber-200/70 rounded-xl px-4 py-3 mb-5">
+                            <div className="flex items-start gap-2.5 text-xs text-amber-700 bg-amber-50 border border-amber-200/70 rounded-md px-4 py-3 mb-5">
                                 <Info className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-500" strokeWidth={2} />
                                 <p>These records are managed by the Registrar&apos;s Office and cannot be edited directly. Contact your registrar for corrections.</p>
                             </div>

@@ -4,7 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from core.database import get_session
 from core.redis import cache_get_or_set, generate_cache_key, invalidate_cache_namespaces
 from schemas.users import (
-    UserCreate, UserUpdate, UserPublic,
+    UserCreate, UserUpdate, UserPublic, UserWithProfile,
     UserBatchCreate, UserBatchUpdate, UserBatchDelete, UserBatchRestore,
 )
 from models.response_codes import ErrorCode, SuccessCode, StandardResponse
@@ -15,7 +15,7 @@ from utils.crypto import verify_password
 from utils.rbac import require_admin, require_self_or_admin
 from utils.logging import log_error, log_integrity_error, log_auth_error
 from services.queries.users_queries import (
-    get_user_by_id, get_user_by_id_any,
+    get_user_by_id, get_user_by_id_any, get_user_with_profile,
     create_user, update_user, soft_delete_user, restore_user,
     get_all_users, get_all_users_with_profile,
     batch_create_users, batch_update_users, batch_delete_users, batch_restore_users,
@@ -308,12 +308,15 @@ async def update_user_route(
             performed_by=current_user.id,
         )
         data = UserPublic.model_validate(updated)
-        print(f"[DEBUG] User {user_id} updated and validated successfully")
         invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
+        
+        # Re-fetch with profile to return full data
+        updated_with_profile = get_user_with_profile(session, updated.user_id)
+        
         return StandardResponse(
             success=True, code=SuccessCode.USER_UPDATED.value,
             message=f"User {updated.user_id} updated successfully",
-            data=data
+            data=updated_with_profile.model_dump() if updated_with_profile else UserPublic.model_validate(updated)
         )
     except Exception as e:
         import traceback
@@ -541,7 +544,7 @@ def _build_all_users_response(
 
 
 def _build_user_detail_response(session: Session, user_id: str) -> StandardResponse:
-    user = get_user_by_id(session, user_id)
+    user = get_user_with_profile(session, user_id)
     if not user:
         log_error("users", "get_user", ErrorCode.USER_NOT_FOUND.value, f"User {user_id} not found")
         raise HTTPException(status_code=404, detail=StandardResponse(
@@ -550,5 +553,5 @@ def _build_user_detail_response(session: Session, user_id: str) -> StandardRespo
     return StandardResponse(
         success=True, code=SuccessCode.USER_RETRIEVED.value,
         message=f"User {user_id} retrieved successfully",
-        data=UserPublic.model_validate(user)
+        data=user.model_dump()
     )

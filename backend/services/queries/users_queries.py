@@ -24,6 +24,7 @@ from utils.logging import log_integrity_error
 from utils.timezone import get_current_time_gmt8, get_current_time_utc
 from services.queries.audit import stamp_create, stamp_restore, stamp_soft_delete, stamp_update
 from services.queries.transaction_logs_queries import create_transaction_log
+from services.queries.staff_queries import generate_staff_id
 
 
 # ---------------------------------------------------------------------------
@@ -58,6 +59,54 @@ def get_user_by_id_any(session: Session, user_id: str) -> User | None:
     return session.exec(
         select(User).where(User.user_id == user_id.upper())
     ).first()
+
+
+def get_user_with_profile(session: Session, user_id: str) -> UserWithProfile | None:
+    """Fetch a user by ID and resolve their names from profile tables."""
+    user = session.exec(
+        select(User).where(User.user_id == user_id.upper())
+    ).first()
+    if not user:
+        return None
+
+    first_name: str | None = None
+    last_name: str | None = None
+    middle_name: str | None = None
+
+    if user.user_type == UserType.USER:
+        alumni = session.exec(
+            select(Alumni).where(Alumni.user_ref_id == user.id)
+        ).first()
+        if alumni:
+            first_name, last_name, middle_name = alumni.first_name, alumni.last_name, alumni.middle_name
+    elif user.user_type == UserType.EMPLOYER:
+        employer = session.exec(
+            select(Employer).where(Employer.user_ref_id == user.id)
+        ).first()
+        if employer:
+            first_name = employer.contact_person_first_name
+            last_name = employer.contact_person_last_name
+    else: # STAFF or ADMIN
+        staff = session.exec(
+            select(Staff).where(Staff.user_ref_id == user.id)
+        ).first()
+        if staff:
+            first_name, last_name, middle_name = staff.first_name, staff.last_name, staff.middle_name
+
+    return UserWithProfile(
+        id=user.id,
+        user_id=user.user_id,
+        username=user.username,
+        email=user.email,
+        user_type=user.user_type,
+        is_deleted=user.is_deleted,
+        created_at=user.created_at,
+        updated_at=user.updated_at,
+        created_by=user.created_by,
+        first_name=first_name,
+        last_name=last_name,
+        middle_name=middle_name
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -162,28 +211,54 @@ def update_user(
     if any(v is not None for v in [data.first_name, data.last_name, data.middle_name]):
         if user.user_type == UserType.USER:
             alumni = session.exec(select(Alumni).where(Alumni.user_ref_id == user.id)).first()
-            if alumni:
-                if data.first_name is not None: alumni.first_name = data.first_name
-                if data.last_name is not None: alumni.last_name = data.last_name
-                if data.middle_name is not None: alumni.middle_name = data.middle_name
-                session.add(alumni)
-                profile_updated = True
+            if not alumni:
+                from services.queries.alumni_queries import generate_alumni_id
+                alumni = Alumni(
+                    alumni_id=generate_alumni_id(session),
+                    user_ref_id=user.id,
+                    first_name=data.first_name or "",
+                    last_name=data.last_name or "",
+                    gender="N/A",
+                    birthdate=get_current_time_gmt8(), # Placeholder
+                    age=0
+                )
+            if data.first_name is not None: alumni.first_name = data.first_name
+            if data.last_name is not None: alumni.last_name = data.last_name
+            if data.middle_name is not None: alumni.middle_name = data.middle_name
+            session.add(alumni)
+            profile_updated = True
         elif user.user_type == UserType.EMPLOYER:
             employer = session.exec(select(Employer).where(Employer.user_ref_id == user.id)).first()
-            if employer:
-                if data.first_name is not None: employer.contact_person_first_name = data.first_name
-                if data.last_name is not None: employer.contact_person_last_name = data.last_name
-                # Employer doesn't have middle name in contact person currently
-                session.add(employer)
-                profile_updated = True
+            if not employer:
+                # This is very unlikely for employers but handled for completeness
+                employer = Employer(
+                    company_name=user.username,
+                    user_ref_id=user.id,
+                    contact_person_first_name=data.first_name or "",
+                    contact_person_last_name=data.last_name or ""
+                )
+            if data.first_name is not None: employer.contact_person_first_name = data.first_name
+            if data.last_name is not None: employer.contact_person_last_name = data.last_name
+            session.add(employer)
+            profile_updated = True
         else: # STAFF or ADMIN
             staff = session.exec(select(Staff).where(Staff.user_ref_id == user.id)).first()
-            if staff:
-                if data.first_name is not None: staff.first_name = data.first_name
-                if data.last_name is not None: staff.last_name = data.last_name
-                if data.middle_name is not None: staff.middle_name = data.middle_name
-                session.add(staff)
-                profile_updated = True
+            if not staff:
+                # Create missing staff record for ADMIN/STAFF
+                is_admin = (user.user_type == UserType.ADMIN)
+                staff = Staff(
+                    staff_id=generate_staff_id(session, is_admin),
+                    user_ref_id=user.id,
+                    first_name=data.first_name or "",
+                    last_name=data.last_name or "",
+                    gender="N/A", # Default for auto-created staff
+                )
+            
+            if data.first_name is not None: staff.first_name = data.first_name
+            if data.last_name is not None: staff.last_name = data.last_name
+            if data.middle_name is not None: staff.middle_name = data.middle_name
+            session.add(staff)
+            profile_updated = True
 
     stamp_update(user)
     session.add(user)

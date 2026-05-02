@@ -261,8 +261,11 @@ export default function AdminProfilePage() {
             });
             const result = await response.json();
             if (result.success) {
-                setFullUser({ ...fullUser, ...personalDraft });
-                updateUser(personalDraft);
+                setFullUser(result.data);
+                updateUser({
+                    first_name: result.data.first_name,
+                    last_name: result.data.last_name
+                });
                 setEditingPersonal(false);
                 toast.success("Personal information updated");
             } else {
@@ -290,7 +293,7 @@ export default function AdminProfilePage() {
             });
             const result = await response.json();
             if (result.success) {
-                setFullUser({ ...fullUser, ...accountDraft });
+                setFullUser(result.data);
                 setEditingAccount(false);
                 toast.success("Account information updated");
             } else {

@@ -17,9 +17,10 @@ interface LoginModalProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
     onSwitchToRegister?: (role: "Alumni" | "Employer") => void;
+    showRegistration?: boolean;
 }
 
-export function LoginModal({ isOpen, onOpenChange, onSwitchToRegister }: LoginModalProps) {
+export function LoginModal({ isOpen, onOpenChange, onSwitchToRegister, showRegistration = true }: LoginModalProps) {
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent
@@ -64,8 +65,9 @@ export function LoginModal({ isOpen, onOpenChange, onSwitchToRegister }: LoginMo
                     <LoginForm
                         isModal
                         onSuccess={() => onOpenChange(false)}
-                        onRegisterEmployerClick={() => onSwitchToRegister?.("Employer")}
-                        onRegisterAlumniClick={() => onSwitchToRegister?.("Alumni")}
+                        onRegisterEmployerClick={showRegistration ? () => onSwitchToRegister?.("Employer") : undefined}
+                        onRegisterAlumniClick={showRegistration ? () => onSwitchToRegister?.("Alumni") : undefined}
+                        showRegistration={showRegistration}
                     />
                 </div>
             </DialogContent>

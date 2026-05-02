@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 from fastapi import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 from routers import (
     users,
     courses,
@@ -30,12 +30,14 @@ from routers import (
     model_info,
     employers,
     notifications,
+    settings as settings_router,
 )
 from core.config import settings
 from models.response_codes import StandardResponse, ErrorCode
 from utils.dev_auth import apply_dev_auth_override
 
 app = FastAPI(title="Pasig Alumni and Career Employment (PACE) System", version="1.0.0")
+
 
 # Add CORS middleware
 app.add_middleware(
@@ -77,6 +79,7 @@ app.include_router(staff.router)
 app.include_router(model_info.router)
 app.include_router(employers.router)
 app.include_router(notifications.router)
+app.include_router(settings_router.router)
 
 
 @app.on_event("startup")

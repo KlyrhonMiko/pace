@@ -1,49 +1,49 @@
-import { Building2, CheckCircle2, Calendar, ShieldCheck, FileText, Clock } from "lucide-react";
+import { Building2, CheckCircle2, Calendar, ShieldCheck, FileText, Clock, UserPlus, HelpCircle } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 
-const activities = [
-    {
-        action: "New employer registered",
-        detail: "Tech Solutions Inc.",
-        time: "15m",
+interface PlatformActivityProps {
+    activities: {
+        id: string;
+        description: string;
+        type: string;
+        created_at: string;
+    }[];
+}
+
+const activityConfig: Record<string, { icon: React.ReactNode; color: string; bg: string }> = {
+    registration: {
+        icon: <UserPlus className="w-3.5 h-3.5" strokeWidth={2} />,
         color: "#10b981",
-        bgClass: "bg-emerald-50",
-        icon: <Building2 className="w-3.5 h-3.5" strokeWidth={2} />,
+        bg: "bg-emerald-50",
     },
-    {
-        action: "Job posting approved",
-        detail: "UI/UX Designer at Accenture",
-        time: "1h",
-        color: "#3b82f6",
-        bgClass: "bg-blue-50",
-        icon: <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={2} />,
-    },
-    {
-        action: "Event created",
-        detail: "Career Fair 2026 — March 20",
-        time: "3h",
-        color: "#8b5cf6",
-        bgClass: "bg-violet-50",
-        icon: <Calendar className="w-3.5 h-3.5" strokeWidth={2} />,
-    },
-    {
-        action: "Alumni verified",
-        detail: "Maria Santos — BSIT 2024",
-        time: "5h",
-        color: "#10b981",
-        bgClass: "bg-emerald-50",
+    verification: {
         icon: <ShieldCheck className="w-3.5 h-3.5" strokeWidth={2} />,
+        color: "#3b82f6",
+        bg: "bg-blue-50",
     },
-    {
-        action: "Report generated",
-        detail: "Monthly analytics — Jan 2026",
-        time: "1d",
+    event: {
+        icon: <Calendar className="w-3.5 h-3.5" strokeWidth={2} />,
+        color: "#8b5cf6",
+        bg: "bg-violet-50",
+    },
+    job: {
+        icon: <Building2 className="w-3.5 h-3.5" strokeWidth={2} />,
         color: "#f59e0b",
-        bgClass: "bg-amber-50",
-        icon: <FileText className="w-3.5 h-3.5" strokeWidth={2} />,
+        bg: "bg-amber-50",
     },
-];
+    survey: {
+        icon: <FileText className="w-3.5 h-3.5" strokeWidth={2} />,
+        color: "#ec4899",
+        bg: "bg-pink-50",
+    },
+    default: {
+        icon: <HelpCircle className="w-3.5 h-3.5" strokeWidth={2} />,
+        color: "#64748b",
+        bg: "bg-slate-50",
+    },
+};
 
-export default function PlatformActivity() {
+export default function PlatformActivity({ activities = [] }: PlatformActivityProps) {
     return (
         <div className="group relative rounded-2xl bg-white border border-gray-100/80 shadow-sm transition-all duration-500 hover:shadow-xl hover:shadow-gray-200/20 hover:border-gray-200/80 overflow-hidden flex flex-col">
 
@@ -76,37 +76,42 @@ export default function PlatformActivity() {
                     />
 
                     <div className="space-y-0.5">
-                        {activities.slice(0, 4).map((item, idx) => (
-                            <div
-                                key={idx}
-                                className="group/item relative flex items-start gap-4 py-3 px-2 -mx-2 rounded-xl hover:bg-gray-50/60 transition-all duration-200 cursor-pointer"
-                            >
-                                {/* Icon node */}
-                                <div className="relative z-10 flex-shrink-0 mt-0.5">
-                                    <div
-                                        className={`w-[30px] h-[30px] rounded-lg ${item.bgClass} flex items-center justify-center ring-[3px] ring-white transition-all duration-300 group-hover/item:scale-110 group-hover/item:shadow-md`}
-                                        style={{ color: item.color }}
-                                    >
-                                        {item.icon}
+                        {activities.map((item, idx) => {
+                            const config = activityConfig[item.type] || activityConfig.default;
+                            return (
+                                <div
+                                    key={item.id || idx}
+                                    className="group/item relative flex items-start gap-4 py-3 px-2 -mx-2 rounded-xl hover:bg-gray-50/60 transition-all duration-200 cursor-pointer"
+                                >
+                                    {/* Icon node */}
+                                    <div className="relative z-10 flex-shrink-0 mt-0.5">
+                                        <div
+                                            className={`w-[30px] h-[30px] rounded-lg ${config.bg} flex items-center justify-center ring-[3px] ring-white transition-all duration-300 group-hover/item:scale-110 group-hover/item:shadow-md`}
+                                            style={{ color: config.color }}
+                                        >
+                                            {config.icon}
+                                        </div>
+                                    </div>
+
+                                    {/* Content */}
+                                    <div className="flex-1 min-w-0 pt-0.5">
+                                        <p className="text-[13px] font-medium text-gray-800 leading-tight group-hover/item:text-gray-900 transition-colors">
+                                            {item.description}
+                                        </p>
+                                        <p className="text-[11px] text-gray-400 mt-0.5 truncate uppercase tracking-wider font-semibold">
+                                            {item.type}
+                                        </p>
+                                    </div>
+
+                                    {/* Time badge */}
+                                    <div className="flex-shrink-0 mt-1">
+                                        <span className="text-[10px] font-medium text-gray-400 bg-gray-50 px-2 py-1 rounded-md ring-1 ring-gray-100/60 group-hover/item:bg-white group-hover/item:ring-gray-200/80 transition-all">
+                                            {item.created_at ? formatDistanceToNow(new Date(item.created_at), { addSuffix: true }) : "Recently"}
+                                        </span>
                                     </div>
                                 </div>
-
-                                {/* Content */}
-                                <div className="flex-1 min-w-0 pt-0.5">
-                                    <p className="text-[13px] font-medium text-gray-800 leading-tight group-hover/item:text-gray-900 transition-colors">
-                                        {item.action}
-                                    </p>
-                                    <p className="text-[11px] text-gray-400 mt-0.5 truncate">{item.detail}</p>
-                                </div>
-
-                                {/* Time badge */}
-                                <div className="flex-shrink-0 mt-1">
-                                    <span className="text-[10px] font-medium text-gray-400 bg-gray-50 px-2 py-1 rounded-md ring-1 ring-gray-100/60 group-hover/item:bg-white group-hover/item:ring-gray-200/80 transition-all">
-                                        {item.time} ago
-                                    </span>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             </div>

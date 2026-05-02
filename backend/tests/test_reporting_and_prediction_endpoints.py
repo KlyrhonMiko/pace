@@ -43,7 +43,7 @@ def test_transaction_logs_dashboard_and_model_info(client, auth_headers, monkeyp
     )
     monkeypatch.setattr("routers.dashboard.get_faculty_alumni_progress", lambda session: [{"alumni_id": "ALMN-000001"}])
     monkeypatch.setattr("routers.dashboard.get_faculty_upcoming_sessions", lambda session, user_id: [])
-    monkeypatch.setattr("routers.dashboard.get_faculty_activity_feed", lambda session: [])
+    monkeypatch.setattr("routers.dashboard.get_platform_activity_feed", lambda session: [])
     monkeypatch.setattr(
         "routers.dashboard.get_alumni_dashboard_stats",
         lambda session, user_id: {

@@ -1,45 +1,53 @@
-import { CheckCircle2, Zap, Database, HardDrive, ShieldCheck } from "lucide-react";
+import { CheckCircle2, Zap, Database, ShieldCheck, Activity } from "lucide-react";
 
-const metrics = [
-    {
-        label: "Uptime",
-        value: "99.9%",
-        status: "healthy" as const,
-        bar: 99.9,
-        icon: <CheckCircle2 className="w-4 h-4" strokeWidth={2} />,
-        gradient: "from-emerald-600 to-emerald-700",
-        barColor: "#10b981",
-    },
-    {
-        label: "Response",
-        value: "142ms",
-        status: "healthy" as const,
-        bar: 85,
-        icon: <Zap className="w-4 h-4" strokeWidth={2} />,
-        gradient: "from-blue-400 to-blue-500",
-        barColor: "#3b82f6",
-    },
-    {
-        label: "DB Load",
-        value: "34%",
-        status: "healthy" as const,
-        bar: 34,
-        icon: <Database className="w-4 h-4" strokeWidth={2} />,
-        gradient: "from-violet-400 to-violet-500",
-        barColor: "#8b5cf6",
-    },
-    {
-        label: "Storage",
-        value: "67%",
-        status: "warning" as const,
-        bar: 67,
-        icon: <HardDrive className="w-4 h-4" strokeWidth={2} />,
-        gradient: "from-amber-400 to-amber-500",
-        barColor: "#f59e0b",
-    },
-];
+interface PlatformHealthProps {
+    health: {
+        uptime: string;
+        latency: string;
+        db_load: number;
+        cache_status: string;
+    };
+}
 
-export default function PlatformHealth() {
+export default function PlatformHealth({ health }: PlatformHealthProps) {
+    const metrics = [
+        {
+            label: "Uptime",
+            value: health.uptime,
+            status: "healthy" as const,
+            bar: 100,
+            icon: <CheckCircle2 className="w-4 h-4" strokeWidth={2} />,
+            gradient: "from-emerald-600 to-emerald-700",
+            barColor: "#10b981",
+        },
+        {
+            label: "Latency",
+            value: health.latency,
+            status: "healthy" as const,
+            bar: 100 - Math.min(100, (parseInt(health.latency) || 0) / 10),
+            icon: <Zap className="w-4 h-4" strokeWidth={2} />,
+            gradient: "from-blue-400 to-blue-500",
+            barColor: "#3b82f6",
+        },
+        {
+            label: "DB Load",
+            value: `${health.db_load}%`,
+            status: health.db_load > 80 ? ("warning" as const) : ("healthy" as const),
+            bar: health.db_load,
+            icon: <Database className="w-4 h-4" strokeWidth={2} />,
+            gradient: "from-violet-400 to-violet-500",
+            barColor: "#8b5cf6",
+        },
+        {
+            label: "Cache",
+            value: health.cache_status,
+            status: health.cache_status === "Healthy" ? ("healthy" as const) : ("warning" as const),
+            bar: health.cache_status === "Healthy" ? 100 : 0,
+            icon: <Activity className="w-4 h-4" strokeWidth={2} />,
+            gradient: "from-amber-400 to-amber-500",
+            barColor: "#f59e0b",
+        },
+    ];
 
 
     return (

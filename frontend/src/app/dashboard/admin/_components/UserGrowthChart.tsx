@@ -1,11 +1,23 @@
 "use client";
 import { TrendingUp, ArrowUpRight } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 
-export default function UserGrowthChart() {
-    const months = ["Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb"];
-    const data = [68, 82, 95, 110, 128, 145, 156];
-    const maxVal = 175;
-    const minVal = 45;
+interface UserGrowthChartProps {
+    data: { month: string; count: number }[];
+}
+
+export default function UserGrowthChart({ data: trendData = [] }: UserGrowthChartProps) {
+    if (!trendData || trendData.length === 0 || trendData.some(d => typeof d.count !== 'number' || isNaN(d.count))) {
+        return (
+            <div className="rounded-2xl bg-white border border-gray-100 p-6 h-[320px] flex items-center justify-center text-gray-400">
+                No trend data available
+            </div>
+        );
+    }
+    const months = trendData.map(d => d.month);
+    const data = trendData.map(d => d.count);
+    const maxVal = Math.max(...data, 10);
+    const minVal = Math.min(...data, 0);
 
     // Chart dimensions
     const svgW = 500;
@@ -164,7 +176,7 @@ export default function UserGrowthChart() {
                 <div className="flex justify-between px-1 -mt-1">
                     {months.map((m, i) => (
                         <span
-                            key={m}
+                            key={i}
                             className={`text-[10px] font-medium transition-colors duration-300 ${i === months.length - 1
                                 ? "text-emerald-800 font-semibold"
                                 : "text-gray-300 group-hover:text-gray-400"
@@ -180,9 +192,9 @@ export default function UserGrowthChart() {
             <div className="px-6 pb-5 pt-4 mt-auto">
                 <div className="grid grid-cols-3 gap-3">
                     {[
-                        { label: "Total", value: "784", icon: "users" },
-                        { label: "Avg/Month", value: "112", icon: "avg" },
-                        { label: "Peak", value: "156", icon: "peak" },
+                        { label: "Total", value: data.reduce((a, b) => a + b, 0).toLocaleString(), icon: "users" },
+                        { label: "Avg/Month", value: Math.round(data.reduce((a, b) => a + b, 0) / data.length).toLocaleString(), icon: "avg" },
+                        { label: "Peak", value: Math.max(...data).toLocaleString(), icon: "peak" },
                     ].map((stat) => (
                         <div
                             key={stat.label}

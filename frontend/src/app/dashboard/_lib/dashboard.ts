@@ -6,7 +6,34 @@ export interface AdminStats {
     total_users: number;
     verified_alumni: number;
     active_jobs: number;
-    upcoming_events: number;
+    registration_trend: { month: string; count: number }[];
+    recent_registrations: {
+        name: string;
+        email: string;
+        role: string;
+        status: "verified" | "pending";
+        joined_at: string;
+        initials: string;
+        color: string;
+    }[];
+    user_distribution: {
+        label: string;
+        value: number;
+        percentage: number;
+        color: string;
+    }[];
+    system_health: {
+        uptime: string;
+        latency: string;
+        db_load: number;
+        cache_status: string;
+    };
+    activity_log: {
+        id: string;
+        description: string;
+        type: string;
+        created_at: string;
+    }[];
 }
 
 export interface FacultyStats {

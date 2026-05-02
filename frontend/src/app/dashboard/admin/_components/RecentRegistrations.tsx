@@ -1,13 +1,19 @@
 import { UserPlus, Check, GraduationCap, ShieldCheck, Clock, Circle } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 
-const registrations = [
-    { name: "Maria Santos", email: "maria.santos@plp.edu.ph", role: "Alumni", course: "BSIT", date: "2h ago", status: "verified" as const, initials: "MS", color: "from-emerald-700 to-emerald-800" },
-    { name: "Carlos Reyes", email: "carlos.reyes@plp.edu.ph", role: "Alumni", course: "BSCS", date: "5h ago", status: "pending" as const, initials: "CR", color: "from-blue-500 to-blue-600" },
-    { name: "Ana Dela Cruz", email: "ana.delacruz@plp.edu.ph", role: "Alumni", course: "BSIT", date: "Yesterday", status: "verified" as const, initials: "AD", color: "from-violet-500 to-violet-600" },
-    { name: "Jose Rizal Jr.", email: "jose.rizal@plp.edu.ph", role: "Alumni", course: "BSCE", date: "2d ago", status: "verified" as const, initials: "JR", color: "from-rose-500 to-rose-600" },
-];
+interface RecentRegistrationsProps {
+    registrations: {
+        name: string;
+        email: string;
+        role: string;
+        status: "verified" | "pending";
+        joined_at: string;
+        initials: string;
+        color: string;
+    }[];
+}
 
-export default function RecentRegistrations() {
+export default function RecentRegistrations({ registrations }: RecentRegistrationsProps) {
 
     return (
         <div className="group relative rounded-2xl bg-white border border-gray-100/80 shadow-sm transition-all duration-500 hover:shadow-xl hover:shadow-gray-200/20 hover:border-gray-200/80 overflow-hidden flex flex-col lg:col-span-2">
@@ -74,8 +80,7 @@ export default function RecentRegistrations() {
 
                         {/* Role */}
                         <div className="col-span-2 hidden sm:flex justify-center">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-50/80 text-emerald-700 ring-1 ring-emerald-100/60">
-                                <GraduationCap className="w-3 h-3 text-emerald-700" strokeWidth={2} />
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-50/80 text-slate-700 ring-1 ring-slate-100/60">
                                 {user.role}
                             </span>
                         </div>
@@ -98,7 +103,9 @@ export default function RecentRegistrations() {
                         {/* Joined date */}
                         <div className="col-span-2 text-right">
                             <span className="text-[11px] font-medium text-gray-400 bg-gray-50 px-2 py-1 rounded-md ring-1 ring-gray-100/40 group-hover/row:bg-white group-hover/row:ring-gray-200/60 transition-all">
-                                {user.date}
+                                <span className="text-[11px] font-medium whitespace-nowrap">
+                                    {user.joined_at ? formatDistanceToNow(new Date(user.joined_at), { addSuffix: true }) : "Unknown"}
+                                </span>
                             </span>
                         </div>
                     </div>

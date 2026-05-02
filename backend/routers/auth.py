@@ -40,6 +40,26 @@ def login(
         credentials.username,
         credentials.password,
     )
+
+    # Block non-admin logins during maintenance mode
+    if token_payload.user_type != "ADMIN":
+        try:
+            from routers.settings import _read_flags_cached
+            flags = _read_flags_cached(session)
+            if flags["maintenance_mode"]:
+                raise HTTPException(
+                    status_code=503,
+                    detail=StandardResponse(
+                        success=False,
+                        code="MAINTENANCE_MODE",
+                        message="The platform is currently under maintenance. Please try again later.",
+                    ).model_dump(mode="json"),
+                )
+        except HTTPException:
+            raise
+        except Exception:
+            pass  # Fail open — don't block login if settings check fails
+
     return StandardResponse(
         success=True,
         code=SuccessCode.LOGIN_SUCCESSFUL.value,

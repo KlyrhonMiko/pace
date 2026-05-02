@@ -9,7 +9,6 @@ class UserType(str, Enum):
     STAFF = "STAFF"
     ADMIN = "ADMIN"
     EMPLOYER = "EMPLOYER"
-    FACULTY = "FACULTY"
 
 
 class UserBase(SQLModel):

@@ -100,7 +100,7 @@ async def search_jobs(
 def create_job(
     job: JobListingCreate,
     db: Session = Depends(get_session),
-    current_user: CurrentUser = Depends(require_role(["ADMIN", "STAFF", "FACULTY", "EMPLOYER"])),
+    current_user: CurrentUser = Depends(require_role(["ADMIN", "STAFF", "EMPLOYER"])),
 ):
     """
     Create a new job listing. Accessible by admin, staff, faculty, and employers.
@@ -140,7 +140,7 @@ def update_job(
     job_listing_id: str,
     job_update: JobListingUpdate,
     db: Session = Depends(get_session),
-    current_user: CurrentUser = Depends(require_role(["ADMIN", "STAFF", "FACULTY", "EMPLOYER"])),
+    current_user: CurrentUser = Depends(require_role(["ADMIN", "STAFF", "EMPLOYER"])),
 ):
     """
     Update an existing job listing.
@@ -185,7 +185,7 @@ def update_job(
 def delete_job(
     job_listing_id: str,
     db: Session = Depends(get_session),
-    current_user: CurrentUser = Depends(require_role(["ADMIN", "STAFF", "FACULTY", "EMPLOYER"])),
+    current_user: CurrentUser = Depends(require_role(["ADMIN", "STAFF", "EMPLOYER"])),
 ):
     """
     Deactivate a job listing (soft delete).
@@ -218,7 +218,7 @@ def delete_job(
 def toggle_hide_job(
     job_listing_id: str,
     db: Session = Depends(get_session),
-    current_user: CurrentUser = Depends(require_role(["ADMIN", "STAFF", "FACULTY", "EMPLOYER"])),
+    current_user: CurrentUser = Depends(require_role(["ADMIN", "STAFF", "EMPLOYER"])),
 ):
     """
     Toggle the visibility (is_active) of a job listing for alumni.

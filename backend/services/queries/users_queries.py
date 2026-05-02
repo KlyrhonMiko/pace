@@ -156,11 +156,40 @@ def update_user(
         user.password_changed_at = now
         user.auth_revoked_after = now
         user.force_password_reset = False  # First-login forced reset satisfied
+
+    # Handle profile updates (names)
+    profile_updated = False
+    if any(v is not None for v in [data.first_name, data.last_name, data.middle_name]):
+        if user.user_type == UserType.USER:
+            alumni = session.exec(select(Alumni).where(Alumni.user_ref_id == user.id)).first()
+            if alumni:
+                if data.first_name is not None: alumni.first_name = data.first_name
+                if data.last_name is not None: alumni.last_name = data.last_name
+                if data.middle_name is not None: alumni.middle_name = data.middle_name
+                session.add(alumni)
+                profile_updated = True
+        elif user.user_type == UserType.EMPLOYER:
+            employer = session.exec(select(Employer).where(Employer.user_ref_id == user.id)).first()
+            if employer:
+                if data.first_name is not None: employer.contact_person_first_name = data.first_name
+                if data.last_name is not None: employer.contact_person_last_name = data.last_name
+                # Employer doesn't have middle name in contact person currently
+                session.add(employer)
+                profile_updated = True
+        else: # STAFF or ADMIN
+            staff = session.exec(select(Staff).where(Staff.user_ref_id == user.id)).first()
+            if staff:
+                if data.first_name is not None: staff.first_name = data.first_name
+                if data.last_name is not None: staff.last_name = data.last_name
+                if data.middle_name is not None: staff.middle_name = data.middle_name
+                session.add(staff)
+                profile_updated = True
+
     stamp_update(user)
     session.add(user)
     create_transaction_log(
         session,
-        tl_name=f"UPDATED user {user.user_id}",
+        tl_name=f"UPDATED user {user.user_id}{' and profile' if profile_updated else ''}",
         before=before_state,
         after=user,
         performed_by=performed_by,

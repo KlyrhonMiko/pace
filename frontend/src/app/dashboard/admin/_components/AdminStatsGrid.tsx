@@ -34,7 +34,7 @@ export default function AdminStatsGrid({ stats }: AdminStatsGridProps) {
             sparkline: [4, 6, 5, 8, 7, 9, 8, 10, 9, 11]
         },
         {
-            label: "Active Jobs",
+            label: "Platform Jobs",
             value: stats.active_jobs.toLocaleString(),
             subValue: "+12",
             icon: Briefcase,

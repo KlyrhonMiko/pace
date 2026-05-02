@@ -103,6 +103,7 @@ export default function RecommendedJobs() {
                                     logo={(job.logo && (job.logo.startsWith('http') || job.logo.startsWith('/'))) ? job.logo : job.company.charAt(0).toUpperCase()}
                                     className="flex-1"
                                     description={formatSnippet(job.snippet || job.description || "")}
+                                    source={job.source}
                                 />
                             ))
                         ) : (

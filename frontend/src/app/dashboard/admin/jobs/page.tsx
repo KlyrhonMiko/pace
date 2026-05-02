@@ -6,11 +6,9 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import JobFilters from "../../alumni/jobs/_components/JobFilters"; // Reuse filters
 import AdminJobList from "./_components/AdminJobList";
 import PageHeader from "@/components/dashboard/PageHeader";
-import ActionsCard from "../../_components/ActionsCard";
 import { searchJobs, hideJob, deleteJob } from "../../faculty/jobs/_lib/api"; // Reuse API
-import AdminJobFormModal from "./_components/AdminJobFormModal";
 import { ConfirmationModal } from "@/components/ConfirmationModal";
-import { Plus, Briefcase } from "lucide-react";
+import { Briefcase } from "lucide-react";
 import { useDebounce } from "../../../../hooks/use-debounce";
 
 // Unified job type
@@ -31,6 +29,7 @@ interface UnifiedJob {
     description?: string;
     isActive: boolean;
     dbId?: number | string;
+    source?: string;
 }
 
 function convertApiJob(job: any, index: number): UnifiedJob {
@@ -67,7 +66,7 @@ function convertApiJob(job: any, index: number): UnifiedJob {
         salaryDisplay: salaryDisplay,
         type: job.type || job.job_type || "Full-time",
         postedDate: job.updated || job.posted_at ? new Date(job.updated || job.posted_at) : new Date(),
-        logo: job.company.charAt(0).toUpperCase(),
+        logo: (job.logo && (job.logo.startsWith('http') || job.logo.startsWith('/'))) ? job.logo : job.company.charAt(0).toUpperCase(),
         experienceLevel: experienceLevel,
         workType: workType,
         link: job.link || job.source_url,
@@ -75,6 +74,7 @@ function convertApiJob(job: any, index: number): UnifiedJob {
         description: job.description,
         isActive: job.is_active !== false,
         dbId: job.db_id,
+        source: job.source || (job.link || job.source_url ? "External" : "Internal"),
     };
 }
 
@@ -85,14 +85,13 @@ export default function AdminJobBoardPage() {
     const [selectedExperience, setSelectedExperience] = useState<string[]>([]);
     const [selectedWorkTypes, setSelectedWorkTypes] = useState<string[]>([]);
     const [hasSalary, setHasSalary] = useState(false);
+    const [localOnly, setLocalOnly] = useState(true);
     const [salaryRange, setSalaryRange] = useState<[number, number]>([0, 500]);
     const [tempSalaryRange, setTempSalaryRange] = useState<[number, number]>([0, 500]);
 
     const [currentPage, setCurrentPage] = useState(1);
     const JOBS_PER_PAGE = 15;
 
-    const [isFormModalOpen, setIsFormModalOpen] = useState(false);
-    const [editingJob, setEditingJob] = useState<UnifiedJob | null>(null);
     const [jobToDelete, setJobToDelete] = useState<UnifiedJob | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
@@ -116,6 +115,7 @@ export default function AdminJobBoardPage() {
                 limit: JOBS_PER_PAGE,
                 has_salary: hasSalary,
                 include_inactive: true,
+                local_only: localOnly,
             });
 
             if (result.error) {
@@ -134,7 +134,7 @@ export default function AdminJobBoardPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [debouncedSearchQuery, debouncedLocationSearch, selectedTypes, selectedWorkTypes, selectedExperience, currentPage, hasSalary]);
+    }, [debouncedSearchQuery, debouncedLocationSearch, selectedTypes, selectedWorkTypes, selectedExperience, currentPage, hasSalary, localOnly]);
 
     useEffect(() => {
         fetchJobs();
@@ -166,12 +166,8 @@ export default function AdminJobBoardPage() {
         setSalaryRange([0, 500]);
         setTempSalaryRange([0, 500]);
         setHasSalary(false);
+        setLocalOnly(false);
         setCurrentPage(1);
-    };
-
-    const handleEditJob = (job: UnifiedJob) => {
-        setEditingJob(job);
-        setIsFormModalOpen(true);
     };
 
     const handleToggleHide = async (job: UnifiedJob) => {
@@ -241,7 +237,6 @@ export default function AdminJobBoardPage() {
                         JOBS_PER_PAGE={JOBS_PER_PAGE}
                         clearFilters={clearFilters}
                         isLoading={isLoading}
-                        onEdit={handleEditJob}
                         onToggleHide={handleToggleHide}
                         onDelete={handleDeleteClick}
                     />
@@ -249,22 +244,7 @@ export default function AdminJobBoardPage() {
 
                 <div className="lg:col-span-1 space-y-6">
                     <div className="flex flex-col gap-4 sticky top-24">
-                        <ActionsCard
-                            title="Job Management"
-                            description="Maintain the career marketplace"
-                            icon={<Briefcase className="h-5 w-5" />}
-                            actions={[
-                                {
-                                    label: "Post New Job",
-                                    onClick: () => {
-                                        setEditingJob(null);
-                                        setIsFormModalOpen(true);
-                                    },
-                                    icon: <Plus className="h-4 w-4 stroke-2" />,
-                                    variant: "primary",
-                                },
-                            ]}
-                        />
+
 
                         <JobFilters
                             searchQuery={searchQuery}
@@ -279,6 +259,8 @@ export default function AdminJobBoardPage() {
                             setSelectedExperience={setSelectedExperience}
                             hasSalary={hasSalary}
                             setHasSalary={setHasSalary}
+                            localOnly={localOnly}
+                            setLocalOnly={setLocalOnly}
                             tempSalaryRange={tempSalaryRange}
                             setTempSalaryRange={setTempSalaryRange}
                         />
@@ -286,12 +268,7 @@ export default function AdminJobBoardPage() {
                 </div>
             </div>
 
-            <AdminJobFormModal
-                isOpen={isFormModalOpen}
-                onClose={() => setIsFormModalOpen(false)}
-                editingJob={editingJob}
-                onSuccess={fetchJobs}
-            />
+
 
             <ConfirmationModal
                 isOpen={jobToDelete !== null}

@@ -162,12 +162,10 @@ export function PlatformConfiguration() {
                 )}
             </div>
 
-            {!loading && (
+            {!loading && saving && (
                 <div className="px-6 py-3.5 bg-gray-50/50 border-t border-gray-100 flex items-center gap-2">
-                    <span className={`inline-block h-2 w-2 rounded-full ${saving ? "bg-amber-400 animate-pulse" : "bg-emerald-400"}`} />
-                    <p className="text-[11px] text-gray-400">
-                        {saving ? "Saving…" : "Changes are saved automatically"}
-                    </p>
+                    <span className="inline-block h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+                    <p className="text-[11px] text-gray-400">Saving…</p>
                 </div>
             )}
         </div>

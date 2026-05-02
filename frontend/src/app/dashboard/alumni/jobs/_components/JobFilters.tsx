@@ -23,6 +23,8 @@ interface JobFiltersProps {
 
     hasSalary: boolean;
     setHasSalary: (has: boolean) => void;
+    localOnly: boolean;
+    setLocalOnly: (local: boolean) => void;
 }
 
 export default function JobFilters({
@@ -41,6 +43,8 @@ export default function JobFilters({
 
     hasSalary,
     setHasSalary,
+    localOnly,
+    setLocalOnly,
 }: JobFiltersProps) {
 
     const toggleFilter = (filterArray: string[], setFilter: (val: string[]) => void, value: string) => {
@@ -167,22 +171,42 @@ export default function JobFilters({
                         </div>
                     </FilterSection>
 
+                    {/* Preferences / Special Filters */}
+                    <FilterSection title="Preferences">
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors">
+                                <Checkbox
+                                    id="localOnly"
+                                    checked={localOnly}
+                                    onCheckedChange={(checked) => setLocalOnly(checked as boolean)}
+                                    className="border-slate-300 data-[state=checked]:bg-emerald-700 data-[state=checked]:border-emerald-700"
+                                />
+                                <label
+                                    htmlFor="localOnly"
+                                    className="text-sm text-slate-700 cursor-pointer select-none font-medium"
+                                >
+                                    Platform Jobs Only
+                                </label>
+                            </div>
+                            <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors">
+                                <Checkbox
+                                    id="hasSalary"
+                                    checked={hasSalary}
+                                    onCheckedChange={(checked) => setHasSalary(checked as boolean)}
+                                    className="border-slate-300 data-[state=checked]:bg-emerald-700 data-[state=checked]:border-emerald-700"
+                                />
+                                <label
+                                    htmlFor="hasSalary"
+                                    className="text-sm text-slate-700 cursor-pointer select-none font-medium"
+                                >
+                                    With Salary Info
+                                </label>
+                            </div>
+                        </div>
+                    </FilterSection>
+
                     {/* Salary Range */}
                     <FilterSection title="Salary Range">
-                        <div className="flex items-center gap-3 mb-4 p-2 rounded-lg hover:bg-slate-50 transition-colors">
-                            <Checkbox
-                                id="hasSalary"
-                                checked={hasSalary}
-                                onCheckedChange={(checked) => setHasSalary(checked as boolean)}
-                                className="border-slate-300 data-[state=checked]:bg-emerald-700 data-[state=checked]:border-emerald-700"
-                            />
-                            <label
-                                htmlFor="hasSalary"
-                                className="text-sm text-slate-700 cursor-pointer select-none font-medium"
-                            >
-                                With Salary Info
-                            </label>
-                        </div>
                         <div className="space-y-4 pt-2 border-t border-slate-100">
                             <div className="flex items-center justify-between text-sm">
                                 <div className="flex flex-col">

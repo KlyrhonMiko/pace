@@ -27,7 +27,6 @@ interface AdminJobListProps {
     clearFilters: () => void;
     isLoading: boolean;
     onPostJob?: () => void;
-    onEdit?: (job: any) => void;
     onToggleHide?: (job: any) => void;
     onDelete?: (job: any) => void;
 }
@@ -41,7 +40,6 @@ export default function AdminJobList({
     JOBS_PER_PAGE,
     clearFilters,
     isLoading,
-    onEdit,
     onToggleHide,
     onDelete,
 }: AdminJobListProps) {
@@ -93,9 +91,9 @@ export default function AdminJobList({
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <div className="hidden sm:flex items-center gap-1.5 text-[10px] text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100 font-medium whitespace-nowrap">
-                        <Info size={12} />
-                        Platform posts are highlighted
+                    <div className="hidden sm:flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-50/50 to-transparent border border-slate-100 shadow-sm">
+                        <div className="w-1 h-3.5 bg-emerald-500 rounded-sm shadow-sm"></div>
+                        <span className="text-xs font-medium text-slate-600">Platform jobs highlighted</span>
                     </div>
                 </div>
             </div>
@@ -137,35 +135,29 @@ export default function AdminJobList({
                             </tr>
                         ) : (
                             filteredJobs.map((job) => {
-                                const isLocal =
-                                    Boolean(job.dbId) ||
-                                    !job.link ||
-                                    job.id.toString().startsWith("local");
+                                const isLocal = job.source === "Internal";
                                 return (
                                     <tr
                                         key={job.id}
                                         onClick={() => setSelectedJob(job)}
-                                        className="group transition-all duration-200 hover:bg-slate-50/50 cursor-pointer"
+                                        className={`group transition-all duration-200 cursor-pointer ${isLocal ? "bg-gradient-to-r from-emerald-50/50 to-transparent hover:from-emerald-100/50 hover:to-slate-50/50 shadow-[inset_2px_0_0_0_#10b981]" : "hover:bg-slate-50/50"}`}
                                     >
                                         <td className="px-5 py-4">
                                             <div className="flex items-center gap-4">
                                                 <div
-                                                    className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${getLogoGradient(
-                                                        job.logo
-                                                    )} text-white text-sm font-bold shadow-sm ring-1 ring-emerald-200 transition-transform duration-300 group-hover:scale-105`}
+                                                    className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl ${(job.logo && (job.logo.startsWith('http') || job.logo.startsWith('/'))) ? 'bg-gray-50' : `bg-gradient-to-br ${getLogoGradient(job.logo)}`} text-white text-sm font-bold shadow-sm ring-1 ring-emerald-200 transition-transform duration-300 group-hover:scale-105 overflow-hidden`}
                                                 >
-                                                    {job.logo}
+                                                    {(job.logo && (job.logo.startsWith('http') || job.logo.startsWith('/'))) ? (
+                                                        <img src={job.logo} alt={job.company} className="h-full w-full object-contain" />
+                                                    ) : (
+                                                        job.logo
+                                                    )}
                                                 </div>
                                                 <div className="min-w-0">
                                                     <div className="flex items-center gap-2">
                                                         <h4 className="font-bold text-slate-900 text-sm line-clamp-1">
                                                             {job.title}
                                                         </h4>
-                                                        {isLocal && (
-                                                            <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[9px] font-bold uppercase whitespace-nowrap">
-                                                                Local
-                                                            </span>
-                                                        )}
                                                     </div>
                                                     <p className="text-xs text-slate-400 mt-0.5 truncate">{job.company}</p>
                                                 </div>
@@ -194,17 +186,7 @@ export default function AdminJobList({
                                         </td>
                                         <td className="px-5 py-4 text-right">
                                             <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        onEdit?.(job);
-                                                    }}
-                                                >
-                                                    <Edit2 className="h-3.5 w-3.5" />
-                                                </Button>
+
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
@@ -309,7 +291,12 @@ export default function AdminJobList({
             )}
 
             {selectedJob && (
-                <AdminJobDetailModal job={selectedJob} onClose={() => setSelectedJob(null)} />
+                <AdminJobDetailModal 
+                    job={selectedJob} 
+                    onClose={() => setSelectedJob(null)} 
+                    onToggleHide={onToggleHide}
+                    onDelete={onDelete}
+                />
             )}
         </div>
     );

@@ -47,6 +47,7 @@ export interface JobSearchParams {
     experience_level?: string;
     has_salary?: boolean;
     include_inactive?: boolean;
+    local_only?: boolean;
 }
 
 /**
@@ -65,6 +66,7 @@ export async function searchJobs(params: JobSearchParams = {}, token?: string): 
     if (params.experience_level) searchParams.set("experience_level", params.experience_level);
     if (params.has_salary) searchParams.set("has_salary", "true");
     if (params.include_inactive) searchParams.set("include_inactive", "true");
+    if (params.local_only) searchParams.set("local_only", "true");
 
     try {
         const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);

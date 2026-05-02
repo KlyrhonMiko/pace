@@ -24,7 +24,6 @@ import TopHeader from "../_components/TopHeader";
 
 const navItems = [
   { name: "Overview", href: "/dashboard/employer", icon: () => <LayoutDashboard size={18} /> },
-  { name: "Company Profile", href: "/dashboard/employer/profile", icon: () => <User size={18} /> },
   { name: "Job Postings", href: "/dashboard/employer/jobs", icon: () => <Briefcase size={18} /> },
   { name: "Applications", href: "/dashboard/employer/applications", icon: () => <FileText size={18} /> },
 ];
@@ -39,6 +38,7 @@ export default function EmployerLayout({
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const { user, logout } = useAuth();
+  const isProfileActive = pathname === "/dashboard/employer/profile";
 
   // Fix hydration mismatch: only render user-dependent content after mount
   useEffect(() => {
@@ -59,14 +59,14 @@ export default function EmployerLayout({
       <aside
         className={`
           fixed inset-y-0 left-0 z-50 w-[280px] transform
-          bg-gradient-to-b from-white to-emerald-50/30 border-r border-emerald-100/80
+          bg-white border-r border-gray-200/70
           transition-all duration-300 ease-out lg:relative lg:translate-x-0
           ${sidebarOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"}
           flex flex-col overflow-hidden
         `}
       >
         {/* Logo Section */}
-        <div className="flex-shrink-0 flex h-[72px] items-center justify-between px-6 border-b border-emerald-100/60 bg-white/80 backdrop-blur-sm">
+        <div className="flex-shrink-0 flex h-[72px] items-center justify-between px-6 border-b border-gray-200/70">
           <Link href="/" className="flex items-center gap-3 group">
             <div className="relative h-10 w-10 flex-shrink-0">
               <Image
@@ -172,40 +172,64 @@ export default function EmployerLayout({
           </div>
         </nav>
 
-        {/* User Section */}
-        <div className="flex-shrink-0 p-4 border-t border-emerald-100/60 bg-white/60 backdrop-blur-sm">
-          <div className="flex items-center gap-3 rounded-xl bg-gradient-to-br from-slate-50/80 to-white p-3.5 border border-slate-200/60 shadow-sm hover:shadow-md hover:border-slate-300/60 transition-all duration-200">
-            <div className="relative flex-shrink-0">
-              {mounted && user?.company_logo_url ? (
-                <div className="h-10 w-10 overflow-hidden rounded-full ring-2 ring-white shadow-md bg-white">
-                  <Image
-                    src={user.company_logo_url || ""}
-                    alt={user.company_name || "Company Logo"}
-                    width={40}
-                    height={40}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-              ) : (
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-emerald-800 to-emerald-700 text-xs font-bold text-white shadow-md ring-2 ring-white">
-                  {mounted ? (user?.first_name?.[0] || "E") + (user?.last_name?.[0] || "R") : "ER"}
-                </div>
-              )}
-              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-600 rounded-full ring-2 ring-white shadow-sm" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-900 truncate leading-tight">
-                {mounted ? (user?.first_name || "Enterprise") + " " + (user?.last_name || "Recruiter") : "Enterprise Recruiter"}
-              </p>
-              <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                {mounted ? (user?.company_name || "Employer Profile") : "Employer Profile"}
-              </p>
-            </div>
+        {/* User Section — clickable, navigates to Profile */}
+        <div className="flex-shrink-0 p-3 border-t border-gray-200/70">
+          <div className="flex items-center gap-2 rounded-xl p-2 transition-all duration-200 hover:bg-gray-50">
+            {/* Avatar + name link to Profile */}
+            <Link
+              href="/dashboard/employer/profile"
+              className="flex items-center gap-3 flex-1 min-w-0 group/profile cursor-pointer rounded-lg p-1 -m-1"
+              title="View profile"
+            >
+              <div className="relative flex-shrink-0">
+                {mounted && user?.company_logo_url ? (
+                  <div className="h-9 w-9 overflow-hidden rounded-full ring-2 ring-white shadow-sm bg-white transition-transform duration-200 group-hover/profile:scale-105">
+                    <Image
+                      src={user.company_logo_url || ""}
+                      alt={user.company_name || "Company Logo"}
+                      width={36}
+                      height={36}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full text-[11px] font-bold text-white bg-gradient-to-br from-emerald-600 to-emerald-800 ring-2 ring-white shadow-sm transition-transform duration-200 group-hover/profile:scale-105">
+                    {mounted ? (user?.first_name?.[0] || "E") + (user?.last_name?.[0] || "R") : "ER"}
+                  </div>
+                )}
+                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white" />
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <p className={`text-[13px] font-semibold truncate leading-tight tracking-[-0.01em]
+                    ${isProfileActive ? "text-emerald-900" : "text-gray-900"}
+                `}>
+                  {mounted ? (user?.first_name || "Enterprise") + " " + (user?.last_name || "Recruiter") : "Enterprise Recruiter"}
+                </p>
+                <p className={`text-[11px] truncate mt-0.5
+                    ${isProfileActive ? "text-emerald-700 font-medium" : "text-gray-500 group-hover/profile:text-emerald-700"}
+                `}>
+                  {mounted ? (user?.company_name || "Employer Profile") : "Employer Profile"}
+                </p>
+              </div>
+
+              <ChevronRight
+                className={`w-4 h-4 flex-shrink-0 transition-all duration-200
+                    ${isProfileActive
+                    ? "text-emerald-700 opacity-100"
+                    : "text-gray-300 opacity-0 group-hover/profile:opacity-100 group-hover/profile:text-emerald-700 group-hover/profile:translate-x-0.5"
+                  }
+                `}
+                strokeWidth={2.5}
+              />
+            </Link>
+
             {/* Logout Button */}
             <button
               onClick={() => setIsLogoutModalOpen(true)}
-              className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all duration-200 flex-shrink-0 cursor-pointer"
+              className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors duration-200 flex-shrink-0 cursor-pointer"
               title="Sign out"
+              aria-label="Sign out"
             >
               <LogOut size={18} />
             </button>

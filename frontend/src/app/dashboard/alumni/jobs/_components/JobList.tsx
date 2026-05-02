@@ -4,7 +4,7 @@ import { useState } from "react";
 import JobCard from "./JobCard";
 import JobDetailModal from "./JobDetailModal";
 import { Skeleton } from "../../../../../components/ui/skeleton";
-import { Briefcase, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Briefcase, Search, ChevronLeft, ChevronRight, Info } from "lucide-react";
 
 interface Job {
     id: number | string;
@@ -69,6 +69,13 @@ export default function JobList({
                             </p>
                         </div>
                     </div>
+
+                    <div className="flex items-center gap-2">
+                        <div className="hidden sm:flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-50/50 to-transparent border border-slate-100 shadow-sm">
+                            <div className="w-1 h-3.5 bg-emerald-500 rounded-sm shadow-sm"></div>
+                            <span className="text-xs font-medium text-slate-600">Platform jobs highlighted</span>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Loading State */}
@@ -121,6 +128,7 @@ export default function JobList({
                                 type={job.type}
                                 logo={job.logo}
                                 description={job.snippet}
+                                source={job.source}
                                 onClick={() => setSelectedJob(job)}
                             />
                         ))}

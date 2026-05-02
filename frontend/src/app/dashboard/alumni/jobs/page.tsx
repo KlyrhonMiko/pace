@@ -83,6 +83,7 @@ export default function JobListingsPage() {
     const [salaryRange, setSalaryRange] = useState<[number, number]>([0, 500]);
     const [tempSalaryRange, setTempSalaryRange] = useState<[number, number]>([0, 500]);
     const [hasSalary, setHasSalary] = useState(false);
+    const [localOnly, setLocalOnly] = useState(false);
 
     const [currentPage, setCurrentPage] = useState(1);
     const JOBS_PER_PAGE = 10;
@@ -115,6 +116,7 @@ export default function JobListingsPage() {
                 page: currentPage,
                 limit: JOBS_PER_PAGE,
                 has_salary: hasSalary,
+                local_only: localOnly,
             });
 
             if (result.error) {
@@ -135,7 +137,7 @@ export default function JobListingsPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [debouncedSearchQuery, debouncedLocationSearch, selectedTypes, selectedWorkTypes, selectedExperience, currentPage, JOBS_PER_PAGE, hasSalary]);
+    }, [debouncedSearchQuery, debouncedLocationSearch, selectedTypes, selectedWorkTypes, selectedExperience, currentPage, JOBS_PER_PAGE, hasSalary, localOnly]);
 
     // Fetch jobs on mount and when search/location/page changes
     useEffect(() => {
@@ -183,12 +185,13 @@ export default function JobListingsPage() {
         setSalaryRange([0, 500]);
         setTempSalaryRange([0, 500]);
         setHasSalary(false);
+        setLocalOnly(false);
         setCurrentPage(1);
     };
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [debouncedSearchQuery, selectedTypes, debouncedLocationSearch, selectedExperience, selectedWorkTypes, salaryRange, hasSalary]);
+    }, [debouncedSearchQuery, selectedTypes, debouncedLocationSearch, selectedExperience, selectedWorkTypes, salaryRange, hasSalary, localOnly]);
 
 
 
@@ -247,6 +250,8 @@ export default function JobListingsPage() {
                         setTempSalaryRange={setTempSalaryRange}
                         hasSalary={hasSalary}
                         setHasSalary={setHasSalary}
+                        localOnly={localOnly}
+                        setLocalOnly={setLocalOnly}
                     />
                 </div>
             </div>

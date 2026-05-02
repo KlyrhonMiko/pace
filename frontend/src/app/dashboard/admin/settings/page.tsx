@@ -1,7 +1,6 @@
 import PageHeader from "@/components/dashboard/PageHeader";
 import { PlatformConfiguration } from "./components/PlatformConfiguration";
 import { SystemData } from "./components/SystemData";
-import { AdminSecurity } from "./components/AdminSecurity";
 
 export default function AdminSettingsPage() {
     return (
@@ -14,16 +13,14 @@ export default function AdminSettingsPage() {
                 dashboardName="Admin Dashboard"
             />
 
-            <div className="grid gap-6 lg:grid-cols-2">
-                <div className="flex flex-col gap-6">
+            <div className="grid gap-6 lg:grid-cols-5 items-start">
+                <div className="flex flex-col gap-6 lg:col-span-2">
                     <PlatformConfiguration />
                 </div>
-                <div className="flex flex-col gap-6">
-                    <AdminSecurity />
+                <div className="flex flex-col gap-6 lg:col-span-3">
+                    <SystemData />
                 </div>
             </div>
-
-            <SystemData />
         </div>
     );
 }

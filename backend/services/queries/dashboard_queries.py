@@ -43,7 +43,10 @@ def get_admin_dashboard_stats(session: Session) -> dict:
         ).one()
 
         active_jobs = session.exec(
-            select(func.count(JobListing.id)).where(JobListing.is_active == True)
+            select(func.count(JobListing.id))
+            .where(JobListing.is_active == True)
+            .where(JobListing.is_deleted == False)
+            .where((JobListing.source_api == "Internal") | (JobListing.source_api == None))
         ).one()
 
         # ── 2. Registration Trend — single GROUP BY query ─────────────
@@ -209,7 +212,10 @@ def get_faculty_dashboard_stats(session: Session, faculty_user_ref_id: uuid.UUID
 
     # 3. Active jobs
     active_jobs = session.exec(
-        select(func.count(JobListing.id)).where(JobListing.is_active == True)
+        select(func.count(JobListing.id))
+        .where(JobListing.is_active == True)
+        .where(JobListing.is_deleted == False)
+        .where((JobListing.source_api == "Internal") | (JobListing.source_api == None))
     ).one()
 
     # 4. Placement Metrics for all alumni

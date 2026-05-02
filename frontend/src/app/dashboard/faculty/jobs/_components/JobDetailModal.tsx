@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { X, MapPin, CircleDollarSign, Calendar, FileText, ExternalLink, Building2, Briefcase } from "lucide-react";
+import { X, MapPin, CircleDollarSign, Calendar, ExternalLink, Link as LinkIcon, Briefcase, Building2, FileText } from "lucide-react";
 
 interface JobDetailModalProps {
     job: any;
@@ -42,9 +42,23 @@ export default function JobDetailModal({ job, onClose }: JobDetailModalProps) {
         link,
         experienceLevel,
         workType,
-        isActive,
         logo
     } = job;
+
+    const getBadgeColors = () => {
+        switch (type?.toLowerCase()) {
+            case "full-time":
+                return { bg: "#ecfdf5", text: "#047857", border: "#a7f3d0", dot: "#10b981" };
+            case "internship":
+                return { bg: "#eff6ff", text: "#1d4ed8", border: "#bfdbfe", dot: "#3b82f6" };
+            case "part-time":
+                return { bg: "#fffbeb", text: "#b45309", border: "#fde68a", dot: "#f59e0b" };
+            default:
+                return { bg: "#f8fafc", text: "#475569", border: "#e2e8f0", dot: "#94a3b8" };
+        }
+    };
+
+    const badgeColors = getBadgeColors();
 
     const getLogoGradient = () => {
         const charCode = logo?.charCodeAt(0) || 0;
@@ -61,121 +75,530 @@ export default function JobDetailModal({ job, onClose }: JobDetailModalProps) {
     };
 
     const [gradStart, gradEnd] = getLogoGradient();
+    const hasImageLogo = !!(logo && (logo.startsWith("http") || logo.startsWith("/")));
+    const fullDescription = description || snippet || "";
+
+    const formattedDate = (() => {
+        try {
+            return new Date(postedDate).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+            });
+        } catch {
+            return "Recently";
+        }
+    })();
+
+    const infoItems = [
+        {
+            icon: <MapPin className="w-[15px] h-[15px]" strokeWidth={2} />,
+            label: "Location",
+            value: location || "—",
+        },
+        {
+            icon: <CircleDollarSign className="w-[15px] h-[15px]" strokeWidth={2} />,
+            label: "Salary",
+            value: salaryDisplay || "—",
+        },
+        {
+            icon: <Calendar className="w-[15px] h-[15px]" strokeWidth={2} />,
+            label: "Posted",
+            value: formattedDate,
+        },
+    ];
 
     const modalContent = (
         <div
             ref={overlayRef}
             onClick={handleOverlayClick}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md animate-in fade-in duration-200"
+            style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: 50,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "16px",
+                backgroundColor: "rgba(15, 23, 42, 0.55)",
+                backdropFilter: "blur(10px) saturate(140%)",
+                WebkitBackdropFilter: "blur(10px) saturate(140%)",
+                animation: "jdmOverlayIn 0.2s ease-out",
+            }}
         >
+            <style>{`
+                @keyframes jdmOverlayIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+                @keyframes jdmModalIn {
+                    from { opacity: 0; transform: translateY(16px) scale(0.98); }
+                    to { opacity: 1; transform: translateY(0) scale(1); }
+                }
+                .jdm-scroll::-webkit-scrollbar {
+                    width: 6px;
+                }
+                .jdm-scroll::-webkit-scrollbar-track {
+                    background: transparent;
+                }
+                .jdm-scroll::-webkit-scrollbar-thumb {
+                    background: #e2e8f0;
+                    border-radius: 3px;
+                }
+                .jdm-scroll::-webkit-scrollbar-thumb:hover {
+                    background: #cbd5e1;
+                }
+                .jdm-cta {
+                    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                }
+                .jdm-cta:hover {
+                    transform: translateY(-1px);
+                    box-shadow: 0 12px 24px -8px rgba(5, 150, 105, 0.45), 0 4px 8px -2px rgba(0,0,0,0.08) !important;
+                }
+                .jdm-cta:active {
+                    transform: translateY(0);
+                }
+                .jdm-close-btn {
+                    transition: background-color 0.2s ease, color 0.2s ease;
+                }
+                .jdm-close-btn:hover {
+                    background: #f1f5f9;
+                    color: #0f172a;
+                }
+                .jdm-secondary-btn {
+                    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+                }
+                .jdm-secondary-btn:hover {
+                    background: #f8fafc;
+                    border-color: #cbd5e1;
+                    color: #0f172a;
+                }
+                .jdm-description p { margin: 0 0 12px; }
+                .jdm-description p:last-child { margin-bottom: 0; }
+                .jdm-description ul, .jdm-description ol { margin: 0 0 12px; padding-left: 20px; }
+                .jdm-description li { margin-bottom: 6px; }
+                .jdm-description strong, .jdm-description b { color: #0f172a; font-weight: 600; }
+                .jdm-description a { color: #059669; text-decoration: underline; text-underline-offset: 2px; }
+                .jdm-kbd {
+                    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+                    font-size: 10px;
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    background: #ffffff;
+                    border: 1px solid #e2e8f0;
+                    color: #64748b;
+                    box-shadow: 0 1px 0 #e2e8f0;
+                }
+            `}</style>
+
             <div
-                className="relative w-full max-w-2xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col bg-white shadow-2xl animate-in slide-in-from-bottom-5 duration-300"
-                onClick={(e) => e.stopPropagation()}
+                style={{
+                    position: "relative",
+                    width: "100%",
+                    maxWidth: "680px",
+                    maxHeight: "90vh",
+                    borderRadius: "16px",
+                    overflow: "hidden",
+                    display: "flex",
+                    flexDirection: "column",
+                    background: "#ffffff",
+                    boxShadow:
+                        "0 40px 80px -20px rgba(15, 23, 42, 0.35), 0 10px 24px -8px rgba(15, 23, 42, 0.15), 0 0 0 1px rgba(15, 23, 42, 0.04)",
+                    animation: "jdmModalIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+                }}
             >
-                {/* HERO HEADER */}
+
+                {/* ═══════════════ HEADER ═══════════════ */}
                 <div
-                    className="relative px-8 py-10 border-b border-gray-100 flex-shrink-0"
-                    style={{ background: `linear-gradient(135deg, ${gradStart}08 0%, ${gradEnd}12 100%)` }}
+                    style={{
+                        position: "relative",
+                        padding: "24px 28px 22px",
+                        background: "#ffffff",
+                        borderBottom: "1px solid #f1f5f9",
+                        flexShrink: 0,
+                    }}
                 >
+                    {/* Close button */}
                     <button
                         onClick={onClose}
-                        className="absolute top-4 right-4 h-9 w-9 flex items-center justify-center rounded-xl bg-gray-100/50 text-gray-400 hover:bg-gray-200 hover:text-gray-600 transition-all active:scale-95"
+                        className="jdm-close-btn"
+                        style={{
+                            position: "absolute",
+                            top: "16px",
+                            right: "16px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            height: "32px",
+                            width: "32px",
+                            borderRadius: "8px",
+                            border: "none",
+                            cursor: "pointer",
+                            background: "transparent",
+                            color: "#94a3b8",
+                        }}
+                        aria-label="Close"
                     >
-                        <X size={18} strokeWidth={2.5} />
+                        <X className="w-4 h-4" strokeWidth={2.25} />
                     </button>
 
-                    <div className="relative flex items-center gap-4">
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: "16px",
+                            paddingRight: "36px",
+                        }}
+                    >
+                        {/* Logo */}
                         <div
-                            className="flex-shrink-0 w-16 h-16 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-xl shadow-emerald-500/10"
-                            style={{ background: `linear-gradient(135deg, ${gradStart}, ${gradEnd})` }}
+                            style={{
+                                flexShrink: 0,
+                                width: "56px",
+                                height: "56px",
+                                borderRadius: "12px",
+                                background: hasImageLogo
+                                    ? "#ffffff"
+                                    : `linear-gradient(135deg, ${gradStart}, ${gradEnd})`,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                color: "#fff",
+                                fontSize: "22px",
+                                fontWeight: 700,
+                                letterSpacing: "-0.02em",
+                                overflow: "hidden",
+                                border: hasImageLogo ? "1px solid #e2e8f0" : "none",
+                                boxShadow: hasImageLogo
+                                    ? "0 1px 2px rgba(15, 23, 42, 0.06)"
+                                    : `0 6px 16px -4px ${gradStart}55`,
+                            }}
                         >
-                            {logo || company?.charAt(0)}
+                            {hasImageLogo ? (
+                                <img
+                                    src={logo}
+                                    alt={company}
+                                    style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                                />
+                            ) : (
+                                logo || company?.charAt(0).toUpperCase()
+                            )}
                         </div>
-                        <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                                <h2 className="text-xl font-extrabold text-gray-900 leading-tight truncate">{title}</h2>
 
+                        {/* Title block */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                            <h2
+                                style={{
+                                    margin: 0,
+                                    fontSize: "20px",
+                                    fontWeight: 700,
+                                    color: "#0f172a",
+                                    lineHeight: 1.25,
+                                    letterSpacing: "-0.02em",
+                                }}
+                            >
+                                {title}
+                            </h2>
+
+                            <div
+                                style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "6px",
+                                    marginTop: "6px",
+                                }}
+                            >
+                                <Building2 className="w-[13px] h-[13px]" strokeWidth={2} style={{ color: "#94a3b8" }} />
+                                <span
+                                    style={{
+                                        fontSize: "13px",
+                                        color: "#475569",
+                                        fontWeight: 500,
+                                    }}
+                                >
+                                    {company}
+                                </span>
                             </div>
-                            <p className="text-sm font-medium text-gray-500 mt-1">{company}</p>
+
+                            {/* Badges */}
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "12px" }}>
+                                <span
+                                    style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: "6px",
+                                        padding: "3px 10px 3px 8px",
+                                        borderRadius: "999px",
+                                        fontSize: "11px",
+                                        fontWeight: 600,
+                                        background: badgeColors.bg,
+                                        color: badgeColors.text,
+                                        border: `1px solid ${badgeColors.border}`,
+                                    }}
+                                >
+                                    <span
+                                        style={{
+                                            width: "6px",
+                                            height: "6px",
+                                            borderRadius: "50%",
+                                            background: badgeColors.dot,
+                                        }}
+                                    />
+                                    {type}
+                                </span>
+                                {workType && (
+                                    <span
+                                        style={{
+                                            display: "inline-flex",
+                                            alignItems: "center",
+                                            padding: "3px 10px",
+                                            borderRadius: "999px",
+                                            fontSize: "11px",
+                                            fontWeight: 600,
+                                            background: "#f8fafc",
+                                            color: "#475569",
+                                            border: "1px solid #e2e8f0",
+                                        }}
+                                    >
+                                        {workType}
+                                    </span>
+                                )}
+                                {experienceLevel && (
+                                    <span
+                                        style={{
+                                            display: "inline-flex",
+                                            alignItems: "center",
+                                            padding: "3px 10px",
+                                            borderRadius: "999px",
+                                            fontSize: "11px",
+                                            fontWeight: 600,
+                                            background: "#f8fafc",
+                                            color: "#475569",
+                                            border: "1px solid #e2e8f0",
+                                        }}
+                                    >
+                                        {experienceLevel}
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
-                    {/* Key Info Cards */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100 flex flex-col items-center text-center gap-1.5">
-                            <MapPin size={18} className="text-emerald-600" />
-                            <span className="text-[10px] uppercase text-gray-400 font-bold tracking-wider">Location</span>
-                            <span className="text-xs font-bold text-gray-900 truncate w-full">{location}</span>
-                        </div>
-                        <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100 flex flex-col items-center text-center gap-1.5">
-                            <CircleDollarSign size={18} className="text-emerald-600" />
-                            <span className="text-[10px] uppercase text-gray-400 font-bold tracking-wider">Salary</span>
-                            <span className="text-xs font-bold text-gray-900 truncate w-full">{salaryDisplay || "Undisclosed"}</span>
-                        </div>
-                        <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100 flex flex-col items-center text-center gap-1.5">
-                            <Briefcase size={18} className="text-emerald-600" />
-                            <span className="text-[10px] uppercase text-gray-400 font-bold tracking-wider">Job Type</span>
-                            <span className="text-xs font-bold text-gray-900">{type}</span>
-                        </div>
-                        <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100 flex flex-col items-center text-center gap-1.5">
-                            <Calendar size={18} className="text-emerald-600" />
-                            <span className="text-[10px] uppercase text-gray-400 font-bold tracking-wider">Posted</span>
-                            <span className="text-xs font-bold text-gray-900">{new Date(postedDate).toLocaleDateString()}</span>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-50/30 border border-emerald-100/30">
-                            <Building2 size={20} className="text-emerald-700" />
-                            <div>
-                                <p className="text-[10px] uppercase text-emerald-600/70 font-bold tracking-wider">Work Setting</p>
-                                <p className="text-sm font-bold text-gray-900">{workType || "Not specified"}</p>
+                {/* ═══════════════ KEY DETAILS BAR ═══════════════ */}
+                <div
+                    style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(3, 1fr)",
+                        background: "#fafbfc",
+                        borderBottom: "1px solid #f1f5f9",
+                        flexShrink: 0,
+                    }}
+                >
+                    {infoItems.map((item, i) => (
+                        <div
+                            key={i}
+                            style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "6px",
+                                padding: "14px 20px",
+                                borderRight: i < infoItems.length - 1 ? "1px solid #f1f5f9" : "none",
+                                minWidth: 0,
+                            }}
+                        >
+                            <div
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "6px",
+                                    color: "#94a3b8",
+                                }}
+                            >
+                                {item.icon}
+                                <span
+                                    style={{
+                                        fontSize: "10px",
+                                        fontWeight: 600,
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.08em",
+                                    }}
+                                >
+                                    {item.label}
+                                </span>
                             </div>
+                            <span
+                                style={{
+                                    fontSize: "13px",
+                                    fontWeight: 600,
+                                    color: "#0f172a",
+                                    lineHeight: 1.35,
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                }}
+                                title={item.value}
+                            >
+                                {item.value}
+                            </span>
                         </div>
-                        <div className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-50/30 border border-emerald-100/30">
-                            <Briefcase size={20} className="text-emerald-700" />
-                            <div>
-                                <p className="text-[10px] uppercase text-emerald-600/70 font-bold tracking-wider">Experience</p>
-                                <p className="text-sm font-bold text-gray-900">{experienceLevel || "Not specified"}</p>
-                            </div>
-                        </div>
-                    </div>
+                    ))}
+                </div>
 
-                    {/* Description */}
-                    <div className="space-y-4">
-                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                            <FileText size={16} className="text-emerald-600" />
-                            Job Description
+                {/* ═══════════════ DESCRIPTION ═══════════════ */}
+                <div
+                    className="jdm-scroll"
+                    style={{
+                        flex: 1,
+                        overflowY: "auto",
+                        padding: "24px 28px 28px",
+                        minHeight: 0,
+                    }}
+                >
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "10px",
+                            marginBottom: "14px",
+                        }}
+                    >
+                        <h3
+                            style={{
+                                margin: 0,
+                                fontSize: "12px",
+                                fontWeight: 700,
+                                color: "#0f172a",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.08em",
+                            }}
+                        >
+                            About this role
                         </h3>
-                        <div
-                            className="text-sm leading-relaxed text-gray-600 space-y-4 prose prose-emerald max-w-none"
-                            dangerouslySetInnerHTML={{ __html: description || snippet || "No detailed description available." }}
-                        />
                     </div>
+
+                    {fullDescription ? (
+                        <div
+                            className="jdm-description"
+                            style={{
+                                fontSize: "14px",
+                                lineHeight: 1.7,
+                                color: "#334155",
+                                wordBreak: "break-word",
+                            }}
+                            dangerouslySetInnerHTML={{ __html: fullDescription }}
+                        />
+                    ) : (
+                        <div
+                            style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                padding: "32px 0 16px",
+                                textAlign: "center",
+                            }}
+                        >
+                            <div
+                                style={{
+                                    width: "44px",
+                                    height: "44px",
+                                    borderRadius: "12px",
+                                    background: "#f8fafc",
+                                    border: "1px solid #f1f5f9",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    marginBottom: "12px",
+                                }}
+                            >
+                                <Briefcase className="w-5 h-5" strokeWidth={1.5} style={{ color: "#cbd5e1" }} />
+                            </div>
+                            <p
+                                style={{
+                                    margin: 0,
+                                    fontSize: "13px",
+                                    color: "#64748b",
+                                    maxWidth: "320px",
+                                    lineHeight: 1.5,
+                                }}
+                            >
+                                No description provided. View the original posting for full details.
+                            </p>
+                        </div>
+                    )}
                 </div>
 
-                {/* FOOTER ACTIONS */}
-                <div className="p-8 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <button
-                        onClick={onClose}
-                        className="text-sm font-bold text-gray-400 hover:text-gray-600 px-4 py-2 order-2 sm:order-1"
+                {/* ═══════════════ FOOTER ═══════════════ */}
+                <div
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: "12px",
+                        padding: "14px 20px 14px 28px",
+                        borderTop: "1px solid #f1f5f9",
+                        background: "#fafbfc",
+                        flexShrink: 0,
+                    }}
+                >
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            fontSize: "12px",
+                            color: "#94a3b8",
+                        }}
                     >
-                        Close
-                    </button>
+                        <span className="jdm-kbd">Esc</span>
+                        <span>to close</span>
+                    </div>
 
-                    <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto order-1 sm:order-2">
-                        <a
-                            href={link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="w-full sm:w-auto px-8 h-12 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold inline-flex items-center justify-center gap-2 shadow-lg shadow-emerald-700/20 active:scale-[0.98] transition-all"
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <button
+                            onClick={onClose}
+                            className="jdm-secondary-btn"
+                            style={{
+                                padding: "8px 16px",
+                                borderRadius: "10px",
+                                fontSize: "13px",
+                                fontWeight: 600,
+                                color: "#475569",
+                                background: "#ffffff",
+                                border: "1px solid #e2e8f0",
+                                cursor: "pointer",
+                            }}
                         >
-                            Apply for this Position
-                            <ExternalLink size={18} />
-                        </a>
+                            Close
+                        </button>
+
+                        {link && (
+                            <a
+                                href={link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="jdm-cta"
+                                style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "8px",
+                                    padding: "8px 18px",
+                                    borderRadius: "10px",
+                                    fontSize: "13px",
+                                    fontWeight: 600,
+                                    color: "#ffffff",
+                                    background: "linear-gradient(135deg, #059669 0%, #0d9488 100%)",
+                                    border: "none",
+                                    textDecoration: "none",
+                                    cursor: "pointer",
+                                    boxShadow: "0 6px 16px -4px rgba(5, 150, 105, 0.4), inset 0 1px 0 rgba(255,255,255,0.18)",
+                                    letterSpacing: "0.01em",
+                                }}
+                            >
+                                Original Post
+                                <ExternalLink className="w-3.5 h-3.5" strokeWidth={2.5} />
+                            </a>
+                        )}
                     </div>
                 </div>
             </div>
@@ -184,16 +607,4 @@ export default function JobDetailModal({ job, onClose }: JobDetailModalProps) {
 
     if (typeof document === "undefined") return null;
     return createPortal(modalContent, document.body);
-}
-
-function Button({ children, className, onClick, variant = "primary", ...props }: any) {
-    return (
-        <button
-            onClick={onClick}
-            className={`inline-flex items-center justify-center transition-all ${className}`}
-            {...props}
-        >
-            {children}
-        </button>
-    );
 }

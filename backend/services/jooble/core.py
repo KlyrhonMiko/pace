@@ -110,6 +110,7 @@ async def fetch_jobs(
     has_salary: bool = False,
     include_inactive: bool = False,
     employer_ref_id: Optional[uuid.UUID] = None,
+    local_only: bool = False,
 ) -> dict:
     """Fetch job listings from Jooble API with lazy caching."""
     print(
@@ -130,6 +131,7 @@ async def fetch_jobs(
         has_salary=has_salary,
         include_inactive=include_inactive,
         employer_ref_id=str(employer_ref_id) if employer_ref_id else None,
+        local_only=local_only,
     )
 
     # Check Redis cache
@@ -172,8 +174,8 @@ async def fetch_jobs(
             total_available = 0
             page_num = 1
 
-            # ONLY fetch from API if no employer_ref_id filter is active
-            if not employer_ref_id:
+            # ONLY fetch from API if no employer_ref_id or local_only filter is active
+            if not employer_ref_id and not local_only:
                 # Fetch up to 1000 jobs by fetching multiple pages
                 while len(normalized_jobs) < 1000:
                     payload = {
@@ -224,8 +226,9 @@ async def fetch_jobs(
                     f"[FETCH_JOBS] Fetched {len(normalized_jobs)} jobs from {page_num} page(s)"
                 )
             else:
+                reason = "Employer filter active" if employer_ref_id else "Local only filter active"
                 print(
-                    f"[FETCH_JOBS] Employer filter active (ID: {employer_ref_id}) - skipping external API fetch"
+                    f"[FETCH_JOBS] {reason} - skipping external API fetch"
                 )
 
             # Trigger background fetch for remaining pages beyond 1000
@@ -265,6 +268,10 @@ async def fetch_jobs(
                     query = query.where(JobListing.experience_level == experience_level)
                 if employer_ref_id:
                     query = query.where(JobListing.employer_ref_id == employer_ref_id)
+                if local_only:
+                    query = query.where(
+                        (JobListing.source_api == "Internal") | (JobListing.source_api == None)
+                    )
                 
                 local_jobs = session.exec(query).all()
                 

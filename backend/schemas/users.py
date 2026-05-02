@@ -68,6 +68,9 @@ class UserUpdate(BaseModel):
     email: Optional[str] = Field(default=None, max_length=100)
     current_password: Optional[str] = Field(default=None, min_length=8, max_length=72)
     password: Optional[str] = Field(default=None, min_length=8, max_length=72)
+    first_name: Optional[str] = Field(default=None, max_length=150)
+    last_name: Optional[str] = Field(default=None, max_length=150)
+    middle_name: Optional[str] = Field(default=None, max_length=150)
 
     @field_validator("email")
     @classmethod

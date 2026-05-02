@@ -84,9 +84,9 @@ export default function JobList({
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <div className="hidden sm:flex items-center gap-1.5 text-[10px] text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100 font-medium whitespace-nowrap">
-                        <Info size={12} />
-                        Faculty posts are highlighted
+                    <div className="hidden sm:flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-50/50 to-transparent border border-slate-100 shadow-sm">
+                        <div className="w-1 h-3.5 bg-emerald-500 rounded-sm shadow-sm"></div>
+                        <span className="text-xs font-medium text-slate-600">Platform jobs highlighted</span>
                     </div>
                     {/* Placeholder for potential refresh button if needed, matching EventList style */}
                 </div>
@@ -133,22 +133,25 @@ export default function JobList({
                             </tr>
                         ) : (
                             filteredJobs.map((job) => {
-                                const isLocal = Boolean(job.dbId) || !job.link || job.id.toString().startsWith("local");
+                                const isLocal = job.source === "Internal";
                                 return (
-                                    <tr key={job.id} onClick={() => setSelectedJob(job)} className="group transition-all duration-200 hover:bg-slate-50/50 cursor-pointer">
+                                    <tr 
+                                        key={job.id} 
+                                        onClick={() => setSelectedJob(job)} 
+                                        className={`group transition-all duration-200 cursor-pointer ${isLocal ? "bg-gradient-to-r from-emerald-50/50 to-transparent hover:from-emerald-100/50 hover:to-slate-50/50 shadow-[inset_2px_0_0_0_#10b981]" : "hover:bg-slate-50/50"}`}
+                                    >
                                         <td className="px-5 py-4">
                                             <div className="flex items-center gap-4">
-                                                <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${getLogoGradient(job.logo)} text-white text-sm font-bold shadow-sm ring-1 ring-emerald-200 transition-transform duration-300 group-hover:scale-105`}>
-                                                    {job.logo}
+                                                <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl ${(job.logo && (job.logo.startsWith('http') || job.logo.startsWith('/'))) ? 'bg-gray-50' : `bg-gradient-to-br ${getLogoGradient(job.logo)}`} text-white text-sm font-bold shadow-sm ring-1 ring-emerald-200 transition-transform duration-300 group-hover:scale-105 overflow-hidden`}>
+                                                    {(job.logo && (job.logo.startsWith('http') || job.logo.startsWith('/'))) ? (
+                                                        <img src={job.logo} alt={job.company} className="h-full w-full object-contain" />
+                                                    ) : (
+                                                        job.logo
+                                                    )}
                                                 </div>
                                                 <div className="min-w-0">
                                                     <div className="flex items-center gap-2">
                                                         <h4 className="font-bold text-slate-900 text-sm line-clamp-1">{job.title}</h4>
-                                                        {isLocal && (
-                                                            <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[9px] font-bold uppercase whitespace-nowrap">
-                                                                Local
-                                                            </span>
-                                                        )}
                                                     </div>
                                                     <p className="text-xs text-slate-400 mt-0.5 truncate">{job.company}</p>
                                                 </div>

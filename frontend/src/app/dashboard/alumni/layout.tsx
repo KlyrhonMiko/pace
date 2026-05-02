@@ -380,14 +380,7 @@ export default function AlumniLayout({
 
                 {/* User Section — clickable, navigates to Profile */}
                 <div className="flex-shrink-0 p-3 border-t border-gray-200/70">
-                    <div
-                        className={`flex items-center gap-2 rounded-xl p-2 transition-all duration-200
-                            ${isProfileActive
-                                ? "bg-emerald-50/80 ring-1 ring-emerald-100"
-                                : "hover:bg-gray-50"
-                            }
-                        `}
-                    >
+                    <div className="flex items-center gap-2 rounded-xl p-2 transition-all duration-200 hover:bg-gray-50">
                         {/* Avatar + name link to Profile */}
                         <Link
                             href="/dashboard/alumni/profile"

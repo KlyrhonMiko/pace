@@ -27,6 +27,7 @@ interface UnifiedJob {
     description?: string;
     isActive: boolean;
     dbId?: number | string;
+    source?: string;
 }
 
 function convertApiJob(job: any, index: number): UnifiedJob {
@@ -63,7 +64,7 @@ function convertApiJob(job: any, index: number): UnifiedJob {
         salaryDisplay: salaryDisplay,
         type: job.type || job.job_type || "Full-time",
         postedDate: job.updated || job.posted_at ? new Date(job.updated || job.posted_at) : new Date(),
-        logo: job.company.charAt(0).toUpperCase(),
+        logo: (job.logo && (job.logo.startsWith('http') || job.logo.startsWith('/'))) ? job.logo : job.company.charAt(0).toUpperCase(),
         experienceLevel: experienceLevel,
         workType: workType,
         link: job.link || job.source_url,
@@ -71,6 +72,7 @@ function convertApiJob(job: any, index: number): UnifiedJob {
         description: job.description,
         isActive: job.is_active !== false,
         dbId: job.db_id,
+        source: job.source || (job.link || job.source_url ? "External" : "Internal"),
     };
 }
 
@@ -83,6 +85,7 @@ export default function FacultyJobBoardPage() {
     const [salaryRange, setSalaryRange] = useState<[number, number]>([0, 500]);
     const [tempSalaryRange, setTempSalaryRange] = useState<[number, number]>([0, 500]);
     const [hasSalary, setHasSalary] = useState(false);
+    const [localOnly, setLocalOnly] = useState(true);
 
     const [currentPage, setCurrentPage] = useState(1);
     const JOBS_PER_PAGE = 15;
@@ -109,6 +112,7 @@ export default function FacultyJobBoardPage() {
                 limit: JOBS_PER_PAGE,
                 has_salary: hasSalary,
                 include_inactive: true,
+                local_only: localOnly,
             });
 
             if (result.error) {
@@ -127,7 +131,7 @@ export default function FacultyJobBoardPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [debouncedSearchQuery, debouncedLocationSearch, selectedTypes, selectedWorkTypes, selectedExperience, currentPage, hasSalary]);
+    }, [debouncedSearchQuery, debouncedLocationSearch, selectedTypes, selectedWorkTypes, selectedExperience, currentPage, hasSalary, localOnly]);
 
     useEffect(() => {
         fetchJobs();
@@ -144,6 +148,7 @@ export default function FacultyJobBoardPage() {
         setSalaryRange([0, 500]);
         setTempSalaryRange([0, 500]);
         setHasSalary(false);
+        setLocalOnly(false);
         setCurrentPage(1);
     };
 
@@ -196,6 +201,8 @@ export default function FacultyJobBoardPage() {
                         setTempSalaryRange={setTempSalaryRange}
                         hasSalary={hasSalary}
                         setHasSalary={setHasSalary}
+                        localOnly={localOnly}
+                        setLocalOnly={setLocalOnly}
                     />
                 </div>
             </div>

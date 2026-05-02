@@ -60,6 +60,7 @@ async def search_jobs(
     current_user: CurrentUser = Depends(require_authenticated),
     include_inactive: bool = Query(False, description="Include inactive/hidden jobs"),
     employer_ref_id: Optional[uuid.UUID] = Query(None, description="Filter by employer UUID"),
+    local_only: bool = Query(False, description="Filter for local platform jobs only"),
 ):
     """
     Search for job listings in the Philippines using Jooble API merged with local jobs.
@@ -85,7 +86,8 @@ async def search_jobs(
         background_tasks=background_tasks,
         has_salary=has_salary,
         include_inactive=include_inactive,
-        employer_ref_id=employer_ref_id
+        employer_ref_id=employer_ref_id,
+        local_only=local_only
     )
     
     return StandardResponse(

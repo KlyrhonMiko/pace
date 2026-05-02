@@ -56,6 +56,7 @@ export default function AdminLayout({
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
     const [mounted, setMounted] = useState(false);
     const { user, logout } = useAuth();
+    const isProfileActive = pathname === "/dashboard/admin/profile";
 
     useEffect(() => {
         setMounted(true);
@@ -75,14 +76,14 @@ export default function AdminLayout({
             <aside
                 className={`
                     fixed inset-y-0 left-0 z-50 w-[280px] transform
-                    bg-gradient-to-b from-gray-50 to-white border-r border-gray-200/80
+                    bg-white border-r border-gray-200/70
                     transition-all duration-300 ease-out lg:relative lg:translate-x-0
                     ${sidebarOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"}
                     flex flex-col overflow-hidden
                 `}
             >
                 {/* Logo Section */}
-                <div className="flex-shrink-0 flex h-[72px] items-center justify-between px-6 border-b border-gray-200/60 bg-white/60 backdrop-blur-sm">
+                <div className="flex-shrink-0 flex h-[72px] items-center justify-between px-6 border-b border-gray-200/70">
                     <Link href="/" className="flex items-center gap-3 group">
                         <div className="relative h-10 w-10 flex-shrink-0">
                             <Image
@@ -186,27 +187,52 @@ export default function AdminLayout({
 
                 </nav>
 
-                {/* User Section */}
-                <div className="flex-shrink-0 p-4 border-t border-gray-200/60 bg-white/60 backdrop-blur-sm">
-                    <div className="flex items-center gap-3 rounded-xl bg-gradient-to-br from-gray-50/80 to-white p-3.5 border border-gray-200/60 shadow-sm hover:shadow-md hover:border-gray-300/60 transition-all duration-200">
-                        <div className="relative flex-shrink-0">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-emerald-700 to-emerald-800 text-xs font-bold text-white shadow-md ring-2 ring-white">
-                                {mounted ? `${user?.first_name?.[0] || "S"}${user?.last_name?.[0] || "A"}` : "SA"}
+                {/* User Section — clickable, navigates to Profile */}
+                <div className="flex-shrink-0 p-3 border-t border-gray-200/70">
+                    <div className="flex items-center gap-2 rounded-xl p-2 transition-all duration-200 hover:bg-gray-50">
+                        {/* Avatar + name link to Profile */}
+                        <Link
+                            href="/dashboard/admin/profile"
+                            className="flex items-center gap-3 flex-1 min-w-0 group/profile cursor-pointer rounded-lg p-1 -m-1"
+                            title="View profile"
+                        >
+                            <div className="relative flex-shrink-0">
+                                <div className="flex h-9 w-9 items-center justify-center rounded-full text-[11px] font-bold text-white bg-gradient-to-br from-emerald-600 to-emerald-800 ring-2 ring-white shadow-sm transition-transform duration-200 group-hover/profile:scale-105">
+                                    {mounted ? `${user?.first_name?.[0] || "S"}${user?.last_name?.[0] || "A"}` : "SA"}
+                                </div>
+                                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white shadow-sm" />
                             </div>
-                            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-600 rounded-full ring-2 ring-white shadow-sm" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-gray-900 truncate leading-tight">
-                                {mounted ? `${user?.first_name || "System"} ${user?.last_name || "Administrator"}` : "System Administrator"}
-                            </p>
-                            <p className="text-[11px] text-gray-500 truncate mt-0.5">System Administrator</p>
-                        </div>
+
+                            <div className="flex-1 min-w-0">
+                                <p className={`text-[13px] font-semibold truncate leading-tight tracking-[-0.01em]
+                                    ${isProfileActive ? "text-emerald-900" : "text-gray-900"}
+                                `}>
+                                    {mounted ? `${user?.first_name || "System"} ${user?.last_name || "Administrator"}` : "System Administrator"}
+                                </p>
+                                <p className={`text-[11px] truncate mt-0.5
+                                    ${isProfileActive ? "text-emerald-700 font-medium" : "text-gray-500 group-hover/profile:text-emerald-700"}
+                                `}>
+                                    {isProfileActive ? "Viewing profile" : "View profile"}
+                                </p>
+                            </div>
+
+                            <ChevronRight
+                                className={`w-4 h-4 flex-shrink-0 transition-all duration-200
+                                    ${isProfileActive
+                                        ? "text-emerald-700 opacity-100"
+                                        : "text-gray-300 opacity-0 group-hover/profile:opacity-100 group-hover/profile:text-emerald-700 group-hover/profile:translate-x-0.5"
+                                    }
+                                `}
+                                strokeWidth={2.5}
+                            />
+                        </Link>
 
                         {/* Logout Button */}
                         <button
                             onClick={() => setIsLogoutModalOpen(true)}
-                            className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all duration-200 flex-shrink-0 cursor-pointer"
+                            className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors duration-200 flex-shrink-0 cursor-pointer"
                             title="Sign out"
+                            aria-label="Sign out"
                         >
                             <LogOut size={18} />
                         </button>

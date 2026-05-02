@@ -2,16 +2,23 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Calendar, Clock, MapPin, Users, Loader2 } from "lucide-react";
+import { Calendar, Clock, MapPin, Users, Loader2, ArrowUpRight } from "lucide-react";
 import { fetchEvents, Event, getMonthAbbreviation, getDayNumber } from "../../../_lib/events";
 
-const typeStyles = {
-    emerald: "bg-emerald-50 text-emerald-800 border border-emerald-200/60",
-    violet: "bg-violet-50 text-violet-600 border border-violet-200/60",
-    blue: "bg-blue-50 text-blue-600 border border-blue-200/60",
-    orange: "bg-orange-50 text-orange-600 border border-orange-200/60",
-    default: "bg-gray-50 text-gray-600 border border-gray-200/60",
-} as const;
+function getAccentColor(eventType: string): string {
+    switch (eventType?.toLowerCase()) {
+        case "career fair":
+            return "#059669";
+        case "workshop":
+            return "#7c3aed";
+        case "seminar":
+            return "#2563eb";
+        case "networking":
+            return "#d97706";
+        default:
+            return "#475569";
+    }
+}
 
 export default function UpcomingEvents() {
     const [events, setEvents] = useState<Event[]>([]);
@@ -31,96 +38,178 @@ export default function UpcomingEvents() {
         loadEvents();
     }, []);
 
-    const getTypeColor = (type: string) => {
-        const t = type.toLowerCase();
-        if (t.includes("career") || t.includes("fair")) return "emerald";
-        if (t.includes("workshop") || t.includes("seminar")) return "violet";
-        if (t.includes("tech") || t.includes("networking")) return "blue";
-        if (t.includes("interview") || t.includes("talk")) return "orange";
-        return "default";
-    };
-
     return (
-        <div className="group/card rounded-2xl bg-white border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-violet-100/30 hover:border-violet-100/60 h-full flex flex-col">
-            <div className="p-6">
+        <div className="relative rounded-2xl bg-white border border-slate-200/80 shadow-lg shadow-slate-200/30 hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col h-full">
+            {/* Decorative elements (matching EventList) */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute -top-20 -right-20 h-40 w-40 rounded-full bg-emerald-50 opacity-20 blur-3xl" />
+                <div className="absolute -bottom-20 -left-20 h-40 w-40 rounded-full bg-slate-100 opacity-10 blur-3xl" />
+            </div>
+
+            <div className="relative z-10 flex flex-col h-full">
                 {/* Header */}
-                <div className="mb-6 flex items-center justify-between">
+                <div className="p-6 border-b border-slate-50 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-400 to-purple-600 text-white shadow-lg shadow-violet-200/50">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 text-white shadow-lg shadow-emerald-500/20">
                             <Calendar className="h-5 w-5" strokeWidth={2} />
                         </div>
                         <div>
                             <h2 className="text-base font-bold text-gray-900">Upcoming Events</h2>
-                            <p className="text-xs text-gray-500">Don&apos;t miss these opportunities</p>
+                            <p className="text-xs text-gray-500 mt-0.5">Don&apos;t miss these opportunities</p>
                         </div>
                     </div>
-                    <Link href="/dashboard/alumni/events" className="text-[11px] font-semibold text-gray-500 hover:text-gray-900 transition-all duration-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 ring-1 ring-gray-100/60 hover:ring-gray-200">
+                    <Link
+                        href="/dashboard/alumni/events"
+                        className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-emerald-700 hover:text-emerald-800 transition-all duration-200 px-3 py-1.5 rounded-lg hover:bg-emerald-50/60 ring-1 ring-emerald-100/60 hover:ring-emerald-200"
+                    >
                         View All
+                        <ArrowUpRight className="h-3 w-3" strokeWidth={2.5} />
                     </Link>
                 </div>
 
                 {/* Event List */}
-                <div className="space-y-3">
+                <div className="flex-1 p-6">
                     {loading ? (
-                        <div className="flex flex-col items-center justify-center py-10 gap-3 text-gray-400">
-                            <Loader2 className="h-6 w-6 animate-spin" />
-                            <p className="text-xs">Loading events...</p>
+                        <div className="py-16 text-center bg-slate-50/20 rounded-2xl border border-dashed border-slate-200">
+                            <div className="flex flex-col items-center gap-3">
+                                <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+                                <p className="text-sm font-semibold text-slate-500 animate-pulse">Loading events...</p>
+                            </div>
                         </div>
                     ) : events.length > 0 ? (
-                        events.map((event, idx) => {
-                            const typeColor = getTypeColor(event.event_type);
-                            return (
-                                <div
-                                    key={event.event_id || idx}
-                                    className="group/event flex gap-4 p-3.5 rounded-xl border border-gray-100/80 hover:border-violet-200/60 hover:bg-gradient-to-r hover:from-violet-50/40 hover:to-purple-50/20 transition-all duration-200 cursor-pointer"
-                                >
-                                    {/* Calendar Date Block or Image */}
-                                    <div className="flex-shrink-0 flex flex-col items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br from-violet-50 to-purple-50 border border-violet-100/80 group-hover/event:border-violet-200 group-hover/event:shadow-sm group-hover/event:from-violet-100/80 group-hover/event:to-purple-100/60 transition-all duration-200 overflow-hidden">
-                                        {event.image_url ? (
-                                            <img src={event.image_url} alt={event.event_name} className="h-full w-full object-cover" />
-                                        ) : (
-                                            <>
-                                                <span className="text-lg font-extrabold text-violet-700 leading-none">{getDayNumber(event.date)}</span>
-                                                <span className="text-[10px] font-bold text-violet-500 uppercase tracking-wider mt-0.5">{getMonthAbbreviation(event.date)}</span>
-                                            </>
-                                        )}
-                                    </div>
+                        <div className="space-y-3">
+                            {events.map((event) => {
+                                const accent = getAccentColor(event.event_type);
+                                const month = getMonthAbbreviation(event.date);
+                                const day = getDayNumber(event.date);
 
-                                    {/* Event Details */}
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-start justify-between gap-2 mb-1.5">
-                                            <h3 className="text-sm font-semibold text-gray-900 group-hover/event:text-violet-800 transition-colors truncate">
+                                return (
+                                    <Link
+                                        key={event.event_id}
+                                        href="/dashboard/alumni/events"
+                                        className="group/event relative flex overflow-hidden rounded-xl border bg-white transition-all duration-300 hover:-translate-y-0.5"
+                                        style={{
+                                            borderColor: `color-mix(in srgb, ${accent} 14%, #e2e8f0)`,
+                                            boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            (e.currentTarget as HTMLElement).style.boxShadow = `0 12px 30px -12px ${accent}25, 0 4px 12px -4px rgba(0,0,0,0.04)`;
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            (e.currentTarget as HTMLElement).style.boxShadow = "0 1px 3px rgba(0,0,0,0.04)";
+                                        }}
+                                    >
+                                        {/* Accent glow on hover */}
+                                        <div
+                                            className="pointer-events-none absolute -inset-px rounded-xl opacity-0 transition-opacity duration-500 group-hover/event:opacity-100"
+                                            style={{
+                                                background: `linear-gradient(135deg, ${accent}08, transparent 40%, ${accent}05)`,
+                                            }}
+                                        />
+
+                                        {/* Date showcase or image */}
+                                        <div
+                                            className={`relative flex-shrink-0 self-stretch overflow-hidden flex items-center justify-center ${event.image_url ? "w-32" : "w-20"}`}
+                                            style={{
+                                                background: event.image_url
+                                                    ? undefined
+                                                    : `linear-gradient(160deg, ${accent}10, ${accent}04 60%, transparent)`,
+                                            }}
+                                        >
+                                            {event.image_url ? (
+                                                <img
+                                                    src={event.image_url}
+                                                    alt={event.event_name}
+                                                    className="absolute inset-0 h-full w-full object-cover"
+                                                />
+                                            ) : (
+                                                <>
+                                                    {/* Decorative grid dots */}
+                                                    <div
+                                                        className="absolute inset-0 opacity-[0.04]"
+                                                        style={{
+                                                            backgroundImage: `radial-gradient(circle, ${accent} 1px, transparent 1px)`,
+                                                            backgroundSize: "14px 14px",
+                                                        }}
+                                                    />
+                                                    {/* Subtle radial glow */}
+                                                    <div
+                                                        className="absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full blur-2xl transition-opacity duration-500 opacity-[0.08] group-hover/event:opacity-[0.18]"
+                                                        style={{ background: accent }}
+                                                    />
+                                                    <div className="relative z-10 flex flex-col items-center transition-transform duration-500 ease-out group-hover/event:-translate-y-0.5">
+                                                        <span
+                                                            className="text-[9px] font-black uppercase tracking-[0.18em] leading-none"
+                                                            style={{ color: accent }}
+                                                        >
+                                                            {month}
+                                                        </span>
+                                                        <span className="mt-0.5 text-2xl font-black leading-none text-slate-800">
+                                                            {day}
+                                                        </span>
+                                                        <div
+                                                            className="mt-1.5 h-px w-5 rounded-full"
+                                                            style={{ background: `${accent}30` }}
+                                                        />
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+
+                                        {/* Event details */}
+                                        <div className="relative z-10 flex-1 min-w-0 p-3">
+                                            <div className="flex items-start justify-between gap-2 mb-1">
+                                                <span
+                                                    className="text-[9px] font-bold tracking-widest uppercase"
+                                                    style={{ color: accent }}
+                                                >
+                                                    {event.event_type}
+                                                </span>
+                                                {event.is_registered && (
+                                                    <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-700">
+                                                        <span className="h-1 w-1 rounded-full bg-emerald-500" />
+                                                        Registered
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            <h3 className="text-sm font-bold text-slate-900 leading-tight truncate">
                                                 {event.event_name}
                                             </h3>
-                                            <span className={`flex-shrink-0 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${typeStyles[typeColor]}`}>
-                                                {event.event_type}
-                                            </span>
-                                        </div>
 
-                                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
-                                            <span className="flex items-center gap-1">
-                                                <Clock className="h-3 w-3 text-gray-400" strokeWidth={2} />
-                                                {event.time_start} - {event.time_end}
-                                            </span>
-                                            <span className="flex items-center gap-1">
-                                                <MapPin className="h-3 w-3 text-gray-400" strokeWidth={2} />
-                                                {event.location}
-                                            </span>
-                                            <span className="flex items-center gap-1">
-                                                <Users className="h-3 w-3 text-gray-400" strokeWidth={2} />
-                                                <span className="font-semibold text-violet-600">{event.attendees}</span>
-                                                <span className="text-gray-400">attending</span>
-                                            </span>
+                                            <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-slate-500">
+                                                <span className="inline-flex items-center gap-1">
+                                                    <Clock className="h-3 w-3 text-slate-400" strokeWidth={2} />
+                                                    {event.time_start} – {event.time_end}
+                                                </span>
+                                                <span className="inline-flex items-center gap-1 truncate">
+                                                    <MapPin className="h-3 w-3 text-slate-400 flex-shrink-0" strokeWidth={2} />
+                                                    <span className="truncate">{event.location}</span>
+                                                </span>
+                                                <span className="inline-flex items-center gap-1">
+                                                    <Users className="h-3 w-3 text-slate-400" strokeWidth={2} />
+                                                    <span className="font-semibold" style={{ color: accent }}>
+                                                        {event.attendees}
+                                                    </span>
+                                                    <span className="text-slate-400">attending</span>
+                                                </span>
+                                            </div>
                                         </div>
-                                    </div>
-                                </div>
-                            );
-                        })
+                                    </Link>
+                                );
+                            })}
+                        </div>
                     ) : (
-                        <div className="flex flex-col items-center justify-center py-10 px-4 text-center rounded-xl bg-gray-50 border border-dashed border-gray-200">
-                            <Calendar className="h-8 w-8 text-gray-300 mb-2" />
-                            <p className="text-sm font-medium text-gray-500">No upcoming events</p>
-                            <p className="text-xs text-gray-400">Check back later for new opportunities.</p>
+                        <div className="py-16 text-center bg-slate-50/20 rounded-2xl border border-dashed border-slate-200">
+                            <div className="flex flex-col items-center gap-4">
+                                <div className="h-14 w-14 rounded-2xl bg-white border border-slate-200/60 shadow-sm flex items-center justify-center">
+                                    <Calendar className="h-7 w-7 text-slate-300" strokeWidth={1.5} />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-semibold text-slate-500">No upcoming events</p>
+                                    <p className="text-xs text-slate-400 mt-0.5">Check back later for new opportunities.</p>
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>

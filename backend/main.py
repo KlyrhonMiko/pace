@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+import asyncio
+from fastapi import FastAPI, Request
 from fastapi import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -50,6 +51,12 @@ app.add_middleware(
 
 # Apply optional development auth bypass before router attachment.
 apply_dev_auth_override(app)
+
+@app.middleware("http")
+async def add_artificial_delay(request: Request, call_next):
+    if settings.ARTIFICIAL_DELAY > 0:
+        await asyncio.sleep(settings.ARTIFICIAL_DELAY)
+    return await call_next(request)
 
 # Include routers
 app.include_router(auth.router)

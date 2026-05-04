@@ -19,6 +19,7 @@ class Settings:
     JOOBLE_API_KEY: str = os.getenv("JOOBLE_API_KEY", "")
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     CLOUDINARY_URL: str = os.getenv("CLOUDINARY_URL", "")
+    ARTIFICIAL_DELAY: float = float(os.getenv("ARTIFICIAL_DELAY", "0"))
 
 
     # Gmail OAuth2 settings

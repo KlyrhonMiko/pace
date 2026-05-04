@@ -31,8 +31,8 @@ def _require_current_user_id(current_user: CurrentUser) -> uuid.UUID:
     return current_user.id
 
 
-@router.get("/recommended")
-def recommended_jobs(
+@router.get("/recommended", response_model=StandardResponse)
+async def recommended_jobs(
     limit: int = Query(3, ge=1, le=10, description="Number of jobs to return"),
     db: Session = Depends(get_session),
     current_user: CurrentUser = Depends(require_authenticated),
@@ -40,7 +40,13 @@ def recommended_jobs(
     """
     Get recommended jobs from the database cache.
     """
-    return get_recommended_jobs(session=db, limit=limit)
+    result = await get_recommended_jobs(session=db, limit=limit)
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.JOB_LIST_RETRIEVED.value,
+        message="Recommended jobs retrieved successfully",
+        data=result
+    )
 
 
 

@@ -66,10 +66,10 @@ def load_all_jobs_to_cache(session: Session) -> int:
         return 0
 
 
-def get_recommended_jobs(session: Session, limit: int = 3) -> list[dict]:
+async def get_recommended_jobs(session: Session, limit: int = 3) -> list[dict]:
     """
     Get recommended jobs from the database cache.
-    Currently returns random active jobs.
+    Currently returns random active jobs, falling back to Jooble API if local DB is empty.
     Uses Redis caching to avoid repeated database queries.
     """
     # Generate cache key
@@ -77,7 +77,7 @@ def get_recommended_jobs(session: Session, limit: int = 3) -> list[dict]:
 
     # 1. Check Redis cache first
     cached_result = cache_get(cache_key)
-    if cached_result is not None:
+    if cached_result is not None and len(cached_result) > 0:
         return cached_result
 
     # 2. Fall back to database query
@@ -90,8 +90,30 @@ def get_recommended_jobs(session: Session, limit: int = 3) -> list[dict]:
     jobs = session.exec(query).all()
     result = [_map_db_job_to_dict(job) for job in jobs]
 
-    # 3. Cache the result (1 hour TTL)
-    cache_set(cache_key, result, ttl=3600)
+    # 3. If still empty or below limit, fetch some from API to avoid empty dashboard
+    if len(result) < limit:
+        try:
+            print(f"[RECOMMENDED] Local jobs ({len(result)}) < limit ({limit}). Fetching from Jooble API...")
+            api_result = await fetch_jobs(
+                results_per_page=limit * 2, # Fetch a bit more to ensure we have enough
+                location="Philippines",
+                session=session
+            )
+            api_jobs = api_result.get("jobs", [])
+            
+            # Add unique API jobs to the result
+            existing_ids = {j.get("id") for j in result}
+            for job in api_jobs:
+                if len(result) >= limit:
+                    break
+                if job.get("id") not in existing_ids:
+                    result.append(job)
+        except Exception as e:
+            print(f"[ERROR] Failed to fetch fallback recommendations: {e}")
+
+    # 4. Cache the result (1 hour TTL)
+    if result:
+        cache_set(cache_key, result, ttl=3600)
 
     return result
 

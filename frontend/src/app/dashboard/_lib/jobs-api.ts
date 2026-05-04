@@ -108,9 +108,16 @@ export async function getRecommendedJobs(limit: number = 3, token?: string): Pro
             requestHeaders["Authorization"] = `Bearer ${authToken}`;
         }
 
-        return await apiFetch<JoobleJob[]>(`/jobs/recommended?limit=${limit}`, {
+        const response = await apiFetch<any>(`/jobs/recommended?limit=${limit}`, {
             headers: requestHeaders
         });
+
+        // Handle both StandardResponse { success, data } and raw JoobleJob[]
+        const data = response && typeof response === 'object' && 'data' in response && 'success' in response
+            ? response.data
+            : response;
+
+        return Array.isArray(data) ? data : [];
     } catch (error) {
         console.error("Failed to fetch recommended jobs:", error);
         return [];

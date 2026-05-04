@@ -235,7 +235,9 @@ def cache_invalidate_job_searches() -> int:
     Returns:
         Number of cache entries deleted
     """
-    return cache_delete_pattern("job_search*")
+    count = cache_delete_pattern("job_search*")
+    count += cache_invalidate_recommended()
+    return count
 
 
 def cache_invalidate_recommended() -> int:

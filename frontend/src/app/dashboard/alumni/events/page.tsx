@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import EventFilters from "./_components/EventFilters";
 import EventList from "@/app/dashboard/_components/events/EventList";
 import PageHeader from "@/components/dashboard/PageHeader";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import { fetchEvents, fetchEventTypes, registerEvent, unregisterEvent, type Event } from "../../_lib/events";
 
@@ -136,26 +137,6 @@ export default function EventsPage() {
         }
     };
 
-    if (isLoading) {
-        return (
-            <div className="space-y-5">
-                <PageHeader
-                    title="Events & Networking"
-                    description="Discover professional development events, seminars, and networking opportunities"
-                    currentPage="Events & Networking"
-                />
-                <div className="flex items-center justify-center py-20">
-                    <div className="flex flex-col items-center gap-4">
-                        <div className="relative h-10 w-10">
-                            <div className="absolute inset-0 rounded-full border-2 border-slate-200"></div>
-                            <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-emerald-700 animate-spin"></div>
-                        </div>
-                        <p className="text-sm font-medium text-slate-600">Loading events...</p>
-                    </div>
-                </div>
-            </div>
-        );
-    }
 
     return (
         <div className="space-y-5">

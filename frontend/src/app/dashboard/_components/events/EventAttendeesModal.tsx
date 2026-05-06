@@ -1,30 +1,30 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { 
-    Users, 
-    X, 
-    Search, 
-    ChevronLeft, 
-    ChevronRight, 
-    Loader2, 
+import {
+    Users,
+    X,
+    Search,
+    ChevronLeft,
+    ChevronRight,
+    Loader2,
     UserCircle,
     Calendar,
     ArrowUpDown
 } from "lucide-react";
-import { 
-    Dialog, 
-    DialogContent, 
-    DialogHeader, 
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
     DialogTitle,
     DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { 
-    fetchEventRegistrants, 
-    EventRegistrant, 
-    Event 
+import {
+    fetchEventRegistrants,
+    EventRegistrant,
+    Event
 } from "../../_lib/events";
 import { format } from "date-fns";
 
@@ -69,9 +69,9 @@ export function EventAttendeesModal({ event, isOpen, onClose }: EventAttendeesMo
     const filteredRegistrants = registrants.filter(r => {
         const fullName = `${r.first_name} ${r.last_name}`.toLowerCase();
         const search = searchTerm.toLowerCase();
-        return fullName.includes(search) || 
-               r.student_id?.toLowerCase().includes(search) ||
-               r.alumni_id?.toLowerCase().includes(search);
+        return fullName.includes(search) ||
+            r.student_id?.toLowerCase().includes(search) ||
+            r.alumni_id?.toLowerCase().includes(search);
     });
 
     const totalPages = Math.ceil(total / limit);
@@ -79,33 +79,33 @@ export function EventAttendeesModal({ event, isOpen, onClose }: EventAttendeesMo
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="sm:max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col p-0 border-none rounded-3xl shadow-2xl">
-                <DialogHeader className="px-8 pt-8 pb-6 bg-gradient-to-br from-slate-900 to-slate-800 text-white relative">
-                    <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-2xl bg-white/10 backdrop-blur-xl flex items-center justify-center border border-white/20 shadow-inner">
-                            <Users className="h-6 w-6 text-emerald-400" />
-                        </div>
-                        <div>
-                            <DialogTitle className="text-xl font-bold tracking-tight">Event Attendees</DialogTitle>
-                            <DialogDescription className="sr-only">List of alumni registered for this event.</DialogDescription>
-                            <p className="text-sm text-slate-300 mt-1 line-clamp-1">{event?.event_name}</p>
+            <DialogContent
+                showCloseButton={true}
+                className="sm:max-w-4xl p-0 gap-0 rounded-2xl border-0 overflow-hidden shadow-2xl max-h-[90vh] flex flex-col bg-slate-50"
+            >
+                <DialogHeader className="p-6 md:px-8 pt-8 pb-6 bg-white border-b border-slate-100 z-10 shrink-0">
+                    <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-5">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100/50">
+                                <Users className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <DialogTitle className="text-xl font-semibold text-slate-900">Event Attendees</DialogTitle>
+                                <DialogDescription className="text-sm text-slate-500 mt-1.5 flex items-center gap-2.5">
+                                    <span className="font-medium text-slate-700 line-clamp-1">{event?.event_name}</span>
+                                </DialogDescription>
+                            </div>
                         </div>
                     </div>
-                    <button 
-                        onClick={onClose}
-                        className="absolute right-6 top-6 h-8 w-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
-                    >
-                        <X className="h-4 w-4" />
-                    </button>
                 </DialogHeader>
 
-                <div className="flex-1 overflow-hidden flex flex-col bg-slate-50/50">
+                <div className="flex-1 overflow-hidden flex flex-col bg-slate-50 custom-scrollbar relative">
                     {/* Toolbar */}
-                    <div className="px-8 py-4 border-b border-slate-200 bg-white flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="px-6 md:px-8 py-4 border-b border-slate-100 bg-white flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0 shadow-sm z-10 text-slate-900">
                         <div className="relative w-full sm:w-80">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                            <Input 
-                                placeholder="Search by name, ID..." 
+                            <Input
+                                placeholder="Search by name, ID..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="pl-10 h-10 rounded-xl border-slate-200 focus:ring-emerald-500/20 focus:border-emerald-500"
@@ -120,17 +120,17 @@ export function EventAttendeesModal({ event, isOpen, onClose }: EventAttendeesMo
                     </div>
 
                     {/* Table Content */}
-                    <div className="flex-1 overflow-auto px-8 py-6">
+                    <div className="flex-1 overflow-auto px-6 md:px-8 py-6">
                         {loading ? (
                             <div className="flex flex-col items-center justify-center py-20 gap-4">
                                 <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
                                 <p className="text-sm text-slate-500 font-medium animate-pulse">Fetching attendee list...</p>
                             </div>
                         ) : filteredRegistrants.length > 0 ? (
-                            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                            <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
                                 <table className="w-full text-left border-collapse">
                                     <thead>
-                                        <tr className="bg-slate-50/50 border-b border-slate-200">
+                                        <tr className="bg-slate-50 border-b border-slate-100">
                                             <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">Attendee</th>
                                             <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">Student ID</th>
                                             <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-slate-500 text-center">Batch</th>
@@ -147,7 +147,7 @@ export function EventAttendeesModal({ event, isOpen, onClose }: EventAttendeesMo
                                                         </div>
                                                         <div>
                                                             <p className="text-sm font-bold text-slate-900">
-                                                                {registrant.first_name || registrant.last_name 
+                                                                {registrant.first_name || registrant.last_name
                                                                     ? `${registrant.first_name ?? ""} ${registrant.last_name ?? ""}`.trim()
                                                                     : "Anonymous User"}
                                                             </p>
@@ -194,8 +194,8 @@ export function EventAttendeesModal({ event, isOpen, onClose }: EventAttendeesMo
                                     {searchTerm ? "No results match your search criteria." : "No alumni have registered for this event yet."}
                                 </p>
                                 {searchTerm && (
-                                    <Button 
-                                        variant="link" 
+                                    <Button
+                                        variant="link"
                                         onClick={() => setSearchTerm("")}
                                         className="mt-2 text-emerald-600 font-bold"
                                     >
@@ -207,7 +207,7 @@ export function EventAttendeesModal({ event, isOpen, onClose }: EventAttendeesMo
                     </div>
 
                     {/* Footer / Pagination */}
-                    <div className="px-8 py-4 bg-white border-t border-slate-200 flex items-center justify-between">
+                    <div className="px-6 md:px-8 py-4 bg-white border-t border-slate-100 flex items-center justify-between shrink-0">
                         <p className="text-xs text-slate-500 font-medium">
                             Showing <span className="text-slate-900 font-bold">{Math.min(registrants.length, total)}</span> of <span className="text-slate-900 font-bold">{total}</span> registrants
                         </p>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Search, ClipboardList, CheckCircle2, HelpCircle } from "lucide-react";
 import { Survey } from "../../../_lib/surveys";
 import AlumniSurveyCard from "./AlumniSurveyCard";
+import { Skeleton } from "../../../../../components/ui/skeleton";
 
 interface AlumniSurveyListProps {
     activeSurveys: Survey[];
@@ -51,11 +52,10 @@ export default function AlumniSurveyList({
                     <div className="flex bg-slate-100/80 p-1.5 rounded-xl border border-slate-200/60 self-start">
                         <button
                             onClick={() => setActiveTab("active")}
-                            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
-                                activeTab === "active"
-                                    ? "bg-white text-emerald-700 shadow-sm border border-slate-200/50"
-                                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
-                            }`}
+                            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${activeTab === "active"
+                                ? "bg-white text-emerald-700 shadow-sm border border-slate-200/50"
+                                : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
+                                }`}
                         >
                             <ClipboardList className="h-4 w-4" />
                             Active
@@ -67,11 +67,10 @@ export default function AlumniSurveyList({
                         </button>
                         <button
                             onClick={() => setActiveTab("completed")}
-                            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
-                                activeTab === "completed"
-                                    ? "bg-white text-emerald-700 shadow-sm border border-slate-200/50"
-                                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
-                            }`}
+                            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${activeTab === "completed"
+                                ? "bg-white text-emerald-700 shadow-sm border border-slate-200/50"
+                                : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
+                                }`}
                         >
                             <CheckCircle2 className="h-4 w-4" />
                             Completed
@@ -99,14 +98,53 @@ export default function AlumniSurveyList({
 
             {/* Loading State */}
             {isLoading ? (
-                <div className="flex items-center justify-center py-20">
-                    <div className="flex flex-col items-center gap-4">
-                        <div className="relative h-10 w-10">
-                            <div className="absolute inset-0 rounded-full border-2 border-slate-200"></div>
-                            <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-emerald-700 animate-spin"></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 skeleton-stagger">
+                    {[1, 2, 3].map((i) => (
+                        <div
+                            key={i}
+                            className="relative rounded-2xl bg-white border border-slate-200/80 shadow-sm p-5 flex flex-col h-full"
+                        >
+                            {/* Status and Question Count Badges row */}
+                            <div className="flex items-start justify-between mb-4">
+                                <Skeleton className="h-6 w-20 rounded-full" />
+                                <Skeleton className="h-6 w-16 rounded-md" />
+                            </div>
+
+                            {/* Title & Description */}
+                            <div className="flex-1">
+                                <Skeleton className="h-6 w-3/4 rounded-md mb-2" />
+                                <div className="space-y-1.5 mb-5">
+                                    <Skeleton className="h-4 w-full rounded" />
+                                    <Skeleton className="h-4 w-5/6 rounded" />
+                                </div>
+                            </div>
+
+                            {/* Details Footer */}
+                            <div className="space-y-4 pt-4 border-t border-slate-100 mt-auto">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="flex items-center gap-2">
+                                        <Skeleton className="h-4 w-4 rounded-full flex-shrink-0" />
+                                        <div className="space-y-1">
+                                            <Skeleton className="h-2.5 w-10 rounded" />
+                                            <Skeleton className="h-3.5 w-16 rounded" />
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Skeleton className="h-4 w-4 rounded-full flex-shrink-0" />
+                                        <div className="space-y-1">
+                                            <Skeleton className="h-2.5 w-10 rounded" />
+                                            <Skeleton className="h-3.5 w-16 rounded" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Action Button */}
+                                <div className="pt-1">
+                                    <Skeleton className="h-10 w-full rounded-xl" />
+                                </div>
+                            </div>
                         </div>
-                        <p className="text-sm font-medium text-slate-600">Loading surveys...</p>
-                    </div>
+                    ))}
                 </div>
             ) : displayedSurveys.length === 0 ? (
                 /* Empty State */

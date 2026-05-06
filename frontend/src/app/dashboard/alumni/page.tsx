@@ -61,7 +61,7 @@ export default async function AlumniDashboard() {
             </div>
 
             {/* Bottom Grid */}
-            <div className="grid gap-5 lg:grid-cols-2">
+            <div className="grid gap-5 lg:grid-cols-2 items-start">
                 <UpcomingEvents />
                 <RecentActivity />
             </div>

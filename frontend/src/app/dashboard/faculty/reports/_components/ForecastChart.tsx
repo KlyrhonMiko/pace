@@ -44,19 +44,17 @@ function CustomTooltip({ active, payload, label }: any) {
                 </div>
                 <div className="flex items-center gap-2">
                     <div
-                        className={`w-2.5 h-2.5 rounded-full ${
-                            data.yoy_change >= 0
-                                ? "bg-emerald-400"
-                                : "bg-red-400"
-                        }`}
+                        className={`w-2.5 h-2.5 rounded-full ${data.yoy_change >= 0
+                            ? "bg-emerald-400"
+                            : "bg-red-400"
+                            }`}
                     />
                     <span className="text-xs text-gray-500">YoY Change:</span>
                     <span
-                        className={`text-xs font-bold ${
-                            data.yoy_change >= 0
-                                ? "text-emerald-700"
-                                : "text-red-600"
-                        }`}
+                        className={`text-xs font-bold ${data.yoy_change >= 0
+                            ? "text-emerald-700"
+                            : "text-red-600"
+                            }`}
                     >
                         {data.yoy_change >= 0 ? "+" : ""}
                         {data.yoy_change}
@@ -77,6 +75,9 @@ export default function ForecastChart({
         name: f.year.toString(),
     }));
 
+    const minPoint = Math.min(...forecasts.map(f => f.point));
+    const maxPoint = Math.max(...forecasts.map(f => f.point));
+
     return (
         <div className="rounded-2xl bg-white border border-gray-200/60 overflow-hidden">
             {/* Chart Header */}
@@ -92,18 +93,16 @@ export default function ForecastChart({
                         </p>
                     </div>
                     <div
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
-                            dataSource === "real"
-                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                : "bg-amber-50 text-amber-700 border border-amber-200"
-                        }`}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${dataSource === "real"
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            : "bg-amber-50 text-amber-700 border border-amber-200"
+                            }`}
                     >
                         <div
-                            className={`w-1.5 h-1.5 rounded-full ${
-                                dataSource === "real"
-                                    ? "bg-emerald-500"
-                                    : "bg-amber-500"
-                            }`}
+                            className={`w-1.5 h-1.5 rounded-full ${dataSource === "real"
+                                ? "bg-emerald-500"
+                                : "bg-amber-500"
+                                }`}
                         />
                         {dataSource} data
                     </div>
@@ -167,6 +166,8 @@ export default function ForecastChart({
                             tickLine={false}
                         />
                         <YAxis
+                            domain={[minPoint - 50, maxPoint + 50]}
+                            allowDataOverflow={true}
                             tick={{ fontSize: 12, fill: "#94a3b8" }}
                             axisLine={false}
                             tickLine={false}
@@ -247,11 +248,10 @@ export default function ForecastChart({
                                 {f.year}
                             </span>
                             <span
-                                className={`inline-flex items-center gap-0.5 text-xs font-bold px-1.5 py-0.5 rounded-md ${
-                                    f.yoy_change >= 0
-                                        ? "bg-emerald-50 text-emerald-700"
-                                        : "bg-red-50 text-red-600"
-                                }`}
+                                className={`inline-flex items-center gap-0.5 text-xs font-bold px-1.5 py-0.5 rounded-md ${f.yoy_change >= 0
+                                    ? "bg-emerald-50 text-emerald-700"
+                                    : "bg-red-50 text-red-600"
+                                    }`}
                             >
                                 {f.yoy_change >= 0 ? "↑" : "↓"}
                                 {Math.abs(f.yoy_change)}

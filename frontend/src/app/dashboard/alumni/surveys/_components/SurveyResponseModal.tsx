@@ -2,28 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { X, Loader2, RotateCcw, Send } from "lucide-react";
-import { Survey, Question } from "../../../_lib/surveys";
+import { Survey, Question, SurveyResponse, AnswerItem, SurveySubmissionPayload } from "../../../_lib/surveys";
 import { DatePicker } from "@/components/ui/date-picker";
-
-// ------------------------------------------------------------------
-// Types for building the submission payload
-// ------------------------------------------------------------------
-
-export interface AnswerItem {
-    question_id: string;
-    answer_text?: string | null;
-    answer_choice?: string | null;
-    answer_choices?: string | null; // JSON string for MULTI_SELECT
-    answer_scale?: number | null;
-    answer_number?: number | null;
-    answer_date?: string | null;
-    answer_bool?: boolean | null;
-}
-
-export interface SurveySubmissionPayload {
-    alumni_id?: string | null; // null — the backend resolves identity from auth token
-    answers: AnswerItem[];
-}
 
 interface SurveyResponseModalProps {
     isOpen: boolean;
@@ -33,7 +13,7 @@ interface SurveyResponseModalProps {
     isSubmitting?: boolean;
     isLoadingQuestions?: boolean;
     readOnly?: boolean;
-    initialAnswers?: any;
+    initialAnswers?: SurveyResponse | null;
 }
 
 // ------------------------------------------------------------------

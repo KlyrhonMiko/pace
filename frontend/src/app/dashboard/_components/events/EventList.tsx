@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import EventCard from "./EventCard";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
     type Event,
 } from "@/app/dashboard/_lib/events";
@@ -68,7 +69,7 @@ export default function EventList({
                                 {isManagementMode ? "Events Directory" : "Available Events"}
                             </h2>
                             <p className="text-xs text-gray-500 mt-0.5">
-                                {isManagementMode 
+                                {isManagementMode
                                     ? `Manage and track platform activities`
                                     : `Discover and register for upcoming events`}
                                 {totalEvents !== undefined && ` (${totalEvents})`}
@@ -93,11 +94,52 @@ export default function EventList({
                 {/* List Area */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-7">
                     {isLoading ? (
-                        <div className="py-32 text-center bg-slate-50/20 rounded-2xl border border-dashed border-slate-200">
-                            <div className="flex flex-col items-center gap-3">
-                                <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
-                                <p className="text-sm font-semibold text-slate-500 animate-pulse">Loading events...</p>
-                            </div>
+                        <div className="space-y-3.5 skeleton-stagger">
+                            {[1, 2, 3].map((i) => (
+                                <div
+                                    key={i}
+                                    className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+                                >
+                                    <div className="relative flex flex-col md:grid md:grid-cols-[200px_1fr] min-h-[200px]">
+                                        {/* Left: Date showcase placeholder */}
+                                        <div className="relative flex flex-col items-center justify-center h-48 md:h-auto skeleton-shimmer" style={{
+                                            background: 'linear-gradient(160deg, hsl(160 40% 96%), hsl(160 30% 93%))'
+                                        }}>
+                                            <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, #059669 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+                                            <div className="relative z-10 flex flex-col items-center">
+                                                <Skeleton className="h-3 w-8 rounded bg-emerald-200/40" />
+                                                <Skeleton className="h-10 w-12 rounded-md mt-1 bg-slate-300/30" />
+                                                <div className="mt-2.5 h-px w-8 rounded-full bg-emerald-200/30" />
+                                                <Skeleton className="h-[10px] w-20 rounded mt-2 bg-slate-300/20" />
+                                            </div>
+                                        </div>
+
+                                        {/* Right: Content placeholder */}
+                                        <div className="relative flex flex-col justify-center p-5 md:py-6 md:pr-6 md:pl-4">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <Skeleton className="h-[10px] w-20 rounded" />
+                                                <Skeleton className="h-8 w-28 rounded-lg" />
+                                            </div>
+                                            <Skeleton className="h-[18px] w-3/4 rounded-md" />
+                                            <div className="mt-2 space-y-1.5">
+                                                <Skeleton className="h-[11px] w-full rounded" />
+                                                <Skeleton className="h-[11px] w-2/3 rounded" />
+                                            </div>
+                                            <div className="my-3 h-px w-full bg-slate-100" />
+                                            <div className="flex flex-wrap gap-1.5">
+                                                <Skeleton className="h-7 w-24 rounded-lg" />
+                                                <Skeleton className="h-7 w-28 rounded-lg" />
+                                                <Skeleton className="h-7 w-20 rounded-lg" />
+                                                <Skeleton className="h-7 w-32 rounded-lg" />
+                                            </div>
+                                            <div className="mt-4 flex items-center gap-3">
+                                                <Skeleton className="h-1.5 flex-1 rounded-full" />
+                                                <Skeleton className="h-[10px] w-20 rounded" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     ) : events.length === 0 ? (
                         <div className="py-32 text-center bg-slate-50/20 rounded-2xl border border-dashed border-slate-200">

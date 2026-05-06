@@ -25,6 +25,7 @@ import { getMyProfile, AlumniProfile, updateMyProfile, updateMyAccount } from ".
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { SkillsInput } from "@/components/ui/skills-input";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -548,9 +549,139 @@ export default function ProfilePage() {
 
     if (isLoading) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-                <Loader2 className="w-10 h-10 text-emerald-600 animate-spin" />
-                <p className="text-gray-500 font-medium animate-pulse">Loading profile...</p>
+            <div className="space-y-6 animate-in fade-in duration-500">
+                {/* Page Header */}
+                <PageHeader
+                    title="My Profile"
+                    description="View and manage your account information, personal details, and academic records."
+                    currentPage="My Profile"
+                />
+                {/* Bento Grid Skeleton */}
+                <div className="grid gap-6 lg:grid-cols-12">
+                    {/* Left Column */}
+                    <div className="lg:col-span-7 flex flex-col gap-6 skeleton-stagger">
+
+                        {/* Profile Hero Skeleton */}
+                        <div className="relative overflow-hidden rounded-2xl p-6 lg:p-8 skeleton-shimmer" style={{
+                            background: 'linear-gradient(135deg, hsl(160 50% 30%) 0%, hsl(160 40% 35%) 50%, hsl(170 40% 40%) 100%)'
+                        }}>
+                            <div className="relative flex items-center gap-6">
+                                <div className="flex-shrink-0 w-20 h-20 rounded-full bg-white/20" />
+                                <div className="flex-1 min-w-0 space-y-3">
+                                    <Skeleton className="h-3 w-12 rounded bg-white/20" />
+                                    <Skeleton className="h-6 w-48 rounded-md bg-white/20" />
+                                    <div className="flex gap-2">
+                                        <Skeleton className="h-6 w-28 rounded-full bg-white/15" />
+                                        <Skeleton className="h-6 w-32 rounded-full bg-white/15" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Account Section Skeleton */}
+                        <div className="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
+                            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-xl skeleton-shimmer" style={{
+                                        background: 'linear-gradient(135deg, hsl(220 20% 30%) 0%, hsl(220 15% 20%) 100%)'
+                                    }}>
+                                        <div className="skeleton-shimmer h-full w-full rounded-xl" />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Skeleton className="h-[14px] w-40 rounded-md" />
+                                        <Skeleton className="h-[11px] w-32 rounded" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="px-6 py-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {[1, 2].map((i) => (
+                                    <div key={i} className="space-y-1.5">
+                                        <Skeleton className="h-[12px] w-20 rounded" />
+                                        <Skeleton className="h-11 w-full rounded-md" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Personal Section Skeleton */}
+                        <div className="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
+                            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-xl skeleton-shimmer" style={{
+                                        background: 'linear-gradient(135deg, hsl(160 40% 40%) 0%, hsl(170 40% 45%) 100%)'
+                                    }}>
+                                        <div className="skeleton-shimmer h-full w-full rounded-xl" />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Skeleton className="h-[14px] w-44 rounded-md" />
+                                        <Skeleton className="h-[11px] w-28 rounded" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="px-6 py-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {[1, 2, 3, 4, 5, 6].map((i) => (
+                                    <div key={i} className="space-y-1.5">
+                                        <Skeleton className="h-[12px] w-24 rounded" />
+                                        <Skeleton className="h-11 w-full rounded-md" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Column */}
+                    <div className="lg:col-span-5 flex flex-col gap-6 skeleton-stagger">
+                        {/* Employment Section Skeleton */}
+                        <div className="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
+                            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-xl skeleton-shimmer" style={{
+                                        background: 'linear-gradient(135deg, hsl(220 50% 45%) 0%, hsl(230 40% 40%) 100%)'
+                                    }}>
+                                        <div className="skeleton-shimmer h-full w-full rounded-xl" />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Skeleton className="h-[14px] w-48 rounded-md" />
+                                        <Skeleton className="h-[11px] w-36 rounded" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="px-6 py-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {[1, 2, 3, 4].map((i) => (
+                                    <div key={i} className="space-y-1.5">
+                                        <Skeleton className="h-[12px] w-28 rounded" />
+                                        <Skeleton className="h-11 w-full rounded-md" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Academic Section Skeleton */}
+                        <div className="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
+                            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-xl skeleton-shimmer" style={{
+                                        background: 'linear-gradient(135deg, hsl(270 40% 50%) 0%, hsl(280 35% 45%) 100%)'
+                                    }}>
+                                        <div className="skeleton-shimmer h-full w-full rounded-xl" />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Skeleton className="h-[14px] w-44 rounded-md" />
+                                        <Skeleton className="h-[11px] w-36 rounded" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="px-6 py-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {[1, 2, 3, 4, 5, 6].map((i) => (
+                                    <div key={i} className="space-y-1.5">
+                                        <Skeleton className="h-[12px] w-24 rounded" />
+                                        <Skeleton className="h-11 w-full rounded-md" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         );
     }

@@ -67,25 +67,45 @@ export default function RecommendedJobs() {
                     {/* Job Cards */}
                     <div className="flex-1 flex flex-col gap-3">
                         {isLoading ? (
-                            <div className="flex flex-col gap-3">
+                            <div className="flex flex-col gap-3 skeleton-stagger">
                                 {[1, 2, 3, 4].map((i) => (
-                                    <div key={i} className="flex items-start gap-4 p-4 rounded-xl bg-gray-50/50 border border-gray-100/50 animate-pulse">
-                                        <Skeleton className="h-11 w-11 rounded-xl flex-shrink-0" />
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex justify-between items-start mb-2.5">
-                                                <div className="space-y-2">
-                                                    <Skeleton className="h-4 w-48" />
-                                                    <Skeleton className="h-3.5 w-32" />
+                                    <div
+                                        key={i}
+                                        className="relative flex items-start gap-4 p-4 rounded-xl bg-gradient-to-r from-gray-50/80 to-white border border-gray-100/80"
+                                    >
+                                        {/* Icon placeholder with warm tint */}
+                                        <div className="h-11 w-11 rounded-xl flex-shrink-0 skeleton-shimmer bg-gradient-to-br" style={{
+                                            background: 'linear-gradient(135deg, hsl(35 40% 90%) 0%, hsl(25 30% 88%) 100%)'
+                                        }}>
+                                            <div className="skeleton-shimmer h-full w-full rounded-xl" />
+                                        </div>
+
+                                        <div className="flex-1 min-w-0 space-y-3">
+                                            {/* Title row + Badge */}
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="flex-1 min-w-0 space-y-2">
+                                                    <Skeleton className="h-[14px] w-3/5 rounded-md" />
+                                                    <Skeleton className="h-[11px] w-2/5 rounded-md" />
                                                 </div>
-                                                <Skeleton className="h-6 w-20 rounded-full" />
+                                                <Skeleton className="h-[22px] w-[72px] rounded-full flex-shrink-0" />
                                             </div>
-                                            <div className="space-y-1.5 mb-3">
-                                                <Skeleton className="h-3 w-full" />
-                                                <Skeleton className="h-3 w-4/5" />
+
+                                            {/* Description lines */}
+                                            <div className="space-y-1.5">
+                                                <Skeleton className="h-[10px] w-full rounded" />
+                                                <Skeleton className="h-[10px] w-4/6 rounded" />
                                             </div>
-                                            <div className="flex gap-4">
-                                                <Skeleton className="h-3.5 w-28" />
-                                                <Skeleton className="h-3.5 w-24" />
+
+                                            {/* Meta row — location + salary icons */}
+                                            <div className="flex items-center gap-5 pt-0.5">
+                                                <div className="flex items-center gap-1.5">
+                                                    <Skeleton className="h-3.5 w-3.5 rounded" />
+                                                    <Skeleton className="h-[10px] w-20 rounded" />
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <Skeleton className="h-3.5 w-3.5 rounded" />
+                                                    <Skeleton className="h-[10px] w-16 rounded" />
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

@@ -19,6 +19,8 @@ import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 
 
+import { Skeleton } from "@/components/ui/skeleton";
+
 interface Application {
     id: string;
     applicant: string;
@@ -90,7 +92,7 @@ export default function EmployerApplicationList({
             </div>
 
             {/* Table Area */}
-            <div className="flex-1 overflow-x-auto custom-scrollbar">
+            <div className="flex-1 overflow-x-auto overflow-y-hidden custom-scrollbar">
                 <table className="w-full text-left border-collapse min-w-[700px]">
                     <thead>
                         <tr className="bg-slate-50/30 border-b border-slate-100">
@@ -100,16 +102,35 @@ export default function EmployerApplicationList({
                             <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-100 skeleton-stagger">
                         {isLoading ? (
-                            <tr>
-                                <td colSpan={5} className="px-6 py-32 text-center bg-slate-50/20">
-                                    <div className="flex flex-col items-center gap-3">
-                                        <Loader2 className="h-8 w-8 animate-spin text-emerald-700" />
-                                        <p className="text-sm font-medium text-slate-500">Loading applications...</p>
-                                    </div>
-                                </td>
-                            </tr>
+                            [1, 2, 3].map((i) => (
+                                <tr key={i} className="border-b border-slate-100">
+                                    <td className="px-4 py-4">
+                                        <div className="flex items-center gap-4">
+                                            <Skeleton className="h-11 w-11 rounded-xl" />
+                                            <Skeleton className="h-4 w-32 rounded-md" />
+                                        </div>
+                                    </td>
+                                    <td className="px-4 py-4">
+                                        <div className="flex flex-col gap-2">
+                                            <Skeleton className="h-4 w-24 rounded-md" />
+                                            <Skeleton className="h-3 w-20 rounded-md" />
+                                        </div>
+                                    </td>
+                                    <td className="px-4 py-4">
+                                        <Skeleton className="h-4 w-16 rounded-full" />
+                                    </td>
+                                    <td className="px-4 py-4 text-right">
+                                        <div className="flex items-center justify-end gap-1.5">
+                                            <Skeleton className="h-8 w-8 rounded-lg" />
+                                            <Skeleton className="h-8 w-8 rounded-lg" />
+                                            <Skeleton className="h-8 w-8 rounded-lg" />
+                                            <Skeleton className="h-8 w-8 rounded-lg" />
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))
                         ) : applications.length === 0 ? (
                             <tr>
                                 <td colSpan={5} className="px-6 py-32 text-center bg-slate-50/20">

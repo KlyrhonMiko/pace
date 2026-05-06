@@ -87,6 +87,55 @@
   }
 }
 
+/* ── Premium Skeleton Shimmer ────────────────────────────────── */
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(
+    110deg,
+    hsl(220 15% 93%) 0%,
+    hsl(220 10% 95%) 40%,
+    hsl(220 15% 93%) 100%
+  );
+}
+
+.skeleton-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    110deg,
+    transparent 25%,
+    hsl(0 0% 100% / 0.6) 37%,
+    hsl(0 0% 100% / 0.8) 50%,
+    hsl(0 0% 100% / 0.6) 63%,
+    transparent 75%
+  );
+  animation: shimmer 1.8s ease-in-out infinite;
+}
+
+/* Staggered skeleton rows for natural loading feel */
+.skeleton-stagger > :nth-child(1) { animation-delay: 0ms; }
+.skeleton-stagger > :nth-child(2) { animation-delay: 80ms; }
+.skeleton-stagger > :nth-child(3) { animation-delay: 160ms; }
+.skeleton-stagger > :nth-child(4) { animation-delay: 240ms; }
+
+.skeleton-stagger > * {
+  opacity: 0;
+  animation: skeleton-fade-in 0.5s ease-out forwards;
+}
+
+@keyframes skeleton-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 :root {
   --radius: 0.625rem;
   --background: oklch(1 0 0);

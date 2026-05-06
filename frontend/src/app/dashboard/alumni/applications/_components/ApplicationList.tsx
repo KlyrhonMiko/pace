@@ -18,6 +18,7 @@ import {
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export type ApplicationStatus = "Pending" | "Reviewed" | "Interview" | "Accepted" | "Rejected";
 
@@ -157,14 +158,37 @@ export default function ApplicationList({
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                         {isLoading ? (
-                            <tr>
-                                <td colSpan={4} className="px-6 py-32 text-center bg-slate-50/20">
-                                    <div className="flex flex-col items-center gap-3">
-                                        <Loader2 className="h-8 w-8 animate-spin text-emerald-700" />
-                                        <p className="text-sm font-medium text-slate-500">Loading applications...</p>
-                                    </div>
-                                </td>
-                            </tr>
+                            <>
+                                {[1, 2, 3, 4, 5].map((i) => (
+                                    <tr key={i} className="animate-in fade-in slide-in-from-bottom-2" style={{ animationDelay: `${(i - 1) * 80}ms`, animationFillMode: 'both' }}>
+                                        <td className="px-6 py-5">
+                                            <div className="flex items-center gap-4">
+                                                <div className="h-11 w-11 rounded-xl flex-shrink-0 skeleton-shimmer" style={{
+                                                    background: 'linear-gradient(135deg, hsl(160 40% 92%) 0%, hsl(150 30% 88%) 100%)'
+                                                }}>
+                                                    <div className="skeleton-shimmer h-full w-full rounded-xl" />
+                                                </div>
+                                                <div className="min-w-0 space-y-1.5">
+                                                    <Skeleton className="h-[13px] w-36 rounded-md" />
+                                                    <Skeleton className="h-[11px] w-24 rounded" />
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-5">
+                                            <div className="flex items-center gap-1.5">
+                                                <Skeleton className="h-3.5 w-3.5 rounded" />
+                                                <Skeleton className="h-[12px] w-28 rounded" />
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-5">
+                                            <Skeleton className="h-[22px] w-24 rounded-full" />
+                                        </td>
+                                        <td className="px-6 py-5 text-right">
+                                            <Skeleton className="h-8 w-8 rounded-lg ml-auto" />
+                                        </td>
+                                    </tr>
+                                ))}
+                            </>
                         ) : applications.length === 0 ? (
                             <tr>
                                 <td colSpan={4} className="px-6 py-32 text-center bg-slate-50/20">

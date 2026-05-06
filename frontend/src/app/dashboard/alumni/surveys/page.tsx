@@ -5,8 +5,7 @@ import { toast } from "sonner";
 import PageHeader from "@/components/dashboard/PageHeader";
 import AlumniSurveyList from "./_components/AlumniSurveyList";
 import SurveyResponseModal from "./_components/SurveyResponseModal";
-import type { SurveySubmissionPayload } from "./_components/SurveyResponseModal";
-import { Survey } from "../../_lib/surveys";
+import { Survey, SurveyResponse, SurveySubmissionPayload } from "../../_lib/surveys";
 import {
     fetchMyAlumniProfile,
     fetchAlumniActiveSurveys,

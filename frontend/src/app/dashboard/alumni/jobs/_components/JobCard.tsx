@@ -38,6 +38,7 @@ export default function JobCard({
     };
 
     const getLogoGradient = () => {
+        if (!logo) return 'from-gray-400 to-gray-500';
         const charCode = logo.charCodeAt(0);
         const gradients = [
             'from-violet-500 to-purple-600',

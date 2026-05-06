@@ -12,7 +12,7 @@ interface SurveyCardProps {
     onViewResults?: (survey: Survey) => void;
 }
 
-export default function SurveyCard({ survey, onEdit, onDelete, onPublish, onCloseSurvey, onArchive, onReopen }: SurveyCardProps) {
+export default function SurveyCard({ survey, onEdit, onDelete, onPublish, onCloseSurvey, onArchive, onReopen, onViewResults }: SurveyCardProps) {
 
     // Status color mapping
     const getStatusStyle = () => {

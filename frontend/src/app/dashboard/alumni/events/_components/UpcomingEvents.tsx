@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Calendar, Clock, MapPin, Users, Loader2, ArrowUpRight } from "lucide-react";
+import { Calendar, Clock, MapPin, Users, ArrowUpRight } from "lucide-react";
 import { fetchEvents, Event, getMonthAbbreviation, getDayNumber } from "../../../_lib/events";
+import { Skeleton } from "../../../../../components/ui/skeleton";
 
 function getAccentColor(eventType: string): string {
     switch (eventType?.toLowerCase()) {
@@ -39,7 +40,7 @@ export default function UpcomingEvents() {
     }, []);
 
     return (
-        <div className="relative rounded-2xl bg-white border border-slate-200/80 shadow-lg shadow-slate-200/30 hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col h-full">
+        <div className="relative rounded-2xl bg-white border border-slate-200/80 shadow-lg shadow-slate-200/30 hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col">
             {/* Decorative elements (matching EventList) */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute -top-20 -right-20 h-40 w-40 rounded-full bg-emerald-50 opacity-20 blur-3xl" />
@@ -70,11 +71,45 @@ export default function UpcomingEvents() {
                 {/* Event List */}
                 <div className="flex-1 p-6">
                     {loading ? (
-                        <div className="py-16 text-center bg-slate-50/20 rounded-2xl border border-dashed border-slate-200">
-                            <div className="flex flex-col items-center gap-3">
-                                <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
-                                <p className="text-sm font-semibold text-slate-500 animate-pulse">Loading events...</p>
-                            </div>
+                        <div className="flex flex-col gap-3 skeleton-stagger">
+                            {[1, 2, 3].map((i) => (
+                                <div
+                                    key={i}
+                                    className="relative flex overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+                                >
+                                    {/* Date Area placeholder */}
+                                    <div className="relative flex-shrink-0 self-stretch w-20 flex items-center justify-center skeleton-shimmer" style={{
+                                        background: 'linear-gradient(160deg, hsl(160 40% 96%), hsl(160 30% 93%))'
+                                    }}>
+                                        <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle, #059669 1px, transparent 1px)', backgroundSize: '14px 14px' }} />
+                                    </div>
+
+                                    {/* Event details placeholder */}
+                                    <div className="relative z-10 flex-1 min-w-0 p-3">
+                                        <div className="flex items-start justify-between gap-2 mb-1">
+                                            {/* Type */}
+                                            <Skeleton className="h-[9px] w-20 rounded" />
+                                            {/* Badge */}
+                                            <Skeleton className="h-[20px] w-20 rounded-md" />
+                                        </div>
+
+                                        {/* Title */}
+                                        <Skeleton className="h-[14px] w-3/4 rounded mt-1.5" />
+
+                                        {/* Meta row */}
+                                        <div className="mt-2.5 flex items-center gap-3">
+                                            <div className="flex items-center gap-1">
+                                                <Skeleton className="h-3 w-3 rounded-full" />
+                                                <Skeleton className="h-[11px] w-24 rounded" />
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <Skeleton className="h-3 w-3 rounded-full" />
+                                                <Skeleton className="h-[11px] w-16 rounded" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     ) : events.length > 0 ? (
                         <div className="space-y-3">

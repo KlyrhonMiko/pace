@@ -23,6 +23,7 @@ export default function EmployerJobsPage() {
     const [selectedExperience, setSelectedExperience] = useState<string[]>([]);
     const [selectedWorkTypes, setSelectedWorkTypes] = useState<string[]>([]);
     const [hasSalary, setHasSalary] = useState(false);
+    const [localOnly, setLocalOnly] = useState(false);
     const [salaryRange, setSalaryRange] = useState<[number, number]>([0, 500]);
     const [tempSalaryRange, setTempSalaryRange] = useState<[number, number]>([0, 500]);
 
@@ -54,6 +55,7 @@ export default function EmployerJobsPage() {
                 limit: JOBS_PER_PAGE,
                 has_salary: hasSalary,
                 include_inactive: true, // Employers should see their hidden jobs
+                local_only: localOnly,
             });
 
             if (result.error) {
@@ -72,7 +74,7 @@ export default function EmployerJobsPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [debouncedSearchQuery, debouncedLocationSearch, selectedTypes, selectedWorkTypes, selectedExperience, currentPage, hasSalary]);
+    }, [debouncedSearchQuery, debouncedLocationSearch, selectedTypes, selectedWorkTypes, selectedExperience, currentPage, hasSalary, localOnly]);
 
     useEffect(() => {
         fetchJobs();
@@ -103,6 +105,7 @@ export default function EmployerJobsPage() {
         setSalaryRange([0, 500]);
         setTempSalaryRange([0, 500]);
         setHasSalary(false);
+        setLocalOnly(false);
         setCurrentPage(1);
     };
 
@@ -221,6 +224,8 @@ export default function EmployerJobsPage() {
                             setHasSalary={setHasSalary}
                             tempSalaryRange={tempSalaryRange}
                             setTempSalaryRange={setTempSalaryRange}
+                            localOnly={localOnly}
+                            setLocalOnly={setLocalOnly}
                         />
                     </div>
                 </div>

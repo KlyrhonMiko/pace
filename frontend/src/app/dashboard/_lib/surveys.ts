@@ -437,6 +437,8 @@ export interface AlumniProfile {
 
 export interface AnswerItem {
     question_id: string;
+    question_text?: string;
+    question_type?: string;
     answer_text?: string | null;
     answer_choice?: string | null;
     answer_choices?: string | null; // JSON string for MULTI_SELECT
@@ -549,6 +551,13 @@ export async function fetchMySurveyResponse(surveyId: string): Promise<SurveyRes
         return null;
     }
 }
+export interface SurveyResponse {
+    response_id: string;
+    submitted_at: string;
+    is_complete: boolean;
+    answers: AnswerItem[];
+}
+
 export interface QuestionStats {
     question_id: string;
     question_text: string;

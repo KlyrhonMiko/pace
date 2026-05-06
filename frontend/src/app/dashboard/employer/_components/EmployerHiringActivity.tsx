@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { TrendingUp, Activity as ActivityIcon, Loader2, Zap, Briefcase, UserCheck, CalendarDays, Edit, Bookmark, LogIn, LogOut } from "lucide-react";
 import { fetchEmployerActivity, Activity } from "../../_lib/dashboard";
 import ActivityItem from "../../alumni/_components/ActivityItem";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function EmployerHiringActivity() {
     const [activities, setActivities] = useState<Activity[]>([]);
@@ -113,9 +114,30 @@ export default function EmployerHiringActivity() {
                 {/* Activity Timeline */}
                 <div className="space-y-0">
                     {loading ? (
-                        <div className="flex flex-col items-center justify-center py-10 gap-3 text-gray-400">
-                            <Loader2 className="h-6 w-6 animate-spin" />
-                            <p className="text-xs">Fetching life stream...</p>
+                        <div className="flex flex-col skeleton-stagger">
+                            {[1, 2, 3].map((i) => (
+                                <div key={i} className="relative flex gap-4 py-3.5 px-3 -mx-3 rounded-xl">
+                                    <div className="relative flex-shrink-0">
+                                        {i < 5 && (
+                                            <div className="absolute left-1/2 top-[3.25rem] -translate-x-1/2 w-px h-[calc(100%-12px)] bg-gradient-to-b from-gray-200 via-gray-100 to-transparent" />
+                                        )}
+                                        <div className="relative flex h-9 w-9 items-center justify-center rounded-xl shadow-md ring-4 ring-white skeleton-shimmer" style={{
+                                            background: 'linear-gradient(135deg, hsl(210 40% 92%) 0%, hsl(220 30% 88%) 100%)'
+                                        }}>
+                                            <div className="skeleton-shimmer h-full w-full rounded-xl" />
+                                        </div>
+                                    </div>
+                                    <div className="flex-1 min-w-0 pt-0.5">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="flex-1 min-w-0">
+                                                <Skeleton className="h-3.5 w-3/4 rounded-md" />
+                                                <Skeleton className="h-3 w-1/2 rounded-md mt-1.5" />
+                                            </div>
+                                            <Skeleton className="h-[18px] w-12 rounded-full flex-shrink-0 mt-0.5" />
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     ) : activities.length > 0 ? (
                         activities.map((activity, idx) => (

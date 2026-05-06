@@ -37,13 +37,18 @@ export const emptyResumeData: ResumeData = {
 interface Props {
     data: ResumeData;
     printRef?: React.RefObject<HTMLDivElement | null>;
+    isPdfMode?: boolean;
 }
 
-export function AtsResumeTemplate({ data, printRef }: Props) {
+export function AtsResumeTemplate({ data, printRef, isPdfMode }: Props) {
     return (
         <div
             ref={printRef as any}
-            className="bg-white mx-auto print:mx-0 shadow-lg print:shadow-none min-h-[1056px] w-[816px] max-w-full print:w-full print:min-h-0 text-black leading-snug tracking-tight font-sans overflow-hidden"
+            className={`bg-white text-black leading-snug tracking-tight font-sans overflow-hidden ${
+                isPdfMode 
+                ? "w-full h-full" 
+                : "mx-auto shadow-lg min-h-[1056px] w-[816px] max-w-full"
+            } print:mx-0 print:shadow-none print:w-full print:min-h-0`}
             style={{ padding: "48px 96px 96px 96px" }}
         >
             {/* Header */}

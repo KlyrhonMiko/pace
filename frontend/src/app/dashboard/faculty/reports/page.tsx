@@ -63,18 +63,7 @@ export default function FacultyReportsPage() {
                 currentPage="Employment Forecast"
                 dashboardHref="/dashboard/faculty"
                 dashboardName="Faculty Dashboard"
-            >
-                <button
-                    onClick={() => openWithQuery("Can you summarize the key trends and implications of this employment forecast?")}
-                    className="group inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 text-white text-sm font-medium shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 hover:from-emerald-500 hover:to-green-500 transition-all duration-300 cursor-pointer flex-shrink-0"
-                >
-                    <Sparkles
-                        className="h-4 w-4 group-hover:animate-pulse"
-                        strokeWidth={2}
-                    />
-                    Ask AI
-                </button>
-            </PageHeader>
+            />
 
             {/* Main Content */}
             <div className="relative">
@@ -131,13 +120,38 @@ export default function FacultyReportsPage() {
                             </div>
 
                             {/* Right Column: Interaction & Data */}
-                            <div className="lg:col-span-1 space-y-6">
+                            <div className="lg:col-span-1 flex flex-col gap-6 h-full">
                                 <NewForecastForm
                                     onForecastCreated={handleForecastCreated}
                                     isLoading={generating}
                                     onSubmit={handleNewForecast}
                                     initialSteps={forecast?.forecast_steps}
                                 />
+                                <div className="flex-1 rounded-2xl bg-white border border-gray-200/60 overflow-hidden flex flex-col">
+                                    <div className="px-6 pt-6 pb-5 flex items-center gap-4">
+                                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 flex-shrink-0">
+                                            <Sparkles className="h-6 w-6" strokeWidth={2} />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <h3 className="text-base font-bold text-gray-900 leading-tight truncate">
+                                                AI Insights
+                                            </h3>
+                                            <p className="text-xs text-gray-500 mt-0.5 font-medium truncate">
+                                                AI-powered analysis & tools
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="px-6 pb-6 mt-auto">
+                                        <button
+                                            onClick={() => openWithQuery("Can you summarize the key trends and implications of this employment forecast?")}
+                                            className="w-full group inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 transition-all duration-200 shadow-lg shadow-emerald-700/20 hover:shadow-emerald-800/30 cursor-pointer"
+                                        >
+                                            <Sparkles className="h-4 w-4 group-hover:animate-pulse" strokeWidth={2.5} />
+                                            Generate Insights
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 

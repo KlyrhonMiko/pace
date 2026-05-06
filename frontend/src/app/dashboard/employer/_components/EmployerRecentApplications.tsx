@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, Clock, Users, Loader2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { formatDistanceToNow, parseISO } from "date-fns";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Application {
     id: string;
@@ -64,14 +65,41 @@ export default function EmployerRecentApplications() {
                 </Link>
             </div>
 
-            <div className="flex-1 overflow-x-auto custom-scrollbar relative min-h-[300px]">
+            <div className="flex-1 overflow-x-auto overflow-y-hidden custom-scrollbar relative min-h-[300px]">
                 {isLoading ? (
-                    <div className="absolute inset-0 flex items-center justify-center bg-white/50 backdrop-blur-[1px] z-10">
-                        <div className="flex flex-col items-center gap-3">
-                            <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
-                            <p className="text-xs font-medium text-gray-400">Loading applications...</p>
-                        </div>
-                    </div>
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="bg-slate-50/30 border-b border-slate-100">
+                                <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Candidate</th>
+                                <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Role</th>
+                                <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                                <th className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-right">Applied</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100/80 skeleton-stagger">
+                            {[1, 2, 3].map((i) => (
+                                <tr key={i} className="border-b border-slate-100/80">
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-3">
+                                            <Skeleton className="h-9 w-9 rounded-full" />
+                                            <Skeleton className="h-4 w-32 rounded-md" />
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <Skeleton className="h-4 w-24 rounded-md" />
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <Skeleton className="h-5 w-16 rounded-md" />
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex justify-end">
+                                            <Skeleton className="h-3 w-16 rounded-md" />
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 ) : applications.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full py-12 px-6 text-center">
                         <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mb-4">

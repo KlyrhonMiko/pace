@@ -14,8 +14,10 @@ import {
     ChevronRight,
     ClipboardList,
     Clock,
-    User
+    User,
+    Link as LinkIcon
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Survey, SURVEY_STATUSES } from "../../_lib/surveys";
 import SurveyFilters from "./SurveyFilters";
@@ -230,6 +232,22 @@ export default function SurveysView({
                                                                 title="Publish"
                                                             >
                                                                 <Globe className="h-4 w-4" />
+                                                            </Button>
+                                                        )}
+                                                        {(survey.status === 'ACTIVE' || survey.status === 'CLOSED' || survey.status === 'ARCHIVED') && (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const link = `${window.location.origin}/surveys/${survey.survey_id}`;
+                                                                    navigator.clipboard.writeText(link);
+                                                                    toast.success("Survey link copied to clipboard");
+                                                                }}
+                                                                className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                                                title="Copy Link"
+                                                            >
+                                                                <LinkIcon className="h-4 w-4" />
                                                             </Button>
                                                         )}
                                                         <Button

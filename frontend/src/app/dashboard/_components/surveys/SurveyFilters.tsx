@@ -71,7 +71,7 @@ export default function SurveyFilters({
                     <div className="border-b border-slate-200 last:border-b-0">
                         <button
                             onClick={() => toggleSection("status")}
-                            className="flex items-center justify-between w-full py-4 text-left hover:bg-slate-50/50 transition-colors rounded-lg px-1"
+                            className="flex items-center justify-between w-full py-4 text-left hover:bg-slate-50/50 transition-colors rounded-lg px-1 cursor-pointer"
                         >
                             <span className="text-sm font-semibold text-slate-800">Survey Status</span>
                             <ChevronDown
@@ -112,7 +112,7 @@ export default function SurveyFilters({
                     <div className="border-b border-slate-200 last:border-b-0">
                         <button
                             onClick={() => toggleSection("settings")}
-                            className="flex items-center justify-between w-full py-4 text-left hover:bg-slate-50/50 transition-colors rounded-lg px-1"
+                            className="flex items-center justify-between w-full py-4 text-left hover:bg-slate-50/50 transition-colors rounded-lg px-1 cursor-pointer"
                         >
                             <span className="text-sm font-semibold text-slate-800">Settings</span>
                             <ChevronDown
@@ -146,7 +146,7 @@ export default function SurveyFilters({
                 <div className="mt-8 pt-4 border-t border-slate-100">
                     <button
                         onClick={onClearFilters}
-                        className="w-full text-center text-sm font-semibold text-emerald-800 hover:text-emerald-700 hover:bg-emerald-50 py-2.5 rounded-lg transition-colors"
+                        className="w-full text-center text-sm font-semibold text-emerald-800 hover:text-emerald-700 hover:bg-emerald-50 py-2.5 rounded-lg transition-colors cursor-pointer"
                     >
                         Clear All Filters
                     </button>

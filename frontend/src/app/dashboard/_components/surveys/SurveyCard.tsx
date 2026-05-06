@@ -1,4 +1,5 @@
-import { Calendar, Users, EyeOff, FileText, CheckCircle2, Clock, Archive, Send, XCircle, RefreshCw, Box, BarChart3 } from "lucide-react";
+import { Calendar, Users, EyeOff, FileText, CheckCircle2, Clock, Archive, Send, XCircle, RefreshCw, Box, BarChart3, Link as LinkIcon } from "lucide-react";
+import { toast } from "sonner";
 import { Survey } from "../../_lib/surveys";
 
 interface SurveyCardProps {
@@ -119,6 +120,19 @@ export default function SurveyCard({ survey, onEdit, onDelete, onPublish, onClos
                         >
                             <XCircle className="h-3.5 w-3.5" />
                             Close
+                        </button>
+                    )}
+                    {(survey.status === "ACTIVE" || survey.status === "CLOSED" || survey.status === "ARCHIVED") && (
+                        <button
+                            onClick={() => {
+                                const link = `${window.location.origin}/surveys/${survey.survey_id}`;
+                                navigator.clipboard.writeText(link);
+                                toast.success("Survey link copied to clipboard");
+                            }}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors border border-slate-200"
+                        >
+                            <LinkIcon className="h-3.5 w-3.5" />
+                            Copy Link
                         </button>
                     )}
                     {survey.status === "CLOSED" && (

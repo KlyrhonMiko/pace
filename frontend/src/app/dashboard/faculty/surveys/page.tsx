@@ -23,7 +23,7 @@ export default function FacultySurveysPage() {
                 <div className="flex bg-slate-100/80 p-1.5 rounded-xl border border-slate-200/60">
                     <button
                         onClick={() => setActiveTab('surveys')}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${activeTab === 'surveys'
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 cursor-pointer ${activeTab === 'surveys'
                             ? 'bg-white text-emerald-700 shadow-sm border border-slate-200/50'
                             : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
                             }`}
@@ -33,7 +33,7 @@ export default function FacultySurveysPage() {
                     </button>
                     <button
                         onClick={() => setActiveTab('library')}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${activeTab === 'library'
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 cursor-pointer ${activeTab === 'library'
                             ? 'bg-white text-emerald-700 shadow-sm border border-slate-200/50'
                             : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
                             }`}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Loader2, Lock, User, ArrowRight, Eye, EyeOff, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
@@ -21,6 +21,7 @@ interface LoginFormProps {
 
 export function LoginForm({ onSuccess, isModal, onRegisterAlumniClick, onRegisterEmployerClick, showRegistration = true }: LoginFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -65,15 +66,22 @@ export function LoginForm({ onSuccess, isModal, onRegisterAlumniClick, onRegiste
           return;
         }
 
-        // Redirect based on user_type
-        if (response.data.user_type === "ADMIN") {
-          router.push("/dashboard/admin");
-        } else if (response.data.user_type === "STAFF") {
-          router.push("/dashboard/faculty");
-        } else if (response.data.user_type === "EMPLOYER") {
-          router.push("/dashboard/employer");
+        // Check for a custom redirect URL from the query string (e.g. ?redirect=/surveys/SRVY-XXXXX)
+        // This is set by the standalone survey page and survives hard redirects.
+        const customRedirect = searchParams.get("redirect");
+        if (customRedirect) {
+          router.push(customRedirect);
         } else {
-          router.push("/dashboard/alumni");
+          // Redirect based on user_type
+          if (response.data.user_type === "ADMIN") {
+            router.push("/dashboard/admin");
+          } else if (response.data.user_type === "STAFF") {
+            router.push("/dashboard/faculty");
+          } else if (response.data.user_type === "EMPLOYER") {
+            router.push("/dashboard/employer");
+          } else {
+            router.push("/dashboard/alumni");
+          }
         }
 
         // Call success callback if provided

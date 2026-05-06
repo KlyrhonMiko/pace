@@ -14,6 +14,7 @@ export default function proxy(request: NextRequest) {
     pathname.startsWith('/_next/') ||
     pathname.startsWith('/static/') ||
     pathname.includes('/public/') ||
+    pathname.startsWith('/surveys/') ||
     pathname === '/plp-logo.png';
 
   // Handle Public Routes - Bypass immediately to avoid logs and overhead

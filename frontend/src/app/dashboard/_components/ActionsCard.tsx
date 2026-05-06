@@ -57,7 +57,7 @@ export default function ActionsCard({
                                 <button
                                     key={idx}
                                     onClick={action.onClick}
-                                    className={`flex items-center justify-center gap-2 w-full px-5 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm ${action.variant === 'primary'
+                                    className={`flex items-center justify-center gap-2 w-full px-5 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm cursor-pointer ${action.variant === 'primary'
                                         ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200'
                                         : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200'
                                         }`}

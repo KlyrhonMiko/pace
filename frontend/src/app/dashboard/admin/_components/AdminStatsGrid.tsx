@@ -8,9 +8,21 @@ interface AdminStatsGridProps {
 export default function AdminStatsGrid({ stats }: AdminStatsGridProps) {
     if (!stats) {
         return (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 skeleton-stagger">
                 {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-[120px] rounded-2xl bg-gradient-to-br from-gray-100 to-gray-50 border border-gray-100 animate-pulse" />
+                    <div key={`skel-${i}`} className="group relative rounded-2xl bg-white border border-gray-100 p-5 overflow-hidden">
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="h-10 w-10 rounded-xl skeleton-shimmer" />
+                            <div className="w-12 h-5 rounded-full skeleton-shimmer" />
+                        </div>
+                        <div className="w-24 h-8 rounded-lg skeleton-shimmer mb-2" />
+                        <div className="w-20 h-3 rounded skeleton-shimmer" />
+                        <div className="flex items-end gap-[3px] mt-3 h-6">
+                            {[40, 60, 45, 70, 50, 80, 65, 85, 55, 90].map((h, idx) => (
+                                <div key={idx} className="flex-1 rounded-sm skeleton-shimmer" style={{ height: `${h}%` }} />
+                            ))}
+                        </div>
+                    </div>
                 ))}
             </div>
         );

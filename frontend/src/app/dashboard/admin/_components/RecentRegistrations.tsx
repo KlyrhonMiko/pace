@@ -11,9 +11,43 @@ interface RecentRegistrationsProps {
         initials: string;
         color: string;
     }[];
+    isLoading?: boolean;
 }
 
-export default function RecentRegistrations({ registrations }: RecentRegistrationsProps) {
+export default function RecentRegistrations({ registrations = [], isLoading }: RecentRegistrationsProps) {
+
+    if (isLoading) {
+        return (
+            <div className="group relative rounded-2xl bg-white border border-gray-100/80 shadow-sm overflow-hidden flex flex-col lg:col-span-2">
+                <div className="px-6 pt-5 pb-4 flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-xl skeleton-shimmer" />
+                        <div className="space-y-1.5">
+                            <div className="h-3 w-32 rounded skeleton-shimmer" />
+                            <div className="h-2 w-24 rounded skeleton-shimmer" />
+                        </div>
+                    </div>
+                    <div className="w-16 h-8 rounded-lg skeleton-shimmer" />
+                </div>
+                <div className="mx-6 h-9 bg-gray-50/60 rounded-lg border border-gray-100/40 mb-2 skeleton-shimmer" />
+                <div className="px-6 pt-1 pb-2 flex-1">
+                    <div className="space-y-3 pt-2">
+                        {[1, 2, 3, 4].map((i) => (
+                            <div key={`skel-${i}`} className="flex items-center gap-4 py-2">
+                                <div className="w-10 h-10 rounded-xl skeleton-shimmer flex-shrink-0" />
+                                <div className="space-y-2 flex-1">
+                                    <div className="h-4 w-32 rounded skeleton-shimmer" />
+                                    <div className="h-3 w-48 rounded skeleton-shimmer" />
+                                </div>
+                                <div className="hidden sm:block w-16 h-6 rounded-lg skeleton-shimmer" />
+                                <div className="hidden md:block w-20 h-6 rounded-lg skeleton-shimmer" />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="group relative rounded-2xl bg-white border border-gray-100/80 shadow-sm transition-all duration-500 hover:shadow-xl hover:shadow-gray-200/20 hover:border-gray-200/80 overflow-hidden flex flex-col lg:col-span-2">
@@ -45,7 +79,11 @@ export default function RecentRegistrations({ registrations }: RecentRegistratio
 
             {/* Rows */}
             <div className="px-6 pt-1 pb-2 flex-1">
-                {registrations.map((user, idx) => (
+                {registrations.length === 0 ? (
+                    <div className="flex-1 flex items-center justify-center text-gray-400 py-12">
+                        No recent registrations
+                    </div>
+                ) : registrations.map((user, idx) => (
                     <div
                         key={idx}
                         className="group/row grid grid-cols-12 gap-3 px-4 py-3.5 items-center rounded-xl hover:bg-gray-50/60 transition-all duration-200 cursor-pointer"

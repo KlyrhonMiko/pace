@@ -61,7 +61,7 @@ export function useUserManagement() {
     // --- Data State ---
     const [users, setUsers] = useState<User[]>([]);
     const [total, setTotal] = useState(0);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
     // --- Pagination ---
     const [currentPage, setCurrentPage] = useState(0);

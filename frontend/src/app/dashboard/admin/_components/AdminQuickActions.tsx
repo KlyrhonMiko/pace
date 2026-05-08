@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Zap, ChevronRight, UserPlus, Calendar, Briefcase, BarChart3, Settings } from "lucide-react";
+import { Zap, ChevronRight, UserPlus, Calendar, Briefcase, BarChart3, Settings, Brain } from "lucide-react";
 
 import React from "react";
 const actions = [
@@ -32,6 +32,16 @@ const actions = [
         gradient: "from-violet-500 to-violet-600",
         bgTint: "bg-violet-50",
         ringTint: "ring-violet-100/60",
+    },
+    {
+        label: "Model Registry",
+        description: "Manage ML models",
+        href: "/dashboard/admin/models",
+        icon: Brain,
+        color: "#f43f5e",
+        gradient: "from-rose-500 to-rose-600",
+        bgTint: "bg-rose-50",
+        ringTint: "ring-rose-100/60",
     },
     {
         label: "Gen. Report",

@@ -3,12 +3,13 @@ import React from "react";
 import { PieChart, CheckCircle2 } from "lucide-react";
 
 interface UserDistributionProps {
-    distribution: {
+    distribution?: {
         label: string;
         value: number;
         percentage: number;
         color: string;
     }[];
+    isLoading?: boolean;
 }
 
 const colorMap: Record<string, { hex: string; ring: string; bar: string }> = {
@@ -18,7 +19,7 @@ const colorMap: Record<string, { hex: string; ring: string; bar: string }> = {
     amber: { hex: "#f59e0b", ring: "ring-amber-100", bar: "bg-amber-100" },
 };
 
-export default function UserDistribution({ distribution = [] }: UserDistributionProps) {
+export default function UserDistribution({ distribution = [], isLoading }: UserDistributionProps) {
     const segments = (distribution || []).map(d => ({
         ...d,
         color: colorMap[d.color]?.hex || "#94a3b8",
@@ -28,6 +29,34 @@ export default function UserDistribution({ distribution = [] }: UserDistribution
     const radius = 46;
     const strokeWidth = 11;
     const circumference = 2 * Math.PI * radius;
+
+    if (isLoading) {
+        return (
+            <div className="group relative rounded-2xl bg-white border border-gray-100/80 shadow-sm overflow-hidden flex flex-col h-[320px]">
+                <div className="px-6 pt-5 pb-4 flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-xl skeleton-shimmer" />
+                        <div className="space-y-1.5">
+                            <div className="h-3 w-32 rounded skeleton-shimmer" />
+                            <div className="h-2 w-24 rounded skeleton-shimmer" />
+                        </div>
+                    </div>
+                    <div className="w-16 h-6 rounded-full skeleton-shimmer" />
+                </div>
+                <div className="px-6 pb-6 pt-2 flex-1 flex flex-col gap-4">
+                    <div className="flex items-center gap-8 flex-1">
+                        <div className="w-[160px] h-[160px] rounded-full skeleton-shimmer flex-shrink-0" />
+                        <div className="flex-1 space-y-4">
+                            <div className="h-4 rounded skeleton-shimmer" />
+                            <div className="h-4 rounded skeleton-shimmer" />
+                            <div className="h-4 rounded skeleton-shimmer" />
+                        </div>
+                    </div>
+                    <div className="h-16 rounded-xl skeleton-shimmer mt-auto" />
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="group relative rounded-2xl bg-white border border-gray-100/80 shadow-sm transition-all duration-500 hover:shadow-xl hover:shadow-blue-100/20 hover:border-gray-200/80 overflow-hidden flex flex-col">
@@ -50,6 +79,12 @@ export default function UserDistribution({ distribution = [] }: UserDistribution
                 </div>
             </div>
 
+            {distribution.length === 0 ? (
+                <div className="flex-1 flex items-center justify-center text-gray-400 pb-6">
+                    No distribution data
+                </div>
+            ) : (
+                <>
             {/* Chart + Legend */}
             <div className="px-6 pb-2 flex-1">
                 <div className="flex items-center gap-8">
@@ -183,6 +218,8 @@ export default function UserDistribution({ distribution = [] }: UserDistribution
                     );
                 })()}
             </div>
+            </>
+            )}
         </div>
     );
 }

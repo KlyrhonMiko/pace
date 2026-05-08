@@ -7,10 +7,11 @@ interface PlatformHealthProps {
         db_load: number;
         cache_status: string;
     };
+    isLoading?: boolean;
 }
 
-export default function PlatformHealth({ health }: PlatformHealthProps) {
-    const metrics = [
+export default function PlatformHealth({ health, isLoading }: PlatformHealthProps) {
+    const metrics = health ? [
         {
             label: "Uptime",
             value: health.uptime,
@@ -47,8 +48,30 @@ export default function PlatformHealth({ health }: PlatformHealthProps) {
             gradient: "from-amber-400 to-amber-500",
             barColor: "#f59e0b",
         },
-    ];
+    ] : [];
 
+    if (isLoading) {
+        return (
+            <div className="group relative rounded-2xl bg-white border border-gray-100/80 shadow-sm overflow-hidden flex flex-col h-[280px]">
+                <div className="px-6 pt-5 pb-4 flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-xl skeleton-shimmer" />
+                        <div className="space-y-1.5">
+                            <div className="h-3 w-32 rounded skeleton-shimmer" />
+                            <div className="h-2 w-24 rounded skeleton-shimmer" />
+                        </div>
+                    </div>
+                </div>
+                <div className="px-6 pb-2 flex-1">
+                    <div className="grid grid-cols-2 gap-3 pb-6">
+                        {[1, 2, 3, 4].map((i) => (
+                            <div key={`skel-${i}`} className="h-[90px] rounded-xl skeleton-shimmer" />
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="group relative rounded-2xl bg-white border border-gray-100/80 shadow-sm transition-all duration-500 hover:shadow-xl hover:shadow-teal-100/20 hover:border-gray-200/80 overflow-hidden flex flex-col">
@@ -70,8 +93,13 @@ export default function PlatformHealth({ health }: PlatformHealthProps) {
 
             {/* Metrics Grid */}
             <div className="px-6 pb-2 flex-1">
-                <div className="grid grid-cols-2 gap-3">
-                    {metrics.map((m) => (
+                {!health ? (
+                    <div className="flex-1 flex items-center justify-center text-gray-400 py-12">
+                        No health data available
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-2 gap-3 pb-6">
+                        {metrics.map((m) => (
                         <div
                             key={m.label}
                             className="relative rounded-xl bg-gradient-to-b from-gray-50/80 to-white border border-gray-100/60 p-4 transition-all duration-300 hover:border-gray-200/80 hover:shadow-sm"
@@ -120,6 +148,7 @@ export default function PlatformHealth({ health }: PlatformHealthProps) {
                         </div>
                     ))}
                 </div>
+                )}
             </div>
 
 

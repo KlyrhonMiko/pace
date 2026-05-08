@@ -2,6 +2,7 @@
 
 import { Shield, RefreshCw, Loader2, Edit2, UserX, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { User } from "./useUserManagement";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -87,7 +88,7 @@ export default function UserList({
             </div>
 
             {/* Table Area */}
-            <div className="flex-1 overflow-x-auto custom-scrollbar">
+            <div className="flex-1 overflow-x-auto overflow-y-hidden custom-scrollbar">
                 <table className="w-full text-left border-collapse">
                     <thead>
                         <tr className="bg-slate-50/30 border-b border-slate-100">
@@ -99,16 +100,44 @@ export default function UserList({
                             <th className="px-5 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100/80">
+                    <tbody className={`divide-y divide-slate-100/80 ${isLoading ? "skeleton-stagger" : ""}`}>
                         {isLoading ? (
-                            <tr>
-                                <td colSpan={6} className="px-6 py-32 text-center bg-slate-50/20">
-                                    <div className="flex flex-col items-center gap-3">
-                                        <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
-                                        <p className="text-sm font-semibold text-slate-500 animate-pulse">Loading users...</p>
-                                    </div>
-                                </td>
-                            </tr>
+                            <>
+                                {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                                    <tr key={`skeleton-${i}`} className="group transition-all duration-200">
+                                        <td className="px-5 py-4 min-w-[180px]">
+                                            <div className="flex items-center gap-4">
+                                                <Skeleton className="h-10 w-10 rounded-full shrink-0" />
+                                                <div className="space-y-1.5 min-w-0">
+                                                    <Skeleton className="h-4 w-24 rounded-md" />
+                                                    <Skeleton className="h-3 w-16 rounded-md" />
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-5 py-4 hidden md:table-cell">
+                                            <Skeleton className="h-4 w-28 rounded-md" />
+                                        </td>
+                                        <td className="px-5 py-4">
+                                            <Skeleton className="h-4 w-16 rounded-md" />
+                                        </td>
+                                        <td className="px-5 py-4 hidden sm:table-cell">
+                                            <Skeleton className="h-4 w-16 rounded-md" />
+                                        </td>
+                                        <td className="px-5 py-4">
+                                            <div className="flex items-center gap-1.5">
+                                                <Skeleton className="w-1.5 h-1.5 rounded-full shrink-0" />
+                                                <Skeleton className="h-3 w-12 rounded-md" />
+                                            </div>
+                                        </td>
+                                        <td className="px-5 py-4 text-right">
+                                            <div className="flex justify-end gap-1.5">
+                                                <Skeleton className="h-8 w-8 rounded-lg" />
+                                                <Skeleton className="h-8 w-8 rounded-lg" />
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </>
                         ) : users.length === 0 ? (
                             <tr>
                                 <td colSpan={6} className="px-6 py-32 text-center bg-slate-50/20">

@@ -3,22 +3,15 @@ import { TrendingUp, ArrowUpRight } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 interface UserGrowthChartProps {
-    data: { month: string; count: number }[];
+    data?: { month: string; count: number }[];
+    isLoading?: boolean;
 }
 
-export default function UserGrowthChart({ data: trendData = [] }: UserGrowthChartProps) {
-    if (!trendData || trendData.length === 0 || trendData.some(d => typeof d.count !== 'number' || isNaN(d.count))) {
-        return (
-            <div className="rounded-2xl bg-white border border-gray-100 p-6 h-[320px] flex items-center justify-center text-gray-400">
-                No trend data available
-            </div>
-        );
-    }
-    const months = trendData.map(d => d.month);
-    const data = trendData.map(d => d.count);
-    const maxVal = Math.max(...data, 10);
-    const minVal = Math.min(...data, 0);
-
+export default function UserGrowthChart({ data: trendData = [], isLoading }: UserGrowthChartProps) {
+    const isValidData = trendData && trendData.length > 0 && !trendData.some(d => typeof d.count !== 'number' || isNaN(d.count));
+    const months = isValidData ? trendData.map(d => d.month) : [];
+    const data = isValidData ? trendData.map(d => d.count) : [];
+    
     // Chart dimensions
     const svgW = 500;
     const svgH = 200;
@@ -26,29 +19,59 @@ export default function UserGrowthChart({ data: trendData = [] }: UserGrowthChar
     const cw = svgW - pad.l - pad.r;
     const ch = svgH - pad.t - pad.b;
 
-    const points = data.map((v, i) => ({
-        x: pad.l + (i / (data.length - 1)) * cw,
-        y: pad.t + ch - ((v - minVal) / (maxVal - minVal)) * ch,
-    }));
+    let points: {x: number, y: number}[] = [];
+    let linePath = "";
+    let areaPath = "";
 
-    // Smooth cubic bezier path (catmull-rom interpolation)
-    const tension = 0.25;
-    let linePath = `M${points[0].x},${points[0].y}`;
-    for (let i = 0; i < points.length - 1; i++) {
-        const p0 = points[Math.max(0, i - 1)];
-        const p1 = points[i];
-        const p2 = points[i + 1];
-        const p3 = points[Math.min(points.length - 1, i + 2)];
-        const cp1x = p1.x + (p2.x - p0.x) * tension;
-        const cp1y = p1.y + (p2.y - p0.y) * tension;
-        const cp2x = p2.x - (p3.x - p1.x) * tension;
-        const cp2y = p2.y - (p3.y - p1.y) * tension;
-        linePath += ` C${cp1x},${cp1y} ${cp2x},${cp2y} ${p2.x},${p2.y}`;
+    if (isValidData) {
+        const maxVal = Math.max(...data, 10);
+        const minVal = Math.min(...data, 0);
+
+        points = data.map((v, i) => ({
+            x: pad.l + (i / (data.length - 1)) * cw,
+            y: pad.t + ch - ((v - minVal) / (maxVal - minVal)) * ch,
+        }));
+
+        // Smooth cubic bezier path (catmull-rom interpolation)
+        const tension = 0.25;
+        linePath = `M${points[0].x},${points[0].y}`;
+        for (let i = 0; i < points.length - 1; i++) {
+            const p0 = points[Math.max(0, i - 1)];
+            const p1 = points[i];
+            const p2 = points[i + 1];
+            const p3 = points[Math.min(points.length - 1, i + 2)];
+            const cp1x = p1.x + (p2.x - p0.x) * tension;
+            const cp1y = p1.y + (p2.y - p0.y) * tension;
+            const cp2x = p2.x - (p3.x - p1.x) * tension;
+            const cp2y = p2.y - (p3.y - p1.y) * tension;
+            linePath += ` C${cp1x},${cp1y} ${cp2x},${cp2y} ${p2.x},${p2.y}`;
+        }
+
+        const lastPt = points[points.length - 1];
+        const firstPt = points[0];
+        areaPath = `${linePath} L${lastPt.x},${pad.t + ch} L${firstPt.x},${pad.t + ch} Z`;
     }
 
-    const lastPt = points[points.length - 1];
-    const firstPt = points[0];
-    const areaPath = `${linePath} L${lastPt.x},${pad.t + ch} L${firstPt.x},${pad.t + ch} Z`;
+    if (isLoading) {
+        return (
+            <div className="group relative rounded-2xl bg-white border border-gray-100/80 shadow-sm overflow-hidden flex flex-col h-[320px]">
+                <div className="px-6 pt-5 pb-1 flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-xl skeleton-shimmer" />
+                        <div className="space-y-1.5">
+                            <div className="h-3 w-32 rounded skeleton-shimmer" />
+                            <div className="h-2 w-24 rounded skeleton-shimmer" />
+                        </div>
+                    </div>
+                    <div className="w-16 h-6 rounded-full skeleton-shimmer" />
+                </div>
+                <div className="px-6 pb-6 pt-2 flex-1 flex flex-col gap-4 mt-2">
+                    <div className="flex-1 rounded-xl skeleton-shimmer" />
+                    <div className="h-16 rounded-xl skeleton-shimmer" />
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="group relative rounded-2xl bg-white border border-gray-100/80 shadow-sm transition-all duration-500 hover:shadow-xl hover:shadow-emerald-100/30 hover:border-gray-200/80 overflow-hidden flex flex-col">
@@ -74,7 +97,13 @@ export default function UserGrowthChart({ data: trendData = [] }: UserGrowthChar
                 </div>
             </div>
 
-            {/* Chart Area */}
+            {!trendData || trendData.length === 0 || trendData.some(d => typeof d.count !== 'number' || isNaN(d.count)) ? (
+                <div className="flex-1 flex items-center justify-center text-gray-400 pb-6">
+                    No trend data available
+                </div>
+            ) : (
+                <>
+                    {/* Chart Area */}
             <div className="px-4 pt-1 flex-1 relative">
                 <svg viewBox={`0 0 ${svgW} ${svgH}`} className="w-full h-44">
                     <defs>
@@ -206,6 +235,8 @@ export default function UserGrowthChart({ data: trendData = [] }: UserGrowthChar
                     ))}
                 </div>
             </div>
+            </>
+            )}
         </div>
     );
 }

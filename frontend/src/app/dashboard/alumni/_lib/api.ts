@@ -40,6 +40,17 @@ export interface EmployabilityResult {
     skill_breakdown: ImprovementSuggestion[];
 }
 
+export interface CareerTrackResult {
+    prediction: string;
+    probability: number;
+    all_probabilities: Record<string, number>;
+    input_data: {
+        skills: string;
+        internship_duration: number;
+        gwa: number;
+    };
+}
+
 /**
  * Normalizes a value for UI display.
  * Specifically handles academic grades (GWA style 1.0 - 5.0) by mapping them to 0-100.
@@ -47,13 +58,13 @@ export interface EmployabilityResult {
 export function normalizeValue(value: number, featureName: string): number {
     const name = featureName.toLowerCase();
     const invertedKeywords = ["cgpa", "gwa", "prof grade", "elec grade", "academic"];
-    
+
     // Heuristic: If it's an academic field and value is in 1.0-5.0 range
     if (invertedKeywords.some(k => name.includes(k)) && value >= 1.0 && value <= 5.0) {
         // Map 1.0 (Best) -> 100, 5.0 (Worst) -> 0
         return Math.max(0, Math.min(100, ((5.0 - value) / 4.0) * 100));
     }
-    
+
     return value;
 }
 
@@ -81,10 +92,10 @@ export async function getLatestPrediction(
 
             if (json.success && json.data && json.data.length > 0) {
                 const latest = json.data[0];
-                
+
                 // Ensure we have a prediction_result object
                 const result = latest.prediction_result || {};
-                
+
                 return {
                     prediction_id: latest.id,
                     realistic_assessment: result.realistic_assessment || {
@@ -155,7 +166,7 @@ export async function runPrediction(
 ): Promise<EmployabilityResult | null> {
     try {
         const targetAlumniId = alumniId;
-        
+
         if (!targetAlumniId) {
             throw new Error("Alumni profile ID not found. Please ensure your profile is loaded.");
         }
@@ -182,6 +193,67 @@ export async function runPrediction(
     } catch (error) {
         console.error("Failed to run employability prediction:", error);
         return null;
+    }
+}
+
+/**
+ * Trigger a new career track prediction.
+ */
+export async function triggerCareerTrackPrediction(
+    alumniId: string,
+    token?: string
+): Promise<CareerTrackResult | null> {
+    try {
+        const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (authToken) {
+            headers["Authorization"] = `Bearer ${authToken}`;
+        }
+
+        const json = await apiFetch<any>(`/predict/career-track/${alumniId}`, {
+            method: "POST",
+            headers,
+            cache: "no-store",
+        });
+
+        if (json.success && json.data) {
+            return json.data as CareerTrackResult;
+        }
+
+        return null;
+    } catch (error) {
+        console.error("Failed to run career track prediction:", error);
+        return null;
+    }
+}
+
+/**
+ * Fetch career track history for the current alumni.
+ */
+export async function getMyCareerTrackPredictions(
+    token?: string,
+    limit: number = 10
+): Promise<any[]> {
+    try {
+        const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (authToken) {
+            headers["Authorization"] = `Bearer ${authToken}`;
+        }
+
+        const json = await apiFetch<any>(`/predict/career-track/me?limit=${limit}`, {
+            headers,
+            cache: "no-store",
+        });
+
+        if (json.success && json.data) {
+            return json.data;
+        }
+
+        return [];
+    } catch (error) {
+        console.error("Failed to fetch career track history:", error);
+        return [];
     }
 }
 

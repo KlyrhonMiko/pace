@@ -89,6 +89,11 @@ const navEntries: NavEntry[] = [
                 href: "/dashboard/alumni/predictions",
                 icon: <TrendingUp size={16} />,
             },
+            {
+                name: "Career Track",
+                href: "/dashboard/alumni/career-track",
+                icon: <Compass size={16} />,
+            },
         ],
     },
     {

@@ -143,6 +143,29 @@ def _load_regression_info() -> list[dict]:
     return models
 
 
+def _load_career_track_info() -> list[dict]:
+    """Load Career Track model metadata."""
+    models = []
+    career_path = _PICKLE_DIR / "career_track_pipeline.pkl"
+    if career_path.exists():
+        models.append({
+            "id": "rf_career_track",
+            "name": "Career Track Predictor",
+            "type": "Random Forest Classifier",
+            "target": "Career Track (Role)",
+            "description": "Predicts the most suitable IT/CS career track based on skills, internship duration, and academic performance (GWA).",
+            "num_features": 3,
+            "features": ["skills", "internship_duration", "gwa"],
+            "programs": ["BSIT", "BSCS", "BSIS"],
+            "hyperparameters": {
+                "n_estimators": 100,
+                "random_state": 42,
+            },
+            **_file_meta(career_path),
+        })
+    return models
+
+
 def _arima_info() -> list[dict]:
     """Return static metadata for the ARIMA model."""
     return [{
@@ -172,10 +195,11 @@ def get_models_info(
     deployed in the system. Admin-only.
     """
     rf_models = _load_rf_info()
+    career_models = _load_career_track_info()
     lr_models = _load_regression_info()
     arima_models = _arima_info()
 
-    all_models = rf_models + lr_models + arima_models
+    all_models = rf_models + career_models + lr_models + arima_models
 
     return StandardResponse(
         success=True,

@@ -16,9 +16,11 @@ from models.employability import (
     EmployabilityPrediction,
     EmployabilityPredictionRead,
 )
+from models.career_track import CareerTrackPrediction, CareerTrackPredictionRead
 from models.response_codes import StandardResponse, ErrorCode, SuccessCode
 from models.users import UserType
 from services.machines.random_forest import EmployabilityPredictor
+from services.machines.career_track import CareerTrackPredictor
 from services.queries.alumni_queries import get_alumni_by_id
 from services.queries.predict_queries import (
     get_active_alumni_by_ref_id,
@@ -30,6 +32,8 @@ from services.queries.predict_queries import (
     get_alumni_skills_by_alumni_ref_id,
     get_course_abbv_by_course_ref_id,
     build_employability_dict,
+    save_career_prediction,
+    get_career_predictions_by_alumni_ref_id,
 )
 from utils.rbac import require_authenticated
 
@@ -72,6 +76,22 @@ def get_predictor() -> Optional[EmployabilityPredictor]:
             print(f"[PREDICT] ⚠ Could not load predictor: {e}")
             _predictor = None
     return _predictor
+
+
+# ── Singleton career track predictor ──
+_career_predictor: Optional[CareerTrackPredictor] = None
+
+def get_career_predictor() -> Optional[CareerTrackPredictor]:
+    """Lazy initializer for the career track predictor singleton."""
+    global _career_predictor
+    if _career_predictor is None:
+        try:
+            _career_predictor = CareerTrackPredictor()
+            print("[PREDICT] ✓ CareerTrackPredictor loaded (lazy)")
+        except Exception as e:
+            print(f"[PREDICT] ⚠ Could not load career track predictor: {e}")
+            _career_predictor = None
+    return _career_predictor
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -182,6 +202,118 @@ def predict_employability(
             **result,
         },
     )
+
+
+# ─────────────────────────────────────────────────────────────────
+# POST  /predict/career-track/{alumni_id}
+# ─────────────────────────────────────────────────────────────────
+
+@router.post("/career-track/{alumni_id}")
+def predict_career_track(
+    alumni_id: str,
+    db: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
+):
+    """
+    Run multi-class career track prediction for an alumni based on their skills and academic data.
+    """
+    predictor = get_career_predictor()
+    if predictor is None or not predictor.is_loaded:
+        raise HTTPException(
+            status_code=503,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.MODEL_NOT_LOADED.value,
+                message="Career Track ML model is not loaded.",
+            ).model_dump(mode="json"),
+        )
+        
+    alumni = _resolve_active_alumni(db, alumni_id)
+    if not alumni:
+        raise HTTPException(status_code=404, detail="Alumni not found")
+        
+    if current_user.user_type == UserType.USER.value:
+        _ensure_owner_or_staff_plus(current_user, alumni)
+        
+    student_record = get_student_record_by_alumni_ref_id(db, alumni.id)
+    if not student_record:
+        raise HTTPException(status_code=404, detail="Student record not linked")
+
+    # Construct input dictionary
+    skills_csv = ""
+    if alumni.skills:
+        skills_csv = ", ".join(alumni.skills)
+        
+    # We default internship_duration to 3 or 0 if not distinctly tracked in models yet.
+    # Looking at db schema, neither explicitly exists, so we simulate an average 3 months.
+    # If ojt_grade exists and > 0, assume 3 months, else 0.
+    duration = 3 if (student_record.ojt_grade and student_record.ojt_grade > 0) else 0
+
+    student_data = {
+        "skills": skills_csv,
+        "internship_duration": duration,
+        "gwa": student_record.gwa
+    }
+    
+    try:
+        result = predictor.predict(student_data)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+        
+    # Persist to database
+    prediction = CareerTrackPrediction(
+        alumni_ref_id=alumni.id,
+        input_data=student_data,
+        prediction_result=result,
+        predicted_track=result["prediction"],
+        probability=result["probability"],
+    )
+    save_career_prediction(db, prediction)
+    invalidate_cache_namespaces(PREDICT_CACHE_NAMESPACE)
+
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.PREDICTION_COMPLETED.value,
+        message="Career Track predicted successfully.",
+        data={
+            "prediction_id": str(prediction.id),
+            **result,
+        }
+    )
+
+
+# ─────────────────────────────────────────────────────────────────
+# GET  /predict/career-track/me
+# ─────────────────────────────────────────────────────────────────
+
+@router.get("/career-track/me")
+def get_my_career_predictions(
+    db: Session = Depends(get_session),
+    limit: int = Query(default=10, ge=1, le=50, description="Max results to return"),
+    current_user: CurrentUser = Depends(require_authenticated),
+):
+    """Get all career track predictions linked to the current authenticated alumni."""
+    if not current_user.id:
+        raise HTTPException(status_code=401, detail="Authenticated user is missing an internal id")
+    alumni = get_alumni_by_user_ref_id(db, current_user.id)
+
+    if not alumni:
+        raise HTTPException(status_code=404, detail="Alumni profile not found")
+
+    predictions = get_career_predictions_by_alumni_ref_id(db, alumni.id, limit)
+    
+    data = [
+        CareerTrackPredictionRead.model_validate(p).model_dump(mode="json")
+        for p in predictions
+    ]
+
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.PREDICTIONS_RETRIEVED.value,
+        message=f"Found {len(data)} career track prediction(s)",
+        data=data,
+    )
+
 
 
 # ─────────────────────────────────────────────────────────────────

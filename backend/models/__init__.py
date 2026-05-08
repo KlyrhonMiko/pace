@@ -20,6 +20,7 @@ from .surveys import (
 from .employability import EmployabilityPrediction
 from .alumni_regression_prediction import AlumniRegressionPrediction
 from .arima_forecast_result import ArimaForecastResult
+from .career_track import CareerTrackPrediction
 from .staff import Staff
 from .employers import Employer
 from .notifications import Notification
@@ -51,6 +52,7 @@ __all__ = [
     "EmployabilityPrediction",
     "AlumniRegressionPrediction",
     "ArimaForecastResult",
+    "CareerTrackPrediction",
     "Staff",
     "Employer",
     "Notification",

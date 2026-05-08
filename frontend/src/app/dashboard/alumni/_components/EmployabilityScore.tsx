@@ -260,9 +260,9 @@ export default function EmployabilityScore({
                         <MetricBar
                             label="Improvement Potential"
                             value={improvementPct}
-                            from="#6366f1"
-                            to="#a78bfa"
-                            dotColor="#6366f1"
+                            from="#0d9488"
+                            to="#2dd4bf"
+                            dotColor="#0d9488"
                         />
                     </div>
                 </div>

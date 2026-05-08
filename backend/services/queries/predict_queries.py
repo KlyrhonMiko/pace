@@ -8,6 +8,7 @@ from models.alumni_skills import AlumniSkills
 from models.student_records import StudentRecord
 from models.courses import Course
 from models.employability import EmployabilityPrediction
+from models.career_track import CareerTrackPrediction
 
 
 # ── Alumni resolution ─────────────────────────────────────────
@@ -140,3 +141,29 @@ def save_prediction(session: Session, prediction: EmployabilityPrediction) -> Em
 def get_prediction_by_id(session: Session, prediction_id: uuid.UUID) -> EmployabilityPrediction | None:
     """Retrieve a stored prediction by its UUID."""
     return session.get(EmployabilityPrediction, prediction_id)
+
+
+# ── Career track prediction CRUD ──────────────────────────────
+
+
+def get_career_predictions_by_alumni_ref_id(
+    session: Session, alumni_ref_id: uuid.UUID, limit: int = 10
+) -> list[CareerTrackPrediction]:
+    """Fetch recent career track predictions for an alumni."""
+    return session.exec(
+        select(CareerTrackPrediction)
+        .where(CareerTrackPrediction.alumni_ref_id == alumni_ref_id)
+        .order_by(CareerTrackPrediction.created_at.desc())
+        .limit(limit)
+    ).all()
+
+
+def save_career_prediction(
+    session: Session, prediction: CareerTrackPrediction
+) -> CareerTrackPrediction:
+    """Persist a new career track prediction."""
+    session.add(prediction)
+    session.commit()
+    session.refresh(prediction)
+    return prediction
+

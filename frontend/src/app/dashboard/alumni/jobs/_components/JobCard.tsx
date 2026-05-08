@@ -1,4 +1,4 @@
-import { MapPin, CircleDollarSign } from "lucide-react";
+import { MapPin, CircleDollarSign, Sparkles } from "lucide-react";
 
 export default function JobCard({
     title,
@@ -9,6 +9,7 @@ export default function JobCard({
     logo,
     description,
     source,
+    matchPercentage,
     className,
     onClick,
 }: {
@@ -20,6 +21,7 @@ export default function JobCard({
     logo: string;
     description?: string;
     source?: string;
+    matchPercentage?: number;
     className?: string;
     onClick?: () => void;
 }) {
@@ -71,9 +73,17 @@ export default function JobCard({
                         </h3>
                         <p className="text-xs text-gray-500 truncate mt-0.5">{company}</p>
                     </div>
-                    <span className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide border ${getBadgeStyle()}`}>
-                        {type}
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {matchPercentage !== undefined && (
+                            <span className="flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-2.5 py-1 text-[10px] font-bold text-white shadow-sm shadow-amber-200">
+                                <Sparkles className="h-3 w-3 animate-pulse" />
+                                {matchPercentage}% Match
+                            </span>
+                        )}
+                        <span className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide border ${getBadgeStyle()}`}>
+                            {type}
+                        </span>
+                    </div>
                 </div>
 
                 {description && (

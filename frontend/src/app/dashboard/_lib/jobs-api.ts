@@ -125,6 +125,32 @@ export async function getRecommendedJobs(limit: number = 3, token?: string): Pro
 }
 
 /**
+ * Get semantically matched jobs for a specific alumni ID
+ */
+export async function getMatchedJobs(alumniId: string, token?: string): Promise<any[]> {
+    try {
+        const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+        const requestHeaders: Record<string, string> = { "Content-Type": "application/json" };
+        if (authToken) {
+            requestHeaders["Authorization"] = `Bearer ${authToken}`;
+        }
+
+        const response = await apiFetch<any>(`/jobs/match/${alumniId}`, {
+            headers: requestHeaders,
+            cache: "no-store",
+        });
+
+        if (response && typeof response === "object" && "success" in response && response.success) {
+            return response.data || [];
+        }
+        return [];
+    } catch (error) {
+        console.error("Failed to fetch matched jobs:", error);
+        return [];
+    }
+}
+
+/**
  * Apply for a job
  */
 export async function applyToJob(jobListingId: number | string, token?: string, resumeFile?: File): Promise<{ success: boolean; message: string; data?: any }> {

@@ -11,7 +11,9 @@ from services.queries.jobs_queries import (
     delete_job_listing,
     get_job_listing,
     toggle_job_listing_visibility,
+    get_jobs_with_embeddings,
 )
+from services.machines.job_matching import job_matching_service
 from models.job_listings import JobListing, JobListingCreate, JobListingUpdate, JobListingRead, JobApplication
 from core.database import get_session
 from core.redis import cache_invalidate_job_searches
@@ -102,6 +104,117 @@ async def search_jobs(
         message="Job listings retrieved successfully",
         data=result
     )
+
+
+@router.get("/match/{alumni_id}", response_model=StandardResponse)
+def match_jobs_for_alumni(
+    alumni_id: str,
+    db: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
+):
+    """
+    Match jobs for an alumni based on their skills using semantic similarity.
+    Enriches the alumni profile text with career track prediction and role
+    context so the sentence-transformer embedding is semantically comparable
+    to full job-description embeddings.
+    """
+    from services.queries.alumni_queries import get_alumni_by_id_any
+    from services.queries.predict_queries import get_career_predictions_by_alumni_ref_id
+    
+    # 1. Fetch Alumni
+    alumni = get_alumni_by_id_any(db, alumni_id)
+    if not alumni:
+        raise HTTPException(status_code=404, detail="Alumni profile not found")
+        
+    # 2. Extract and format skills
+    if not alumni.skills:
+        return StandardResponse(
+            success=True,
+            code=SuccessCode.SUCCESS.value,
+            message="No skills found for this alumni. Update profile to get matches.",
+            data=[]
+        )
+        
+    skills_string = ", ".join(alumni.skills)
+    
+    # 2b. Build a rich profile description for embedding.
+    #     A bare comma-separated skill list produces poor cosine similarity
+    #     against full job descriptions. Wrapping it in natural language with
+    #     the predicted career track yields a semantically comparable vector.
+    profile_parts = []
+    
+    # Include career track prediction if available
+    career_track = None
+    try:
+        career_predictions = get_career_predictions_by_alumni_ref_id(db, alumni.id, limit=1)
+        if career_predictions:
+            latest = career_predictions[0]
+            career_track = latest.predicted_track
+            if career_track:
+                profile_parts.append(f"{career_track} professional")
+    except Exception:
+        pass  # Gracefully degrade if no predictions exist
+    
+    # Include current employment context from alumni profile
+    if alumni.employment_sector:
+        profile_parts.append(f"working in {alumni.employment_sector}")
+    
+    # Core: natural-language skills sentence
+    profile_parts.append(f"skilled in {skills_string}")
+    
+    # Build the final profile text for embedding
+    profile_text = ". ".join(profile_parts) + "."
+    # e.g. "Full Stack Developer professional. skilled in JavaScript, React, Node.js, Python, SQL."
+    
+    # 3. Fetch jobs with embeddings
+    jobs = get_jobs_with_embeddings(db)
+    if not jobs:
+        return StandardResponse(
+            success=True,
+            code=SuccessCode.SUCCESS.value,
+            message="No pre-computed jobs available for matching yet.",
+            data=[]
+        )
+        
+    # Prepare embeddings for the matching service
+    job_embeddings = []
+    for job in jobs:
+        if job.vector_embedding:
+            job_embeddings.append(
+                (job.id, job.vector_embedding, job.title, job.company or "Unknown Company")
+            )
+            
+    # 4. Run matching logic with the enriched profile text
+    matches = job_matching_service.calculate_similarity(profile_text, job_embeddings)
+    
+    # 5. Enrich matches with full job listing details
+    job_map = {str(job.id): job for job in jobs}
+    enriched_matches = []
+    for match in matches[:5]:
+        job_id = match["job_id"]
+        job_obj = job_map.get(job_id)
+        if job_obj:
+            # Check for employer logo
+            logo = None
+            if job_obj.employer_ref_id:
+                from models.employers import Employer
+                employer = db.exec(select(Employer).where(Employer.id == job_obj.employer_ref_id)).first()
+                if employer:
+                    logo = employer.company_logo_url
+            
+            job_dict = job_obj.model_dump(mode="json", exclude={"vector_embedding"})
+            job_dict["logo"] = logo
+            job_dict["similarity_score"] = match["similarity_score"]
+            job_dict["match_percentage"] = match["match_percentage"]
+            enriched_matches.append(job_dict)
+    
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.SUCCESS.value,
+        message="Top job matches retrieved successfully",
+        data=enriched_matches
+    )
+
 
 
 @router.post("/", response_model=JobListingRead, status_code=status.HTTP_201_CREATED)

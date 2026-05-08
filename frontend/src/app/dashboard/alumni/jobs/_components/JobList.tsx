@@ -22,6 +22,7 @@ interface Job {
     link?: string;
     description?: string;
     source?: string;
+    matchPercentage?: number;
 }
 
 interface JobListProps {
@@ -135,6 +136,7 @@ export default function JobList({
                                 logo={job.logo}
                                 description={job.snippet}
                                 source={job.source}
+                                matchPercentage={job.matchPercentage}
                                 onClick={() => setSelectedJob(job)}
                             />
                         ))}

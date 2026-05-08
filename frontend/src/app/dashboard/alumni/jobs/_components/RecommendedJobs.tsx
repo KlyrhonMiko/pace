@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import JobCard from "./JobCard";
-import { JoobleJob, getRecommendedJobs } from "../_lib/api";
+import { JoobleJob, getRecommendedJobs, getMatchedJobs } from "../_lib/api";
+import { getMyProfile } from "../../profile/_lib/api";
 import { Skeleton } from "../../../../../components/ui/skeleton";
 import { Sparkles, Search } from "lucide-react";
 
@@ -22,16 +23,31 @@ const formatSnippet = (text: string) => {
 };
 
 export default function RecommendedJobs() {
-    const [jobs, setJobs] = useState<JoobleJob[]>([]);
+    const [jobs, setJobs] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         async function fetchRecommended() {
             try {
+                const profile = await getMyProfile();
+                if (profile?.alumni_id) {
+                    const data = await getMatchedJobs(profile.alumni_id);
+                    if (data && data.length > 0) {
+                        setJobs(data);
+                        return;
+                    }
+                }
                 const data = await getRecommendedJobs(4);
                 setJobs(data);
             } catch (e) {
                 console.error("Failed to fetch recommended jobs", e);
+                // Fallback
+                try {
+                    const data = await getRecommendedJobs(4);
+                    setJobs(data);
+                } catch {
+                    // Ignore
+                }
             } finally {
                 setIsLoading(false);
             }
@@ -112,20 +128,33 @@ export default function RecommendedJobs() {
                                 ))}
                             </div>
                         ) : jobs.length > 0 ? (
-                            jobs.map((job, idx) => (
-                                <JobCard
-                                    key={job.id || idx}
-                                    title={job.title}
-                                    company={job.company}
-                                    location={job.location}
-                                    salary={formatSalary(job.salary || job.raw_salary || "")}
-                                    type={job.type || "Full-time"}
-                                    logo={(job.logo && (job.logo.startsWith('http') || job.logo.startsWith('/'))) ? job.logo : job.company.charAt(0).toUpperCase()}
-                                    className="flex-1"
-                                    description={formatSnippet(job.snippet || job.description || "")}
-                                    source={job.source}
-                                />
-                            ))
+                            jobs.map((job, idx) => {
+                                const title = job.title;
+                                const company = job.company;
+                                const location = job.location || "Philippines";
+                                const salary = formatSalary(job.salaryDisplay || job.salary || job.raw_salary || "");
+                                const type = job.type || job.job_type || "Full-time";
+                                const logo = (job.logo && (job.logo.startsWith('http') || job.logo.startsWith('/'))) ? job.logo : job.company.charAt(0).toUpperCase();
+                                const description = formatSnippet(job.snippet || job.description || "");
+                                const source = job.source || "Internal";
+                                const matchPercentage = job.match_percentage || job.matchPercentage;
+
+                                return (
+                                    <JobCard
+                                        key={job.id || idx}
+                                        title={title}
+                                        company={company}
+                                        location={location}
+                                        salary={salary}
+                                        type={type}
+                                        logo={logo}
+                                        className="flex-1"
+                                        description={description}
+                                        source={source}
+                                        matchPercentage={matchPercentage}
+                                    />
+                                );
+                            })
                         ) : (
                             <div className="flex-1 flex flex-col items-center justify-center min-h-[200px] rounded-xl bg-gradient-to-br from-gray-50/80 to-amber-50/30 border border-dashed border-gray-200">
                                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-100 to-orange-100 mb-3">

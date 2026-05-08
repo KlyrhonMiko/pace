@@ -4,6 +4,7 @@ from enum import Enum
 from typing import Optional
 
 from sqlmodel import Field, SQLModel
+from sqlalchemy import Column, LargeBinary
 
 from models.base import BaseTable
 from utils.timezone import get_current_time_gmt8
@@ -29,6 +30,7 @@ class JobListingBase(SQLModel):
     title: str
     company: Optional[str] = None
     description: str
+    requirements: Optional[str] = None
     location: str
     job_type: Optional[str] = Field(default=None)
     work_type: Optional[str] = Field(default=None)
@@ -45,6 +47,8 @@ class JobListingBase(SQLModel):
 
 class JobListing(BaseTable, JobListingBase, table=True):
     __tablename__ = "job_listings"
+
+    vector_embedding: Optional[bytes] = Field(default=None, sa_column=Column(LargeBinary))
 
 class JobListingCreate(JobListingBase):
     pass

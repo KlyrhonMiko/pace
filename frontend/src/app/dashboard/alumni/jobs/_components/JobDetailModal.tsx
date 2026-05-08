@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, MapPin, CircleDollarSign, Calendar, ExternalLink, Link as LinkIcon, Briefcase, Building2, Loader2, CheckCircle2, FileText } from "lucide-react";
+import { X, MapPin, CircleDollarSign, Calendar, ExternalLink, Link as LinkIcon, Briefcase, Building2, Loader2, CheckCircle2, FileText, Sparkles } from "lucide-react";
 import { applyToJob, getMyApplications } from "@/app/dashboard/_lib/jobs-api";
 import { toast } from "sonner";
 import { ResumeUploadModal } from "./ResumeUploadModal";
@@ -24,6 +24,7 @@ interface JobDetailModalProps {
         snippet?: string;
         description?: string;
         source?: string;
+        matchPercentage?: number;
     };
     onClose: () => void;
 }
@@ -379,6 +380,25 @@ export default function JobDetailModal({ job, onClose }: JobDetailModalProps) {
 
                             {/* Badges */}
                             <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "12px" }}>
+                                {job.matchPercentage !== undefined && (
+                                    <span
+                                        style={{
+                                            display: "inline-flex",
+                                            alignItems: "center",
+                                            gap: "4px",
+                                            padding: "3px 10px",
+                                            borderRadius: "999px",
+                                            fontSize: "11px",
+                                            fontWeight: 700,
+                                            background: "linear-gradient(135deg, #f59e0b 0%, #ea580c 100%)",
+                                            color: "#ffffff",
+                                            boxShadow: "0 2px 8px rgba(234, 88, 12, 0.2)",
+                                        }}
+                                    >
+                                        <Sparkles className="w-3 h-3 animate-pulse" />
+                                        {job.matchPercentage}% Match
+                                    </span>
+                                )}
                                 <span
                                     style={{
                                         display: "inline-flex",

@@ -166,6 +166,26 @@ def _load_career_track_info() -> list[dict]:
     return models
 
 
+def _load_semantic_matcher_info() -> list[dict]:
+    """Return metadata for the semantic matching model."""
+    return [{
+        "id": "semantic_matcher",
+        "name": "Semantic Job Matcher",
+        "type": "Sentence Transformer (Dense Embeddings)",
+        "target": "Semantic Similarity Score",
+        "description": "Calculates semantic similarity between alumni profiles and job listings using the all-MiniLM-L6-v2 model (384-dimensional dense vectors). Powering both search results and personalized recommendations.",
+        "num_features": 384,
+        "features": ["profile_text", "job_description"],
+        "metrics": {
+            "algorithm": "Cosine Similarity",
+            "dimensions": 384,
+            "normalization": "Linear with boost (0-100%)"
+        },
+        "size_bytes": 83886080, # Standard footprint for all-MiniLM-L6-v2 (~80MB)
+        "last_modified": None,
+    }]
+
+
 def _arima_info() -> list[dict]:
     """Return static metadata for the ARIMA model."""
     return [{
@@ -196,10 +216,11 @@ def get_models_info(
     """
     rf_models = _load_rf_info()
     career_models = _load_career_track_info()
+    semantic_models = _load_semantic_matcher_info()
     lr_models = _load_regression_info()
     arima_models = _arima_info()
 
-    all_models = rf_models + career_models + lr_models + arima_models
+    all_models = rf_models + career_models + semantic_models + lr_models + arima_models
 
     return StandardResponse(
         success=True,

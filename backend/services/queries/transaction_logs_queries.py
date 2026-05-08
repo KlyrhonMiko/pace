@@ -32,7 +32,17 @@ def _normalize_payload(payload: Any) -> Any:
     if payload is None:
         return None
     if hasattr(payload, "model_dump"):
-        return payload.model_dump(mode="json")
+        # Exclude fields whose *values* are raw bytes (e.g. vector_embedding)
+        # because they cannot be JSON-serialised.
+        exclude_fields: set[str] = set()
+        for field_name in getattr(payload, "model_fields", {}):
+            try:
+                val = getattr(payload, field_name, None)
+            except Exception:
+                continue
+            if isinstance(val, bytes):
+                exclude_fields.add(field_name)
+        return payload.model_dump(mode="json", exclude=exclude_fields or None)
     return payload
 
 

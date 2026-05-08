@@ -7,7 +7,8 @@ import JobFilters from "./_components/JobFilters";
 import JobList from "./_components/JobList";
 import PageHeader from "@/components/dashboard/PageHeader";
 import { jobTypes, experienceLevels, workTypes } from "./_components/constants";
-import { searchJobs, JoobleJob } from "./_lib/api";
+import { searchJobs, JoobleJob, getMatchedJobs } from "./_lib/api";
+import { getMyProfile } from "../profile/_lib/api";
 import { useDebounce } from "../../../../hooks/use-debounce";
 
 // Unified job type that works with both static and API data
@@ -26,6 +27,7 @@ interface UnifiedJob {
     link?: string;
     snippet?: string;
     source?: string;
+    matchPercentage?: number;
 }
 
 // Convert Jooble API job to unified format
@@ -84,9 +86,26 @@ export default function JobListingsPage() {
     const [tempSalaryRange, setTempSalaryRange] = useState<[number, number]>([0, 500]);
     const [hasSalary, setHasSalary] = useState(false);
     const [localOnly, setLocalOnly] = useState(false);
+    const [matchedJobs, setMatchedJobs] = useState<any[]>([]);
 
     const [currentPage, setCurrentPage] = useState(1);
     const JOBS_PER_PAGE = 10;
+
+    // Fetch AI Matched Jobs on mount
+    useEffect(() => {
+        async function fetchMatches() {
+            try {
+                const profile = await getMyProfile();
+                if (profile?.alumni_id) {
+                    const data = await getMatchedJobs(profile.alumni_id);
+                    setMatchedJobs(data || []);
+                }
+            } catch (err) {
+                console.error("Failed to fetch matched jobs:", err);
+            }
+        }
+        fetchMatches();
+    }, []);
 
     const debouncedSearchQuery = useDebounce(searchQuery, 500);
     const debouncedLocationSearch = useDebounce(locationSearch, 500);
@@ -105,6 +124,8 @@ export default function JobListingsPage() {
     const fetchJobs = useCallback(async () => {
         setIsLoading(true);
         // setError(null);
+
+
 
         try {
             const result = await searchJobs({
@@ -125,7 +146,18 @@ export default function JobListingsPage() {
                 setApiJobs([]);
                 setTotalApiJobs(0);
             } else {
-                const converted = result.jobs.map((job, index) => convertApiJob(job, index));
+                const converted = result.jobs.map((job, index) => {
+                    const uJob = convertApiJob(job, index);
+                    // Find matching job in matchedJobs
+                    const match = matchedJobs.find(m => 
+                        String(m.id) === String(uJob.id) || 
+                        (m.title.toLowerCase() === uJob.title.toLowerCase() && m.company.toLowerCase() === uJob.company.toLowerCase())
+                    );
+                    if (match) {
+                        uJob.matchPercentage = match.match_percentage || match.matchPercentage;
+                    }
+                    return uJob;
+                });
                 setApiJobs(converted);
                 setTotalApiJobs(result.totalCount);
             }
@@ -137,7 +169,7 @@ export default function JobListingsPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [debouncedSearchQuery, debouncedLocationSearch, selectedTypes, selectedWorkTypes, selectedExperience, currentPage, JOBS_PER_PAGE, hasSalary, localOnly]);
+    }, [debouncedSearchQuery, debouncedLocationSearch, selectedTypes, selectedWorkTypes, selectedExperience, currentPage, JOBS_PER_PAGE, hasSalary, localOnly, matchedJobs]);
 
     // Fetch jobs on mount and when search/location/page changes
     useEffect(() => {

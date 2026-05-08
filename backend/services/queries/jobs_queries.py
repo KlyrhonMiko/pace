@@ -9,7 +9,7 @@ from models.user_activities import ActivityType
 from services.queries.audit import stamp_create, stamp_restore, stamp_soft_delete, stamp_update
 from services.queries.transaction_logs_queries import create_transaction_log
 from services.queries.user_activities_queries import create_user_activity
-
+from services.machines.job_matching import job_matching_service
 
 def create_job_listing(
     db: Session,
@@ -20,6 +20,15 @@ def create_job_listing(
     db_job = JobListing.model_validate(job, from_attributes=True)
     if employer_ref_id:
         db_job.employer_ref_id = employer_ref_id
+        
+    # Generate vector embedding for semantic matching
+    text_to_embed = f"{db_job.title} {db_job.description} {db_job.requirements or ''}"
+    try:
+        db_job.vector_embedding = job_matching_service.generate_and_serialize(text_to_embed)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Failed to generate embedding for job {db_job.title}: {e}")
+        
     stamp_create(db_job, performed_by)
     db.add(db_job)
     create_transaction_log(
@@ -60,10 +69,19 @@ def update_job_listing(
     if not db_job:
         return None
 
-    before_state = db_job.model_dump(mode="json")
+    before_state = db_job.model_dump(mode="json", exclude={"vector_embedding"})
     job_data = job_update.model_dump(exclude_unset=True)
     for key, value in job_data.items():
         setattr(db_job, key, value)
+
+    # Re-generate vector embedding if relevant fields are updated
+    if "title" in job_data or "description" in job_data or "requirements" in job_data:
+        text_to_embed = f"{db_job.title} {db_job.description} {db_job.requirements or ''}"
+        try:
+            db_job.vector_embedding = job_matching_service.generate_and_serialize(text_to_embed)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Failed to generate embedding for job {db_job.title}: {e}")
 
     stamp_update(db_job)
     db.add(db_job)
@@ -166,6 +184,16 @@ def get_local_active_jobs(db: Session, keywords: Optional[str] = None) -> List[J
         query = query.where(JobListing.title.contains(keywords) | JobListing.description.contains(keywords))
 
     return db.exec(query).all()
+
+def get_jobs_with_embeddings(db: Session) -> List[JobListing]:
+    """Get all active jobs that have a pre-computed vector embedding."""
+    return db.exec(
+        select(JobListing).where(
+            (JobListing.is_active == True) & 
+            (JobListing.is_deleted == False) & 
+            (JobListing.vector_embedding != None)
+        )
+    ).all()
 
 def create_job_application(
     db: Session,

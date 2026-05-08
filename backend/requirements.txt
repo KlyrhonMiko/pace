@@ -58,6 +58,7 @@ six==1.17.0
 SQLAlchemy==2.0.48
 sqlmodel==0.0.31
 starlette==0.50.0
+sentence-transformers==3.4.1
 threadpoolctl==3.6.0
 typing-inspection==0.4.2
 typing_extensions==4.15.0

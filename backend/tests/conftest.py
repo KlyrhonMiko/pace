@@ -241,17 +241,16 @@ def mock_external_services(monkeypatch):
         lambda *args, **kwargs: {"result": "ok"},
     )
 
-    async def upload_image(file, event_id):
-        return True, f"events/{event_id}/banner.png", None
-
-    async def delete_image(image_path):
-        return True, None
-
-    monkeypatch.setattr("routers.events.storage_service.upload_image", upload_image)
-    monkeypatch.setattr("routers.events.storage_service.delete_image", delete_image)
     monkeypatch.setattr(
-        "routers.events.storage_service.get_public_url",
-        lambda image_path: f"https://example.test/{image_path}",
+        "routers.events.cloudinary.uploader.upload",
+        lambda *args, **kwargs: {
+            "secure_url": "https://example.test/banner.png",
+            "public_id": "events/banner",
+        },
+    )
+    monkeypatch.setattr(
+        "routers.events.cloudinary.uploader.destroy",
+        lambda *args, **kwargs: {"result": "ok"},
     )
 
     yield

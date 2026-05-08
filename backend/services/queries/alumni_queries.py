@@ -261,6 +261,19 @@ def update_alumni(
         alumni.offers_received = data.offers_received
     if "skills" in provided:
         alumni.skills = data.skills
+    
+    if ("leadership_pos" in provided or "act_member_pos" in provided) and alumni.student_ref_id:
+        student = session.exec(
+            select(StudentRecord).where(StudentRecord.id == alumni.student_ref_id)
+        ).first()
+        if student:
+            if "leadership_pos" in provided:
+                student.leadership_pos = data.leadership_pos
+            if "act_member_pos" in provided:
+                student.act_member_pos = data.act_member_pos
+            stamp_update(student)
+            session.add(student)
+
     stamp_update(alumni)
     session.add(alumni)
     create_transaction_log(

@@ -68,6 +68,8 @@ class AlumniUpdate(SQLModel):
     salary_package: Optional[float] = None
     offers_received: Optional[int] = None
     skills: Optional[List[str]] = None
+    leadership_pos: Optional[bool] = None
+    act_member_pos: Optional[bool] = None
 
     @field_validator("gender", mode="before")
     @classmethod

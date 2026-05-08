@@ -353,11 +353,16 @@ export default function ProfilePage() {
         activeMemberPos: "",
         course: "",
     });
+    const [academicDraft, setAcademicDraft] = useState<AcademicInfo>(academic);
+    const [editingAcademic, setEditingAcademic] = useState(false);
+
 
     const [isLoading, setIsLoading] = useState(true);
     const [isSavingAccount, setIsSavingAccount] = useState(false);
     const [isSavingPersonal, setIsSavingPersonal] = useState(false);
     const [isSavingEmployment, setIsSavingEmployment] = useState(false);
+    const [isSavingAcademic, setIsSavingAcademic] = useState(false);
+
     const [error, setError] = useState<string | null>(null);
     const { updateUser } = useAuth();
 
@@ -421,6 +426,18 @@ export default function ProfilePage() {
                         offers: data.offers_received || 0,
                     });
                     setAcademic({
+                        alumniId: data.alumni_id,
+                        studentId: data.student_id || "—",
+                        yearGraduated: data.year_graduated?.toString() || "—",
+                        gwa: data.gwa?.toString() || "—",
+                        avgProfGrade: data.avg_prof_grade?.toString() || "—",
+                        avgElecGrade: data.avg_elec_grade?.toString() || "—",
+                        ojtGrade: data.ojt_grade?.toString() || "—",
+                        leadershipPos: data.leadership_pos ? "Yes" : "No",
+                        activeMemberPos: data.act_member_pos ? "Yes" : "No",
+                        course: data.course_name || "—",
+                    });
+                    setAcademicDraft({
                         alumniId: data.alumni_id,
                         studentId: data.student_id || "—",
                         yearGraduated: data.year_graduated?.toString() || "—",
@@ -541,6 +558,34 @@ export default function ProfilePage() {
         setEditingEmployment(false);
     }, [employment]);
 
+    // ── Handlers: Academic ──
+    const handleSaveAcademic = useCallback(async () => {
+        if (!alumniId) return;
+        setIsSavingAcademic(true);
+
+        const updateData = {
+            leadership_pos: academicDraft.leadershipPos === "Yes",
+            act_member_pos: academicDraft.activeMemberPos === "Yes",
+        };
+
+        const success = await updateMyProfile(alumniId, updateData as any);
+
+        if (success) {
+            setAcademic(academicDraft);
+            setEditingAcademic(false);
+            toast.success("Academic information updated successfully");
+        } else {
+            toast.error("Failed to update academic information");
+        }
+        setIsSavingAcademic(true);
+    }, [academicDraft, alumniId]);
+
+    const handleCancelAcademic = useCallback(() => {
+        setAcademicDraft(academic);
+        setEditingAcademic(false);
+    }, [academic]);
+
+
     // ── State: Initials ──
     const initials =
         `${personal.firstname?.[0] ?? ""}${personal.lastname?.[0] ?? ""}`.toUpperCase() || "—";
@@ -582,11 +627,9 @@ export default function ProfilePage() {
                         <div className="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
                             <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
                                 <div className="flex items-center gap-3">
-                                    <div className="h-10 w-10 rounded-xl skeleton-shimmer" style={{
+                                    <div className="h-10 w-10 rounded-xl skeleton-shimmer border-none" style={{
                                         background: 'linear-gradient(135deg, hsl(220 20% 30%) 0%, hsl(220 15% 20%) 100%)'
-                                    }}>
-                                        <div className="skeleton-shimmer h-full w-full rounded-xl" />
-                                    </div>
+                                    }} />
                                     <div className="space-y-1.5">
                                         <Skeleton className="h-[14px] w-40 rounded-md" />
                                         <Skeleton className="h-[11px] w-32 rounded" />
@@ -607,11 +650,9 @@ export default function ProfilePage() {
                         <div className="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
                             <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
                                 <div className="flex items-center gap-3">
-                                    <div className="h-10 w-10 rounded-xl skeleton-shimmer" style={{
+                                    <div className="h-10 w-10 rounded-xl skeleton-shimmer border-none" style={{
                                         background: 'linear-gradient(135deg, hsl(160 40% 40%) 0%, hsl(170 40% 45%) 100%)'
-                                    }}>
-                                        <div className="skeleton-shimmer h-full w-full rounded-xl" />
-                                    </div>
+                                    }} />
                                     <div className="space-y-1.5">
                                         <Skeleton className="h-[14px] w-44 rounded-md" />
                                         <Skeleton className="h-[11px] w-28 rounded" />
@@ -635,11 +676,9 @@ export default function ProfilePage() {
                         <div className="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
                             <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
                                 <div className="flex items-center gap-3">
-                                    <div className="h-10 w-10 rounded-xl skeleton-shimmer" style={{
+                                    <div className="h-10 w-10 rounded-xl skeleton-shimmer border-none" style={{
                                         background: 'linear-gradient(135deg, hsl(220 50% 45%) 0%, hsl(230 40% 40%) 100%)'
-                                    }}>
-                                        <div className="skeleton-shimmer h-full w-full rounded-xl" />
-                                    </div>
+                                    }} />
                                     <div className="space-y-1.5">
                                         <Skeleton className="h-[14px] w-48 rounded-md" />
                                         <Skeleton className="h-[11px] w-36 rounded" />
@@ -660,11 +699,9 @@ export default function ProfilePage() {
                         <div className="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
                             <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
                                 <div className="flex items-center gap-3">
-                                    <div className="h-10 w-10 rounded-xl skeleton-shimmer" style={{
+                                    <div className="h-10 w-10 rounded-xl skeleton-shimmer border-none" style={{
                                         background: 'linear-gradient(135deg, hsl(270 40% 50%) 0%, hsl(280 35% 45%) 100%)'
-                                    }}>
-                                        <div className="skeleton-shimmer h-full w-full rounded-xl" />
-                                    </div>
+                                    }} />
                                     <div className="space-y-1.5">
                                         <Skeleton className="h-[14px] w-44 rounded-md" />
                                         <Skeleton className="h-[11px] w-36 rounded" />
@@ -980,6 +1017,12 @@ export default function ProfilePage() {
                     <SectionCard
                         title="Academic Information"
                         subtitle="Academic records — managed by the registrar"
+                        editable
+                        editing={editingAcademic}
+                        onEdit={() => { setAcademicDraft(academic); setEditingAcademic(true); }}
+                        onSave={handleSaveAcademic}
+                        onCancel={handleCancelAcademic}
+                        loading={isSavingAcademic}
                         icon={<GraduationCap className="w-5 h-5" strokeWidth={1.75} />}
                         iconContainerClass="bg-gradient-to-br from-indigo-500 to-purple-600 shadow-indigo-500/20"
                     >
@@ -987,17 +1030,29 @@ export default function ProfilePage() {
                             {/* Info notice */}
                             <div className="flex items-start gap-2.5 text-xs text-amber-700 bg-amber-50 border border-amber-200/70 rounded-md px-4 py-3 mb-5">
                                 <Info className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-500" strokeWidth={2} />
-                                <p>These records are managed by the Registrar&apos;s Office and cannot be edited directly. Contact your registrar for corrections.</p>
+                                <p>Core academic records are managed by the Registrar&apos;s Office. However, you can update your extracurricular and leadership status.</p>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <ReadOnlyField label="Student ID *" value={academic.studentId} />
-                                <ReadOnlyField label="Year Graduated *" value={academic.yearGraduated} />
-                                <ReadOnlyField label="Leadership Position" value={academic.leadershipPos} />
-                                <ReadOnlyField label="Active Member Position" value={academic.activeMemberPos} />
                                 <div className="md:col-span-2">
-                                    <ReadOnlyField label="Course *" value={academic.course} />
+                                    <ReadOnlyField label="Student ID *" value={academic.studentId} />
                                 </div>
+                                <Field
+                                    label="Leadership Position"
+                                    value={academicDraft.leadershipPos}
+                                    onChange={(v) => setAcademicDraft((p) => ({ ...p, leadershipPos: v }))}
+                                    editing={editingAcademic}
+                                    options={["Yes", "No"]}
+                                />
+                                <Field
+                                    label="Active Member Position"
+                                    value={academicDraft.activeMemberPos}
+                                    onChange={(v) => setAcademicDraft((p) => ({ ...p, activeMemberPos: v }))}
+                                    editing={editingAcademic}
+                                    options={["Yes", "No"]}
+                                />
+                                <ReadOnlyField label="Course *" value={academic.course} />
+                                <ReadOnlyField label="Year Graduated *" value={academic.yearGraduated} />
                             </div>
                         </>
                     </SectionCard>

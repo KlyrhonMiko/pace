@@ -14,6 +14,7 @@ export interface UnifiedJob {
     link?: string;
     snippet?: string;
     description?: string;
+    requirements?: string;
     isActive: boolean;
     dbId?: number | string;
     salary_min?: number;

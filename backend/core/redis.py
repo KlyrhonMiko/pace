@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 CacheValue = TypeVar("CacheValue")
 
 # Redis connection
+from core.config import settings
 redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
 redis_client: Optional[redis.Redis] = None
 

@@ -22,6 +22,7 @@ export interface JoobleJob {
     raw_salary?: string;
     work_type?: string;
     experience_level?: string;
+    requirements?: string;
     posted_at?: string;
 }
 

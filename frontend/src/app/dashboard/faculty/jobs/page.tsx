@@ -25,6 +25,7 @@ interface UnifiedJob {
     link?: string;
     snippet?: string;
     description?: string;
+    requirements?: string;
     isActive: boolean;
     dbId?: number | string;
     source?: string;
@@ -70,6 +71,7 @@ function convertApiJob(job: any, index: number): UnifiedJob {
         link: job.link || job.source_url,
         snippet: snippet,
         description: job.description,
+        requirements: job.requirements,
         isActive: job.is_active !== false,
         dbId: job.db_id,
         source: job.source || (job.link || job.source_url ? "External" : "Internal"),

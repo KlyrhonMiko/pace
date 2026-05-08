@@ -26,6 +26,7 @@ interface UnifiedJob {
     workType: string;
     link?: string;
     snippet?: string;
+    requirements?: string;
     source?: string;
     matchPercentage?: number;
 }
@@ -72,6 +73,7 @@ function convertApiJob(job: JoobleJob, index: number): UnifiedJob {
         workType: workType,
         link: job.link,
         snippet: snippet,
+        requirements: job.requirements,
         source: job.source || (job.link ? "External" : "Internal"),
     };
 }
@@ -86,7 +88,9 @@ export default function JobListingsPage() {
     const [tempSalaryRange, setTempSalaryRange] = useState<[number, number]>([0, 500]);
     const [hasSalary, setHasSalary] = useState(false);
     const [localOnly, setLocalOnly] = useState(false);
+    const [sortByMatch, setSortByMatch] = useState(true);
     const [matchedJobs, setMatchedJobs] = useState<any[]>([]);
+    const [isMatchesLoading, setIsMatchesLoading] = useState(true);
 
     const [currentPage, setCurrentPage] = useState(1);
     const JOBS_PER_PAGE = 10;
@@ -102,6 +106,8 @@ export default function JobListingsPage() {
                 }
             } catch (err) {
                 console.error("Failed to fetch matched jobs:", err);
+            } finally {
+                setIsMatchesLoading(false);
             }
         }
         fetchMatches();
@@ -146,18 +152,7 @@ export default function JobListingsPage() {
                 setApiJobs([]);
                 setTotalApiJobs(0);
             } else {
-                const converted = result.jobs.map((job, index) => {
-                    const uJob = convertApiJob(job, index);
-                    // Find matching job in matchedJobs
-                    const match = matchedJobs.find(m => 
-                        String(m.id) === String(uJob.id) || 
-                        (m.title.toLowerCase() === uJob.title.toLowerCase() && m.company.toLowerCase() === uJob.company.toLowerCase())
-                    );
-                    if (match) {
-                        uJob.matchPercentage = match.match_percentage || match.matchPercentage;
-                    }
-                    return uJob;
-                });
+                const converted = result.jobs.map((job, index) => convertApiJob(job, index));
                 setApiJobs(converted);
                 setTotalApiJobs(result.totalCount);
             }
@@ -169,7 +164,7 @@ export default function JobListingsPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [debouncedSearchQuery, debouncedLocationSearch, selectedTypes, selectedWorkTypes, selectedExperience, currentPage, JOBS_PER_PAGE, hasSalary, localOnly, matchedJobs]);
+    }, [debouncedSearchQuery, debouncedLocationSearch, selectedTypes, selectedWorkTypes, selectedExperience, currentPage, JOBS_PER_PAGE, hasSalary, localOnly]);
 
     // Fetch jobs on mount and when search/location/page changes
     useEffect(() => {
@@ -196,15 +191,35 @@ export default function JobListingsPage() {
     const filteredJobs = useMemo(() => {
         const isDefaultSalary = salaryRange[0] === 0 && salaryRange[1] === 500;
 
+        // Apply matched job percentages here to avoid re-fetching when matches arrive
+        const jobsWithMatches = jobData.map(job => {
+            const match = matchedJobs.find(m => 
+                String(m.id) === String(job.id) || 
+                (m.title.toLowerCase() === job.title.toLowerCase() && m.company.toLowerCase() === job.company.toLowerCase())
+            );
+            return {
+                ...job,
+                matchPercentage: match ? (match.match_percentage || match.matchPercentage) : job.matchPercentage
+            };
+        });
+
         // Server-side filters: keywords, location, job_type, work_type, experience_level
         // Client-side filters: salary range only
-        const filtered = jobData.filter((job) => {
+        const filtered = jobsWithMatches.filter((job) => {
             const matchesSalary = isDefaultSalary || job.salary === 0 || (job.salary >= salaryRange[0] && job.salary <= salaryRange[1]);
             return matchesSalary;
         });
 
+        if (sortByMatch) {
+            return [...filtered].sort((a, b) => {
+                const matchA = a.matchPercentage || 0;
+                const matchB = b.matchPercentage || 0;
+                return matchB - matchA;
+            });
+        }
+
         return filtered;
-    }, [jobData, salaryRange]);
+    }, [jobData, salaryRange, sortByMatch, matchedJobs]);
 
     // Removed getFilterCounts as counts are no longer displayed
 
@@ -218,6 +233,7 @@ export default function JobListingsPage() {
         setTempSalaryRange([0, 500]);
         setHasSalary(false);
         setLocalOnly(false);
+        setSortByMatch(true);
         setCurrentPage(1);
     };
 
@@ -261,7 +277,8 @@ export default function JobListingsPage() {
 
                         JOBS_PER_PAGE={JOBS_PER_PAGE}
                         clearFilters={clearFilters}
-                        isLoading={isLoading}
+                        isLoading={isLoading || isMatchesLoading}
+                        sortByMatch={sortByMatch}
                     />
                 </div>
 
@@ -284,6 +301,8 @@ export default function JobListingsPage() {
                         setHasSalary={setHasSalary}
                         localOnly={localOnly}
                         setLocalOnly={setLocalOnly}
+                        sortByMatch={sortByMatch}
+                        setSortByMatch={setSortByMatch}
                     />
                 </div>
             </div>

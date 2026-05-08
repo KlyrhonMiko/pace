@@ -25,6 +25,8 @@ interface JobFiltersProps {
     setHasSalary: (has: boolean) => void;
     localOnly: boolean;
     setLocalOnly: (local: boolean) => void;
+    sortByMatch: boolean;
+    setSortByMatch: (sort: boolean) => void;
 }
 
 export default function JobFilters({
@@ -45,6 +47,8 @@ export default function JobFilters({
     setHasSalary,
     localOnly,
     setLocalOnly,
+    sortByMatch,
+    setSortByMatch,
 }: JobFiltersProps) {
 
     const toggleFilter = (filterArray: string[], setFilter: (val: string[]) => void, value: string) => {
@@ -174,6 +178,21 @@ export default function JobFilters({
                     {/* Preferences / Special Filters */}
                     <FilterSection title="Preferences">
                         <div className="space-y-3">
+                            <div className="flex items-center gap-3 p-2 rounded-lg bg-emerald-50/50 border border-emerald-100 hover:bg-emerald-50 transition-colors">
+                                <Checkbox
+                                    id="sortByMatch"
+                                    checked={sortByMatch}
+                                    onCheckedChange={(checked) => setSortByMatch(checked as boolean)}
+                                    className="border-emerald-300 data-[state=checked]:bg-emerald-700 data-[state=checked]:border-emerald-700"
+                                />
+                                <label
+                                    htmlFor="sortByMatch"
+                                    className="flex items-center gap-2 text-sm text-emerald-900 cursor-pointer select-none font-semibold"
+                                >
+                                    <Sparkles className="h-3.5 w-3.5 text-emerald-600 fill-emerald-600/20" />
+                                    Sort by Match Score
+                                </label>
+                            </div>
                             <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors">
                                 <Checkbox
                                     id="localOnly"

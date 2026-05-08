@@ -26,6 +26,8 @@ def _map_db_job_to_dict(job: JobListing, company_logo_url: str = None) -> dict:
         "work_type": job.work_type or "On-site",
         "experience_level": job.experience_level or "Mid-Level",
         "snippet": job.description or "",
+        "description": job.description or "",
+        "requirements": job.requirements or "",
         "link": job.source_url or "",
         "source": job.source_api or "Internal",
         "updated": str(job.updated_at),

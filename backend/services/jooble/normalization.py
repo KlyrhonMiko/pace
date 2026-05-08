@@ -129,6 +129,7 @@ def _normalize_job_dict(job: dict) -> dict:
         "work_type": work_type,
         "experience_level": experience_level,
         "snippet": clean_snippet,
+        "requirements": job.get("requirements", ""),
         "link": job.get("link", ""),
         "source": job.get("source", ""),
         "updated": job.get("updated", ""),

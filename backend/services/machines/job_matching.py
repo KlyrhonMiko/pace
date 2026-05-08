@@ -65,23 +65,33 @@ class JobMatchingService:
                 score = cosine_similarity([alumni_vector], [job_vector])[0][0]
                 
                 # Raw cosine similarity for dense embeddings (like all-MiniLM-L6-v2) 
-                # typically hovers around 0.3 - 0.6 for strong semantic matches.
-                # A raw score of 0.45 is actually a very good match!
-                # We normalize it to make it look like an intuitive 0-100% scale for users.
+                # often hovers around 0.3 - 0.4 for loosely related concepts (like Data Scientist vs JS Dev).
+                # Excellent semantic matches (like Frontend Architect vs JS/React) typically score 0.45 - 0.55.
+                # Because the model rarely scores above 0.6 unless words exactly match, we need to map 
+                # the [0.38, 0.52] raw score range to [0%, 100%] using a smoothstep curve.
+                baseline = 0.38
+                max_expected = 0.52
                 
-                # 1. Shift from [-1, 1] to [0, 1]
-                normalized = (score + 1.0) / 2.0
-                
-                # 2. Apply a slight curve to push typical good matches (0.7-0.8 normalized) 
-                # higher, capped at 1.0 (100%)
-                boosted = min(1.0, normalized * 1.25)
+                if score < baseline:
+                    match_percentage = 0.0
+                else:
+                    # 1. Cap the score at max_expected so anything above 0.52 is 100%
+                    effective_score = min(score, max_expected)
+                    
+                    # 2. Scale the active range to a linear [0.0, 1.0]
+                    scaled = (effective_score - baseline) / (max_expected - baseline)
+                    
+                    # 3. Apply a smoothstep curve (x^2 * (3 - 2x)) to push extremes to 0 and 1
+                    # This pushes 0.44 (Data Scientist) down to ~39%, and 0.485 (Frontend Architect) up to ~84%
+                    smooth = (scaled ** 2) * (3.0 - 2.0 * scaled)
+                    match_percentage = round(float(smooth) * 100, 2)
                 
                 results.append({
                     "job_id": str(job_id),
                     "title": title,
                     "company": company,
                     "similarity_score": float(score),
-                    "match_percentage": round(float(boosted) * 100, 2)
+                    "match_percentage": match_percentage
                 })
             except Exception as e:
                 import logging

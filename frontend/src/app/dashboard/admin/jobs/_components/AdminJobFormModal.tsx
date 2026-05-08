@@ -309,11 +309,26 @@ export default function AdminJobFormModal({ isOpen, onClose, editingJob, onSucce
                         </label>
                         <textarea
                             required
-                            rows={6}
+                            rows={4}
                             className="w-full px-4 py-3 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-600 transition-all text-sm resize-none"
                             placeholder="Provide a detailed description of the job role..."
                             value={formData.description}
                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        />
+                    </div>
+
+                    {/* Requirements */}
+                    <div className="space-y-1.5">
+                        <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                            <Plus className="h-3.5 w-3.5 text-slate-400" />
+                            Job Requirements
+                        </label>
+                        <textarea
+                            rows={4}
+                            className="w-full px-4 py-3 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-600 transition-all text-sm resize-none"
+                            placeholder="List qualifications, skills, and specific criteria for candidates..."
+                            value={formData.requirements}
+                            onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
                         />
                     </div>
                 </div>

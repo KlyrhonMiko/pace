@@ -23,6 +23,7 @@ interface JobDetailModalProps {
         link?: string;
         snippet?: string;
         description?: string;
+        requirements?: string;
         source?: string;
         matchPercentage?: number;
     };
@@ -601,6 +602,45 @@ export default function JobDetailModal({ job, onClose }: JobDetailModalProps) {
                             >
                                 No description provided. View the original posting for full details.
                             </p>
+                        </div>
+                    )}
+                    
+                    {/* ═══════════════ REQUIREMENTS ═══════════════ */}
+                    {job.requirements && (
+                        <div style={{ marginTop: "24px" }}>
+                            <div
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "10px",
+                                    marginBottom: "14px",
+                                }}
+                            >
+                                <h3
+                                    style={{
+                                        margin: 0,
+                                        fontSize: "12px",
+                                        fontWeight: 700,
+                                        color: "#0f172a",
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.08em",
+                                    }}
+                                >
+                                    Requirements
+                                </h3>
+                            </div>
+                            <div
+                                className="jdm-description"
+                                style={{
+                                    fontSize: "14px",
+                                    lineHeight: 1.7,
+                                    color: "#334155",
+                                    whiteSpace: "pre-wrap",
+                                    wordBreak: "break-word",
+                                }}
+                            >
+                                {job.requirements}
+                            </div>
                         </div>
                     )}
                 </div>

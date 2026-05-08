@@ -190,7 +190,7 @@ def match_jobs_for_alumni(
     # 5. Enrich matches with full job listing details
     job_map = {str(job.id): job for job in jobs}
     enriched_matches = []
-    for match in matches[:5]:
+    for match in matches[:50]:
         job_id = match["job_id"]
         job_obj = job_map.get(job_id)
         if job_obj:

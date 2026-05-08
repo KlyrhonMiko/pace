@@ -4,7 +4,7 @@ import { useState } from "react";
 import JobCard from "./JobCard";
 import JobDetailModal from "./JobDetailModal";
 import { Skeleton } from "../../../../../components/ui/skeleton";
-import { Briefcase, Search, ChevronLeft, ChevronRight, Info } from "lucide-react";
+import { Briefcase, Search, ChevronLeft, ChevronRight, Info, Sparkles } from "lucide-react";
 
 interface Job {
     id: number | string;
@@ -19,6 +19,7 @@ interface Job {
     experienceLevel: string;
     workType: string;
     snippet?: string;
+    requirements?: string;
     link?: string;
     description?: string;
     source?: string;
@@ -36,6 +37,7 @@ interface JobListProps {
     clearFilters: () => void;
 
     isLoading?: boolean;
+    sortByMatch?: boolean;
 }
 
 export default function JobList({
@@ -47,8 +49,8 @@ export default function JobList({
 
     JOBS_PER_PAGE,
     clearFilters,
-
     isLoading = false,
+    sortByMatch = false,
 }: JobListProps) {
     const paginatedJobs = filteredJobs;
     const [selectedJob, setSelectedJob] = useState<Job | null>(null);
@@ -72,6 +74,12 @@ export default function JobList({
                     </div>
 
                     <div className="flex items-center gap-2">
+                        {sortByMatch && (
+                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-100 shadow-sm animate-in fade-in slide-in-from-right-4 duration-500">
+                                <Sparkles className="h-3.5 w-3.5 text-indigo-600 fill-indigo-600/20" />
+                                <span className="text-xs font-bold text-indigo-700">Sorted by best match</span>
+                            </div>
+                        )}
                         <div className="hidden sm:flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-50/50 to-transparent border border-slate-100 shadow-sm">
                             <div className="w-1 h-3.5 bg-emerald-500 rounded-sm shadow-sm"></div>
                             <span className="text-xs font-medium text-slate-600">Platform jobs highlighted</span>

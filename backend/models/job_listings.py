@@ -65,6 +65,7 @@ class JobListingUpdate(SQLModel):
     title: Optional[str] = None
     company: Optional[str] = None
     description: Optional[str] = None
+    requirements: Optional[str] = None
     location: Optional[str] = None
     job_type: Optional[str] = None
     work_type: Optional[str] = None

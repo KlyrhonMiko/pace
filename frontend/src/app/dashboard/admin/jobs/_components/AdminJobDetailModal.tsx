@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { X, MapPin, CircleDollarSign, Calendar, ExternalLink, Link as LinkIcon, Briefcase, Building2, FileText, Pencil, EyeOff, Eye, Trash2 } from "lucide-react";
+import { X, MapPin, CircleDollarSign, Calendar, ExternalLink, Link as LinkIcon, Briefcase, Building2, FileText, Pencil, EyeOff, Eye, Trash2, Sparkles } from "lucide-react";
 
 interface AdminJobDetailModalProps {
     job: any;
@@ -488,6 +488,7 @@ export default function AdminJobDetailModal({ job, onClose, onToggleHide, onDele
                             marginBottom: "14px",
                         }}
                     >
+                        <FileText className="w-4 h-4" strokeWidth={2.5} style={{ color: "#059669" }} />
                         <h3
                             style={{
                                 margin: 0,
@@ -549,6 +550,46 @@ export default function AdminJobDetailModal({ job, onClose, onToggleHide, onDele
                             >
                                 No description provided. View the original posting for full details.
                             </p>
+                        </div>
+                    )}
+
+                    {/* ═══════════════ REQUIREMENTS ═══════════════ */}
+                    {job.requirements && (
+                        <div style={{ marginTop: "24px" }}>
+                            <div
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "10px",
+                                    marginBottom: "14px",
+                                }}
+                            >
+                                <Sparkles className="w-4 h-4" strokeWidth={2.5} style={{ color: "#059669" }} />
+                                <h3
+                                    style={{
+                                        margin: 0,
+                                        fontSize: "12px",
+                                        fontWeight: 700,
+                                        color: "#0f172a",
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.08em",
+                                    }}
+                                >
+                                    Requirements
+                                </h3>
+                            </div>
+                            <div
+                                className="jdm-description"
+                                style={{
+                                    fontSize: "14px",
+                                    lineHeight: 1.7,
+                                    color: "#334155",
+                                    whiteSpace: "pre-wrap",
+                                    wordBreak: "break-word",
+                                }}
+                            >
+                                {job.requirements}
+                            </div>
                         </div>
                     )}
                 </div>

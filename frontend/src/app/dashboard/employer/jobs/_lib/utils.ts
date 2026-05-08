@@ -40,6 +40,7 @@ export function convertApiJob(job: any, index: number): UnifiedJob {
         link: job.link || job.source_url,
         snippet: snippet,
         description: job.description,
+        requirements: job.requirements,
         isActive: job.is_active !== false,
         dbId: job.db_id,
         salary_min: job.salary_min,

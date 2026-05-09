@@ -1,0 +1,139 @@
+(.venv) [ceejay@archlinux backend]$ uvicorn main:app --reload
+INFO:     Will watch for changes in these directories: ['/mnt/sdb4/Programming/Python/Web Projects/pace/backend']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [135572] using StatReload
+INFO:     Started server process [135574]
+INFO:     Waiting for application startup.
+[STARTUP] [OK] Redis connection verified
+[STARTUP] [OK] PACE Application started - all systems initialized
+INFO:     Application startup complete.
+INFO:     127.0.0.1:33790 - "GET /settings/platform/public HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33790 - "GET /settings/platform/public HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33794 - "POST /auth/login HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.venv/lib/python3.14/site-packages/uvicorn/protocols/http/h11_impl.py", line 410, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        self.scope, self.receive, self.send
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.venv/lib/python3.14/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.venv/lib/python3.14/site-packages/fastapi/applications.py", line 1135, in __call__
+    await super().__call__(scope, receive, send)
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.venv/lib/python3.14/site-packages/starlette/applications.py", line 107, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.venv/lib/python3.14/site-packages/starlette/middleware/errors.py", line 186, in __call__
+    raise exc
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.venv/lib/python3.14/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.venv/lib/python3.14/site-packages/starlette/middleware/base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ~~~~~~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.14/contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.venv/lib/python3.14/site-packages/starlette/_utils.py", line 85, in collapse_excgroups
+    raise exc
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.venv/lib/python3.14/site-packages/starlette/middleware/base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/main.py", line 59, in add_artificial_delay
+    return await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.venv/lib/python3.14/site-packages/starlette/middleware/base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.venv/lib/python3.14/site-packages/starlette/middleware/base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.venv/lib/python3.14/site-packages/starlette/middleware/cors.py", line 93, in __call__
+    await self.simple_response(scope, receive, send, request_headers=headers)
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.venv/lib/python3.14/site-packages/starlette/middleware/cors.py", line 144, in simple_response
+    await self.app(scope, receive, send)
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.venv/lib/python3.14/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.venv/lib/python3.14/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.venv/lib/python3.14/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.venv/lib/python3.14/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.venv/lib/python3.14/site-packages/starlette/routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.venv/lib/python3.14/site-packages/starlette/routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.venv/lib/python3.14/site-packages/starlette/routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.venv/lib/python3.14/site-packages/fastapi/routing.py", line 115, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.venv/lib/python3.14/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.venv/lib/python3.14/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.venv/lib/python3.14/site-packages/fastapi/routing.py", line 101, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.venv/lib/python3.14/site-packages/fastapi/routing.py", line 355, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.venv/lib/python3.14/site-packages/fastapi/routing.py", line 245, in run_endpoint_function
+    return await run_in_threadpool(dependant.call, **values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.venv/lib/python3.14/site-packages/starlette/concurrency.py", line 32, in run_in_threadpool
+    return await anyio.to_thread.run_sync(func)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.venv/lib/python3.14/site-packages/anyio/to_thread.py", line 63, in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        func, args, abandon_on_cancel=abandon_on_cancel, limiter=limiter
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.venv/lib/python3.14/site-packages/anyio/_backends/_asyncio.py", line 2518, in run_sync_in_worker_thread
+    return await future
+           ^^^^^^^^^^^^
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.venv/lib/python3.14/site-packages/anyio/_backends/_asyncio.py", line 1002, in run
+    result = context.run(func, *args)
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/routers/auth.py", line 38, in login
+    token_payload = authenticate_and_issue_token(
+        session,
+        credentials.username,
+        credentials.password,
+    )
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/utils/auth.py", line 185, in authenticate_and_issue_token
+    user = authenticate_user(session, username, password)
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/utils/auth.py", line 170, in authenticate_user
+    log_auth_error("login", username, ErrorCode.INVALID_CREDENTIALS.value, "Invalid username or password - incorrect password")
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/utils/logging.py", line 110, in log_auth_error
+    logger = setup_logging()
+  File "/mnt/sdb4/Programming/Python/Web Projects/pace/backend/utils/logging.py", line 27, in setup_logging
+    file_handler = logging.handlers.RotatingFileHandler(
+        LOG_FILE,
+        maxBytes=10 * 1024 * 1024,  # 10MB
+        backupCount=5,
+    )
+  File "/usr/lib/python3.14/logging/handlers.py", line 161, in __init__
+    BaseRotatingHandler.__init__(self, filename, mode, encoding=encoding,
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                 delay=delay, errors=errors)
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/logging/handlers.py", line 64, in __init__
+    logging.FileHandler.__init__(self, filename, mode=mode,
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                 encoding=encoding, delay=delay,
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                 errors=errors)
+                                 ^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/logging/__init__.py", line 1219, in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ~~~~~~~~~~^^
+  File "/usr/lib/python3.14/logging/__init__.py", line 1248, in _open
+    return open_func(self.baseFilename, self.mode,
+                     encoding=self.encoding, errors=self.errors)
+PermissionError: [Errno 13] Permission denied: '/mnt/sdb4/Programming/Python/Web Projects/pace/backend/.logs/errors_2026-05-09.log'

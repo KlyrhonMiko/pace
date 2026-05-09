@@ -16,6 +16,10 @@
 #testing scripts
 .tests/
 
+#resources
+screenshots/
+USER_MANUAL.md
+
 # dependencies
 node_modules
 .pnp

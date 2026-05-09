@@ -9,6 +9,8 @@ from sqlalchemy.exc import IntegrityError
 
 from models.college_dept import CollegeDept
 from models.courses import Course
+from models.student_records import StudentRecord
+from models.alumni import Alumni
 from schemas.college_dept import (
     CollegeDeptCreate,
     CollegeDeptUpdate,
@@ -58,12 +60,29 @@ def get_college_dept_by_id(
     session: Session, college_dept_id: str
 ) -> CollegeDept | None:
     """Fetch a single active college department by its human-readable ID."""
-    return session.exec(
-        select(CollegeDept).where(
+    # Alumni count subquery for this specific department
+    alumni_subq = (
+        select(func.count(Alumni.id))
+        .join(StudentRecord, StudentRecord.alumni_ref_id == Alumni.id)
+        .join(Course, Course.id == StudentRecord.course_ref_id)
+        .join(CollegeDept, CollegeDept.id == Course.college_dept_ref_id)
+        .where(
             (CollegeDept.college_dept_id == college_dept_id.upper())
-            & (CollegeDept.is_deleted == False)
+            & (Alumni.is_deleted == False)
         )
-    ).first()
+    ).scalar_subquery()
+
+    query = select(CollegeDept, alumni_subq).where(
+        (CollegeDept.college_dept_id == college_dept_id.upper())
+        & (CollegeDept.is_deleted == False)
+    )
+    
+    result = session.exec(query).first()
+    if result:
+        dept, count = result
+        dept.alumni_count = count or 0
+        return dept
+    return None
 
 
 def get_college_dept_by_id_any(
@@ -188,7 +207,7 @@ def get_all_college_depts(
     sort_by: str,
     sort_order: str,
     deleted_only: bool = False,
-) -> tuple[list[CollegeDept], int]:
+) -> tuple[list[CollegeDeptPublic], int]:
     """
     Return (records, total_count) with filtering, search, sort, and pagination.
     """
@@ -199,8 +218,25 @@ def get_all_college_depts(
     else:
         base_filter = CollegeDept.is_deleted == False
 
-    query = select(CollegeDept)
+    # Alumni count subquery per department
+    alumni_subq = (
+        select(
+            Course.college_dept_ref_id,
+            func.count(Alumni.id).label("alumni_count")
+        )
+        .join(StudentRecord, StudentRecord.course_ref_id == Course.id)
+        .join(Alumni, Alumni.id == StudentRecord.alumni_ref_id)
+        .where(Alumni.is_deleted == False)
+        .group_by(Course.college_dept_ref_id)
+        .subquery()
+    )
+
+    # Main query
+    query = select(CollegeDept, func.coalesce(alumni_subq.c.alumni_count, 0))
+    query = query.outerjoin(alumni_subq, alumni_subq.c.college_dept_ref_id == CollegeDept.id)
+    
     count_q = select(func.count(CollegeDept.id))
+    
     if base_filter is not None:
         query = query.where(base_filter)
         count_q = count_q.where(base_filter)
@@ -208,6 +244,11 @@ def get_all_college_depts(
     if search:
         like = f"%{search}%"
         query = query.where(
+            (CollegeDept.college_dept_abbv.ilike(like))
+            | (CollegeDept.college_dept_name.ilike(like))
+            | (CollegeDept.college_dept_desc.ilike(like))
+        )
+        count_q = count_q.where(
             (CollegeDept.college_dept_abbv.ilike(like))
             | (CollegeDept.college_dept_name.ilike(like))
             | (CollegeDept.college_dept_desc.ilike(like))
@@ -232,6 +273,10 @@ def get_all_college_depts(
         query = query.order_by(
             CollegeDept.deleted_at.desc() if desc else CollegeDept.deleted_at
         )
+    elif sort_by.lower() == "alumni_count":
+        query = query.order_by(
+            alumni_subq.c.alumni_count.desc() if desc else alumni_subq.c.alumni_count
+        )
     else:
         query = query.order_by(
             CollegeDept.college_dept_id.desc() if desc else CollegeDept.college_dept_id
@@ -240,7 +285,18 @@ def get_all_college_depts(
     if limit > 0:
         query = query.offset(offset).limit(limit)
 
-    return session.exec(query).all(), total
+    results = session.exec(query).all()
+    depts = []
+    for dept, count in results:
+        # Map to Public schema correctly
+        depts.append(
+            CollegeDeptPublic(
+                **dept.model_dump(),
+                alumni_count=count
+            )
+        )
+        
+    return depts, total
 
 
 # ---------------------------------------------------------------------------

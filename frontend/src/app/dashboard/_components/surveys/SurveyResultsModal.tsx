@@ -141,7 +141,7 @@ export function SurveyResultsModal({ survey, isOpen, onClose }: SurveyResultsMod
                                 </DialogTitle>
                                 <DialogDescription className="text-sm text-slate-500 mt-1.5 flex items-center gap-2.5">
                                     <span className="font-medium text-slate-700 line-clamp-1">{survey?.title}</span>
-                                    <div className="h-1 w-1 rounded-full bg-slate-300 shrink-0" />
+                                    <span className="h-1 w-1 rounded-full bg-slate-300 shrink-0" />
                                     <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wider shrink-0 ${
                                         survey?.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
                                         survey?.status === 'CLOSED' ? 'bg-amber-50 text-amber-600 border border-amber-100' :

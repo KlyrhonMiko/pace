@@ -90,6 +90,7 @@ export default function AdminJobBoardPage() {
     const [localOnly, setLocalOnly] = useState(true);
     const [salaryRange, setSalaryRange] = useState<[number, number]>([0, 500]);
     const [tempSalaryRange, setTempSalaryRange] = useState<[number, number]>([0, 500]);
+    const [sortByMatch, setSortByMatch] = useState(false);
 
     const [currentPage, setCurrentPage] = useState(1);
     const JOBS_PER_PAGE = 15;
@@ -169,6 +170,7 @@ export default function AdminJobBoardPage() {
         setTempSalaryRange([0, 500]);
         setHasSalary(false);
         setLocalOnly(false);
+        setSortByMatch(false);
         setCurrentPage(1);
     };
 
@@ -265,6 +267,8 @@ export default function AdminJobBoardPage() {
                             setLocalOnly={setLocalOnly}
                             tempSalaryRange={tempSalaryRange}
                             setTempSalaryRange={setTempSalaryRange}
+                            sortByMatch={sortByMatch}
+                            setSortByMatch={setSortByMatch}
                         />
                     </div>
                 </div>

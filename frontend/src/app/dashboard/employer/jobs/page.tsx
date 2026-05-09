@@ -24,6 +24,7 @@ export default function EmployerJobsPage() {
     const [selectedWorkTypes, setSelectedWorkTypes] = useState<string[]>([]);
     const [hasSalary, setHasSalary] = useState(false);
     const [localOnly, setLocalOnly] = useState(false);
+    const [sortByMatch, setSortByMatch] = useState(false);
     const [salaryRange, setSalaryRange] = useState<[number, number]>([0, 500]);
     const [tempSalaryRange, setTempSalaryRange] = useState<[number, number]>([0, 500]);
 
@@ -106,6 +107,7 @@ export default function EmployerJobsPage() {
         setTempSalaryRange([0, 500]);
         setHasSalary(false);
         setLocalOnly(false);
+        setSortByMatch(false);
         setCurrentPage(1);
     };
 
@@ -226,6 +228,8 @@ export default function EmployerJobsPage() {
                             setTempSalaryRange={setTempSalaryRange}
                             localOnly={localOnly}
                             setLocalOnly={setLocalOnly}
+                            sortByMatch={sortByMatch}
+                            setSortByMatch={setSortByMatch}
                         />
                     </div>
                 </div>

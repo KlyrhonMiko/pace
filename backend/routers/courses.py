@@ -472,17 +472,18 @@ def _build_all_courses_response(
 
 
 def _build_course_detail_response(session: Session, course_id: str) -> StandardResponse:
-    course = get_course_by_id(session, course_id)
-    if not course:
+    result = get_course_by_id(session, course_id)
+    if not result:
         log_error("courses", "get_course", ErrorCode.COURSE_NOT_FOUND.value, f"Course {course_id} not found")
         raise HTTPException(status_code=404, detail=StandardResponse(
             success=False, code=ErrorCode.COURSE_NOT_FOUND.value, message="Course not found"
         ).model_dump(mode='json'))
 
+    course, count = result
     from services.queries.courses_queries import get_college_dept_by_ref_id
     college_dept = get_college_dept_by_ref_id(session, course.college_dept_ref_id)
     return StandardResponse(
         success=True, code=SuccessCode.COURSE_RETRIEVED.value,
         message=f"Course {course_id} retrieved successfully",
-        data=build_course_public(course, college_dept)
+        data=build_course_public(course, college_dept, alumni_count=count)
     )

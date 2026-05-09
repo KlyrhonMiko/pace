@@ -95,20 +95,26 @@ export function useSurveyManagement() {
 
     const handleSaveSurvey = async (sData: Omit<Survey, "survey_id" | "question_count">) => {
         setIsSaving(true);
-        const { success } = await saveSurveyWorkflow(editingSurvey, sData);
+        const { success, error } = await saveSurveyWorkflow(editingSurvey, sData);
 
         if (success) {
             toast.success(editingSurvey ? "Survey updated successfully." : "Survey created successfully.");
             await loadData();
             setIsSurveyModalOpen(false);
         } else {
-            toast.error(editingSurvey ? "Failed to update survey." : "Failed to create survey.");
+            toast.error(error || (editingSurvey ? "Failed to update survey." : "Failed to create survey."));
         }
 
         setIsSaving(false);
     };
 
     const handlePublishSurvey = async (id: string) => {
+        const survey = surveys.find(s => s.survey_id === id);
+        if (survey && (!survey.question_count || survey.question_count === 0)) {
+            toast.error("Cannot publish a survey with no questions. Please add questions first.");
+            return;
+        }
+
         setIsSaving(true);
         try {
             const success = await apiPublishSurvey(id);
@@ -119,7 +125,7 @@ export function useSurveyManagement() {
                 toast.error("Failed to publish survey.");
             }
         } catch (error) {
-            toast.error("Failed to publish survey.");
+            toast.error(error instanceof Error ? error.message : "Failed to publish survey.");
         } finally {
             setIsSaving(false);
         }
@@ -136,7 +142,7 @@ export function useSurveyManagement() {
                 toast.error("Failed to close survey.");
             }
         } catch (error) {
-            toast.error("Failed to close survey.");
+            toast.error(error instanceof Error ? error.message : "Failed to close survey.");
         } finally {
             setIsSaving(false);
         }
@@ -153,16 +159,16 @@ export function useSurveyManagement() {
                 toast.error("Failed to archive survey.");
             }
         } catch (error) {
-            toast.error("Failed to archive survey.");
+            toast.error(error instanceof Error ? error.message : "Failed to archive survey.");
         } finally {
             setIsSaving(false);
         }
     };
 
-    const handleReopenSurvey = async (id: string) => {
+    const handleReopenSurvey = async (id: string, payload: { opens_at: string; closes_at: string }) => {
         setIsSaving(true);
         try {
-            const success = await apiReopenSurvey(id);
+            const success = await apiReopenSurvey(id, payload);
             if (success) {
                 toast.success("Survey reopened successfully.");
                 await loadData();
@@ -170,7 +176,7 @@ export function useSurveyManagement() {
                 toast.error("Failed to reopen survey.");
             }
         } catch (error) {
-            toast.error("Failed to reopen survey.");
+            toast.error(error instanceof Error ? error.message : "Failed to reopen survey.");
         } finally {
             setIsSaving(false);
         }

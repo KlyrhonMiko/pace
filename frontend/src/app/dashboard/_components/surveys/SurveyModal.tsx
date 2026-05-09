@@ -1,9 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Calendar, Settings2, HelpCircle, GripVertical, Trash2, LibraryBig, Loader2, ClipboardList, Check } from "lucide-react";
+import { Calendar, Settings2, HelpCircle, GripVertical, Trash2, LibraryBig, Loader2, ClipboardList, Check, Globe } from "lucide-react";
 import { Survey, Question } from "../../_lib/surveys";
-import { SURVEY_STATUSES } from "../../_lib/surveys";
+import { getDepartments, getCourses, CollegeDeptPublic, CoursePublic } from "../../_lib/academic";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import {
     Dialog,
     DialogContent,
@@ -11,7 +18,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DatePicker } from "@/components/ui/date-picker";
 
@@ -32,7 +38,8 @@ const defaultSurveyData: Omit<Survey, "survey_id" | "question_count"> = {
     allow_multiple_responses: false,
     opens_at: "",
     closes_at: "",
-    status: "DRAFT",
+    target_department_abbv: null,
+    target_course_abbv: null,
     questions: [],
 };
 
@@ -49,6 +56,10 @@ export default function SurveyModal({ isOpen, onClose, onSubmit, onReset, initia
     const [dragIdx, setDragIdx] = useState<number | null>(null);
     const [dropIdx, setDropIdx] = useState<number | null>(null);
 
+    // Academic targeting state
+    const [departments, setDepartments] = useState<CollegeDeptPublic[]>([]);
+    const [courses, setCourses] = useState<CoursePublic[]>([]);
+
     useEffect(() => {
         if (initialData) {
             setFormData({
@@ -56,12 +67,32 @@ export default function SurveyModal({ isOpen, onClose, onSubmit, onReset, initia
                 // Backend returns "2026-03-04 00:00:00", date input needs "2026-03-04"
                 opens_at: initialData.opens_at ? initialData.opens_at.split(/[T ]/)[0] : "",
                 closes_at: initialData.closes_at ? initialData.closes_at.split(/[T ]/)[0] : "",
+                target_department_abbv: initialData.target_department_abbv || null,
+                target_course_abbv: initialData.target_course_abbv || null,
             });
         } else {
             setFormData(defaultSurveyData);
             setActiveSection('details');
         }
     }, [initialData, isOpen]);
+
+    useEffect(() => {
+        if (isOpen) {
+            getDepartments({ limit: 100 }).then(res => {
+                if (res.success) setDepartments(res.data.college_depts);
+            });
+        }
+    }, [isOpen]);
+
+    useEffect(() => {
+        if (isOpen && formData.target_department_abbv) {
+            getCourses({ limit: 100, college_dept_abbv: formData.target_department_abbv }).then(res => {
+                if (res.success) setCourses(res.data.courses);
+            });
+        } else {
+            setCourses([]);
+        }
+    }, [isOpen, formData.target_department_abbv]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -203,9 +234,71 @@ export default function SurveyModal({ isOpen, onClose, onSubmit, onReset, initia
                                 </div>
 
                                 <div className="space-y-4">
+                                    <h3 className="text-[10px] font-bold text-emerald-900 uppercase tracking-[0.2em] mb-2 pt-6 border-t border-slate-200">Target Range</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-bold text-slate-500 uppercase">Target Department</label>
+                                            <Select
+                                                value={formData.target_department_abbv || "all"}
+                                                onValueChange={(val) => setFormData({ 
+                                                    ...formData, 
+                                                    target_department_abbv: val === "all" ? null : val,
+                                                    target_course_abbv: null 
+                                                })}
+                                            >
+                                                <SelectTrigger className="h-10 bg-white border-slate-200">
+                                                    <SelectValue placeholder="Select Department" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">
+                                                        <div className="flex items-center gap-2">
+                                                            <Globe className="w-3.5 h-3.5 text-slate-400" />
+                                                            <span>All Alumni</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                    {departments.map(d => (
+                                                        <SelectItem key={d.college_dept_id} value={d.college_dept_abbv}>
+                                                            {d.college_dept_abbv} - {d.college_dept_name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-bold text-slate-500 uppercase">Target Course</label>
+                                            <Select
+                                                disabled={!formData.target_department_abbv}
+                                                value={formData.target_course_abbv || "all"}
+                                                onValueChange={(val) => setFormData({ 
+                                                    ...formData, 
+                                                    target_course_abbv: val === "all" ? null : val 
+                                                })}
+                                            >
+                                                <SelectTrigger className="h-10 bg-white border-slate-200">
+                                                    <SelectValue placeholder="Select Course" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">All Courses in Department</SelectItem>
+                                                    {courses.map(c => (
+                                                        <SelectItem key={c.course_id} value={c.course_abbv}>
+                                                            {c.course_abbv} - {c.course_name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {!formData.target_department_abbv && (
+                                                <p className="text-[10px] text-slate-400">Select a department first to target specific courses.</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4">
                                     <h3 className="text-[10px] font-bold text-emerald-900 uppercase tracking-[0.2em] mb-2 pt-6 border-t border-slate-200">Settings & Rules</h3>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+
                                         <div className="flex flex-col gap-4">
                                             {/* Anonymous Toggle */}
                                             <label className="flex items-start gap-3 cursor-pointer group bg-white p-4 rounded-xl border border-slate-200 hover:border-emerald-200 transition-colors flex-1">

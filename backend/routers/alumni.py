@@ -234,6 +234,8 @@ def get_all_alumni_route(
     include_deleted: bool = Query(False),
     sort_by: str = Query("alumni_id"),
     sort_order: str = Query("asc"),
+    course_abbv: str = Query(None),
+    college_dept_abbv: str = Query(None),
     session: Session = Depends(get_session),
     current_user: CurrentUser = Depends(require_staff_or_admin),
 ):
@@ -248,11 +250,14 @@ def get_all_alumni_route(
         include_deleted=include_deleted,
         sort_by=sort_by,
         sort_order=sort_order,
+        course_abbv=course_abbv,
+        college_dept_abbv=college_dept_abbv,
     )
     return cache_get_or_set(
         cache_key,
         lambda: _build_alumni_list_response(
-            session, limit, offset, search, gender, include_deleted, sort_by, sort_order
+            session, limit, offset, search, gender, include_deleted, sort_by, sort_order,
+            course_abbv=course_abbv, college_dept_abbv=college_dept_abbv
         ),
         ttl=ALUMNI_LIST_TTL,
     )
@@ -763,9 +768,12 @@ def _build_alumni_list_response(
     include_deleted: bool,
     sort_by: str,
     sort_order: str,
+    course_abbv: str | None = None,
+    college_dept_abbv: str | None = None,
 ) -> StandardResponse:
     alumni_list, total = get_all_alumni(
-        session, limit, offset, search, gender, include_deleted, sort_by, sort_order
+        session, limit, offset, search, gender, include_deleted, sort_by, sort_order,
+        course_abbv=course_abbv, college_dept_abbv=college_dept_abbv
     )
     profiles = [build_full_profile(session, a) for a in alumni_list]
     returned = len(profiles)

@@ -12,6 +12,7 @@ from schemas.surveys import (
     SurveyUpdate,
     SurveyPublic,
     SurveyStatus,
+    SurveyReopenRequest,
 )
 from models.auth import CurrentUser
 from models.response_codes import StandardResponse, SuccessCode, ErrorCode
@@ -445,6 +446,10 @@ def close_survey_route(
                     message="Only ACTIVE surveys can be closed",
                 ).model_dump(mode="json"),
             )
+        
+        # Manually set closes_at to now when closing manually
+        survey.closes_at = get_current_time_gmt8()
+        
         updated = set_survey_status(
             session,
             survey,
@@ -478,10 +483,11 @@ def close_survey_route(
 @router.post("/{survey_id}/reopen", response_model=StandardResponse)
 def reopen_survey_route(
     survey_id: str,
+    body: SurveyReopenRequest,
     session: Session = Depends(get_session),
     current_user: CurrentUser = Depends(require_staff_or_admin),
 ):
-    """Reopen a closed survey (CLOSED → ACTIVE)"""
+    """Reopen a closed survey (CLOSED → ACTIVE) with new timeframe"""
     try:
         survey = get_survey_by_id(session, survey_id)
         if not survey:
@@ -502,6 +508,11 @@ def reopen_survey_route(
                     message="Only CLOSED surveys can be reopened",
                 ).model_dump(mode="json"),
             )
+        
+        # Update timeframe
+        survey.opens_at = body.opens_at
+        survey.closes_at = body.closes_at
+        
         updated = set_survey_status(
             session,
             survey,

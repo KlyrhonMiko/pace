@@ -19,6 +19,7 @@ import {
     BarChart3,
     ChevronRight,
     ClipboardList,
+    GraduationCap,
 } from "lucide-react";
 import DateWidget from "../_components/DateWidget";
 import TopHeader from "../_components/TopHeader";
@@ -30,6 +31,7 @@ const navItems = [
         href: "/dashboard/faculty/alumnis",
         icon: () => <Users size={18} />,
     },
+    { name: "Academic Structure", href: "/dashboard/faculty/academic", icon: () => <GraduationCap size={18} /> },
     { name: "Events", href: "/dashboard/faculty/events", icon: () => <Calendar size={18} /> },
     {
         name: "Job Board",

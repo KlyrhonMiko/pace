@@ -26,6 +26,8 @@ class SurveyCreate(SQLModel):
     allow_multiple_responses: bool = Field(default=False)
     opens_at: Optional[datetime] = None
     closes_at: Optional[datetime] = None
+    target_department_abbv: Optional[str] = None
+    target_course_abbv: Optional[str] = None
 
     @field_validator("closes_at")
     @classmethod
@@ -43,6 +45,8 @@ class SurveyUpdate(SQLModel):
     allow_multiple_responses: Optional[bool] = None
     opens_at: Optional[datetime] = None
     closes_at: Optional[datetime] = None
+    target_department_abbv: Optional[str] = None
+    target_course_abbv: Optional[str] = None
 
     @field_validator("closes_at")
     @classmethod
@@ -61,6 +65,8 @@ class SurveyPublic(AuditPublicSQLModel):
     allow_multiple_responses: bool
     opens_at: Optional[datetime] = None
     closes_at: Optional[datetime] = None
+    target_department_abbv: Optional[str] = None
+    target_course_abbv: Optional[str] = None
     status: SurveyStatus
     created_at: datetime
     updated_at: datetime
@@ -86,6 +92,19 @@ class SurveyQuestionCreate(SQLModel):
 
 class SurveyQuestionReorderRequest(SQLModel):
     order_map: dict
+
+
+class SurveyReopenRequest(SQLModel):
+    opens_at: datetime
+    closes_at: datetime
+
+    @field_validator("closes_at")
+    @classmethod
+    def validate_closes_at(cls, v, info):
+        opens_at = info.data.get("opens_at")
+        if opens_at and v and v <= opens_at:
+            raise ValueError("closes_at must be after opens_at")
+        return v
 
 
 # ── Survey Response schemas ─────────────────────────────────────────────────

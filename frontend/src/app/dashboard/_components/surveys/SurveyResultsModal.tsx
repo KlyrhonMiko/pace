@@ -111,7 +111,7 @@ export function SurveyResultsModal({ survey, isOpen, onClose }: SurveyResultsMod
             const headers = Object.keys(responses[0]);
             const csvRows = [
                 headers.join(','),
-                ...responses.map((row: any) => headers.map(h => `"${row[h] || ''}"`).join(','))
+                ...responses.map((row) => headers.map(h => `"${(row as any)[h] || ''}"`).join(','))
             ];
             const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
             const url = URL.createObjectURL(blob);
@@ -365,7 +365,7 @@ export function SurveyResultsModal({ survey, isOpen, onClose }: SurveyResultsMod
                             </div>
                             <h3 className="text-lg font-semibold text-slate-900">Analysis Unavailable</h3>
                             <p className="text-slate-500 mt-2 max-w-sm text-sm">
-                                We couldn't retrieve the analysis for this survey. It might be due to a lack of responses.
+                                We couldn&apos;t retrieve the analysis for this survey. It might be due to a lack of responses.
                             </p>
                         </div>
                     )}
@@ -451,10 +451,10 @@ function QuestionCard({ stats, index }: { stats: QuestionStats, index: number })
                                     Recent Responses
                                 </p>
                                 <div className="grid gap-3">
-                                    {stats.samples.map((sample, i) => (
-                                        <div key={i} className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm text-sm text-slate-700 flex gap-3.5 items-start transition-colors hover:border-emerald-100 hover:bg-emerald-50/30">
+                                    {stats.samples.map((sample, idx) => (
+                                        <div key={idx} className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm text-sm text-slate-700 flex gap-3.5 items-start transition-colors hover:border-emerald-100 hover:bg-emerald-50/30">
                                             <Quote className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
-                                            <span className="leading-relaxed font-medium italic">"{sample}"</span>
+                                            <span className="leading-relaxed font-medium italic">&quot;{sample}&quot;</span>
                                         </div>
                                     ))}
                                 </div>

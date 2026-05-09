@@ -51,7 +51,7 @@ export function useSurveyManagement() {
             ]);
             setQuestionBank(questionsResult.questions);
             setSurveys(surveysResult.surveys);
-        } catch (error) {
+        } catch {
             toast.error("Failed to load survey data.");
         } finally {
             setIsLoading(false);
@@ -185,7 +185,7 @@ export function useSurveyManagement() {
     const handleCreateTracerStudy = async () => {
         setIsSaving(true);
         try {
-            const result = await createTracerStudyTemplate();
+            await createTracerStudyTemplate();
             toast.success("CHED Tracer Study template created successfully.");
             await loadData();
         } catch (error) {
@@ -234,8 +234,7 @@ export function useSurveyManagement() {
             ? apiUpdateQuestion(editingQuestion.question_id, qData)
             : apiCreateQuestion(qData);
 
-        const result = await qAction;
-        if (result) {
+        if (await qAction) {
             toast.success(editingQuestion ? "Question updated successfully." : "Question created successfully.");
             await loadData();
             setIsQuestionModalOpen(false);

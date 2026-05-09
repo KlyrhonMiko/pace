@@ -34,6 +34,7 @@ interface SurveyModalProps {
 const defaultSurveyData: Omit<Survey, "survey_id" | "question_count"> = {
     title: "",
     description: "",
+    status: "DRAFT",
     is_anonymous: false,
     allow_multiple_responses: false,
     opens_at: "",
@@ -206,6 +207,11 @@ export default function SurveyModal({ isOpen, onClose, onSubmit, onReset, initia
                                 <div className="space-y-4">
                                     <h3 className="text-[10px] font-bold text-emerald-900 uppercase tracking-[0.2em] mb-2">Basic Information</h3>
 
+                                    <div className="space-y-1 mt-4">
+                                        <p className="text-[11px] text-slate-400 font-medium leading-relaxed italic">
+                                            Don&apos;t see what you&apos;re looking for? Select questions from your library to add them to this survey.
+                                        </p>
+                                    </div>
                                     <div className="space-y-1.5">
                                         <label className="text-sm font-medium text-slate-700">
                                             Survey Title*
@@ -453,7 +459,7 @@ export default function SurveyModal({ isOpen, onClose, onSubmit, onReset, initia
                                                         <div className="p-4 text-center text-slate-500 text-sm">
                                                             {questionLibrary.length === 0
                                                                 ? "Library is empty."
-                                                                : "All library questions are already in this survey."}
+                                                                : "Questions you create will be available to use in any survey."}
                                                         </div>
                                                     );
                                                 }

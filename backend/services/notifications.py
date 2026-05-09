@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import uuid
@@ -40,17 +41,39 @@ def publish_notification(user_id: uuid.UUID, notification: Notification) -> None
         logger.error(f"Failed to publish notification to redis: {e}")
 
 async def subscribe_notifications(user_id: uuid.UUID) -> AsyncGenerator[str, None]:
-    """Yield SSE formatted messages from Redis Pub/Sub for a specific user."""
+    """Yield SSE formatted messages from Redis Pub/Sub for a specific user.
+
+    Uses a polling loop with a short timeout so that asyncio.CancelledError
+    (raised during uvicorn shutdown) can propagate immediately instead of
+    blocking forever on pubsub.listen().  A periodic heartbeat comment
+    keeps proxies and browsers from timing out the connection.
+    """
     pubsub = async_redis_client.pubsub()
     channel = f"notifications:{user_id}"
     await pubsub.subscribe(channel)
     logger.debug(f"Subscribed to {channel}")
-    
+
     try:
-        async for message in pubsub.listen():
-            if message["type"] == "message":
+        while True:
+            try:
+                message = await asyncio.wait_for(
+                    pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0),
+                    timeout=30.0,
+                )
+            except asyncio.TimeoutError:
+                # No message within 30s — send an SSE heartbeat comment
+                yield ": heartbeat\n\n"
+                continue
+            except asyncio.CancelledError:
+                # Server is shutting down — exit cleanly
+                logger.debug(f"SSE cancelled for {channel}")
+                return
+
+            if message is not None and message["type"] == "message":
                 data = message["data"]
                 yield f"data: {data}\n\n"
+    except asyncio.CancelledError:
+        logger.debug(f"SSE cancelled for {channel}")
     except Exception as e:
         logger.error(f"SSE subscription error for user {user_id}: {e}")
     finally:

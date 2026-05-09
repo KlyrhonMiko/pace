@@ -12,6 +12,7 @@ from models.auth import CurrentUser
 from models.users import UserType
 from models.pagination import PaginatedResponse, PaginationMetadata
 from utils.crypto import verify_password
+from utils.auth import oauth2_scheme, revoke_access_token
 from utils.rbac import require_admin, require_self_or_admin
 from utils.logging import log_error, log_integrity_error, log_auth_error
 from services.queries.users_queries import (
@@ -264,6 +265,7 @@ async def update_user_route(
     request: Request,
     session: Session = Depends(get_session),
     current_user: CurrentUser = Depends(require_self_or_admin),
+    token: str | None = Depends(oauth2_scheme),
 ):
     """Update a user's information. If changing password, current_password is required."""
     payload = await request.json()
@@ -299,6 +301,10 @@ async def update_user_route(
                 message="Current password is incorrect"
             ).model_dump(mode='json'))
 
+    self_service_password_change = (
+        user_data.password is not None and current_user.user_id == user.user_id
+    )
+
     try:
         print(f"[DEBUG] Updating user {user_id}")
         updated = update_user(
@@ -306,7 +312,10 @@ async def update_user_route(
             user,
             user_data,
             performed_by=current_user.id,
+            revoke_all_tokens_on_password_change=not self_service_password_change,
         )
+        if self_service_password_change and token:
+            revoke_access_token(token)
         data = UserPublic.model_validate(updated)
         invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
         

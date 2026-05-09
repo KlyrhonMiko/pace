@@ -209,3 +209,60 @@ def test_user_deactivate_and_restore_cascades_to_alumni_and_student_record(clien
     assert user_row is not None and user_row.is_deleted is False
     assert alumni_row is not None and alumni_row.is_deleted is False
     assert student_row is not None and student_row.is_deleted is False
+
+
+def test_self_service_password_change_revokes_only_current_session(client, seeded_accounts):
+    admin_account = seeded_accounts["admin"]
+
+    first_login = client.post(
+        "/auth/login",
+        json={"username": admin_account.username, "password": admin_account.password},
+    )
+    assert first_login.status_code == 200
+    first_token = first_login.json()["data"]["access_token"]
+    first_headers = {"Authorization": f"Bearer {first_token}"}
+
+    second_login = client.post(
+        "/auth/login",
+        json={"username": admin_account.username, "password": admin_account.password},
+    )
+    assert second_login.status_code == 200
+    second_token = second_login.json()["data"]["access_token"]
+    second_headers = {"Authorization": f"Bearer {second_token}"}
+
+    password_change = client.patch(
+        f"/users/{admin_account.user_id}",
+        headers=first_headers,
+        json={
+            "current_password": admin_account.password,
+            "password": "AdminPass456!",
+        },
+    )
+    assert password_change.status_code == 200
+    assert_standard_response(password_change.json(), success=True)
+
+    revoked_current_session = client.get("/auth/me", headers=first_headers)
+    assert revoked_current_session.status_code == 401
+    assert_standard_response(
+        revoked_current_session.json(),
+        success=False,
+        code=ErrorCode.TOKEN_REVOKED.value,
+    )
+
+    surviving_session = client.get("/auth/me", headers=second_headers)
+    assert surviving_session.status_code == 200
+    assert_standard_response(surviving_session.json(), success=True)
+
+    old_password_login = client.post(
+        "/auth/login",
+        json={"username": admin_account.username, "password": admin_account.password},
+    )
+    assert old_password_login.status_code == 401
+    assert_standard_response(old_password_login.json(), success=False, code=ErrorCode.INVALID_CREDENTIALS.value)
+
+    new_password_login = client.post(
+        "/auth/login",
+        json={"username": admin_account.username, "password": "AdminPass456!"},
+    )
+    assert new_password_login.status_code == 200
+    assert_standard_response(new_password_login.json(), success=True)

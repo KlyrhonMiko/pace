@@ -12,7 +12,7 @@ import { toast } from "sonner";
 const STORAGE_KEY = "pace_staff_security_prefs";
 
 export function AccountSecurity() {
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
     const [twoFactor, setTwoFactor] = useState(false);
     const [loginAlerts, setLoginAlerts] = useState(true);
     const [saved, setSaved] = useState(false);
@@ -77,11 +77,14 @@ export function AccountSecurity() {
             });
 
             if (res.success) {
-                toast.success("Password updated successfully");
+                toast.success("Password updated successfully. Please sign in again.");
                 setIsChangingPassword(false);
                 setCurrentPassword("");
                 setNewPassword("");
                 setConfirmPassword("");
+                setTimeout(() => {
+                    logout();
+                }, 1500);
             } else {
                 toast.error(res.message || "Failed to update password");
             }

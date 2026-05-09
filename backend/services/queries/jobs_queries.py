@@ -24,7 +24,9 @@ def create_job_listing(
     # Generate vector embedding for semantic matching
     text_to_embed = f"{db_job.title} {db_job.description} {db_job.requirements or ''}"
     try:
-        db_job.vector_embedding = job_matching_service.generate_and_serialize(text_to_embed)
+        embedding_bytes = job_matching_service.generate_and_serialize(text_to_embed)
+        if embedding_bytes is not None:
+            db_job.vector_embedding = embedding_bytes
     except Exception as e:
         import logging
         logging.getLogger(__name__).error(f"Failed to generate embedding for job {db_job.title}: {e}")
@@ -78,7 +80,9 @@ def update_job_listing(
     if "title" in job_data or "description" in job_data or "requirements" in job_data:
         text_to_embed = f"{db_job.title} {db_job.description} {db_job.requirements or ''}"
         try:
-            db_job.vector_embedding = job_matching_service.generate_and_serialize(text_to_embed)
+            embedding_bytes = job_matching_service.generate_and_serialize(text_to_embed)
+            if embedding_bytes is not None:
+                db_job.vector_embedding = embedding_bytes
         except Exception as e:
             import logging
             logging.getLogger(__name__).error(f"Failed to generate embedding for job {db_job.title}: {e}")
@@ -488,4 +492,3 @@ def update_job_application_schedule(
         logging.getLogger(__name__).error(f"Failed to create application schedule notification: {e}")
 
     return application
-

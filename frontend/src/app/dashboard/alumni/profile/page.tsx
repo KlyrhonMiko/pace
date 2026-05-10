@@ -466,7 +466,7 @@ export default function ProfilePage() {
 
     // ── Age auto-compute ──
     useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
+         
         setPersonalDraft((prev) => ({
             ...prev,
             age: computeAge(prev.birthdate),

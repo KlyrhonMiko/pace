@@ -16,7 +16,7 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiFetch<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
+export async function apiFetch<T = any>(endpoint: string, options: ApiOptions = {}): Promise<T> {
   const { body, ...customConfig } = options;
 
   const headers = { ...customConfig.headers } as Record<string, string>;

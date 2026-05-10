@@ -27,7 +27,9 @@ TEST_DATABASE_URL = (
     or os.getenv("PACE_TEST_DATABASE_URL")
 )
 ALLOW_SHARED_DB = os.getenv("PACE_TEST_ALLOW_SHARED_DB", "").lower() == "true"
-DEFAULT_SQLITE_TEST_DB = f"sqlite:///{(Path('/tmp/opencode') / f'pace-test-{os.getpid()}.db').as_posix()}"
+TEST_DATA_DIR = BACKEND_ROOT / ".test_data"
+TEST_DATA_DIR.mkdir(exist_ok=True)
+DEFAULT_SQLITE_TEST_DB = f"sqlite:///{(TEST_DATA_DIR / f'pace-test-{os.getpid()}.db').as_posix()}"
 
 if not TEST_DATABASE_URL and ALLOW_SHARED_DB:
     TEST_DATABASE_URL = os.getenv("DATABASE_URL")

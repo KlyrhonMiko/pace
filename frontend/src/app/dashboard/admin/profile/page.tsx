@@ -257,7 +257,7 @@ export default function AdminProfilePage() {
             } else {
                 toast.error(result.message || "Failed to update personal info");
             }
-        } catch (error) {
+        } catch {
             toast.error("An error occurred");
         } finally {
             setIsSavingPersonal(false);
@@ -276,7 +276,7 @@ export default function AdminProfilePage() {
             } else {
                 toast.error(result.message || "Failed to update account info");
             }
-        } catch (error) {
+        } catch {
             toast.error("An error occurred");
         } finally {
             setIsSavingAccount(false);
@@ -320,7 +320,7 @@ export default function AdminProfilePage() {
             } else {
                 toast.error(result.message || "Failed to update password");
             }
-        } catch (error) {
+        } catch {
             toast.error("An error occurred");
         } finally {
             setIsSavingPassword(false);

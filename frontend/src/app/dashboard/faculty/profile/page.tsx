@@ -247,14 +247,17 @@ export default function FacultyProfilePage() {
         try {
             const result = await apiFetch(`/users/${user.user_id}`, { method: "PATCH", body: personalDraft });
             if (result.success) {
-                setFullUser({ ...fullUser, ...personalDraft });
-                updateUser(personalDraft);
+                setFullUser(result.data);
+                updateUser({
+                    first_name: result.data.first_name,
+                    last_name: result.data.last_name
+                });
                 setEditingPersonal(false);
                 toast.success("Personal information updated");
             } else {
                 toast.error(result.message || "Failed to update personal info");
             }
-        } catch (error) {
+        } catch {
             toast.error("An error occurred");
         } finally {
             setIsSavingPersonal(false);
@@ -267,13 +270,13 @@ export default function FacultyProfilePage() {
         try {
             const result = await apiFetch(`/users/${user.user_id}`, { method: "PATCH", body: accountDraft });
             if (result.success) {
-                setFullUser({ ...fullUser, ...accountDraft });
+                setFullUser(result.data);
                 setEditingAccount(false);
                 toast.success("Account information updated");
             } else {
                 toast.error(result.message || "Failed to update account info");
             }
-        } catch (error) {
+        } catch {
             toast.error("An error occurred");
         } finally {
             setIsSavingAccount(false);
@@ -317,7 +320,7 @@ export default function FacultyProfilePage() {
             } else {
                 toast.error(result.message || "Failed to update password");
             }
-        } catch (error) {
+        } catch {
             toast.error("An error occurred");
         } finally {
             setIsSavingPassword(false);

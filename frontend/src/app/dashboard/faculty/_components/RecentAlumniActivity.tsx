@@ -14,7 +14,7 @@ export default function RecentAlumniActivity() {
     useEffect(() => {
         if (!containerRef.current) return;
         const observer = new ResizeObserver((entries) => {
-            for (let entry of entries) {
+            for (const entry of entries) {
                 const height = entry.contentRect.height;
                 // Average height of an ActivityItem is ~66px including padding
                 const count = Math.floor(height / 66);

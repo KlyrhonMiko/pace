@@ -1,13 +1,29 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Routes that don't require authentication
 const PUBLIC_ROUTES = ['/', '/login', '/register', '/reset-password', '/plp-logo.png', '/maintenance'];
+
+function hasSession(request: NextRequest): boolean {
+  return !!request.cookies.get('pace_session')?.value;
+}
+
+function getRole(request: NextRequest): string | undefined {
+  return request.cookies.get('pace_role')?.value;
+}
+
+function getDashboardForRole(userType: string | undefined): string {
+  switch (userType) {
+    case 'ADMIN': return '/dashboard/admin';
+    case 'STAFF': return '/dashboard/faculty';
+    case 'EMPLOYER': return '/dashboard/employer';
+    case 'USER': return '/dashboard/alumni';
+    default: return '/dashboard/alumni';
+  }
+}
 
 export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Check if requested route is public/static (e.g., has an extension or is a known public path)
   const isPublicRoute =
     PUBLIC_ROUTES.includes(pathname) ||
     /\.(.*)$/.test(pathname) ||
@@ -17,100 +33,81 @@ export default function proxy(request: NextRequest) {
     pathname.startsWith('/surveys/') ||
     pathname === '/plp-logo.png';
 
-  // Handle Public Routes - Bypass immediately to avoid logs and overhead
   if (isPublicRoute) {
-    // If user is already logged in AND has a known role, redirect away from login/register
-    const token = request.cookies.get('token')?.value;
-    const userType = request.cookies.get('userType')?.value;
+    if (hasSession(request) && (pathname === '/login' || pathname === '/register')) {
+      return NextResponse.redirect(new URL(getDashboardForRole(getRole(request)), request.url));
+    }
 
-    if (token && userType && (pathname === '/login' || pathname === '/register')) {
-      let dest = '/dashboard/alumni';
-      if (userType === 'ADMIN') dest = '/dashboard/admin';
-      if (userType === 'STAFF') dest = '/dashboard/faculty';
-      if (userType === 'EMPLOYER') dest = '/dashboard/employer';
-      if (userType === 'USER') dest = '/dashboard/alumni';
-      console.log(`[PROXY] Public -> Private Redirect: ${dest}`);
-      return NextResponse.redirect(new URL(dest, request.url));
+    if (!hasSession(request) && pathname === '/login') {
+      const homeUrl = new URL('/', request.url);
+      homeUrl.searchParams.set('login', 'true');
+      const redirectTarget = request.nextUrl.searchParams.get('redirect') || request.nextUrl.searchParams.get('from');
+      if (redirectTarget) {
+        homeUrl.searchParams.set('redirect', redirectTarget);
+      }
+      return NextResponse.redirect(homeUrl);
+    }
+
+    if (!hasSession(request) && pathname === '/register') {
+      const homeUrl = new URL('/', request.url);
+      homeUrl.searchParams.set('register', 'Alumni');
+      return NextResponse.redirect(homeUrl);
+    }
+
+    return NextResponse.next();
+  }
+
+  if (!hasSession(request)) {
+    const homeUrl = new URL('/', request.url);
+    homeUrl.searchParams.set('login', 'true');
+    homeUrl.searchParams.set('redirect', `${pathname}${request.nextUrl.search}`);
+    return NextResponse.redirect(homeUrl);
+  }
+
+  const role = getRole(request);
+  if (!role) {
+    if (pathname.startsWith("/dashboard/")) {
+      const homeUrl = new URL("/", request.url);
+      homeUrl.searchParams.set("login", "true");
+      if (hasSession(request)) {
+        homeUrl.searchParams.set("force", "true");
+      }
+      return NextResponse.redirect(homeUrl);
+    }
+    if (hasSession(request) && (pathname === "/login" || pathname === "/register")) {
+      const homeUrl = new URL("/", request.url);
+      homeUrl.searchParams.set("login", "true");
+      homeUrl.searchParams.set("force", "true");
+      return NextResponse.redirect(homeUrl);
     }
     return NextResponse.next();
   }
 
-  // Handle Private Routes
-  const token = request.cookies.get('token')?.value;
-  const userType = request.cookies.get('userType')?.value;
-
-  console.log(`[PROXY] Path: ${pathname}, Token: ${!!token}, UserType: ${userType}`);
-
-  if (!token) {
-    console.log(`[PROXY] Unauthenticated -> Login Redirect`);
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('from', pathname);
-    return NextResponse.redirect(loginUrl);
-  }
-
-  // --- ROLE-BASED ACCESS CONTROL (RBAC) ---
-
-  if (!userType) {
-    console.log(`[PROXY] Missing Role -> Login Redirect (Clearing Token)`);
-    const response = NextResponse.redirect(new URL('/login', request.url));
-    response.cookies.delete('token');
-    return response;
-  }
-
-  if (userType === 'ADMIN') {
+  if (role === 'ADMIN') {
     return NextResponse.next();
   }
 
-  if (pathname.startsWith('/dashboard/faculty')) {
-    if (userType !== 'STAFF') {
-      const dest = userType === 'USER' ? '/dashboard/alumni' :
-        userType === 'EMPLOYER' ? '/dashboard/employer' : '/login';
-      console.log(`[PROXY] RBAC Violation (Faculty) -> ${dest}`);
-      return NextResponse.redirect(new URL(dest, request.url));
-    }
+  if (pathname.startsWith('/dashboard/faculty') && role !== 'STAFF') {
+    return NextResponse.redirect(new URL(getDashboardForRole(role), request.url));
   }
 
-  if (pathname.startsWith('/dashboard/alumni')) {
-    if (userType !== 'USER') {
-      const dest = userType === 'STAFF' ? '/dashboard/faculty' :
-        userType === 'EMPLOYER' ? '/dashboard/employer' : '/login';
-      console.log(`[PROXY] RBAC Violation (Alumni) -> ${dest}`);
-      return NextResponse.redirect(new URL(dest, request.url));
-    }
+  if (pathname.startsWith('/dashboard/alumni') && role !== 'USER') {
+    return NextResponse.redirect(new URL(getDashboardForRole(role), request.url));
   }
 
-  if (pathname.startsWith('/dashboard/employer')) {
-    if (userType !== 'EMPLOYER' && userType !== 'ADMIN') {
-      const dest = userType === 'STAFF' ? '/dashboard/faculty' : '/dashboard/alumni';
-      console.log(`[PROXY] RBAC Violation (Employer) -> ${dest}`);
-      return NextResponse.redirect(new URL(dest, request.url));
-    }
+  if (pathname.startsWith('/dashboard/employer') && role !== 'EMPLOYER') {
+    return NextResponse.redirect(new URL(getDashboardForRole(role), request.url));
   }
 
-  if (pathname.startsWith('/dashboard/admin')) {
-    if (userType !== 'ADMIN') {
-      const dest = userType === 'STAFF' ? '/dashboard/faculty' :
-        userType === 'EMPLOYER' ? '/dashboard/employer' : '/dashboard/alumni';
-      console.log(`[PROXY] RBAC Violation (Admin) -> ${dest}`);
-      return NextResponse.redirect(new URL(dest, request.url));
-    }
+  if (pathname.startsWith('/dashboard/admin') && role !== 'ADMIN') {
+    return NextResponse.redirect(new URL(getDashboardForRole(role), request.url));
   }
 
   return NextResponse.next();
 }
 
-// See "Matching Paths" below to learn more
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - logo.png, robots.txt, sitemap.xml
-     * - all files with an extension (e.g. .png, .jpg, .ico, etc.)
-     */
     '/((?!api|_next/static|_next/image|favicon.ico|logo\\.png|robots\\.txt|sitemap\\.xml|.*\\..*).*)',
   ],
 };

@@ -70,7 +70,7 @@ export async function searchJobs(params: JobSearchParams = {}, token?: string): 
     if (params.local_only) searchParams.set("local_only", "true");
 
     try {
-        const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+        const authToken = token;
         const requestHeaders: Record<string, string> = { "Content-Type": "application/json" };
         if (authToken) {
             requestHeaders["Authorization"] = `Bearer ${authToken}`;
@@ -103,7 +103,7 @@ export async function searchJobs(params: JobSearchParams = {}, token?: string): 
  */
 export async function getRecommendedJobs(limit: number = 3, token?: string): Promise<JoobleJob[]> {
     try {
-        const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+        const authToken = token;
         const requestHeaders: Record<string, string> = { "Content-Type": "application/json" };
         if (authToken) {
             requestHeaders["Authorization"] = `Bearer ${authToken}`;
@@ -130,7 +130,7 @@ export async function getRecommendedJobs(limit: number = 3, token?: string): Pro
  */
 export async function getMatchedJobs(alumniId: string, token?: string): Promise<any[]> {
     try {
-        const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+        const authToken = token;
         const requestHeaders: Record<string, string> = { "Content-Type": "application/json" };
         if (authToken) {
             requestHeaders["Authorization"] = `Bearer ${authToken}`;
@@ -156,7 +156,7 @@ export async function getMatchedJobs(alumniId: string, token?: string): Promise<
  */
 export async function applyToJob(jobListingId: number | string, token?: string, resumeFile?: File): Promise<{ success: boolean; message: string; data?: any }> {
     try {
-        const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+        const authToken = token;
         const requestHeaders: Record<string, string> = {};
         if (authToken) {
             requestHeaders["Authorization"] = `Bearer ${authToken}`;
@@ -196,7 +196,7 @@ export async function applyToJob(jobListingId: number | string, token?: string, 
  */
 export async function getMyApplications(token?: string): Promise<any[]> {
     try {
-        const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+        const authToken = token;
         const requestHeaders: Record<string, string> = { "Content-Type": "application/json" };
         if (authToken) {
             requestHeaders["Authorization"] = `Bearer ${authToken}`;
@@ -218,7 +218,7 @@ export async function getMyApplications(token?: string): Promise<any[]> {
  */
 export async function getJobListing(jobListingId: string | number, token?: string): Promise<JoobleJob | null> {
     try {
-        const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+        const authToken = token;
         const requestHeaders: Record<string, string> = { "Content-Type": "application/json" };
         if (authToken) {
             requestHeaders["Authorization"] = `Bearer ${authToken}`;

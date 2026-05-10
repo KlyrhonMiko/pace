@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { apiFetch } from "@/lib/api-client";
 import PageHeader from "@/components/dashboard/PageHeader";
 import { User, Settings, Lock, Loader2, Check, Pencil, Shield, Mail, Fingerprint } from "lucide-react";
 import { toast } from "sonner";
@@ -220,13 +221,7 @@ export default function AdminProfilePage() {
         async function fetchFullProfile() {
             if (!user?.user_id) return;
             try {
-                const token = localStorage.getItem("token");
-                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/users/${user.user_id}`, {
-                    headers: {
-                        "Authorization": `Bearer ${token}`
-                    }
-                });
-                const result = await response.json();
+                const result = await apiFetch(`/users/${user.user_id}`);
                 if (result.success) {
                     setFullUser(result.data);
                     setPersonalDraft({
@@ -250,16 +245,7 @@ export default function AdminProfilePage() {
         if (!user?.user_id) return;
         setIsSavingPersonal(true);
         try {
-            const token = localStorage.getItem("token");
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/users/${user.user_id}`, {
-                method: "PATCH",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify(personalDraft)
-            });
-            const result = await response.json();
+            const result = await apiFetch(`/users/${user.user_id}`, { method: "PATCH", body: personalDraft });
             if (result.success) {
                 setFullUser(result.data);
                 updateUser({
@@ -282,16 +268,7 @@ export default function AdminProfilePage() {
         if (!user?.user_id) return;
         setIsSavingAccount(true);
         try {
-            const token = localStorage.getItem("token");
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/users/${user.user_id}`, {
-                method: "PATCH",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify(accountDraft)
-            });
-            const result = await response.json();
+            const result = await apiFetch(`/users/${user.user_id}`, { method: "PATCH", body: accountDraft });
             if (result.success) {
                 setFullUser(result.data);
                 setEditingAccount(false);
@@ -326,19 +303,13 @@ export default function AdminProfilePage() {
 
         setIsSavingPassword(true);
         try {
-            const token = localStorage.getItem("token");
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/users/${user.user_id}`, {
+            const result = await apiFetch(`/users/${user.user_id}`, {
                 method: "PATCH",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify({
+                body: {
                     current_password: passwordDraft.current_password,
                     password: passwordDraft.password
-                })
+                }
             });
-            const result = await response.json();
             if (result.success) {
                 setEditingPassword(false);
                 setPasswordDraft({ current_password: "", password: "", confirm_password: "" });

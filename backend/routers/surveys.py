@@ -2,6 +2,7 @@
 Core survey management routes (CRUD, status transitions, templates).
 """
 
+from datetime import timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
@@ -16,7 +17,7 @@ from schemas.surveys import (
 )
 from models.auth import CurrentUser
 from models.response_codes import StandardResponse, SuccessCode, ErrorCode
-from utils.timezone import get_current_time_gmt8
+from utils.timezone import get_current_time_gmt8, get_current_time_utc
 from utils.rbac import require_staff_or_admin
 from services.queries.surveys_queries import (
     get_survey_by_id,
@@ -483,7 +484,7 @@ def close_survey_route(
 @router.post("/{survey_id}/reopen", response_model=StandardResponse)
 def reopen_survey_route(
     survey_id: str,
-    body: SurveyReopenRequest,
+    body: SurveyReopenRequest | None = None,
     session: Session = Depends(get_session),
     current_user: CurrentUser = Depends(require_staff_or_admin),
 ):
@@ -509,9 +510,15 @@ def reopen_survey_route(
                 ).model_dump(mode="json"),
             )
         
-        # Update timeframe
-        survey.opens_at = body.opens_at
-        survey.closes_at = body.closes_at
+        if body is None:
+            opens_at = get_current_time_utc()
+            closes_at = opens_at + timedelta(days=30)
+        else:
+            opens_at = body.opens_at
+            closes_at = body.closes_at
+
+        survey.opens_at = opens_at
+        survey.closes_at = closes_at
         
         updated = set_survey_status(
             session,

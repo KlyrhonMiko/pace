@@ -1,4 +1,5 @@
 import uuid
+import inspect
 from datetime import datetime
 from fastapi import APIRouter, Query, Depends, BackgroundTasks, HTTPException, status, File, UploadFile
 import cloudinary.uploader
@@ -42,7 +43,9 @@ async def recommended_jobs(
     """
     Get recommended jobs from the database cache.
     """
-    result = await get_recommended_jobs(session=db, limit=limit)
+    result = get_recommended_jobs(session=db, limit=limit)
+    if inspect.isawaitable(result):
+        result = await result
     return StandardResponse(
         success=True,
         code=SuccessCode.JOB_LIST_RETRIEVED.value,

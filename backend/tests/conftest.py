@@ -27,12 +27,12 @@ TEST_DATABASE_URL = (
     or os.getenv("PACE_TEST_DATABASE_URL")
 )
 ALLOW_SHARED_DB = os.getenv("PACE_TEST_ALLOW_SHARED_DB", "").lower() == "true"
-DEFAULT_SQLITE_TEST_DB = f"sqlite:///{(BACKEND_ROOT / 'test.db').as_posix()}"
+DEFAULT_SQLITE_TEST_DB = f"sqlite:///{(Path('/tmp/opencode') / f'pace-test-{os.getpid()}.db').as_posix()}"
 
 if not TEST_DATABASE_URL and ALLOW_SHARED_DB:
     TEST_DATABASE_URL = os.getenv("DATABASE_URL")
 
-if not TEST_DATABASE_URL and (BACKEND_ROOT / "test.db").exists():
+if not TEST_DATABASE_URL:
     TEST_DATABASE_URL = DEFAULT_SQLITE_TEST_DB
 
 
@@ -83,8 +83,16 @@ def _require_test_database_url() -> str:
 def _truncate_all_tables(engine) -> None:
     dialect = engine.dialect.name
     if dialect == "sqlite":
-        SQLModel.metadata.drop_all(engine)
-        SQLModel.metadata.create_all(engine)
+        with engine.begin() as connection:
+            connection.execute(text("PRAGMA foreign_keys=OFF"))
+            for table in reversed(SQLModel.metadata.sorted_tables):
+                connection.execute(text(f'DELETE FROM "{table.name}"'))
+            has_sequence_table = connection.execute(
+                text("SELECT name FROM sqlite_master WHERE type='table' AND name='sqlite_sequence'")
+            ).first()
+            if has_sequence_table:
+                connection.execute(text("DELETE FROM sqlite_sequence WHERE name IS NOT NULL"))
+            connection.execute(text("PRAGMA foreign_keys=ON"))
         return
 
     table_names = [table.name for table in SQLModel.metadata.sorted_tables]
@@ -127,6 +135,10 @@ def _seed_user(
 def test_engine():
     database_url = _require_test_database_url()
     connect_args = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
+    if database_url == DEFAULT_SQLITE_TEST_DB:
+        sqlite_file = Path(database_url.removeprefix("sqlite:///"))
+        if sqlite_file.exists():
+            sqlite_file.unlink()
     engine = create_engine(database_url, pool_pre_ping=True, connect_args=connect_args)
     SQLModel.metadata.create_all(engine)
     yield engine

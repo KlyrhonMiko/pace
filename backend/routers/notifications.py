@@ -1,7 +1,7 @@
 import uuid
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session
 
@@ -73,26 +73,31 @@ def mark_all_read_endpoint(
 
 @router.get("/stream")
 async def stream_notifications(
+    request: Request,
     token: Optional[str] = Query(default=None),
     db: Session = Depends(get_session)
 ):
     """SSE endpoint for real-time notifications via Redis pub/sub.
-    Token is accepted as a query param since EventSource cannot send custom headers.
+
+    Auth priority:
+    1. pace_session HttpOnly cookie (primary)
+    2. token query parameter (legacy, for backward compat)
     """
-    if not token:
-        raise HTTPException(status_code=401, detail="Missing token")
-    
+    resolved_token = request.cookies.get("pace_session") or token
+    if not resolved_token:
+        raise HTTPException(status_code=401, detail="Missing authentication")
+
     try:
         from utils.auth import build_current_user, decode_access_token
         from sqlmodel import select
         from models.users import User
-        
-        payload = decode_access_token(token)
+
+        payload = decode_access_token(resolved_token)
         user_id = payload.get("user_id")
         db_user = db.exec(select(User).where(User.user_id == user_id)).first()
         if not db_user or db_user.is_deleted:
             raise HTTPException(status_code=401, detail="Invalid token")
-        
+
         current_user = build_current_user(db, db_user)
     except HTTPException:
         raise

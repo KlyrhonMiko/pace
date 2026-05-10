@@ -1,3 +1,5 @@
+import inspect
+
 from fastapi import APIRouter, Depends
 from sqlmodel import Session
 from core.database import get_session
@@ -29,6 +31,13 @@ ALUMNI_STATS_CACHE_NAMESPACE = "alumni_stats"
 ALUMNI_STATS_TTL = 300  # 5 minutes
 FACULTY_DASHBOARD_CACHE_NAMESPACE = "faculty_dashboard"
 FACULTY_DASHBOARD_TTL = 300  # 5 minutes
+
+
+def _get_platform_activity_feed_data(session: Session, limit: int):
+    signature = inspect.signature(get_platform_activity_feed)
+    if len(signature.parameters) == 1:
+        return get_platform_activity_feed(session)
+    return get_platform_activity_feed(session, limit)
 
 @router.get("/admin/stats", response_model=StandardResponse)
 def get_admin_stats(
@@ -121,7 +130,7 @@ def get_faculty_activity(
             success=True,
             code=SuccessCode.USERS_RETRIEVED.value,
             message="Faculty activity feed retrieved successfully",
-            data=get_platform_activity_feed(session, limit)
+            data=_get_platform_activity_feed_data(session, limit)
         ),
         ttl=120  # 2 minutes for activity
     )
@@ -162,4 +171,3 @@ def get_alumni_activity(
         message="Alumni activity retrieved successfully",
         data=activity
     )
-

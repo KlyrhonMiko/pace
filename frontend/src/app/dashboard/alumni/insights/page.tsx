@@ -15,7 +15,7 @@ import CareerAdvisorChat from "./_components/CareerAdvisorChat";
 export default async function InsightsPage() {
     // 1. Get the session token from cookies
     const cookieStore = await cookies();
-    const token = cookieStore.get("token")?.value;
+    const token = cookieStore.get("pace_session")?.value;
 
     // 2. Always fetch the profile — we need it for SkillsManager regardless of prediction status
     let profile = null;

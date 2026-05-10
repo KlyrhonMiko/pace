@@ -48,7 +48,7 @@ router = APIRouter(
 @router.get("/surveys", response_model=StandardResponse)
 def list_active_surveys_for_alumni(
     session: Session = Depends(get_session),
-    _: CurrentUser = Depends(require_authenticated),
+    current_user: CurrentUser = Depends(require_authenticated),
 ):
     """
     List all ACTIVE surveys available to alumni.
@@ -108,7 +108,7 @@ def list_active_surveys_for_alumni(
 def get_alumni_survey_detail(
     survey_id: str,
     session: Session = Depends(get_session),
-    _: CurrentUser = Depends(require_authenticated),
+    current_user: CurrentUser = Depends(require_authenticated),
 ):
     """
     Get a single ACTIVE survey with its full ordered question list.

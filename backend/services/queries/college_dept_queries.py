@@ -58,7 +58,7 @@ def generate_college_dept_id(session: Session) -> str:
 
 def get_college_dept_by_id(
     session: Session, college_dept_id: str
-) -> CollegeDept | None:
+) -> CollegeDeptPublic | None:
     """Fetch a single active college department by its human-readable ID."""
     # Alumni count subquery for this specific department
     alumni_subq = (
@@ -80,8 +80,9 @@ def get_college_dept_by_id(
     result = session.exec(query).first()
     if result:
         dept, count = result
-        dept.alumni_count = count or 0
-        return dept
+        return CollegeDeptPublic.model_validate(dept).model_copy(
+            update={"alumni_count": count or 0}
+        )
     return None
 
 

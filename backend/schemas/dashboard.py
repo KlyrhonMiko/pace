@@ -1,5 +1,5 @@
 from typing import List, Dict, Any, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 class RegistrationTrend(BaseModel):
     month: str
@@ -21,21 +21,21 @@ class UserDistributionItem(BaseModel):
     color: str
 
 class SystemHealthStats(BaseModel):
-    uptime: str
-    latency: str
-    db_load: int
-    cache_status: str
+    uptime: str = "unknown"
+    latency: str = "unknown"
+    db_load: int = 0
+    cache_status: str = "unknown"
 
 class AdminDashboardStats(BaseModel):
     """Schema for comprehensive platform statistics for administrators"""
     total_users: int
     verified_alumni: int
     active_jobs: int
-    registration_trend: List[RegistrationTrend]
-    recent_registrations: List[RecentRegistration]
-    user_distribution: List[UserDistributionItem]
-    system_health: SystemHealthStats
-    activity_log: List[Dict[str, Any]]
+    registration_trend: List[RegistrationTrend] = Field(default_factory=list)
+    recent_registrations: List[RecentRegistration] = Field(default_factory=list)
+    user_distribution: List[UserDistributionItem] = Field(default_factory=list)
+    system_health: SystemHealthStats = Field(default_factory=SystemHealthStats)
+    activity_log: List[Dict[str, Any]] = Field(default_factory=list)
 
 class PlacementDistribution(BaseModel):
     """Breakdown of alumni employment status"""
@@ -48,7 +48,7 @@ class FacultyDashboardStats(BaseModel):
     alumni_advised: int
     events_organized: int
     placement_rate: int
-    active_jobs: int
+    active_jobs: int = 0
     avg_offers: float
     avg_package: float
     top_sector: str

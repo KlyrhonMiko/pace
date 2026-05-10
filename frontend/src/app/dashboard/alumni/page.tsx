@@ -13,7 +13,7 @@ import { getMyProfile } from "@/app/dashboard/alumni/profile/_lib/api";
 export default async function AlumniDashboard() {
     // 1. Get the session token from cookies
     const cookieStore = await cookies();
-    const token = cookieStore.get('token')?.value;
+    const token = cookieStore.get('pace_session')?.value;
 
     // 2. Fetch the latest employability prediction and profile data
     let predictionData = null;

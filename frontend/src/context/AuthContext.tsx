@@ -1,13 +1,13 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
+import { getApiBaseUrl } from "@/lib/api-base-url";
 
 interface User {
   user_id: string;
   user_type: string;
-  access_token: string;
+  access_token?: string;
   first_name?: string | null;
   last_name?: string | null;
   company_name?: string | null;
@@ -27,83 +27,73 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(() => {
-    if (typeof window !== "undefined") {
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        try {
-          return JSON.parse(storedUser);
-        } catch (e) {
-          console.error("Failed to parse stored user", e);
-          localStorage.removeItem("user");
-          localStorage.removeItem("token");
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function bootstrapSession() {
+      try {
+        const res = await fetch(`${getApiBaseUrl()}/auth/me`, {
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("Session invalid");
+        const json = await res.json();
+        if (json.success && json.data) {
+          const me = json.data;
+          if (!cancelled) {
+            setUser({
+              user_id: me.user_id,
+              user_type: me.user_type,
+              first_name: me.first_name ?? null,
+              last_name: me.last_name ?? null,
+              company_name: me.company_name ?? null,
+              company_logo_url: me.company_logo_url ?? null,
+            });
+          }
         }
+      } catch {
+        if (!cancelled) setUser(null);
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
     }
-    return null;
-  });
-
-  const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
+    bootstrapSession();
+    return () => { cancelled = true; };
+  }, []);
 
   const logout = useCallback(async (message?: string) => {
     try {
-      // Optimistically try to call the backend logout, but don't wait for it if it fails
-      const token = localStorage.getItem("token");
-      if (token) {
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/auth/logout`, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
-        }).catch(err => console.warn("Logout notification failed:", err));
-      }
+      await fetch(`${getApiBaseUrl()}/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+        keepalive: true,
+      });
     } catch (e) {
-      console.error("Logout error", e);
+      console.warn("Logout notification failed:", e);
     }
-
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    // Clear cookies for middleware
-    document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    document.cookie = "userType=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
 
     setUser(null);
     if (typeof message === "string") {
       toast.info(message);
     }
 
-    // Hard redirect to login to ensure clean state
-    window.location.href = "/login";
+    window.location.href = "/?login=true";
   }, []);
 
   const login = useCallback((userData: User) => {
-    localStorage.setItem("token", userData.access_token);
-    localStorage.setItem("user", JSON.stringify(userData));
-
-    // Set cookies for middleware (7 days)
-    const maxAge = 60 * 60 * 24 * 7;
-    document.cookie = `token=${userData.access_token}; path=/; max-age=${maxAge}; SameSite=Lax`;
-    document.cookie = `userType=${userData.user_type}; path=/; max-age=${maxAge}; SameSite=Lax`;
-
     setUser(userData);
   }, []);
 
   const updateUser = useCallback((updates: Partial<User>) => {
     setUser((prevUser) => {
       if (!prevUser) return null;
-      const updatedUser = { ...prevUser, ...updates };
-      localStorage.setItem("user", JSON.stringify(updatedUser));
-      return updatedUser;
+      return { ...prevUser, ...updates };
     });
   }, []);
 
-  useEffect(() => {
-    setIsLoading(false);
-  }, []);
-
   const getDashboardUrl = useCallback(() => {
-    if (!user) return "/login";
+    if (!user) return "/?login=true";
     switch (user.user_type) {
       case "ADMIN":
         return "/dashboard/admin";

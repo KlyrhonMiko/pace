@@ -16,7 +16,7 @@ import { TrendingUp, ArrowRight } from "lucide-react";
 export default async function PredictionsPage() {
     // 1. Get the session token from cookies
     const cookieStore = await cookies();
-    const token = cookieStore.get("token")?.value;
+    const token = cookieStore.get("pace_session")?.value;
 
     // 2. Fetch regression predictions
     let predictions: RegressionPrediction[] = [];

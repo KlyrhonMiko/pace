@@ -8,11 +8,9 @@ import { ConfirmationModal } from "@/components/ConfirmationModal";
 import { apiFetch } from "../../../../../lib/api-client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
 
 export function DangerZone() {
     const { user, logout } = useAuth();
-    const router = useRouter();
     const [showDeactivate, setShowDeactivate] = useState(false);
     const [showDelete, setShowDelete] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -28,7 +26,6 @@ export function DangerZone() {
             if (res.success) {
                 toast.success("Account deactivated successfully");
                 await logout();
-                router.push("/login");
             } else {
                 toast.error(res.message || "Failed to deactivate account");
             }
@@ -50,7 +47,6 @@ export function DangerZone() {
             if (res.success) {
                 toast.success("Account deleted permanently");
                 await logout();
-                router.push("/login");
             } else {
                 toast.error(res.message || "Failed to delete account");
             }

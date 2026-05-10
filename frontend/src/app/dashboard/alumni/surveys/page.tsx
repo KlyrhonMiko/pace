@@ -9,7 +9,9 @@ import { Survey, SurveyResponse, SurveySubmissionPayload } from "../../_lib/surv
 import {
     fetchMyAlumniProfile,
     fetchAlumniActiveSurveys,
+    fetchAlumniSurveyHistory,
     fetchAlumniSurvey,
+    fetchAlumniSurveyHistoryDetail,
     fetchRespondedSurveyIds,
     submitAlumniSurveyResponse,
     fetchMySurveyResponse,
@@ -21,6 +23,7 @@ import {
 
 export default function AlumniSurveysPage() {
     const [surveys, setSurveys] = useState<Survey[]>([]);
+    const [surveyHistory, setSurveyHistory] = useState<Survey[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isModalLoading, setIsModalLoading] = useState(false);
@@ -51,11 +54,13 @@ export default function AlumniSurveysPage() {
     const loadSurveys = useCallback(async () => {
         setIsLoading(true);
         try {
-            const [activeSurveys, respondedIds] = await Promise.all([
+            const [activeSurveys, surveyHistoryItems, respondedIds] = await Promise.all([
                 fetchAlumniActiveSurveys(),
+                fetchAlumniSurveyHistory(),
                 fetchRespondedSurveyIds(),
             ]);
             setSurveys(activeSurveys);
+            setSurveyHistory(surveyHistoryItems);
             setCompletedSurveyIds(respondedIds);
         } catch {
             toast.error("Failed to load surveys. Please try again.");
@@ -79,7 +84,7 @@ export default function AlumniSurveysPage() {
             setIsModalLoading(true);
             try {
                 const [fullSurvey, myResponse] = await Promise.all([
-                    fetchAlumniSurvey(survey.survey_id),
+                    fetchAlumniSurveyHistoryDetail(survey.survey_id),
                     fetchMySurveyResponse(survey.survey_id)
                 ]);
 
@@ -188,6 +193,7 @@ export default function AlumniSurveysPage() {
             {/* Survey List with Tabs */}
             <AlumniSurveyList
                 activeSurveys={surveys}
+                surveyHistory={surveyHistory}
                 completedSurveyIds={completedSurveyIds}
                 isLoading={isLoading}
                 onTakeSurvey={handleTakeSurvey}

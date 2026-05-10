@@ -38,6 +38,11 @@ export async function apiFetch<T>(endpoint: string, options: ApiOptions = {}): P
 
   const response = await fetch(`${getApiBaseUrl()}${endpoint}`, config);
 
+  // Successful 204/205 responses intentionally have no body.
+  if (response.status === 204 || response.status === 205) {
+    return {} as T;
+  }
+
   let data: Record<string, unknown>;
   try {
     data = await response.json();

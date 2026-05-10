@@ -6,6 +6,7 @@ All routes require a valid JWT (any user type); no staff/admin gate.
 No UUIDs are exposed — only human-readable IDs (SRVY-XXXXXX, ALMN-XXXXXX).
 """
 
+import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select, and_
 
@@ -24,6 +25,7 @@ from utils.timezone import get_current_time_gmt8
 from utils.rbac import require_authenticated
 from services.queries.surveys_queries import (
     get_survey_by_id,
+    get_deleted_survey_by_id,
     get_survey_question_counts_batch,
 )
 from services.queries.survey_questions_queries import get_survey_questions_with_details
@@ -225,6 +227,72 @@ def get_responded_survey_ids(
     )
 
 
+@router.get("/me/survey-history", response_model=StandardResponse)
+def get_survey_history(
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
+):
+    """Return surveys the current alumni has responded to, including closed/archived/deleted ones."""
+    if not current_user.id:
+        return StandardResponse(
+            success=True,
+            code=SuccessCode.SURVEYS_RETRIEVED.value,
+            message="No alumni profile — no survey history",
+            data={"surveys": []},
+            timestamp=get_current_time_gmt8(),
+        )
+
+    alumni = session.exec(
+        select(Alumni).where(
+            and_(
+                Alumni.user_ref_id == current_user.id,
+                Alumni.is_deleted.is_(False),
+            )
+        )
+    ).first()
+
+    if not alumni:
+        return StandardResponse(
+            success=True,
+            code=SuccessCode.SURVEYS_RETRIEVED.value,
+            message="No alumni profile — no survey history",
+            data={"surveys": []},
+            timestamp=get_current_time_gmt8(),
+        )
+
+    rows = session.exec(
+        select(SurveyResponse, Survey)
+        .join(Survey, SurveyResponse.survey_ref_id == Survey.id)
+        .where(
+            and_(
+                SurveyResponse.alumni_ref_id == alumni.id,
+                SurveyResponse.is_deleted.is_(False),
+            )
+        )
+        .order_by(SurveyResponse.submitted_at.desc())
+    ).all()
+
+    surveys_by_ref_id: dict[uuid.UUID, dict] = {}
+    if rows:
+        survey_ref_ids = [survey.id for _, survey in rows]
+        counts = get_survey_question_counts_batch(session, survey_ref_ids)
+        for response, survey in rows:
+            if survey.id in surveys_by_ref_id:
+                continue
+            data = SurveyPublic.model_validate(survey).model_dump(mode="json")
+            data["question_count"] = counts.get(survey.id, 0)
+            data["responded_at"] = response.submitted_at
+            surveys_by_ref_id[survey.id] = data
+
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.SURVEYS_RETRIEVED.value,
+        message="Survey history retrieved",
+        data={"surveys": list(surveys_by_ref_id.values())},
+        timestamp=get_current_time_gmt8(),
+    )
+
+
 # ---------------------------------------------------------------------------
 # GET /alumni/surveys/{survey_id}/my-response — fetch own response
 # ---------------------------------------------------------------------------
@@ -272,7 +340,7 @@ def get_my_survey_response(
         )
 
     # Resolve survey internal ID
-    survey = get_survey_by_id(session, survey_id)
+    survey = get_survey_by_id(session, survey_id) or get_deleted_survey_by_id(session, survey_id)
     if not survey:
         raise HTTPException(
             status_code=404,
@@ -309,6 +377,92 @@ def get_my_survey_response(
         code=SuccessCode.SURVEY_RETRIEVED.value,
         message="Survey response retrieved",
         data={"response": response.model_dump(mode="json")},
+        timestamp=get_current_time_gmt8(),
+    )
+
+
+@router.get("/surveys/{survey_id}/history-detail", response_model=StandardResponse)
+def get_alumni_survey_history_detail(
+    survey_id: str,
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
+):
+    """Fetch one survey in read-only mode for alumni history, even if closed/archived/deleted.
+
+    Access is limited to alumni who have already submitted a response to the survey.
+    """
+    if not current_user.id:
+        raise HTTPException(
+            status_code=404,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.ALUMNI_NOT_FOUND.value,
+                message="No alumni profile found",
+            ).model_dump(mode="json"),
+        )
+
+    alumni = session.exec(
+        select(Alumni).where(
+            and_(
+                Alumni.user_ref_id == current_user.id,
+                Alumni.is_deleted.is_(False),
+            )
+        )
+    ).first()
+
+    if not alumni:
+        raise HTTPException(
+            status_code=404,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.ALUMNI_NOT_FOUND.value,
+                message="No alumni profile found",
+            ).model_dump(mode="json"),
+        )
+
+    survey = get_survey_by_id(session, survey_id) or get_deleted_survey_by_id(session, survey_id)
+    if not survey:
+        raise HTTPException(
+            status_code=404,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.SURVEY_NOT_FOUND.value,
+                message="Survey not found",
+            ).model_dump(mode="json"),
+        )
+
+    response = session.exec(
+        select(SurveyResponse).where(
+            and_(
+                SurveyResponse.survey_ref_id == survey.id,
+                SurveyResponse.alumni_ref_id == alumni.id,
+                SurveyResponse.is_deleted.is_(False),
+            )
+        )
+    ).first()
+    if not response:
+        raise HTTPException(
+            status_code=404,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.INVALID_INPUT.value,
+                message="No response found for this survey",
+            ).model_dump(mode="json"),
+        )
+
+    questions_with_details = get_survey_questions_with_details(session, survey.id)
+    data = SurveyPublic.model_validate(survey).model_dump(mode="json")
+    data["question_count"] = len(questions_with_details)
+    data["questions"] = [
+        QuestionPublic.model_validate(sqwd.question).model_dump(mode="json")
+        for sqwd in questions_with_details
+    ]
+
+    return StandardResponse(
+        success=True,
+        code=SuccessCode.SURVEY_RETRIEVED.value,
+        message="Survey history detail retrieved",
+        data=data,
         timestamp=get_current_time_gmt8(),
     )
 

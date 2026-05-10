@@ -1,6 +1,5 @@
 import uuid
 import inspect
-from datetime import datetime
 from fastapi import APIRouter, Query, Depends, BackgroundTasks, HTTPException, status, File, UploadFile
 import cloudinary.uploader
 from sqlmodel import Session, select
@@ -12,7 +11,7 @@ from services.queries.jobs_queries import (
     delete_job_listing,
     get_job_listing,
     toggle_job_listing_visibility,
-    get_jobs_with_embeddings,
+    get_embedded_job_tuples,
 )
 from services.machines.job_matching import job_matching_service
 from models.job_listings import JobListing, JobListingCreate, JobListingUpdate, JobListingRead, JobApplication
@@ -117,113 +116,119 @@ def match_jobs_for_alumni(
 ):
     """
     Match jobs for an alumni based on their skills using semantic similarity.
-    Enriches the alumni profile text with career track prediction and role
-    context so the sentence-transformer embedding is semantically comparable
-    to full job-description embeddings.
+    Access restricted to the alumni themselves or admin/staff users.
     """
     from services.queries.alumni_queries import get_alumni_by_id_any
     from services.queries.predict_queries import get_career_predictions_by_alumni_ref_id
-    
-    # 1. Fetch Alumni
+
     alumni = get_alumni_by_id_any(db, alumni_id)
     if not alumni:
         raise HTTPException(status_code=404, detail="Alumni profile not found")
-        
-    # 2. Extract and format skills
+
+    is_self = current_user.id == alumni.user_ref_id
+    is_staff_admin = current_user.user_type in ("ADMIN", "STAFF")
+    if not (is_self or is_staff_admin):
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied. You can only view job matches for your own profile.",
+        )
+
     if not alumni.skills:
         return StandardResponse(
             success=True,
             code=SuccessCode.SUCCESS.value,
             message="No skills found for this alumni. Update profile to get matches.",
-            data=[]
+            data=[],
         )
-        
+
     skills_string = ", ".join(alumni.skills)
-    
-    # 2b. Build a rich profile description for embedding.
-    #     A bare comma-separated skill list produces poor cosine similarity
-    #     against full job descriptions. Wrapping it in natural language with
-    #     the predicted career track yields a semantically comparable vector.
+
     profile_parts = []
-    
-    # Include career track prediction if available
+
     career_track = None
     try:
-        career_predictions = get_career_predictions_by_alumni_ref_id(db, alumni.id, limit=1)
+        career_predictions = get_career_predictions_by_alumni_ref_id(
+            db, alumni.id, limit=1
+        )
         if career_predictions:
             latest = career_predictions[0]
             career_track = latest.predicted_track
             if career_track:
                 profile_parts.append(f"{career_track} professional")
     except Exception:
-        pass  # Gracefully degrade if no predictions exist
-    
-    # Include current employment context from alumni profile
+        pass
+
     if alumni.employment_sector:
         profile_parts.append(f"working in {alumni.employment_sector}")
-    
-    # Core: natural-language skills sentence
+
     profile_parts.append(f"skilled in {skills_string}")
-    
-    # Build the final profile text for embedding
+
     profile_text = ". ".join(profile_parts) + "."
-    # e.g. "Full Stack Developer professional. skilled in JavaScript, React, Node.js, Python, SQL."
-    
-    # 3. Fetch jobs with embeddings
-    jobs = get_jobs_with_embeddings(db)
-    if not jobs:
+
+    job_tuples = get_embedded_job_tuples(db)
+    if not job_tuples:
         return StandardResponse(
             success=True,
             code=SuccessCode.SUCCESS.value,
             message="No pre-computed jobs available for matching yet.",
-            data=[]
+            data=[],
         )
-        
-    # Prepare embeddings for the matching service
+
     job_embeddings = []
-    for job in jobs:
-        if job.vector_embedding:
-            job_embeddings.append(
-                (job.id, job.vector_embedding, job.title, job.company or "Unknown Company")
-            )
+    for row in job_tuples:
+        job_embeddings.append(
+            (row[0], row[1], row[2], row[3])
+        )
 
     if job_matching_service.model is None:
         return StandardResponse(
             success=True,
             code=SuccessCode.SUCCESS.value,
             message="Semantic job matching is temporarily unavailable. Please try again shortly.",
-            data=[]
+            data=[],
         )
-            
-    # 4. Run matching logic with the enriched profile text
+
     matches = job_matching_service.calculate_similarity(profile_text, job_embeddings)
-    
-    # 5. Enrich matches with full job listing details
-    job_map = {str(job.id): job for job in jobs}
+
+    matched_ids = [uuid.UUID(m["job_id"]) for m in matches[:50] if m.get("job_id")]
+    job_map = {}
+    if matched_ids:
+        full_jobs = db.exec(
+            select(JobListing).where(JobListing.id.in_(matched_ids))
+        ).all()
+        job_map = {str(job.id): job for job in full_jobs}
+
+    employer_ref_ids = {
+        job_obj.employer_ref_id
+        for match in matches[:50]
+        if (job_obj := job_map.get(match["job_id"])) and job_obj.employer_ref_id
+    }
+    logo_map: dict = {}
+    if employer_ref_ids:
+        employer_rows = db.exec(
+            select(Employer.id, Employer.company_logo_url).where(
+                Employer.id.in_(list(employer_ref_ids))
+            )
+        ).all()
+        logo_map = {emp_id: logo for emp_id, logo in employer_rows if logo}
+
     enriched_matches = []
     for match in matches[:50]:
         job_id = match["job_id"]
         job_obj = job_map.get(job_id)
         if job_obj:
-            # Check for employer logo
-            logo = None
-            if job_obj.employer_ref_id:
-                from models.employers import Employer
-                employer = db.exec(select(Employer).where(Employer.id == job_obj.employer_ref_id)).first()
-                if employer:
-                    logo = employer.company_logo_url
-            
+            logo = logo_map.get(job_obj.employer_ref_id) if job_obj.employer_ref_id else None
             job_dict = job_obj.model_dump(mode="json", exclude={"vector_embedding"})
             job_dict["logo"] = logo
             job_dict["similarity_score"] = match["similarity_score"]
             job_dict["match_percentage"] = match["match_percentage"]
             enriched_matches.append(job_dict)
-    
+
     return StandardResponse(
         success=True,
         code=SuccessCode.SUCCESS.value,
         message="Top job matches retrieved successfully",
-        data=enriched_matches
+        data=enriched_matches,
     )
 
 
@@ -471,25 +476,36 @@ def get_my_applications(
     result = []
     for app in applications:
         job = get_job_listing(db, app.job_listing_ref_id)
+        logo = ""
+        job_deleted = True
+        job_listing_id = str(app.job_listing_ref_id)
+        job_title = "Deleted Job"
+        company = "No longer available"
+
         if job:
-            logo = ""
+            job_deleted = bool(job.is_deleted)
+            job_listing_id = str(job.id)
+            job_title = job.title
+            company = job.company or "Unknown Company"
+
             # Fetch logo from Employer if it's an internal job
             if job.employer_ref_id:
                 employer = db.exec(select(Employer).where(Employer.id == job.employer_ref_id)).first()
-                if employer:
+                if employer and employer.company_logo_url:
                     logo = employer.company_logo_url
-            
-            result.append({
-                "application_ref_id": app.id,
-                "job_listing_id": str(job.id),
-                "job_title": job.title,
-                "company": job.company,
-                "logo": logo,
-                "status": app.status,
-                "applied_at": app.applied_at,
-                "interview_date": app.interview_date.isoformat() if app.interview_date else None,
-                "interview_link": app.interview_link,
-            })
+
+        result.append({
+            "application_ref_id": app.id,
+            "job_listing_id": job_listing_id,
+            "job_title": job_title,
+            "company": company,
+            "logo": logo,
+            "status": app.status,
+            "applied_at": app.applied_at,
+            "interview_date": app.interview_date.isoformat() if app.interview_date else None,
+            "interview_link": app.interview_link,
+            "job_deleted": job_deleted,
+        })
 
     return StandardResponse(
         success=True,

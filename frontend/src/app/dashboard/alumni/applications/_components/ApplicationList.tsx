@@ -11,7 +11,6 @@ import {
     Search,
     CircleSlash,
     FileText,
-    Loader2,
     Video,
     ArrowUpRight
 } from "lucide-react";
@@ -32,6 +31,7 @@ interface Application {
     logo?: string;
     interview_date?: string | null;
     interview_link?: string | null;
+    job_deleted?: boolean;
 }
 
 interface ApplicationListProps {
@@ -41,7 +41,7 @@ interface ApplicationListProps {
     setCurrentPage: (page: number) => void;
     totalApplications: number;
     itemsPerPage: number;
-    onViewDetails?: (id: string) => void;
+    onViewDetails?: (id: string, jobDeleted?: boolean) => void;
     searchQuery: string;
 }
 
@@ -226,31 +226,42 @@ export default function ApplicationList({
                                 const interviewDate = app.interview_date ? new Date(app.interview_date) : null;
                                 const isInterviewPast = interviewDate ? interviewDate.getTime() < Date.now() : false;
                                 const showInterview = !!interviewDate && app.status !== "Rejected" && app.status !== "Accepted";
+                                const isDeleted = app.job_deleted === true;
 
                                 return (
                                     <tr
                                         key={app.application_ref_id}
-                                        className="group transition-all duration-200 hover:bg-slate-50/50 cursor-pointer align-middle"
-                                        onClick={() => onViewDetails?.(app.job_listing_id)}
+                                        className={`group transition-all duration-200 align-middle ${isDeleted ? "bg-slate-50 text-slate-400" : "hover:bg-slate-50/50 cursor-pointer"}`}
+                                        onClick={() => {
+                                            if (!isDeleted) {
+                                                onViewDetails?.(app.job_listing_id, app.job_deleted);
+                                            }
+                                        }}
                                     >
                                         <td className="px-6 py-5">
                                             <div className="flex items-center gap-4">
-                                                <div className={`h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl ${(app.logo && (app.logo.startsWith('http') || app.logo.startsWith('/'))) ? 'bg-gray-50' : `bg-gradient-to-br ${getLogoGradient(app.logo || app.job_title)}`} text-white text-sm font-bold shadow-sm ring-1 ring-emerald-200 transition-transform duration-300 group-hover:scale-105 group-hover:shadow-md overflow-hidden flex`}>
+                                                <div className={`h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl ${(app.logo && (app.logo.startsWith('http') || app.logo.startsWith('/'))) ? 'bg-gray-50' : `bg-gradient-to-br ${isDeleted ? "from-slate-300 to-slate-400" : getLogoGradient(app.logo || app.job_title)}`} ${isDeleted ? "text-slate-100 ring-slate-200" : "text-white ring-emerald-200"} text-sm font-bold shadow-sm transition-transform duration-300 overflow-hidden flex ${isDeleted ? "" : "group-hover:scale-105 group-hover:shadow-md"}` }>
                                                     {app.logo ? (
-                                                        <img src={app.logo} alt={app.company} className="h-full w-full object-contain" />
+                                                        <img src={app.logo} alt={app.company} className={`h-full w-full object-contain ${isDeleted ? "opacity-50 grayscale" : ""}`} />
                                                     ) : (
                                                         (app.logo || app.job_title).charAt(0)
                                                     )}
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <h4 className="font-bold text-slate-900 text-sm line-clamp-1 group-hover:text-emerald-900 transition-colors">
+                                                    <h4 className={`font-bold text-sm line-clamp-1 transition-colors ${isDeleted ? "text-slate-500" : "text-slate-900 group-hover:text-emerald-900"}`}>
                                                         {app.job_title}
                                                     </h4>
+                                                    {isDeleted && (
+                                                        <div className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                                                            <CircleSlash className="h-3 w-3" strokeWidth={2.5} />
+                                                            Deleted by employer
+                                                        </div>
+                                                    )}
                                                     {showInterview && interviewDate ? (
-                                                        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 mt-1">
+                                                        <div className={`flex items-center gap-1.5 text-[11px] mt-1 ${isDeleted ? "text-slate-400" : "font-semibold text-emerald-700"}`}>
                                                             <Calendar className="h-3 w-3" strokeWidth={2.5} />
                                                             <span>Interview {format(interviewDate, "MMM d")}</span>
-                                                            <span className="text-emerald-300">·</span>
+                                                            <span className={isDeleted ? "text-slate-300" : "text-emerald-300"}>·</span>
                                                             <Clock className="h-3 w-3" strokeWidth={2.5} />
                                                             <span className="tabular-nums">{format(interviewDate, "h:mm a")}</span>
                                                         </div>
@@ -271,8 +282,8 @@ export default function ApplicationList({
                                             </div>
                                         </td>
                                         <td className="px-6 py-5">
-                                            <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
-                                                <Building2 className="h-3.5 w-3.5 text-slate-400" />
+                                            <div className={`flex items-center gap-1.5 text-sm font-medium ${isDeleted ? "text-slate-500" : "text-slate-700"}`}>
+                                                <Building2 className={`h-3.5 w-3.5 ${isDeleted ? "text-slate-300" : "text-slate-400"}`} />
                                                 {app.company}
                                             </div>
                                         </td>
@@ -287,13 +298,19 @@ export default function ApplicationList({
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    className="h-8 w-8 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    title="View Details"
-                                                    onClick={(e) => { e.stopPropagation(); onViewDetails?.(app.job_listing_id); }}
+                                                    className={`h-8 w-8 rounded-lg transition-opacity ${isDeleted ? "text-slate-300 cursor-not-allowed opacity-100" : "text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 cursor-pointer opacity-0 group-hover:opacity-100"}`}
+                                                    title={isDeleted ? "Job no longer available" : "View Details"}
+                                                    disabled={isDeleted}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (!isDeleted) {
+                                                            onViewDetails?.(app.job_listing_id, app.job_deleted);
+                                                        }
+                                                    }}
                                                 >
                                                     <FileText size={14} />
                                                 </Button>
-                                                {showInterview && app.interview_link && (
+                                                {showInterview && app.interview_link && !isDeleted && (
                                                     <a
                                                         href={app.interview_link}
                                                         target="_blank"

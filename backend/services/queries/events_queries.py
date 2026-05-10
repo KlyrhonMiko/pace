@@ -3,6 +3,7 @@ DB query functions for events + event_registration domain.
 """
 
 import logging
+import uuid
 from sqlmodel import Session, select, func
 from models.events import Event, EventRegistration, EventRegistrantDetails
 from models.alumni import Alumni
@@ -428,6 +429,38 @@ def get_user_registration_status(
         .where(EventRegistration.is_deleted == False)
     ).all()
     return set(registrations)
+
+
+def get_user_event_history(session: Session, user_ref_id) -> list[tuple[Event, bool]]:
+    """Return event history for a user.
+
+    Includes:
+    - active registrations on non-deleted events
+    - deleted events the user had registered for, even if the registration row was soft-deleted during event deletion
+
+    Excludes:
+    - manually unregistered registrations for still-active events
+    """
+    rows = session.exec(
+        select(EventRegistration, Event)
+        .join(Event, EventRegistration.event_ref_id == Event.id)
+        .where(EventRegistration.user_ref_id == user_ref_id)
+        .where(
+            (EventRegistration.is_deleted == False)
+            | (Event.is_deleted == True)
+        )
+        .order_by(EventRegistration.registered_at.desc())
+    ).all()
+
+    history: list[tuple[Event, bool]] = []
+    seen_event_ids: set[uuid.UUID] = set()
+    for registration, event in rows:
+        if event.id in seen_event_ids:
+            continue
+        seen_event_ids.add(event.id)
+        history.append((event, registration.is_deleted == False))
+
+    return history
 
 
 def get_event_facets(session: Session) -> dict[str, int]:

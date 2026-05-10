@@ -8,6 +8,7 @@ import { Skeleton } from "../../../../../components/ui/skeleton";
 
 interface AlumniSurveyListProps {
     activeSurveys: Survey[];
+    surveyHistory: Survey[];
     completedSurveyIds: Set<string>;
     isLoading: boolean;
     onTakeSurvey: (survey: Survey) => void;
@@ -15,6 +16,7 @@ interface AlumniSurveyListProps {
 
 export default function AlumniSurveyList({
     activeSurveys,
+    surveyHistory,
     completedSurveyIds,
     isLoading,
     onTakeSurvey,
@@ -24,7 +26,7 @@ export default function AlumniSurveyList({
 
     // Split surveys into active (not yet answered) and completed
     const pendingSurveys = activeSurveys.filter(s => !completedSurveyIds.has(s.survey_id));
-    const completedSurveys = activeSurveys.filter(s => completedSurveyIds.has(s.survey_id));
+    const completedSurveys = surveyHistory;
 
     // Apply search filter
     const filterBySearch = (surveys: Survey[]) =>

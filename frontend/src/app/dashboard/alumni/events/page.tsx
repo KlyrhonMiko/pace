@@ -6,7 +6,7 @@ import EventList from "@/app/dashboard/_components/events/EventList";
 import PageHeader from "@/components/dashboard/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 
-import { fetchEvents, fetchEventTypes, registerEvent, unregisterEvent, type Event } from "../../_lib/events";
+import { fetchEvents, fetchEventHistory, fetchEventTypes, registerEvent, unregisterEvent, type Event } from "../../_lib/events";
 
 export default function EventsPage() {
     const [events, setEvents] = useState<Event[]>([]);
@@ -22,26 +22,29 @@ export default function EventsPage() {
     // Fetch events and event types from API
     const loadData = useCallback(async () => {
         setIsLoading(true);
-        const [eventsResult, types] = await Promise.all([
+        const [eventsResult, historyResult, types] = await Promise.all([
             fetchEvents({ limit: 100, sort_by: "date", sort_order: "desc" }),
+            showRegisteredOnly ? fetchEventHistory() : Promise.resolve({ events: [], total: 0 }),
             fetchEventTypes(),
         ]);
-        setEvents(eventsResult.events);
+        const sourceEvents = showRegisteredOnly ? historyResult.events : eventsResult.events;
+        setEvents(sourceEvents);
 
-        // Use facets provided by the backend for accurate counts
-        const facets = eventsResult.facets || {};
+        const clientFacets = sourceEvents.reduce<Record<string, number>>((acc, event) => {
+            acc[event.event_type] = (acc[event.event_type] || 0) + 1;
+            return acc;
+        }, {});
 
-        // Ensure all known types are included, even if they have 0 events
         const typeLabels = types.map(t => ({
             id: t.event_type_id,
             label: t.event_name,
-            count: facets[t.event_name] || 0
+            count: clientFacets[t.event_name] || 0
         }));
 
         setEventTypeLabels(typeLabels);
 
         setIsLoading(false);
-    }, []);
+    }, [showRegisteredOnly]);
 
     useEffect(() => {
         loadData();

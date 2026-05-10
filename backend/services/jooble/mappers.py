@@ -17,6 +17,7 @@ def _map_db_job_to_dict(job: JobListing, company_logo_url: str = None) -> dict:
     return {
         "id": str(job.external_id) if job.external_id else str(job.id),
         "db_id": str(job.id),
+        "external_id": str(job.external_id) if job.external_id else None,
         "title": job.title or "",
         "company": job.company or "",
         "location": job.location or "Philippines",

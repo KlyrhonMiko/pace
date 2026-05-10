@@ -230,9 +230,8 @@ def mock_external_services(monkeypatch):
     async def fake_fetch_jobs(**kwargs):
         return {
             "jobs": [],
-            "total": 0,
-            "page": kwargs.get("page", 1),
-            "limit": kwargs.get("results_per_page", 10),
+            "totalCount": 0,
+            "facets": {"jobTypes": {}, "workTypes": {}, "experienceLevels": {}},
         }
 
     monkeypatch.setattr("routers.jobs.fetch_jobs", fake_fetch_jobs)

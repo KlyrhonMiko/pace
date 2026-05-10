@@ -47,6 +47,8 @@ export interface Survey {
     questions?: Question[];
     created_at?: string;
     updated_at?: string;
+    responded_at?: string;
+    is_deleted?: boolean;
 }
 
 export interface SurveyQuestionWithDetails {
@@ -506,6 +508,19 @@ export async function fetchAlumniActiveSurveys(): Promise<Survey[]> {
     }
 }
 
+export async function fetchAlumniSurveyHistory(): Promise<Survey[]> {
+    try {
+        const json = await apiFetch<any>("/alumni/me/survey-history");
+        if (json.success && json.data?.surveys) {
+            return json.data.surveys as Survey[];
+        }
+        return [];
+    } catch (error) {
+        console.error("Failed to fetch survey history:", error);
+        return [];
+    }
+}
+
 /**
  * Fetch a single survey with full question list for alumni.
  * Calls GET /alumni/surveys/{survey_id}
@@ -516,6 +531,16 @@ export async function fetchAlumniSurvey(surveyId: string): Promise<Survey | null
         return json.success && json.data ? (json.data as Survey) : null;
     } catch (error) {
         console.error(`Failed to fetch survey ${surveyId}:`, error);
+        return null;
+    }
+}
+
+export async function fetchAlumniSurveyHistoryDetail(surveyId: string): Promise<Survey | null> {
+    try {
+        const json = await apiFetch<any>(`/alumni/surveys/${surveyId}/history-detail`);
+        return json.success && json.data ? (json.data as Survey) : null;
+    } catch (error) {
+        console.error(`Failed to fetch history survey ${surveyId}:`, error);
         return null;
     }
 }

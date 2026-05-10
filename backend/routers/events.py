@@ -20,6 +20,7 @@ from services.queries.events_queries import (
     clear_event_image,
     get_all_events,
     get_user_registration_status,
+    get_user_event_history,
     get_event_facets,
 )
 import cloudinary
@@ -138,6 +139,42 @@ def list_events(
                 success=False,
                 code=ErrorCode.INVALID_INPUT.value,
                 message=f"Failed to list events: {e}",
+            ).model_dump(mode="json"),
+        )
+
+
+@router.get(
+    "/my-history",
+    response_model=StandardResponse,
+    dependencies=[Depends(require_authenticated)],
+)
+def get_my_event_history(
+    session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(require_authenticated),
+):
+    """Return the current user's event history, including deleted events where applicable."""
+    try:
+        rows = get_user_event_history(session, current_user.id)
+        event_data = []
+        for event, is_registered in rows:
+            public_event = EventPublic.model_validate(event)
+            public_event.is_registered = is_registered
+            event_data.append(public_event.model_dump(mode="json"))
+
+        return StandardResponse(
+            success=True,
+            code=SuccessCode.EVENTS_RETRIEVED.value,
+            message=f"Retrieved {len(event_data)} historical events",
+            data={"events": event_data, "total": len(event_data)},
+        )
+    except Exception as e:
+        logger.error(f"Error retrieving event history: {e}")
+        raise HTTPException(
+            status_code=400,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.INVALID_INPUT.value,
+                message=f"Failed to retrieve event history: {e}",
             ).model_dump(mode="json"),
         )
 

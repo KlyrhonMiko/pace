@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from models.courses import Course
 from models.college_dept import CollegeDept
 from models.student_records import StudentRecord
+from models.alumni import Alumni
 from schemas.courses import (
     CourseCreate,
     CourseUpdate,
@@ -67,15 +68,17 @@ def get_college_dept_by_ref_id(session: Session, college_dept_ref_id) -> College
 
 
 def build_course_public(
-    course: Course, college_dept: CollegeDept | None
+    course: Course, college_dept: CollegeDept | None, alumni_count: int = 0
 ) -> CoursePublic:
     """Build a CoursePublic response, resolving college dept display fields."""
     return CoursePublic(
         **course.model_dump(exclude={"college_dept_ref_id"}),
         college_dept_id=college_dept.college_dept_id if college_dept else "UNKNOWN",
+        college_dept_abbv=college_dept.college_dept_abbv if college_dept else "UNK",
         college_dept_name=college_dept.college_dept_name
         if college_dept
         else "Unknown Department",
+        alumni_count=alumni_count,
     )
 
 
@@ -95,13 +98,29 @@ def has_active_student_records(session: Session, course: Course) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def get_course_by_id(session: Session, course_id: str) -> Course | None:
-    """Fetch a single active course by its human-readable ID."""
-    return session.exec(
-        select(Course).where(
-            (Course.course_id == course_id.upper()) & (Course.is_deleted == False)
+def get_course_by_id(session: Session, course_id: str) -> tuple[Course, int] | None:
+    """Fetch a single active course by its human-readable ID with alumni count."""
+    # Alumni count subquery for this specific course
+    alumni_subq = (
+        select(func.count(Alumni.id))
+        .join(StudentRecord, StudentRecord.alumni_ref_id == Alumni.id)
+        .join(Course, Course.id == StudentRecord.course_ref_id)
+        .where(
+            (Course.course_id == course_id.upper())
+            & (Alumni.is_deleted == False)
         )
-    ).first()
+    ).scalar_subquery()
+
+    query = select(Course, alumni_subq).where(
+        (Course.course_id == course_id.upper())
+        & (Course.is_deleted == False)
+    )
+    
+    result = session.exec(query).first()
+    if result:
+        course, count = result
+        return course, count or 0
+    return None
 
 
 def get_course_by_id_any(session: Session, course_id: str) -> Course | None:
@@ -240,8 +259,25 @@ def get_all_courses(
         base_filter = None
     else:
         base_filter = Course.is_deleted == False
-    query = select(Course)
+
+    # Alumni count subquery per course
+    alumni_subq = (
+        select(
+            StudentRecord.course_ref_id,
+            func.count(Alumni.id).label("alumni_count")
+        )
+        .join(Alumni, Alumni.id == StudentRecord.alumni_ref_id)
+        .where(Alumni.is_deleted == False)
+        .group_by(StudentRecord.course_ref_id)
+        .subquery()
+    )
+
+    # Main query
+    query = select(Course, func.coalesce(alumni_subq.c.alumni_count, 0))
+    query = query.outerjoin(alumni_subq, alumni_subq.c.course_ref_id == Course.id)
+    
     count_q = select(func.count(Course.id))
+
     if base_filter is not None:
         query = query.where(base_filter)
         count_q = count_q.where(base_filter)
@@ -253,11 +289,17 @@ def get_all_courses(
             | (Course.course_name.ilike(like))
             | (Course.course_desc.ilike(like))
         )
+        count_q = count_q.where(
+            (Course.course_abbv.ilike(like))
+            | (Course.course_name.ilike(like))
+            | (Course.course_desc.ilike(like))
+        )
 
     if college_dept_abbv:
         dept = get_college_dept_by_abbv(session, college_dept_abbv)
         if dept:
             query = query.where(Course.college_dept_ref_id == dept.id)
+            count_q = count_q.where(Course.college_dept_ref_id == dept.id)
 
     total = session.exec(count_q).one()
 
@@ -272,19 +314,23 @@ def get_all_courses(
         )
     elif sort_by.lower() == "deleted_at":
         query = query.order_by(Course.deleted_at.desc() if desc else Course.deleted_at)
+    elif sort_by.lower() == "alumni_count":
+        query = query.order_by(
+            alumni_subq.c.alumni_count.desc() if desc else alumni_subq.c.alumni_count
+        )
     else:
         query = query.order_by(Course.course_id.desc() if desc else Course.course_id)
 
     if limit > 0:
         query = query.offset(offset).limit(limit)
 
-    courses = session.exec(query).all()
-    result = []
-    for course in courses:
+    results = session.exec(query).all()
+    result_list = []
+    for course, count in results:
         dept = get_college_dept_by_ref_id(session, course.college_dept_ref_id)
-        result.append(build_course_public(course, dept))
+        result_list.append(build_course_public(course, dept, alumni_count=count))
 
-    return result, total
+    return result_list, total
 
 
 # ---------------------------------------------------------------------------

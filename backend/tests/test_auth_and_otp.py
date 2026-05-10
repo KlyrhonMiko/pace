@@ -43,6 +43,13 @@ def test_root_login_me_logout_and_invalid_login(client, auth_headers, seeded_acc
     assert oauth_payload["token_type"] == "bearer"
     oauth_headers = {"Authorization": f"Bearer {oauth_payload['access_token']}"}
 
+    second_login = client.post(
+        "/auth/token",
+        data={"username": "admin_user", "password": "AdminPass123"},
+    )
+    assert second_login.status_code == 200
+    second_headers = {"Authorization": f"Bearer {second_login.json()['access_token']}"}
+
     oauth_me = client.get("/auth/me", headers=oauth_headers)
     assert oauth_me.status_code == 200
     assert oauth_me.json()["data"]["user_id"] == seeded_accounts["admin"].user_id
@@ -54,6 +61,10 @@ def test_root_login_me_logout_and_invalid_login(client, auth_headers, seeded_acc
     revoked_me = client.get("/auth/me", headers=oauth_headers)
     assert revoked_me.status_code == 401
     assert_standard_response(revoked_me.json(), success=False, code=ErrorCode.TOKEN_REVOKED.value)
+
+    surviving_session = client.get("/auth/me", headers=second_headers)
+    assert surviving_session.status_code == 200
+    assert surviving_session.json()["data"]["user_id"] == seeded_accounts["admin"].user_id
 
     missing_auth = client.get("/users?limit=1&offset=0")
     assert missing_auth.status_code == 401

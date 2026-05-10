@@ -7,7 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 
 export function AdminSecurity() {
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
     const [currentPassword, setCurrentPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
@@ -65,10 +65,11 @@ export function AdminSecurity() {
                 },
             });
             setSuccess(true);
-            toast.success("Password changed successfully");
+            toast.success("Password changed successfully. Please sign in again.");
             setTimeout(() => {
                 setIsOpen(false);
                 reset();
+                logout();
             }, 1500);
         } catch (err) {
             const msg = err instanceof ApiError ? err.message : "Failed to change password";

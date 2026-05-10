@@ -410,7 +410,7 @@ def _build_college_depts_list_response(
         success=True,
         code=SuccessCode.COLLEGE_DEPTS_RETRIEVED.value,
         message=f"Retrieved {returned} college departments",
-        data={"college_depts": [CollegeDeptPublic.model_validate(d) for d in college_depts], "pagination": pagination}
+        data={"college_depts": college_depts, "pagination": pagination}
     )
 
 

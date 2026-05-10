@@ -15,6 +15,8 @@ class SurveyBase(SQLModel):
     allow_multiple_responses: bool = Field(default=False)
     opens_at: Optional[datetime] = None
     closes_at: Optional[datetime] = None
+    target_department_abbv: Optional[str] = Field(default=None, max_length=20)
+    target_course_abbv: Optional[str] = Field(default=None, max_length=20)
 
 
 class Survey(BaseTable, SurveyBase, table=True):

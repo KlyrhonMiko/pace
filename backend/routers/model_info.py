@@ -9,9 +9,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends
+from sqlmodel import Session, select, func
 
 from models.auth import CurrentUser
+from models.job_listings import JobListing
 from models.response_codes import StandardResponse, SuccessCode
+from core.database import get_session
+from services.machines.job_matching import job_matching_service
 from utils.rbac import require_admin
 
 router = APIRouter(prefix="/predict", tags=["Model Information"])
@@ -166,8 +170,16 @@ def _load_career_track_info() -> list[dict]:
     return models
 
 
-def _load_semantic_matcher_info() -> list[dict]:
+def _load_semantic_matcher_info(session: Session) -> list[dict]:
     """Return metadata for the semantic matching model."""
+    runtime_status = job_matching_service.get_runtime_status()
+    missing_embedding_count = session.exec(
+        select(func.count()).select_from(JobListing).where(
+            (JobListing.is_active == True) &
+            (JobListing.is_deleted == False) &
+            (JobListing.vector_embedding == None)
+        )
+    ).one()
     return [{
         "id": "semantic_matcher",
         "name": "Semantic Job Matcher",
@@ -183,6 +195,13 @@ def _load_semantic_matcher_info() -> list[dict]:
         },
         "size_bytes": 83886080, # Standard footprint for all-MiniLM-L6-v2 (~80MB)
         "last_modified": None,
+        "runtime_available": runtime_status["runtime_available"],
+        "last_load_error": runtime_status["last_load_error"],
+        "last_failure_at": runtime_status["last_failure_at"],
+        "active_device": runtime_status["active_device"],
+        "active_backend": runtime_status["active_backend"],
+        "active_device_name": runtime_status["active_device_name"],
+        "missing_embedding_count": missing_embedding_count,
     }]
 
 
@@ -208,6 +227,7 @@ def _arima_info() -> list[dict]:
 
 @router.get("/models/info")
 def get_models_info(
+    session: Session = Depends(get_session),
     current_user: CurrentUser = Depends(require_admin),
 ):
     """
@@ -216,7 +236,7 @@ def get_models_info(
     """
     rf_models = _load_rf_info()
     career_models = _load_career_track_info()
-    semantic_models = _load_semantic_matcher_info()
+    semantic_models = _load_semantic_matcher_info(session)
     lr_models = _load_regression_info()
     arima_models = _arima_info()
 

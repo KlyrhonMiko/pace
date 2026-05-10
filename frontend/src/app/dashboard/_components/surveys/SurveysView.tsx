@@ -1,21 +1,20 @@
 import { useState } from "react";
 import {
     Plus,
-    Search,
-    HelpCircle,
-    ClipboardCheck,
     Eye,
     Edit2,
     Trash2,
     Globe,
     Lock,
     Archive,
-    Calendar,
-    ChevronRight,
     ClipboardList,
-    Clock,
+    ClipboardCheck,
     User,
-    Link as LinkIcon
+    Link as LinkIcon,
+    Building2,
+    BookOpen,
+    RotateCcw,
+    HelpCircle
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -52,6 +51,33 @@ function SurveyStatusBadge({ status }: { status: string }) {
         </span>
     );
 }
+
+// ─── Target Badge Helper ───────────────────────────────────────────────────────
+function TargetBadge({ dept, course }: { dept?: string | null; course?: string | null }) {
+    if (!dept && !course) {
+        return (
+            <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200">
+                <Globe className="w-2.5 h-2.5" />
+                <span>All Alumni</span>
+            </div>
+        );
+    }
+    if (course) {
+        return (
+            <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
+                <BookOpen className="w-2.5 h-2.5" />
+                <span>Course: {course}</span>
+            </div>
+        );
+    }
+    return (
+        <div className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">
+            <Building2 className="w-2.5 h-2.5" />
+            <span>Dept: {dept}</span>
+        </div>
+    );
+}
+
 
 export default function SurveysView({
     surveys = [],
@@ -191,6 +217,20 @@ export default function SurveysView({
                                                             <p className="text-xs text-slate-500 mt-0.5 truncate italic">
                                                                 {survey.description || "No description provided"}
                                                             </p>
+                                                            <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                                                                <TargetBadge 
+                                                                    dept={survey.target_department_abbv} 
+                                                                    course={survey.target_course_abbv} 
+                                                                />
+                                                                <div className={`flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                                                                    (survey.question_count || 0) > 0 
+                                                                        ? "text-blue-600 bg-blue-50 border-blue-100" 
+                                                                        : "text-amber-600 bg-amber-50 border-amber-100"
+                                                                }`}>
+                                                                    <ClipboardList className="w-2.5 h-2.5" />
+                                                                    <span>{survey.question_count || 0} Questions</span>
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </td>
@@ -228,10 +268,36 @@ export default function SurveysView({
                                                                 variant="ghost"
                                                                 size="icon"
                                                                 onClick={() => onPublishSurvey(survey.survey_id)}
-                                                                className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                                                title="Publish"
+                                                                className={`h-8 w-8 rounded-lg transition-colors ${
+                                                                    (survey.question_count || 0) > 0
+                                                                        ? "text-slate-400 hover:text-blue-600 hover:bg-blue-50"
+                                                                        : "text-amber-400 hover:text-amber-600 hover:bg-amber-50"
+                                                                }`}
+                                                                title={(survey.question_count || 0) > 0 ? "Publish" : "Cannot publish (no questions)"}
                                                             >
                                                                 <Globe className="h-4 w-4" />
+                                                            </Button>
+                                                        )}
+                                                        {survey.status === 'ACTIVE' && (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => onCloseSurvey(survey.survey_id)}
+                                                                className="h-8 w-8 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                                                                title="Close Survey"
+                                                            >
+                                                                <Lock className="h-4 w-4" />
+                                                            </Button>
+                                                        )}
+                                                        {survey.status === 'CLOSED' && (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => onReopenSurvey(survey.survey_id)}
+                                                                className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                                                title="Reopen Survey"
+                                                            >
+                                                                <RotateCcw className="h-4 w-4" />
                                                             </Button>
                                                         )}
                                                         {(survey.status === 'ACTIVE' || survey.status === 'CLOSED' || survey.status === 'ARCHIVED') && (
@@ -268,6 +334,17 @@ export default function SurveysView({
                                                         >
                                                             <Trash2 className="h-4 w-4" />
                                                         </Button>
+                                                        {survey.status !== 'ARCHIVED' && (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => onArchiveSurvey(survey.survey_id)}
+                                                                className="h-8 w-8 text-slate-400 hover:text-rose-400 hover:bg-rose-50 rounded-lg transition-colors"
+                                                                title="Archive"
+                                                            >
+                                                                <Archive className="h-4 w-4" />
+                                                            </Button>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>

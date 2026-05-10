@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import uuid4
@@ -9,6 +10,7 @@ from sqlmodel import Session, select
 
 from core.config import settings
 from core.database import get_session
+from core.redis import get_redis_client
 from models.alumni import Alumni
 from models.auth import CurrentUser, TokenResponse
 from models.employers import Employer
@@ -25,6 +27,10 @@ from utils.timezone import ensure_aware_datetime, get_current_time_utc
 SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = settings.ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
+TOKEN_REVOKE_NAMESPACE = "auth:revoked:jti"
+_local_revoked_tokens: dict[str, int] = {}
+_revocation_backend_warning_emitted = False
+logger = logging.getLogger(__name__)
 
 if not SECRET_KEY:
     raise RuntimeError("JWT_SECRET_KEY environment variable is not set.")
@@ -99,6 +105,69 @@ def _token_datetime_from_claim(payload: dict, claim_name: str) -> datetime:
     return datetime.fromtimestamp(claim_value, tz=timezone.utc)
 
 
+def _revoked_token_cache_key(token_jti: str) -> str:
+    return f"{TOKEN_REVOKE_NAMESPACE}:{token_jti}"
+
+
+def _revocation_ttl_seconds(expires_at: Optional[datetime]) -> int:
+    if expires_at is None:
+        return max(ACCESS_TOKEN_EXPIRE_MINUTES * 60, 1)
+    ttl = int((expires_at - get_current_time_utc()).total_seconds())
+    return max(ttl, 1)
+
+
+def _log_revocation_backend_warning(exc: Exception) -> None:
+    global _revocation_backend_warning_emitted
+    if _revocation_backend_warning_emitted:
+        return
+    logger.warning("Token revocation is using local fallback storage because Redis is unavailable: %s", exc)
+    _revocation_backend_warning_emitted = True
+
+
+def revoke_token_jti(token_jti: str, expires_at: Optional[datetime] = None) -> None:
+    """Invalidate exactly one JWT by its JTI until it would naturally expire."""
+    ttl = _revocation_ttl_seconds(expires_at)
+    redis_client = get_redis_client()
+    if redis_client:
+        try:
+            redis_client.setex(_revoked_token_cache_key(token_jti), ttl, "1")
+            return
+        except Exception as exc:
+            _log_revocation_backend_warning(exc)
+
+    _local_revoked_tokens[token_jti] = int(get_current_time_utc().timestamp()) + ttl
+
+
+def revoke_access_token(token: str) -> None:
+    """Invalidate the provided access token without revoking sibling sessions."""
+    payload = decode_access_token(token)
+    token_jti = payload.get("jti")
+    if not isinstance(token_jti, str) or not token_jti:
+        raise ValueError("Invalid token payload")
+    revoke_token_jti(token_jti, _token_datetime_from_claim(payload, "exp"))
+
+
+def is_token_jti_revoked(token_jti: str) -> bool:
+    """Check whether a token JTI has been explicitly revoked."""
+    redis_client = get_redis_client()
+    if redis_client:
+        try:
+            return bool(redis_client.get(_revoked_token_cache_key(token_jti)))
+        except Exception as exc:
+            _log_revocation_backend_warning(exc)
+
+    expiry_timestamp = _local_revoked_tokens.get(token_jti)
+    if expiry_timestamp is None:
+        return False
+
+    now_timestamp = int(get_current_time_utc().timestamp())
+    if expiry_timestamp <= now_timestamp:
+        _local_revoked_tokens.pop(token_jti, None)
+        return False
+
+    return True
+
+
 def revoke_user_tokens(user: User, revoked_at: Optional[datetime] = None) -> datetime:
     """Invalidate all previously-issued tokens for a user."""
     timestamp = revoked_at or get_current_time_utc()
@@ -106,12 +175,19 @@ def revoke_user_tokens(user: User, revoked_at: Optional[datetime] = None) -> dat
     return timestamp
 
 
-def update_user_password(user: User, raw_password: str, changed_at: Optional[datetime] = None) -> datetime:
-    """Store a validated password hash and revoke all existing tokens."""
+def update_user_password(
+    user: User,
+    raw_password: str,
+    changed_at: Optional[datetime] = None,
+    revoke_all_tokens: bool = True,
+) -> datetime:
+    """Store a validated password hash and optionally revoke all existing tokens."""
     timestamp = changed_at or get_current_time_utc()
     user.password = hash_password_for_storage(raw_password)
-    user.password_changed_at = timestamp
-    user.auth_revoked_after = timestamp
+    if revoke_all_tokens:
+        user.password_changed_at = timestamp
+        user.auth_revoked_after = timestamp
+    user.force_password_reset = False
     return timestamp
 
 
@@ -239,6 +315,16 @@ def get_current_user(
                 ).model_dump(mode="json"),
             )
 
+        if is_token_jti_revoked(token_jti):
+            raise HTTPException(
+                status_code=401,
+                detail=StandardResponse(
+                    success=False,
+                    code=ErrorCode.TOKEN_REVOKED.value,
+                    message="Token has been revoked",
+                ).model_dump(mode="json"),
+            )
+
         db_user = session.exec(select(User).where(User.user_id == user_id)).first()
         if not db_user:
             raise HTTPException(
@@ -264,7 +350,7 @@ def get_current_user(
         auth_revoked_after = ensure_aware_datetime(db_user.auth_revoked_after)
         password_changed_at = ensure_aware_datetime(db_user.password_changed_at)
 
-        if auth_revoked_after and issued_at <= auth_revoked_after:
+        if auth_revoked_after and issued_at < auth_revoked_after:
             raise HTTPException(
                 status_code=401,
                 detail=StandardResponse(
@@ -274,7 +360,7 @@ def get_current_user(
                 ).model_dump(mode="json"),
             )
 
-        if password_changed_at and issued_at <= password_changed_at:
+        if password_changed_at and issued_at < password_changed_at:
             raise HTTPException(
                 status_code=401,
                 detail=StandardResponse(

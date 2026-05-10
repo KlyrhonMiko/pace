@@ -193,7 +193,7 @@ function PasswordRequirements({ password }: { password: string }) {
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function FacultyProfilePage() {
-    const { user, updateUser } = useAuth();
+    const { user, updateUser, logout } = useAuth();
     const [isLoading, setIsLoading] = useState(true);
     const [isSavingPersonal, setIsSavingPersonal] = useState(false);
     const [isSavingAccount, setIsSavingAccount] = useState(false);
@@ -339,7 +339,10 @@ export default function FacultyProfilePage() {
             if (result.success) {
                 setEditingPassword(false);
                 setPasswordDraft({ current_password: "", password: "", confirm_password: "" });
-                toast.success("Password updated successfully");
+                toast.success("Password updated successfully. Please sign in again.");
+                setTimeout(() => {
+                    logout();
+                }, 1500);
             } else {
                 toast.error(result.message || "Failed to update password");
             }

@@ -183,6 +183,14 @@ def match_jobs_for_alumni(
             job_embeddings.append(
                 (job.id, job.vector_embedding, job.title, job.company or "Unknown Company")
             )
+
+    if job_matching_service.model is None:
+        return StandardResponse(
+            success=True,
+            code=SuccessCode.SUCCESS.value,
+            message="Semantic job matching is temporarily unavailable. Please try again shortly.",
+            data=[]
+        )
             
     # 4. Run matching logic with the enriched profile text
     matches = job_matching_service.calculate_similarity(profile_text, job_embeddings)

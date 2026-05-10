@@ -345,6 +345,8 @@ def get_all_alumni(
     include_deleted: bool,
     sort_by: str,
     sort_order: str,
+    course_abbv: str | None = None,
+    college_dept_abbv: str | None = None,
     deleted_only: bool = False,
 ) -> tuple[list[Alumni], int]:
     if deleted_only:
@@ -353,8 +355,29 @@ def get_all_alumni(
         base_filter = None
     else:
         base_filter = Alumni.is_deleted == False
+    
     query = select(Alumni)
     count_q = select(func.count(Alumni.id))
+
+    if course_abbv or college_dept_abbv:
+        # Need to join with StudentRecord and Course
+        from models.college_dept import CollegeDept
+        query = query.join(StudentRecord, StudentRecord.id == Alumni.student_ref_id)
+        query = query.join(Course, Course.id == StudentRecord.course_ref_id)
+        
+        count_q = count_q.join(StudentRecord, StudentRecord.id == Alumni.student_ref_id)
+        count_q = count_q.join(Course, Course.id == StudentRecord.course_ref_id)
+
+        if course_abbv:
+            query = query.where(Course.course_abbv == course_abbv.upper())
+            count_q = count_q.where(Course.course_abbv == course_abbv.upper())
+        
+        if college_dept_abbv:
+            query = query.join(CollegeDept, CollegeDept.id == Course.college_dept_ref_id)
+            count_q = count_q.join(CollegeDept, CollegeDept.id == Course.college_dept_ref_id)
+            query = query.where(CollegeDept.college_dept_abbv == college_dept_abbv.upper())
+            count_q = count_q.where(CollegeDept.college_dept_abbv == college_dept_abbv.upper())
+
     if base_filter is not None:
         query = query.where(base_filter)
         count_q = count_q.where(base_filter)

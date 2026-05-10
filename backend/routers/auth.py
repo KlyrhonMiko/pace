@@ -1,17 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlmodel import Session, select
+from sqlmodel import Session
 
 from core.database import get_session
 from models.auth import CurrentUser, LoginRequest, ResetPasswordRequest, TokenResponse
 from models.response_codes import ErrorCode, StandardResponse, SuccessCode
-from models.users import User
 from services.queries.transaction_logs_queries import create_transaction_log
 from services.queries.user_activities_queries import ActivityType, create_user_activity
 from utils.auth import (
     authenticate_and_issue_token,
     get_current_user,
-    revoke_user_tokens,
+    oauth2_scheme,
+    revoke_access_token,
     update_user_password,
 )
 from utils.logging import log_auth_error
@@ -84,15 +84,14 @@ def oauth2_token(
 @router.post("/logout", response_model=StandardResponse)
 def logout(
     current_user: CurrentUser = Depends(get_current_user),
+    token: str | None = Depends(oauth2_scheme),
     session: Session = Depends(get_session),
 ):
     """
-    Logout endpoint - revoke outstanding JWTs and log the logout event.
+    Logout endpoint - revoke only the current JWT session and log the logout event.
     """
-    user = session.exec(select(User).where(User.user_id == current_user.user_id)).first()
-    if user:
-        revoke_user_tokens(user)
-        session.add(user)
+    if token:
+        revoke_access_token(token)
 
     create_transaction_log(
         session,

@@ -19,6 +19,7 @@ from schemas.users import (
     UserBatchRestoreResult, UserBatchRestoreResponse,
 )
 from models.response_codes import ErrorCode, SuccessCode
+from utils.auth import update_user_password
 from utils.crypto import hash_password_for_storage, verify_password
 from utils.logging import log_integrity_error
 from utils.timezone import get_current_time_gmt8, get_current_time_utc
@@ -192,6 +193,7 @@ def update_user(
     user: User,
     data: UserUpdate,
     performed_by: str | None = None,
+    revoke_all_tokens_on_password_change: bool = True,
 ) -> User:
     """Apply a partial update. Password verification is the caller's responsibility."""
     before_state = user.model_dump(mode="json")
@@ -200,11 +202,12 @@ def update_user(
     if data.email is not None:
         user.email = data.email
     if data.password is not None:
-        user.password = hash_password_for_storage(data.password)
-        now = get_current_time_utc()
-        user.password_changed_at = now
-        user.auth_revoked_after = now
-        user.force_password_reset = False  # First-login forced reset satisfied
+        update_user_password(
+            user,
+            data.password,
+            changed_at=get_current_time_utc(),
+            revoke_all_tokens=revoke_all_tokens_on_password_change,
+        )
 
     # Handle profile updates (names)
     profile_updated = False

@@ -20,6 +20,7 @@ import {
     BarChart3,
     ChevronRight,
     Brain,
+    GraduationCap,
 } from "lucide-react";
 import DateWidget from "../_components/DateWidget";
 import TopHeader from "../_components/TopHeader";
@@ -27,6 +28,7 @@ import TopHeader from "../_components/TopHeader";
 const navItems = [
     { name: "Overview", href: "/dashboard/admin", icon: () => <Home size={18} /> },
     { name: "User Management", href: "/dashboard/admin/users", icon: () => <User size={18} /> },
+    { name: "Academic Structure", href: "/dashboard/admin/academic", icon: () => <GraduationCap size={18} /> },
     { name: "Job Postings", href: "/dashboard/admin/jobs", icon: () => <Briefcase size={18} /> },
     { name: "Events", href: "/dashboard/admin/events", icon: () => <Calendar size={18} /> },
     {

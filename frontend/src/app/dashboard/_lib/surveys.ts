@@ -41,6 +41,8 @@ export interface Survey {
     opens_at: string | null;
     closes_at: string | null;
     status: SurveyStatus;
+    target_department_abbv?: string | null;
+    target_course_abbv?: string | null;
     question_count?: number;
     questions?: Question[];
     created_at?: string;
@@ -238,10 +240,14 @@ export async function closeSurvey(surveyId: string): Promise<Survey | null> {
     }
 }
 
-export async function reopenSurvey(surveyId: string): Promise<Survey | null> {
+export async function reopenSurvey(
+    surveyId: string, 
+    payload: { opens_at: string; closes_at: string }
+): Promise<Survey | null> {
     try {
         const json = await apiFetch<any>(`/surveys/${surveyId}/reopen`, {
             method: "POST",
+            body: payload,
         });
         return json.success ? json.data : null;
     } catch (error) {
@@ -339,28 +345,39 @@ export async function reorderSurveyQuestions(
 export async function saveSurveyWorkflow(
     editingSurvey: Survey | null,
     sData: Omit<Survey, "survey_id" | "question_count">
-): Promise<{ success: boolean; survey?: Survey }> {
+): Promise<{ success: boolean; survey?: Survey; error?: string }> {
+    // Normalize dates: empty strings to null
+    const normalizedData = {
+        ...sData,
+        opens_at: sData.opens_at?.trim() || null,
+        closes_at: sData.closes_at?.trim() || null,
+    };
+
     try {
         if (editingSurvey) {
             // 1. Update metadata if changed
             const metadataChanged =
-                sData.title !== editingSurvey.title ||
-                sData.description !== editingSurvey.description ||
-                sData.is_anonymous !== editingSurvey.is_anonymous ||
-                sData.allow_multiple_responses !== editingSurvey.allow_multiple_responses ||
-                sData.opens_at !== editingSurvey.opens_at ||
-                sData.closes_at !== editingSurvey.closes_at ||
-                sData.status !== editingSurvey.status;
+                normalizedData.title !== editingSurvey.title ||
+                normalizedData.description !== editingSurvey.description ||
+                normalizedData.is_anonymous !== editingSurvey.is_anonymous ||
+                normalizedData.allow_multiple_responses !== editingSurvey.allow_multiple_responses ||
+                normalizedData.opens_at !== editingSurvey.opens_at ||
+                normalizedData.closes_at !== editingSurvey.closes_at ||
+                normalizedData.status !== editingSurvey.status ||
+                normalizedData.target_department_abbv !== editingSurvey.target_department_abbv ||
+                normalizedData.target_course_abbv !== editingSurvey.target_course_abbv;
 
             if (metadataChanged) {
                 const updated = await updateSurvey(editingSurvey.survey_id, {
-                    title: sData.title,
-                    description: sData.description,
-                    is_anonymous: sData.is_anonymous,
-                    allow_multiple_responses: sData.allow_multiple_responses,
-                    opens_at: sData.opens_at,
-                    closes_at: sData.closes_at,
-                    status: sData.status,
+                    title: normalizedData.title,
+                    description: normalizedData.description,
+                    is_anonymous: normalizedData.is_anonymous,
+                    allow_multiple_responses: normalizedData.allow_multiple_responses,
+                    opens_at: normalizedData.opens_at,
+                    closes_at: normalizedData.closes_at,
+                    status: normalizedData.status,
+                    target_department_abbv: normalizedData.target_department_abbv,
+                    target_course_abbv: normalizedData.target_course_abbv,
                 });
                 if (!updated) return { success: false };
             }
@@ -401,16 +418,18 @@ export async function saveSurveyWorkflow(
         } else {
             // Create new survey
             const created = await createSurvey({
-                title: sData.title,
-                description: sData.description,
-                is_anonymous: sData.is_anonymous,
-                allow_multiple_responses: sData.allow_multiple_responses,
-                opens_at: sData.opens_at,
-                closes_at: sData.closes_at,
+                title: normalizedData.title,
+                description: normalizedData.description,
+                is_anonymous: normalizedData.is_anonymous,
+                allow_multiple_responses: normalizedData.allow_multiple_responses,
+                opens_at: normalizedData.opens_at,
+                closes_at: normalizedData.closes_at,
+                target_department_abbv: normalizedData.target_department_abbv,
+                target_course_abbv: normalizedData.target_course_abbv,
             });
 
-            if (created && sData.questions && sData.questions.length > 0) {
-                const batch = sData.questions.map((q, idx) => ({
+            if (created && normalizedData.questions && normalizedData.questions.length > 0) {
+                const batch = normalizedData.questions.map((q, idx) => ({
                     question_id: q.question_id,
                     order_index: idx + 1,
                 }));
@@ -421,7 +440,10 @@ export async function saveSurveyWorkflow(
         }
     } catch (error) {
         console.error("Workflow failed:", error);
-        return { success: false };
+        return { 
+            success: false, 
+            error: error instanceof Error ? error.message : "An unexpected error occurred"
+        };
     }
 }
 

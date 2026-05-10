@@ -55,6 +55,7 @@ class CollegeDeptPublic(AuditPublicSQLModel):
     college_dept_abbv: str
     college_dept_name: str
     college_dept_desc: Optional[str]
+    alumni_count: int = Field(default=0)
     created_at: datetime
     updated_at: datetime
 

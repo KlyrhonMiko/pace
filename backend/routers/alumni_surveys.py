@@ -14,6 +14,10 @@ from core.redis import cache_get_or_set, generate_cache_key
 from models.auth import CurrentUser
 from models.response_codes import StandardResponse, SuccessCode, ErrorCode
 from models.surveys import Survey, SurveyResponse
+from models.alumni import Alumni
+from models.student_records import StudentRecord
+from models.courses import Course
+from models.college_dept import CollegeDept
 from schemas.surveys import SurveyPublic, SurveyStatus
 from schemas.questions import QuestionPublic
 from utils.timezone import get_current_time_gmt8
@@ -52,10 +56,34 @@ def list_active_surveys_for_alumni(
     Cached for 60 seconds.
     """
     try:
-        cache_key = generate_cache_key(ALUMNI_SURVEYS_CACHE_NAMESPACE, status="ACTIVE")
+        # Resolve alumni profile to get course/dept
+        alumni = session.exec(
+            select(Alumni).where(Alumni.user_ref_id == current_user.id)
+        ).first()
+        
+        course_abbv = None
+        dept_abbv = None
+        
+        if alumni and alumni.student_ref_id:
+            sr = session.get(StudentRecord, alumni.student_ref_id)
+            if sr and sr.course_ref_id:
+                course = session.get(Course, sr.course_ref_id)
+                if course:
+                    course_abbv = course.course_abbv
+                    if course.college_dept_ref_id:
+                        dept = session.get(CollegeDept, course.college_dept_ref_id)
+                        if dept:
+                            dept_abbv = dept.college_dept_abbv
+
+        cache_key = generate_cache_key(
+            ALUMNI_SURVEYS_CACHE_NAMESPACE, 
+            status="ACTIVE", 
+            course=course_abbv, 
+            dept=dept_abbv
+        )
         return cache_get_or_set(
             cache_key,
-            lambda: _build_alumni_survey_list(session),
+            lambda: _build_alumni_survey_list(session, course_abbv, dept_abbv),
             ttl=ALUMNI_SURVEYS_LIST_TTL,
         )
     except HTTPException:
@@ -88,12 +116,34 @@ def get_alumni_survey_detail(
     Cached for 120 seconds.
     """
     try:
+        # Resolve alumni profile for targeting check
+        alumni = session.exec(
+            select(Alumni).where(Alumni.user_ref_id == current_user.id)
+        ).first()
+        
+        course_abbv = None
+        dept_abbv = None
+        
+        if alumni and alumni.student_ref_id:
+            sr = session.get(StudentRecord, alumni.student_ref_id)
+            if sr and sr.course_ref_id:
+                course = session.get(Course, sr.course_ref_id)
+                if course:
+                    course_abbv = course.course_abbv
+                    if course.college_dept_ref_id:
+                        dept = session.get(CollegeDept, course.college_dept_ref_id)
+                        if dept:
+                            dept_abbv = dept.college_dept_abbv
+
         cache_key = generate_cache_key(
-            f"{ALUMNI_SURVEYS_CACHE_NAMESPACE}:detail", survey_id=survey_id
+            f"{ALUMNI_SURVEYS_CACHE_NAMESPACE}:detail", 
+            survey_id=survey_id,
+            course=course_abbv,
+            dept=dept_abbv
         )
         return cache_get_or_set(
             cache_key,
-            lambda: _build_alumni_survey_detail(session, survey_id),
+            lambda: _build_alumni_survey_detail(session, survey_id, course_abbv, dept_abbv),
             ttl=ALUMNI_SURVEYS_DETAIL_TTL,
         )
     except HTTPException:
@@ -268,9 +318,14 @@ def get_my_survey_response(
 # ---------------------------------------------------------------------------
 
 
-def _build_alumni_survey_list(session: Session) -> StandardResponse:
-    """Fetch all ACTIVE surveys with question counts."""
-    surveys = session.exec(
+def _build_alumni_survey_list(
+    session: Session, 
+    course_abbv: str | None = None, 
+    dept_abbv: str | None = None
+) -> StandardResponse:
+    """Fetch all ACTIVE surveys available to this specific alumni (targeting)."""
+    # 1. Fetch all ACTIVE surveys
+    all_active = session.exec(
         select(Survey).where(
             and_(
                 Survey.status == SurveyStatus.ACTIVE,
@@ -278,6 +333,24 @@ def _build_alumni_survey_list(session: Session) -> StandardResponse:
             )
         )
     ).all()
+
+    # 2. Filter by targeting
+    surveys = []
+    for s in all_active:
+        # Case A: Global survey (no targeting)
+        if not s.target_course_abbv and not s.target_department_abbv:
+            surveys.append(s)
+            continue
+        
+        # Case B: Specific course targeting
+        if s.target_course_abbv and s.target_course_abbv == course_abbv:
+            surveys.append(s)
+            continue
+            
+        # Case C: Specific department targeting (and no course targeting)
+        if s.target_department_abbv and s.target_department_abbv == dept_abbv and not s.target_course_abbv:
+            surveys.append(s)
+            continue
 
     survey_ref_ids = [s.id for s in surveys]
     counts = get_survey_question_counts_batch(session, survey_ref_ids)
@@ -297,8 +370,13 @@ def _build_alumni_survey_list(session: Session) -> StandardResponse:
     )
 
 
-def _build_alumni_survey_detail(session: Session, survey_id: str) -> StandardResponse:
-    """Fetch one ACTIVE survey with full ordered questions list."""
+def _build_alumni_survey_detail(
+    session: Session, 
+    survey_id: str,
+    course_abbv: str | None = None,
+    dept_abbv: str | None = None
+) -> StandardResponse:
+    """Fetch one ACTIVE survey with targeting check."""
     survey = get_survey_by_id(session, survey_id)
 
     if not survey:
@@ -318,6 +396,25 @@ def _build_alumni_survey_detail(session: Session, survey_id: str) -> StandardRes
                 success=False,
                 code=ErrorCode.SURVEY_NOT_ACTIVE.value,
                 message="Survey is not currently active",
+            ).model_dump(mode="json"),
+        )
+
+    # Targeting check
+    is_targeted = False
+    if not survey.target_course_abbv and not survey.target_department_abbv:
+        is_targeted = True
+    elif survey.target_course_abbv and survey.target_course_abbv == course_abbv:
+        is_targeted = True
+    elif survey.target_department_abbv and survey.target_department_abbv == dept_abbv and not survey.target_course_abbv:
+        is_targeted = True
+        
+    if not is_targeted:
+         raise HTTPException(
+            status_code=404,
+            detail=StandardResponse(
+                success=False,
+                code=ErrorCode.SURVEY_NOT_FOUND.value,
+                message="Survey not found for your profile",
             ).model_dump(mode="json"),
         )
 

@@ -54,7 +54,7 @@ class JobMatchingService:
             if self._model is not None:
                 return self._model
 
-            errors: list[str] = []
+            errors: list[tuple[str, str, str]] = []
             for device, backend, device_name in self._get_device_candidates():
                 try:
                     self._model = SentenceTransformer(self.MODEL_NAME, device=device)
@@ -72,7 +72,7 @@ class JobMatchingService:
                     break
                 except Exception as exc:
                     self._model = None
-                    errors.append(f"{device} ({backend}): {exc}")
+                    errors.append((device, backend, str(exc)))
                     logger.exception(
                         "Failed to initialize semantic job matching model on device=%s backend=%s",
                         device,
@@ -80,7 +80,14 @@ class JobMatchingService:
                     )
 
             if self._model is None:
-                self._record_load_failure("; ".join(errors) or "model initialization failed")
+                if not errors:
+                    self._record_load_failure("model initialization failed")
+                elif len(errors) == 1:
+                    self._record_load_failure(errors[0][2])
+                else:
+                    self._record_load_failure(
+                        "; ".join(f"{device} ({backend}): {message}" for device, backend, message in errors)
+                    )
 
         return self._model
 

@@ -117,7 +117,7 @@ export default function EventFilters({
                                     onCheckedChange={(checked) => setShowRegisteredOnly(!!checked)}
                                     className="border-slate-300 data-[state=checked]:bg-emerald-700 data-[state=checked]:border-emerald-700"
                                 />
-                                <span className="text-sm text-slate-700 font-medium">My Registrations</span>
+                                <span className="text-sm text-slate-700 font-medium">My Event History</span>
                             </label>
                         </div>
                     </FilterSection>

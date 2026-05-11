@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import JSONResponse
 from sqlmodel import Session
 from sqlalchemy.exc import IntegrityError
 from core.database import get_session
@@ -12,7 +13,7 @@ from models.auth import CurrentUser
 from models.users import UserType
 from models.pagination import PaginatedResponse, PaginationMetadata
 from utils.crypto import verify_password
-from utils.auth import oauth2_scheme, revoke_access_token
+from utils.auth import clear_session_cookie, clear_session_role_cookie, oauth2_scheme, revoke_access_token
 from utils.rbac import require_admin, require_self_or_admin
 from utils.logging import log_error, log_integrity_error, log_auth_error
 from services.queries.users_queries import (
@@ -314,19 +315,29 @@ async def update_user_route(
             performed_by=current_user.id,
             revoke_all_tokens_on_password_change=not self_service_password_change,
         )
-        if self_service_password_change and token:
-            revoke_access_token(token)
+        if self_service_password_change:
+            revoked_token = token or request.cookies.get("pace_session")
+            if revoked_token:
+                revoke_access_token(revoked_token)
         data = UserPublic.model_validate(updated)
         invalidate_cache_namespaces(USERS_CACHE_NAMESPACE, "alumni")
         
         # Re-fetch with profile to return full data
         updated_with_profile = get_user_with_profile(session, updated.user_id)
         
-        return StandardResponse(
+        response_content = StandardResponse(
             success=True, code=SuccessCode.USER_UPDATED.value,
             message=f"User {updated.user_id} updated successfully",
             data=updated_with_profile.model_dump() if updated_with_profile else UserPublic.model_validate(updated)
-        )
+        ).model_dump(mode="json")
+
+        if self_service_password_change:
+            json_response = JSONResponse(status_code=200, content=response_content)
+            clear_session_cookie(json_response)
+            clear_session_role_cookie(json_response)
+            return json_response
+        
+        return JSONResponse(status_code=200, content=response_content)
     except Exception as e:
         import traceback
         print(f"[ERROR] Update user failed: {e}")

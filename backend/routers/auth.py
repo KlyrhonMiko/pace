@@ -1,17 +1,23 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from core.database import get_session
 from models.auth import CurrentUser, LoginRequest, ResetPasswordRequest, TokenResponse
+from models.users import User
 from models.response_codes import ErrorCode, StandardResponse, SuccessCode
 from services.queries.transaction_logs_queries import create_transaction_log
 from services.queries.user_activities_queries import ActivityType, create_user_activity
 from utils.auth import (
     authenticate_and_issue_token,
+    clear_session_cookie,
+    clear_session_role_cookie,
     get_current_user,
     oauth2_scheme,
     revoke_access_token,
+    set_session_cookie,
+    set_session_role_cookie,
     update_user_password,
 )
 from utils.logging import log_auth_error
@@ -60,12 +66,18 @@ def login(
         except Exception:
             pass  # Fail open — don't block login if settings check fails
 
-    return StandardResponse(
-        success=True,
-        code=SuccessCode.LOGIN_SUCCESSFUL.value,
-        message="Login successful",
-        data=token_payload,
+    response = JSONResponse(
+        status_code=200,
+        content=StandardResponse(
+            success=True,
+            code=SuccessCode.LOGIN_SUCCESSFUL.value,
+            message="Login successful",
+            data=token_payload,
+        ).model_dump(mode="json"),
     )
+    set_session_cookie(response, token_payload.access_token)
+    set_session_role_cookie(response, token_payload.user_type)
+    return response
 
 
 @router.post("/token", response_model=TokenResponse)
@@ -74,24 +86,27 @@ def oauth2_token(
     session: Session = Depends(get_session),
 ):
     """OAuth2 password-flow token endpoint for Swagger UI and developer tooling."""
-    return authenticate_and_issue_token(
+    token_payload = authenticate_and_issue_token(
         session,
         form_data.username,
         form_data.password,
     )
+    response = JSONResponse(content=token_payload.model_dump(mode="json"))
+    set_session_cookie(response, token_payload.access_token)
+    set_session_role_cookie(response, token_payload.user_type)
+    return response
 
 
 @router.post("/logout", response_model=StandardResponse)
 def logout(
+    request: Request,
     current_user: CurrentUser = Depends(get_current_user),
     token: str | None = Depends(oauth2_scheme),
     session: Session = Depends(get_session),
 ):
-    """
-    Logout endpoint - revoke only the current JWT session and log the logout event.
-    """
-    if token:
-        revoke_access_token(token)
+    revoked_token = token or request.cookies.get("pace_session")
+    if revoked_token:
+        revoke_access_token(revoked_token)
 
     create_transaction_log(
         session,
@@ -107,11 +122,17 @@ def logout(
     )
     session.commit()
 
-    return StandardResponse(
-        success=True,
-        code=SuccessCode.USER_UPDATED.value,
-        message="Logged out successfully",
+    response = JSONResponse(
+        status_code=200,
+        content=StandardResponse(
+            success=True,
+            code=SuccessCode.USER_UPDATED.value,
+            message="Logged out successfully",
+        ).model_dump(mode="json"),
     )
+    clear_session_cookie(response)
+    clear_session_role_cookie(response)
+    return response
 
 
 @router.get("/me", response_model=StandardResponse)

@@ -1,10 +1,8 @@
 import uuid
 import httpx
-import math
 import asyncio
 import traceback
 from typing import Optional
-from datetime import datetime
 from sqlmodel import Session, select, func
 from core.config import settings
 from core.redis import (
@@ -14,9 +12,8 @@ from core.redis import (
 )
 from models.job_listings import JobListing
 from fastapi import BackgroundTasks
-from utils.timezone import get_current_time_gmt8
 
-from .constants import JOOBLE_API_URL, JOOBLE_BATCH_SIZE
+from .constants import JOOBLE_API_URL, JOOBLE_BATCH_SIZE, MAX_SYNC_PAGES, MAX_SYNC_ITEMS
 from .normalization import _normalize_job_dict
 from .mappers import _map_db_job_to_dict
 
@@ -40,82 +37,238 @@ def signal_shutdown():
         print("[JOOBLE] Shutdown signal sent to background tasks")
 
 
-def load_all_jobs_to_cache(session: Session) -> int:
-    """
-    Load all active jobs from database into Redis cache.
-    Called on app startup and periodically to refresh the batch cache.
-
-    Returns:
-        Number of jobs cached
-    """
-    try:
-        query = select(JobListing).where(JobListing.is_active == True)
-        all_jobs = session.exec(query).all()
-
-        # Convert to dict format
-        jobs_data = [_map_db_job_to_dict(job) for job in all_jobs]
-
-        # Cache for 6 hours
-        from core.redis import cache_set_all_jobs
-
-        cache_set_all_jobs(jobs_data, ttl=21600)
-
-        return len(jobs_data)
-    except Exception as e:
-        print(f"[ERROR] Failed to load jobs to cache: {e}")
-        return 0
-
-
 async def get_recommended_jobs(session: Session, limit: int = 3) -> list[dict]:
     """
-    Get recommended jobs from the database cache.
-    Currently returns random active jobs, falling back to Jooble API if local DB is empty.
+    Get recommended jobs from the local database.
+    Returns a cached selection of recent active jobs. Cheap and predictable.
     Uses Redis caching to avoid repeated database queries.
     """
-    # Generate cache key
     cache_key = generate_cache_key("recommended_jobs", limit=limit)
 
-    # 1. Check Redis cache first
     cached_result = cache_get(cache_key)
     if cached_result is not None and len(cached_result) > 0:
         return cached_result
 
-    # 2. Fall back to database query
     query = (
         select(JobListing)
         .where(JobListing.is_active == True)
-        .order_by(func.random())
-        .limit(limit)
+        .where(JobListing.is_deleted == False)
+        .order_by(JobListing.updated_at.desc())
+        .limit(limit * 2)
     )
     jobs = session.exec(query).all()
-    result = [_map_db_job_to_dict(job) for job in jobs]
 
-    # 3. If still empty or below limit, fetch some from API to avoid empty dashboard
-    if len(result) < limit:
-        try:
-            print(f"[RECOMMENDED] Local jobs ({len(result)}) < limit ({limit}). Fetching from Jooble API...")
-            api_result = await fetch_jobs(
-                results_per_page=limit * 2, # Fetch a bit more to ensure we have enough
-                location="Philippines",
-                session=session
+    from models.employers import Employer
+
+    employer_ref_ids = {j.employer_ref_id for j in jobs if j.employer_ref_id}
+    logo_map = {}
+    if employer_ref_ids:
+        employers = session.exec(
+            select(Employer.id, Employer.company_logo_url).where(
+                Employer.id.in_(list(employer_ref_ids))
             )
-            api_jobs = api_result.get("jobs", [])
-            
-            # Add unique API jobs to the result
-            existing_ids = {j.get("id") for j in result}
-            for job in api_jobs:
-                if len(result) >= limit:
-                    break
-                if job.get("id") not in existing_ids:
-                    result.append(job)
-        except Exception as e:
-            print(f"[ERROR] Failed to fetch fallback recommendations: {e}")
+        ).all()
+        logo_map = {emp_id: logo for emp_id, logo in employers if logo}
 
-    # 4. Cache the result (1 hour TTL)
+    result = [_map_db_job_to_dict(job, logo_map.get(job.employer_ref_id)) for job in jobs]
+    result = result[:limit]
+
     if result:
         cache_set(cache_key, result, ttl=3600)
 
     return result
+
+
+def _build_local_jobs_query(
+    keywords: Optional[str] = None,
+    location: Optional[str] = None,
+    job_type: Optional[str] = None,
+    work_type: Optional[str] = None,
+    experience_level: Optional[str] = None,
+    salary: Optional[int] = None,
+    has_salary: bool = False,
+    include_inactive: bool = False,
+    employer_ref_id: Optional[uuid.UUID] = None,
+    local_only: bool = False,
+):
+    """Build a filtered local job listing query. Always excludes soft-deleted rows."""
+    query = select(JobListing).where(JobListing.is_deleted == False)
+
+    if not include_inactive:
+        query = query.where(JobListing.is_active == True)
+
+    if keywords:
+        query = query.where(
+            (JobListing.title.ilike(f"%{keywords}%"))
+            | (JobListing.description.ilike(f"%{keywords}%"))
+            | (JobListing.company.ilike(f"%{keywords}%"))
+        )
+    if location and location != "Philippines":
+        query = query.where(JobListing.location.contains(location))
+    if job_type:
+        query = query.where(JobListing.job_type == job_type)
+    if work_type:
+        query = query.where(JobListing.work_type == work_type)
+    if experience_level:
+        query = query.where(JobListing.experience_level == experience_level)
+    if has_salary:
+        query = query.where(
+            (JobListing.salary_min != None) | (JobListing.salary_max != None)
+        )
+    if salary is not None:
+        query = query.where(
+            ((JobListing.salary_max != None) & (JobListing.salary_max >= salary))
+            | (
+                (JobListing.salary_max == None)
+                & (JobListing.salary_min != None)
+                & (JobListing.salary_min >= salary)
+            )
+        )
+    if employer_ref_id:
+        query = query.where(JobListing.employer_ref_id == employer_ref_id)
+    if local_only:
+        query = query.where(
+            (JobListing.source_api == "Internal") | (JobListing.source_api == None)
+        )
+
+    return query
+
+
+def _fetch_local_jobs_with_logos(
+    session: Session,
+    keywords: Optional[str] = None,
+    location: Optional[str] = None,
+    job_type: Optional[str] = None,
+    work_type: Optional[str] = None,
+    experience_level: Optional[str] = None,
+    salary: Optional[int] = None,
+    has_salary: bool = False,
+    include_inactive: bool = False,
+    employer_ref_id: Optional[uuid.UUID] = None,
+    local_only: bool = False,
+) -> list[dict]:
+    """Execute local job query and return enriched dicts with employer logos."""
+    query = _build_local_jobs_query(
+        keywords=keywords,
+        location=location,
+        job_type=job_type,
+        work_type=work_type,
+        experience_level=experience_level,
+        salary=salary,
+        has_salary=has_salary,
+        include_inactive=include_inactive,
+        employer_ref_id=employer_ref_id,
+        local_only=local_only,
+    )
+    local_jobs = session.exec(query).all()
+
+    from models.employers import Employer
+
+    employer_ref_ids = {j.employer_ref_id for j in local_jobs if j.employer_ref_id}
+    logo_map = {}
+    if employer_ref_ids:
+        employers = session.exec(
+            select(Employer.id, Employer.company_logo_url).where(
+                Employer.id.in_(list(employer_ref_ids))
+            )
+        ).all()
+        logo_map = {emp_id: logo for emp_id, logo in employers if logo}
+
+    return [_map_db_job_to_dict(j, logo_map.get(j.employer_ref_id)) for j in local_jobs]
+
+
+async def _fetch_and_normalize_remote(
+    api_keywords: str,
+    search_location: str,
+    salary: Optional[int],
+    has_salary: bool,
+) -> list[dict]:
+    """Fetch up to MAX_SYNC_ITEMS jobs from Jooble, normalizing each."""
+    normalized = []
+    page_num = 1
+
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        while page_num <= MAX_SYNC_PAGES and len(normalized) < MAX_SYNC_ITEMS:
+            payload = {
+                "keywords": api_keywords,
+                "location": search_location or "Philippines",
+                "page": str(page_num),
+                "ResultOnPage": str(JOOBLE_BATCH_SIZE),
+            }
+            if salary:
+                payload["salary"] = str(salary)
+
+            response = await client.post(
+                JOOBLE_API_URL,
+                json=payload,
+                headers={"Content-Type": "application/json"},
+            )
+            response.raise_for_status()
+            data = response.json()
+            batch_jobs = data.get("jobs", [])
+
+            if not batch_jobs:
+                break
+
+            for job in batch_jobs:
+                job_data = _normalize_job_dict(job)
+                if has_salary and not any(
+                    char.isdigit() for char in job_data.get("salary", "")
+                ):
+                    continue
+                normalized.append(job_data)
+
+            if len(batch_jobs) < JOOBLE_BATCH_SIZE:
+                break
+
+            page_num += 1
+
+    print(f"[FETCH_JOBS] Fetched {len(normalized)} remote jobs from {page_num} page(s)")
+    return normalized
+
+
+def _compute_facets(jobs: list[dict]) -> dict:
+    facets = {"jobTypes": {}, "workTypes": {}, "experienceLevels": {}}
+    for j in jobs:
+        jt = j.get("type") or j.get("job_type") or "Full-time"
+        wt = j.get("work_type") or "On-site"
+        el = j.get("experience_level") or "Not specified"
+        facets["jobTypes"][jt] = facets["jobTypes"].get(jt, 0) + 1
+        facets["workTypes"][wt] = facets["workTypes"].get(wt, 0) + 1
+        facets["experienceLevels"][el] = facets["experienceLevels"].get(el, 0) + 1
+    return facets
+
+
+def _filter_external_jobs(
+    jobs: list[dict],
+    job_type: Optional[str] = None,
+    work_type: Optional[str] = None,
+    experience_level: Optional[str] = None,
+    location: Optional[str] = None,
+) -> list[dict]:
+    """Apply post-hoc filters to external job dicts (local jobs are pre-filtered in SQL)."""
+    if location and location != "Philippines":
+        loc_lower = location.lower().strip()
+        jobs = [j for j in jobs if loc_lower in j.get("location", "").lower()]
+
+    if job_type:
+        jt_lower = job_type.lower().strip()
+        jobs = [
+            j
+            for j in jobs
+            if j.get("type", "").lower() == jt_lower
+            or j.get("job_type", "").lower() == jt_lower
+        ]
+    if work_type:
+        wt_lower = work_type.lower().strip()
+        jobs = [j for j in jobs if (j.get("work_type") or "").lower() == wt_lower]
+    if experience_level:
+        el_lower = experience_level.lower().strip()
+        jobs = [
+            j for j in jobs if (j.get("experience_level") or "").lower() == el_lower
+        ]
+
+    return jobs
 
 
 async def fetch_jobs(
@@ -134,13 +287,14 @@ async def fetch_jobs(
     employer_ref_id: Optional[uuid.UUID] = None,
     local_only: bool = False,
 ) -> dict:
-    """Fetch job listings from Jooble API with lazy caching."""
+    """Local-first job search with optional bounded remote augmentation."""
     print(
-        f"\n[FETCH_JOBS] Searching: keywords={keywords}, location={location}, job_type={job_type}, work_type={work_type}, experience_level={experience_level}, page={page}, employer_ref_id={employer_ref_id}"
+        f"\n[FETCH_JOBS] Searching: keywords={keywords}, location={location}, "
+        f"job_type={job_type}, work_type={work_type}, experience_level={experience_level}, "
+        f"page={page}, local_only={local_only}, employer_ref_id={employer_ref_id}"
     )
 
-    # Generate cache key
-    cache_key = generate_cache_key(
+    merged_cache_key = generate_cache_key(
         "job_search_v2",
         keywords=keywords,
         location=location,
@@ -156,337 +310,112 @@ async def fetch_jobs(
         local_only=local_only,
     )
 
-    # Check Redis cache
-    from core.redis import cache_get
-
-    cached_result = cache_get(cache_key)
+    cached_result = cache_get(merged_cache_key)
     if cached_result is not None:
-        print("[FETCH_JOBS] ✓ Cache hit! Returning cached results")
+        print("[FETCH_JOBS] Cache hit — returning cached merged results")
         return cached_result
 
-    print("[FETCH_JOBS] Cache miss - fetching from Jooble API")
+    print("[FETCH_JOBS] Cache miss — building fresh results")
 
-    # Normalize location
-    search_location = location
-    if location and location != "Philippines" and "philippines" not in location.lower():
-        search_location = f"{location}, Philippines"
+    remote_error = None
 
-    # Check for API key
-    if not settings.JOOBLE_API_KEY or settings.JOOBLE_API_KEY == "your_api_key_here":
-        return {"jobs": [], "totalCount": 0, "error": "Jooble API key not configured."}
+    # ── 1. Local DB search (always runs first) ──
+    local_jobs_data: list[dict] = []
+    if session:
+        local_jobs_data = _fetch_local_jobs_with_logos(
+            session=session,
+            keywords=keywords,
+            location=location,
+            job_type=job_type,
+            work_type=work_type,
+            experience_level=experience_level,
+            salary=salary,
+            has_salary=has_salary,
+            include_inactive=include_inactive,
+            employer_ref_id=employer_ref_id,
+            local_only=local_only,
+        )
+        print(f"[FETCH_JOBS] Local jobs found: {len(local_jobs_data)}")
 
-    # Build API payload
-    api_keywords = keywords or ""
-    # Don't add job_type to keywords - filter it in Python instead
+    # ── 2. Remote augmentation (bounded, cache-backed) ──
+    remote_jobs: list[dict] = []
+    wants_remote = not employer_ref_id and not local_only
 
-    payload = {
-        "keywords": api_keywords,
-        "location": search_location or "Philippines",
-        "page": "1",
-        "ResultOnPage": str(JOOBLE_BATCH_SIZE),
-    }
-    if salary:
-        payload["salary"] = str(salary)
+    if wants_remote:
+        search_location = location
+        if location and location != "Philippines" and "philippines" not in location.lower():
+            search_location = f"{location}, Philippines"
 
-    try:
-        async with httpx.AsyncClient(
-            timeout=60.0
-        ) as client:  # Increased timeout for multi-page fetching
-            normalized_jobs = []
-            total_available = 0
-            page_num = 1
+        api_keywords = keywords or ""
 
-            # ONLY fetch from API if no employer_ref_id or local_only filter is active
-            if not employer_ref_id and not local_only:
-                # Fetch up to 1000 jobs by fetching multiple pages
-                while len(normalized_jobs) < 1000:
-                    payload = {
-                        "keywords": api_keywords,
-                        "location": search_location or "Philippines",
-                        "page": str(page_num),
-                        "ResultOnPage": str(JOOBLE_BATCH_SIZE),
-                    }
-                    if salary:
-                        payload["salary"] = str(salary)
+        remote_cache_key = generate_cache_key(
+            "jooble_remote",
+            keywords=api_keywords,
+            location=search_location,
+            salary=salary,
+            has_salary=has_salary,
+        )
 
-                    response = await client.post(
-                        JOOBLE_API_URL,
-                        json=payload,
-                        headers={"Content-Type": "application/json"},
-                    )
-                    response.raise_for_status()
-                    data = response.json()
-
-                    batch_jobs = data.get("jobs", [])
-                    total_available = int(data.get("totalCount", 0))
-
-                    if not batch_jobs:
-                        break
-
-                    # Normalize and add jobs from this page
-                    for job in batch_jobs:
-                        if len(normalized_jobs) >= 1000:
-                            break
-
-                        job_data = _normalize_job_dict(job)
-
-                        # Skip jobs without salary if requested
-                        if has_salary and not any(
-                            char.isdigit() for char in job_data.get("salary", "")
-                        ):
-                            continue
-
-                        normalized_jobs.append(job_data)
-
-                    # Stop if we've fetched all available or hit 1000
-                    if len(normalized_jobs) >= 1000 or len(batch_jobs) < JOOBLE_BATCH_SIZE:
-                        break
-
-                    page_num += 1
-
-                print(
-                    f"[FETCH_JOBS] Fetched {len(normalized_jobs)} jobs from {page_num} page(s)"
-                )
-            else:
-                reason = "Employer filter active" if employer_ref_id else "Local only filter active"
-                print(
-                    f"[FETCH_JOBS] {reason} - skipping external API fetch"
-                )
-
-            # Trigger background fetch for remaining pages beyond 1000
-            if total_available > 1000:
-                background_tasks.add_task(
-                    fetch_all_remaining_jobs,
-                    keywords=keywords,
-                    location=search_location,
+        remote_cached = cache_get(remote_cache_key)
+        if remote_cached is not None:
+            print("[FETCH_JOBS] Remote cache hit — reusing normalized Jooble data")
+            remote_jobs = remote_cached
+        elif settings.JOOBLE_API_KEY and settings.JOOBLE_API_KEY != "your_api_key_here":
+            try:
+                remote_jobs = await _fetch_and_normalize_remote(
+                    api_keywords=api_keywords,
+                    search_location=search_location or "Philippines",
                     salary=salary,
-                    start_page=page_num + 1,
-                    total_count=total_available,
-                    fetch_start_time=get_current_time_gmt8(),
-                    job_type=job_type,
                     has_salary=has_salary,
                 )
-
-            # Fetch local jobs if session is provided
-            local_jobs_data = []
-            if session:
-                query = select(JobListing)
-                if not include_inactive:
-                    query = query.where(JobListing.is_active == True)
-                
-                if keywords:
-                    query = query.where(
-                        (JobListing.title.ilike(f"%{keywords}%")) | 
-                        (JobListing.description.ilike(f"%{keywords}%")) |
-                        (JobListing.company.ilike(f"%{keywords}%"))
+                if remote_jobs:
+                    cache_set(remote_cache_key, remote_jobs, ttl=7200)
+                    print(
+                        f"[FETCH_JOBS] Cached {len(remote_jobs)} normalized remote jobs (TTL: 7200s)"
                     )
-                if location and location != "Philippines":
-                    query = query.where(JobListing.location.contains(location))
-                if job_type:
-                    query = query.where(JobListing.job_type == job_type)
-                if work_type:
-                    query = query.where(JobListing.work_type == work_type)
-                if experience_level:
-                    query = query.where(JobListing.experience_level == experience_level)
-                if employer_ref_id:
-                    query = query.where(JobListing.employer_ref_id == employer_ref_id)
-                if local_only:
-                    query = query.where(
-                        (JobListing.source_api == "Internal") | (JobListing.source_api == None)
-                    )
-                
-                local_jobs = session.exec(query).all()
-                
-                # Fetch logos for local jobs
-                from models.employers import Employer
-                employer_ref_ids = {
-                    j.employer_ref_id for j in local_jobs if j.employer_ref_id
-                }
-                logo_map = {}
-                if employer_ref_ids:
-                    employers = session.exec(
-                        select(Employer.id, Employer.company_logo_url).where(
-                            Employer.id.in_(list(employer_ref_ids))
-                        )
-                    ).all()
-                    logo_map = {emp_id: logo for emp_id, logo in employers if logo}
-                    
-                local_jobs_data = [
-                    _map_db_job_to_dict(j, logo_map.get(j.employer_ref_id))
-                    for j in local_jobs
-                ]
+            except httpx.HTTPStatusError as e:
+                remote_error = f"Jooble API error: {e.response.status_code}"
+                print(f"[FETCH_JOBS] {remote_error}")
+            except httpx.RequestError as e:
+                remote_error = f"Request failed: {str(e)}"
+                print(f"[FETCH_JOBS] {remote_error}")
+            except Exception as e:
+                remote_error = f"Unexpected error: {str(e)}"
+                traceback.print_exc()
+        else:
+            remote_error = "Jooble API key not configured."
 
-            # Merge local jobs with API results (giving priority to local jobs)
-            # Create a set of external IDs to avoid duplicates if we happen to fetch a job we already have locally
-            local_external_ids = {j.get("external_id") for j in local_jobs_data if j.get("external_id")}
-            
-            combined_jobs = local_jobs_data + [
-                j for j in normalized_jobs if j.get("id") not in local_external_ids
-            ]
-
-            print(f"[FETCH_JOBS] Combined jobs count: {len(combined_jobs)}")
-
-            # Filter by location (case-insensitive contains check) - already filtered local, but filter API ones
-            if location and location != "Philippines":
-                location_lower = location.lower().strip()
-                combined_jobs = [
-                    j
-                    for j in combined_jobs
-                    if location_lower in j.get("location", "").lower()
-                ]
-                print(
-                    f"[FETCH_JOBS] Filtered combined by location={location}: {len(combined_jobs)} jobs remain"
-                )
-
-            # Filter by job_type, work_type and experience_level - already filtered local, but filter API ones
-            if job_type:
-                job_type_lower = job_type.lower().strip()
-                combined_jobs = [
-                    j
-                    for j in combined_jobs
-                    if j.get("type", "").lower() == job_type_lower or j.get("job_type", "").lower() == job_type_lower
-                ]
-            if work_type:
-                work_type_lower = work_type.lower().strip()
-                combined_jobs = [
-                    j
-                    for j in combined_jobs
-                    if j.get("work_type", "").lower() == work_type_lower
-                ]
-            if experience_level:
-                exp_level_lower = experience_level.lower().strip()
-                combined_jobs = [
-                    j
-                    for j in combined_jobs
-                    if j.get("experience_level", "").lower() == exp_level_lower
-                ]
-
-            # Calculate facets from the combined list
-            facets = {
-                "jobTypes": {},
-                "workTypes": {},
-                "experienceLevels": {}
-            }
-            
-            for j in combined_jobs:
-                jt = j.get("type") or j.get("job_type") or "Full-time"
-                wt = j.get("work_type") or "On-site"
-                el = j.get("experience_level") or "Not specified"
-                
-                facets["jobTypes"][jt] = facets["jobTypes"].get(jt, 0) + 1
-                facets["workTypes"][wt] = facets["workTypes"].get(wt, 0) + 1
-                facets["experienceLevels"][el] = facets["experienceLevels"].get(el, 0) + 1
-
-            # Paginate
-            total_count = len(combined_jobs)
-            start_idx = (page - 1) * results_per_page
-            end_idx = start_idx + results_per_page
-            paginated_jobs = combined_jobs[start_idx:end_idx]
-            
-            result = {"jobs": paginated_jobs, "totalCount": total_count, "facets": facets}
-
-            # Cache result
-            cache_set(cache_key, result, ttl=3600)
-            print(
-                f"[FETCH_JOBS] ✓ Cached {len(paginated_jobs)} results from Jooble API (TTL: 3600s)"
-            )
-
-            return result
-
-    except httpx.HTTPStatusError as e:
-        print(f"[FETCH_JOBS] API error: {e.response.status_code}")
-        return {
-            "jobs": [],
-            "totalCount": 0,
-            "error": f"Jooble API error: {e.response.status_code}",
-        }
-    except httpx.RequestError as e:
-        print(f"[FETCH_JOBS] Request error: {str(e)}")
-        return {"jobs": [], "totalCount": 0, "error": f"Request failed: {str(e)}"}
-    except Exception as e:
-        print(f"[FETCH_JOBS] Unexpected error: {str(e)}")
-        traceback.print_exc()
-        return {"jobs": [], "totalCount": 0, "error": f"Unexpected error: {str(e)}"}
-
-
-async def fetch_all_remaining_jobs(
-    keywords: Optional[str],
-    location: Optional[str],
-    salary: Optional[int],
-    start_page: int,
-    total_count: int,
-    fetch_start_time: Optional[datetime] = None,
-    job_type: Optional[str] = None,
-    has_salary: bool = False,
-):
-
-    MAX_JOBS_LIMIT = 5000  # Fetch up to 5000 jobs in background
-
-    if fetch_start_time is None:
-        fetch_start_time = get_current_time_gmt8()
-
-    real_limit = min(total_count, MAX_JOBS_LIMIT)
-    total_pages = math.ceil(real_limit / JOOBLE_BATCH_SIZE)
-
-    if start_page > total_pages:
-        return
-
-    print(
-        f"Starting background fetch for {real_limit} jobs (Pages {start_page} to {total_pages})..."
+    # ── 3. Filter external jobs ──
+    filtered_remote = _filter_external_jobs(
+        remote_jobs,
+        job_type=job_type,
+        work_type=work_type,
+        experience_level=experience_level,
+        location=location,
     )
 
-    async with httpx.AsyncClient(
-        timeout=60.0
-    ) as client:  # Increased timeout for multi-page fetching
-        for p in range(start_page, total_pages + 1):
-            try:
-                # Small delay to be nice to API
-                await asyncio.sleep(1.0)
+    # ── 4. Merge local + remote (local-first, deduplicate by external_id) ──
+    local_external_ids = {j.get("external_id") for j in local_jobs_data if j.get("external_id")}
 
-                # construct keywords (don't add job_type here - filtered in main function)
-                api_keywords = keywords or ""
+    combined_jobs = local_jobs_data + [
+        j for j in filtered_remote if j.get("id") not in local_external_ids
+    ]
+    print(f"[FETCH_JOBS] Combined jobs count: {len(combined_jobs)}")
 
-                # Check if we should stop
-                if _shutdown_event and _shutdown_event.is_set():
-                    print(f"[JOOBLE] Background fetch aborted at page {p} due to shutdown signal")
-                    break
+    # ── 5. Facets from combined set ──
+    facets = _compute_facets(combined_jobs)
 
-                payload = {
-                    "keywords": api_keywords,
-                    "location": location or "Philippines",
-                    "page": str(p),
-                    "ResultOnPage": str(JOOBLE_BATCH_SIZE),
-                }
-                if salary:
-                    payload["salary"] = str(salary)
+    # ── 6. Paginate ──
+    total_count = len(combined_jobs)
+    start_idx = (page - 1) * results_per_page
+    end_idx = start_idx + results_per_page
+    paginated_jobs = combined_jobs[start_idx:end_idx]
 
-                response = await client.post(
-                    JOOBLE_API_URL,
-                    json=payload,
-                    headers={"Content-Type": "application/json"},
-                )
+    result: dict = {"jobs": paginated_jobs, "totalCount": total_count, "facets": facets}
+    if remote_error and not local_jobs_data:
+        result["error"] = remote_error
 
-                if response.status_code != 200:
-                    print(
-                        f"Background fetch failed for page {p}: {response.status_code}"
-                    )
-                    continue
+    cache_set(merged_cache_key, result, ttl=3600)
+    print(f"[FETCH_JOBS] Cached merged result ({len(paginated_jobs)} jobs, TTL: 3600s)")
 
-                data = response.json()
-                jobs = data.get("jobs", [])
-
-                if not jobs:
-                    break
-
-                # Just skip the database saves to avoid deadlocks
-                # Redis cache is sufficient for search performance
-                print(f"Background fetch: Retrieved page {p} ({len(jobs)} jobs)")
-
-            except Exception as e:
-                print(f"Error in background fetch loop page {p}: {e}")
-                break
-
-    # CLEANUP STALE JOBS - DISABLED for performance
-    # Aggressive cleanup on every search was causing slowdowns with 90+ DB writes per search
-    # Jobs naturally age out via the 1-hour Redis cache and can be manually invalidated if needed
-    # TODO: Implement lazy cleanup - only mark jobs inactive if not seen in 7+ days
+    return result

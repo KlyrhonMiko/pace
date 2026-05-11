@@ -2,14 +2,6 @@
  * API client for Employability Prediction endpoints
  */
 
-function getApiBaseUrl(): string {
-    if (typeof window === "undefined") {
-        return process.env.INTERNAL_API_URL || process.env.API_BASE_URL || "http://localhost:8000";
-    }
-
-    return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-}
-
 import { apiFetch } from "@/lib/api-client";
 
 export interface RealisticAssessment {
@@ -78,7 +70,7 @@ export async function getLatestPrediction(
     alumniId?: string
 ): Promise<EmployabilityResult | null> {
     try {
-        const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+        const authToken = token;
         const requestHeaders: Record<string, string> = { "Content-Type": "application/json" };
         if (authToken) {
             requestHeaders["Authorization"] = `Bearer ${authToken}`;
@@ -204,7 +196,7 @@ export async function triggerCareerTrackPrediction(
     token?: string
 ): Promise<CareerTrackResult | null> {
     try {
-        const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+        const authToken = token;
         const headers: Record<string, string> = { "Content-Type": "application/json" };
         if (authToken) {
             headers["Authorization"] = `Bearer ${authToken}`;
@@ -235,7 +227,7 @@ export async function getMyCareerTrackPredictions(
     limit: number = 10
 ): Promise<any[]> {
     try {
-        const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+        const authToken = token;
         const headers: Record<string, string> = { "Content-Type": "application/json" };
         if (authToken) {
             headers["Authorization"] = `Bearer ${authToken}`;

@@ -36,6 +36,16 @@ class Settings:
     # CORS settings
     BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173"]
 
+    # Session cookie settings (Hardened: No fallbacks)
+    SESSION_COOKIE_NAME: str = os.environ["SESSION_COOKIE_NAME"]
+    SESSION_ROLE_COOKIE_NAME: str = os.environ["SESSION_ROLE_COOKIE_NAME"]
+    SESSION_COOKIE_SECURE: bool = os.environ["SESSION_COOKIE_SECURE"].lower() == "true"
+    SESSION_COOKIE_DOMAIN: str | None = os.getenv("SESSION_COOKIE_DOMAIN") or None
+    SESSION_COOKIE_SAMESITE: str = os.environ["SESSION_COOKIE_SAMESITE"]
+
+    # CSRF protection (Hardened: No fallbacks)
+    CSRF_ORIGIN_CHECK: bool = os.environ["CSRF_ORIGIN_CHECK"].lower() == "true"
+
     class Config:
         case_sensitive = True
 

@@ -4,7 +4,7 @@ from typing import Optional
 from uuid import uuid4
 
 import jwt
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request, Response
 from fastapi.security import OAuth2PasswordBearer
 from sqlmodel import Session, select
 
@@ -27,6 +27,8 @@ from utils.timezone import ensure_aware_datetime, get_current_time_utc
 SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = settings.ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
+SESSION_COOKIE_NAME = settings.SESSION_COOKIE_NAME
+SESSION_ROLE_COOKIE_NAME = settings.SESSION_ROLE_COOKIE_NAME
 TOKEN_REVOKE_NAMESPACE = "auth:revoked:jti"
 _local_revoked_tokens: dict[str, int] = {}
 _revocation_backend_warning_emitted = False
@@ -36,6 +38,55 @@ if not SECRET_KEY:
     raise RuntimeError("JWT_SECRET_KEY environment variable is not set.")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=False)
+
+
+# ── Cookie helpers ────────────────────────────────────────────────────────
+
+
+def _cookie_max_age() -> int:
+    return ACCESS_TOKEN_EXPIRE_MINUTES * 60
+
+
+def set_session_cookie(response: Response, access_token: str) -> None:
+    response.set_cookie(
+        key=SESSION_COOKIE_NAME,
+        value=access_token,
+        httponly=True,
+        secure=settings.SESSION_COOKIE_SECURE,
+        samesite=settings.SESSION_COOKIE_SAMESITE,  # type: ignore[arg-type]
+        max_age=_cookie_max_age(),
+        path="/",
+        domain=settings.SESSION_COOKIE_DOMAIN,
+    )
+
+
+def clear_session_cookie(response: Response) -> None:
+    response.delete_cookie(
+        key=SESSION_COOKIE_NAME,
+        path="/",
+        domain=settings.SESSION_COOKIE_DOMAIN,
+    )
+
+
+def set_session_role_cookie(response: Response, user_type: str) -> None:
+    response.set_cookie(
+        key=SESSION_ROLE_COOKIE_NAME,
+        value=user_type,
+        httponly=True,
+        secure=settings.SESSION_COOKIE_SECURE,
+        samesite=settings.SESSION_COOKIE_SAMESITE,  # type: ignore[arg-type]
+        max_age=_cookie_max_age(),
+        path="/",
+        domain=settings.SESSION_COOKIE_DOMAIN,
+    )
+
+
+def clear_session_role_cookie(response: Response) -> None:
+    response.delete_cookie(
+        key=SESSION_ROLE_COOKIE_NAME,
+        path="/",
+        domain=settings.SESSION_COOKIE_DOMAIN,
+    )
 
 
 def _get_profile_fields(session: Session, db_user: User) -> dict[str, str | None]:
@@ -284,12 +335,23 @@ def authenticate_and_issue_token(session: Session, username: str, password: str)
     return build_token_response(session, user, access_token)
 
 
+def _extract_token(request: Request, bearer_token: Optional[str]) -> Optional[str]:
+    if bearer_token:
+        return bearer_token
+    cookie_token = request.cookies.get(SESSION_COOKIE_NAME)
+    if cookie_token:
+        return cookie_token
+    return None
+
+
 def get_current_user(
+    request: Request,
     token: Optional[str] = Depends(oauth2_scheme),
     session: Session = Depends(get_session),
 ) -> CurrentUser:
-    """Extract current user from JWT and ensure the account is active."""
-    if token is None:
+    """Extract current user from JWT (cookie-then-bearer) and ensure the account is active."""
+    resolved_token = _extract_token(request, token)
+    if resolved_token is None:
         raise HTTPException(
             status_code=401,
             detail=StandardResponse(
@@ -300,7 +362,7 @@ def get_current_user(
         )
 
     try:
-        payload = decode_access_token(token)
+        payload = decode_access_token(resolved_token)
         user_id = payload.get("user_id")
         user_type = payload.get("user_type")
         token_jti = payload.get("jti")

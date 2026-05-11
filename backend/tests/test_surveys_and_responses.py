@@ -153,3 +153,54 @@ def test_survey_question_remove_and_reorder(client, auth_headers):
     )
     assert remove.status_code == 200
     assert_standard_response(remove.json(), success=True)
+
+
+def test_alumni_survey_history_includes_archived_and_deleted_surveys(client, auth_headers):
+    staff_headers = auth_headers("staff")
+    alumni_headers = auth_headers("alumni")
+
+    survey = create_survey(client, staff_headers, title="History Survey")
+    survey_id = survey["survey_id"]
+    question = create_question(client, staff_headers, text="History question?")
+    question_id = question["question_id"]
+
+    add_question = client.post(
+        f"/surveys/{survey_id}/questions",
+        headers=staff_headers,
+        json={"question_id": question_id},
+    )
+    assert add_question.status_code == 201
+
+    publish = client.post(f"/surveys/{survey_id}/publish", headers=staff_headers)
+    assert publish.status_code == 200
+
+    respond = client.post(
+        f"/surveys/{survey_id}/respond",
+        headers=alumni_headers,
+        json={
+            "alumni_id": "ALMN-000001",
+            "answers": [{"question_id": question_id, "answer_bool": True}],
+        },
+    )
+    assert respond.status_code == 201
+
+    close_again = client.post(f"/surveys/{survey_id}/close", headers=staff_headers)
+    assert close_again.status_code == 200
+    archive = client.post(f"/surveys/{survey_id}/archive", headers=staff_headers)
+    assert archive.status_code == 200
+    deleted = client.delete(f"/surveys/{survey_id}", headers=staff_headers)
+    assert deleted.status_code == 200
+
+    history = client.get("/alumni/me/survey-history", headers=alumni_headers)
+    assert history.status_code == 200
+    history_payload = extract_data(assert_standard_response(history.json(), success=True))
+    survey_item = next(item for item in history_payload["surveys"] if item["survey_id"] == survey_id)
+    assert survey_item["status"] == "ARCHIVED"
+    assert survey_item["is_deleted"] is True
+
+    history_detail = client.get(f"/alumni/surveys/{survey_id}/history-detail", headers=alumni_headers)
+    assert history_detail.status_code == 200
+    history_detail_payload = extract_data(assert_standard_response(history_detail.json(), success=True))
+    assert history_detail_payload["survey_id"] == survey_id
+    assert history_detail_payload["is_deleted"] is True
+    assert len(history_detail_payload["questions"]) == 1

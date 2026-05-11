@@ -199,6 +199,28 @@ def get_jobs_with_embeddings(db: Session) -> List[JobListing]:
         )
     ).all()
 
+
+def get_embedded_job_tuples(db: Session) -> list[tuple]:
+    """Return lightweight (id, embedding, title, company, employer_ref_id) tuples for matching.
+
+    Avoids loading heavy text columns (description, requirements) for the full set;
+    the match route loads full rows only for the top-50 after similarity computes.
+    """
+    rows = db.exec(
+        select(
+            JobListing.id,
+            JobListing.vector_embedding,
+            JobListing.title,
+            JobListing.company,
+            JobListing.employer_ref_id,
+        ).where(
+            (JobListing.is_active == True)
+            & (JobListing.is_deleted == False)
+            & (JobListing.vector_embedding != None)
+        )
+    ).all()
+    return [(r[0], r[1], r[2], r[3] or "Unknown Company", r[4]) for r in rows]
+
 def create_job_application(
     db: Session,
     job_listing: JobListing,

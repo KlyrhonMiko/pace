@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Menu, Bell, X, CheckCheck, ExternalLink } from "lucide-react";
 import DateWidget from "./DateWidget";
 import { useAuth } from "@/context/AuthContext";
@@ -22,8 +22,7 @@ export default function DashboardHeader({
 }: DashboardHeaderProps) {
     const { user } = useAuth();
     const router = useRouter();
-    const token = useMemo(() => typeof window !== "undefined" ? window.localStorage.getItem("token") : null, []);
-    const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications(token);
+    const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications(user?.access_token || null);
 
     const [mounted, setMounted] = useState(false);
     const [panelOpen, setPanelOpen] = useState(false);

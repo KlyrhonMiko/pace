@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { LogoutConfirmModal } from "@/components/LogoutConfirmModal";
 
@@ -37,13 +37,19 @@ export default function EmployerLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const { user, logout } = useAuth();
-  const isProfileActive = pathname === "/dashboard/employer/profile";
+    const { user, logout, getDashboardUrl } = useAuth();
+    const isProfileActive = pathname === "/dashboard/employer/profile";
+    const router = useRouter();
 
-  // Fix hydration mismatch: only render user-dependent content after mount
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    useEffect(() => {
+        if (user && user.user_type !== "EMPLOYER") {
+            router.replace(getDashboardUrl());
+        }
+    }, [user, getDashboardUrl, router]);
 
   return (
     <div className="flex h-screen w-full bg-gray-50">

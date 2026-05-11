@@ -4,7 +4,7 @@ from enum import Enum
 from typing import Optional
 
 from sqlmodel import Field, SQLModel
-from sqlalchemy import Column, LargeBinary
+from sqlalchemy import Column, LargeBinary, Index
 
 from models.base import BaseTable
 from utils.timezone import get_current_time_gmt8
@@ -47,6 +47,11 @@ class JobListingBase(SQLModel):
 
 class JobListing(BaseTable, JobListingBase, table=True):
     __tablename__ = "job_listings"
+    __table_args__ = (
+        Index("ix_job_listings_deleted_active", "is_deleted", "is_active"),
+        Index("ix_job_listings_source_api", "source_api"),
+        Index("ix_job_listings_external_id", "external_id"),
+    )
 
     vector_embedding: Optional[bytes] = Field(default=None, sa_column=Column(LargeBinary))
 

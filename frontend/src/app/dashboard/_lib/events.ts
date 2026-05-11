@@ -15,6 +15,7 @@ export interface Event {
     attendees: number;
     image_url?: string | null;
     is_registered?: boolean | null;
+    is_deleted?: boolean;
     created_at: string;
     updated_at: string;
 }
@@ -31,6 +32,7 @@ export async function fetchEvents(params?: {
     search?: string;
     event_type?: string;
     status?: string;
+    include_deleted?: boolean;
     limit?: number;
     offset?: number;
     sort_by?: string;
@@ -40,7 +42,7 @@ export async function fetchEvents(params?: {
     searchParams.set("limit", String(params?.limit ?? 10));
     searchParams.set("offset", String(params?.offset ?? 0));
     searchParams.set("status", params?.status ?? "active");
-    searchParams.set("include_deleted", "false");
+    searchParams.set("include_deleted", params?.include_deleted ? "true" : "false");
     searchParams.set("sort_by", params?.sort_by ?? "date");
     searchParams.set("sort_order", params?.sort_order ?? "asc");
     
@@ -60,6 +62,22 @@ export async function fetchEvents(params?: {
     } catch (error) {
         console.error("Failed to fetch events:", error);
         return { events: [], total: 0, facets: {} };
+    }
+}
+
+export async function fetchEventHistory(): Promise<{ events: Event[]; total: number }> {
+    try {
+        const json = await apiFetch<any>("/events/my-history");
+        if (json.success && json.data) {
+            return {
+                events: json.data.events ?? [],
+                total: json.data.total ?? 0,
+            };
+        }
+        return { events: [], total: 0 };
+    } catch (error) {
+        console.error("Failed to fetch event history:", error);
+        return { events: [], total: 0 };
     }
 }
 

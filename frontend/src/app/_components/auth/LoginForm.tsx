@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Loader2, Lock, User, ArrowRight, Eye, EyeOff, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
@@ -20,7 +20,6 @@ interface LoginFormProps {
 }
 
 export function LoginForm({ onSuccess, isModal, onRegisterAlumniClick, onRegisterEmployerClick, showRegistration = true }: LoginFormProps) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
@@ -31,6 +30,36 @@ export function LoginForm({ onSuccess, isModal, onRegisterAlumniClick, onRegiste
     password: "",
   });
   const isModalView = Boolean(isModal);
+
+  const isSafeRedirect = (path: string | null): path is string => {
+    return !!path && path.startsWith("/") && !path.startsWith("//") && !path.includes("://");
+  };
+
+  const getRoleDashboard = (userType: string): string => {
+    switch (userType) {
+      case "ADMIN": return "/dashboard/admin";
+      case "STAFF": return "/dashboard/faculty";
+      case "EMPLOYER": return "/dashboard/employer";
+      case "USER": return "/dashboard/alumni";
+      default: return "/dashboard/alumni";
+    }
+  };
+
+  const isRedirectAllowedForRole = (path: string, userType: string): boolean => {
+    if (path.startsWith("/dashboard/")) {
+      const allowedPrefix = getRoleDashboard(userType);
+      return path === allowedPrefix || path.startsWith(allowedPrefix + "/");
+    }
+    return true;
+  };
+
+  const resolveLoginRedirect = (userType: string): string => {
+    const customRedirect = searchParams.get("redirect");
+    if (isSafeRedirect(customRedirect) && isRedirectAllowedForRole(customRedirect, userType)) {
+      return customRedirect;
+    }
+    return getRoleDashboard(userType);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,38 +85,15 @@ export function LoginForm({ onSuccess, isModal, onRegisterAlumniClick, onRegiste
         // Use global login handler
         login({
           ...response.data,
-          access_token: response.data.access_token
         });
 
         // If account requires a forced first-login password reset, redirect there first
         if (response.data.force_password_reset) {
-          router.push("/change-password");
-          if (onSuccess) onSuccess();
+          window.location.href = "/change-password";
           return;
         }
 
-        // Check for a custom redirect URL from the query string (e.g. ?redirect=/surveys/SRVY-XXXXX)
-        // This is set by the standalone survey page and survives hard redirects.
-        const customRedirect = searchParams.get("redirect");
-        if (customRedirect) {
-          router.push(customRedirect);
-        } else {
-          // Redirect based on user_type
-          if (response.data.user_type === "ADMIN") {
-            router.push("/dashboard/admin");
-          } else if (response.data.user_type === "STAFF") {
-            router.push("/dashboard/faculty");
-          } else if (response.data.user_type === "EMPLOYER") {
-            router.push("/dashboard/employer");
-          } else {
-            router.push("/dashboard/alumni");
-          }
-        }
-
-        // Call success callback if provided
-        if (onSuccess) {
-          onSuccess();
-        }
+        window.location.href = resolveLoginRedirect(response.data.user_type);
       }
     } catch (error: unknown) {
       let message = "Login failed. Please try again.";

@@ -14,18 +14,15 @@ from services.queries.audit import normalize_actor_ref, stamp_create
 
 
 def _generate_tl_id(session: Session) -> str:
-    """Generate next transaction log ID in TL-XXXXXX format."""
-    existing_ids = session.exec(select(TransactionLog.tl_id)).all()
-    last_id = max(existing_ids) if existing_ids else None
-    if last_id:
-        try:
-            parts = last_id.split("-")
-            next_num = int(parts[1]) + 1 if len(parts) >= 2 else 1
-        except (ValueError, IndexError):
-            next_num = 1
-    else:
-        next_num = 1
-    return f"TL-{next_num:06d}"
+    """Generate a collision-resistant human-readable transaction log id."""
+    for _ in range(10):
+        candidate = f"TL-{uuid.uuid4().hex[:8].upper()}"
+        exists = session.exec(
+            select(TransactionLog.id).where(TransactionLog.tl_id == candidate)
+        ).first()
+        if not exists:
+            return candidate
+    raise RuntimeError("Unable to generate a unique transaction log id")
 
 
 def _normalize_payload(payload: Any) -> Any:

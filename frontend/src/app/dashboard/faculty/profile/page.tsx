@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { apiFetch } from "@/lib/api-client";
 import PageHeader from "@/components/dashboard/PageHeader";
 import { User, Settings, Lock, Loader2, Check, Pencil, GraduationCap, Mail, Fingerprint, Clock } from "lucide-react";
 import { toast } from "sonner";
@@ -220,13 +221,7 @@ export default function FacultyProfilePage() {
         async function fetchFullProfile() {
             if (!user?.user_id) return;
             try {
-                const token = localStorage.getItem("token");
-                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/users/${user.user_id}`, {
-                    headers: {
-                        "Authorization": `Bearer ${token}`
-                    }
-                });
-                const result = await response.json();
+                const result = await apiFetch(`/users/${user.user_id}`);
                 if (result.success) {
                     setFullUser(result.data);
                     setPersonalDraft({
@@ -250,25 +245,19 @@ export default function FacultyProfilePage() {
         if (!user?.user_id) return;
         setIsSavingPersonal(true);
         try {
-            const token = localStorage.getItem("token");
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/users/${user.user_id}`, {
-                method: "PATCH",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify(personalDraft)
-            });
-            const result = await response.json();
+            const result = await apiFetch(`/users/${user.user_id}`, { method: "PATCH", body: personalDraft });
             if (result.success) {
-                setFullUser({ ...fullUser, ...personalDraft });
-                updateUser(personalDraft);
+                setFullUser(result.data);
+                updateUser({
+                    first_name: result.data.first_name,
+                    last_name: result.data.last_name
+                });
                 setEditingPersonal(false);
                 toast.success("Personal information updated");
             } else {
                 toast.error(result.message || "Failed to update personal info");
             }
-        } catch (error) {
+        } catch {
             toast.error("An error occurred");
         } finally {
             setIsSavingPersonal(false);
@@ -279,24 +268,15 @@ export default function FacultyProfilePage() {
         if (!user?.user_id) return;
         setIsSavingAccount(true);
         try {
-            const token = localStorage.getItem("token");
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/users/${user.user_id}`, {
-                method: "PATCH",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify(accountDraft)
-            });
-            const result = await response.json();
+            const result = await apiFetch(`/users/${user.user_id}`, { method: "PATCH", body: accountDraft });
             if (result.success) {
-                setFullUser({ ...fullUser, ...accountDraft });
+                setFullUser(result.data);
                 setEditingAccount(false);
                 toast.success("Account information updated");
             } else {
                 toast.error(result.message || "Failed to update account info");
             }
-        } catch (error) {
+        } catch {
             toast.error("An error occurred");
         } finally {
             setIsSavingAccount(false);
@@ -323,19 +303,13 @@ export default function FacultyProfilePage() {
 
         setIsSavingPassword(true);
         try {
-            const token = localStorage.getItem("token");
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/users/${user.user_id}`, {
+            const result = await apiFetch(`/users/${user.user_id}`, {
                 method: "PATCH",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify({
+                body: {
                     current_password: passwordDraft.current_password,
                     password: passwordDraft.password
-                })
+                }
             });
-            const result = await response.json();
             if (result.success) {
                 setEditingPassword(false);
                 setPasswordDraft({ current_password: "", password: "", confirm_password: "" });
@@ -346,7 +320,7 @@ export default function FacultyProfilePage() {
             } else {
                 toast.error(result.message || "Failed to update password");
             }
-        } catch (error) {
+        } catch {
             toast.error("An error occurred");
         } finally {
             setIsSavingPassword(false);

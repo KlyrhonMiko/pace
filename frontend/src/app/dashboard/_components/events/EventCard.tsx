@@ -1,4 +1,4 @@
-import { Calendar, MapPin, Clock, Edit2, Trash2, Users, ArrowUpRight } from "lucide-react";
+import { Calendar, MapPin, Clock, Edit2, Trash2, Users, ArrowUpRight, CircleSlash } from "lucide-react";
 import { formatEventDate, getMonthAbbreviation, getDayNumber, type Event } from "@/app/dashboard/_lib/events";
 import { Button } from "@/components/ui/button";
 
@@ -22,10 +22,11 @@ export default function EventCard({
     const spotsRemaining = event.capacity ? event.capacity - event.attendees : 0;
     const month = getMonthAbbreviation(event.date);
     const day = getDayNumber(event.date);
+    const isDeleted = event.is_deleted === true;
 
     return (
         <div
-            className="group relative overflow-hidden rounded-2xl border bg-white transition-all duration-500 hover:-translate-y-0.5"
+            className={`group relative overflow-hidden rounded-2xl border bg-white transition-all duration-500 ${isDeleted ? 'opacity-75' : 'hover:-translate-y-0.5'}`}
             style={{
                 borderColor: `color-mix(in srgb, ${accent} 14%, #e2e8f0)`,
                 boxShadow: `0 1px 3px rgba(0,0,0,0.04)`,
@@ -111,10 +112,17 @@ export default function EventCard({
                                 {event.event_type}
                             </span>
 
+                            {isDeleted && (
+                                <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-bold tracking-wide uppercase text-slate-500">
+                                    <CircleSlash className="h-3 w-3" strokeWidth={2.5} />
+                                    Deleted
+                                </span>
+                            )}
+
                         </div>
 
                         <div className="flex items-center gap-2">
-                            {onToggleRegistration && (
+                            {onToggleRegistration && !isDeleted && (
                                 <div className="flex items-center">
                                     {event.is_registered ? (
                                         <button
@@ -193,13 +201,13 @@ export default function EventCard({
                     </div>
 
                     {/* Title */}
-                    <h3 className="text-lg font-bold text-slate-900 leading-tight line-clamp-2 transition-colors">
+                    <h3 className={`text-lg font-bold leading-tight line-clamp-2 transition-colors ${isDeleted ? 'text-slate-500' : 'text-slate-900'}`}>
                         {event.event_name}
                     </h3>
 
                     {/* Description */}
                     {event.description && (
-                        <p className="mt-1.5 text-[13px] leading-relaxed text-slate-500 line-clamp-2">
+                        <p className={`mt-1.5 text-[13px] leading-relaxed line-clamp-2 ${isDeleted ? 'text-slate-400' : 'text-slate-500'}`}>
                             {event.description}
                         </p>
                     )}

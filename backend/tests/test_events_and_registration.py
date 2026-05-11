@@ -76,3 +76,24 @@ def test_event_crud_image_and_registration_flow(client, auth_headers, db_session
     restored = client.post(f"/events/{event_id}/restore", headers=staff_headers)
     assert restored.status_code == 200
     assert_standard_response(restored.json(), success=True)
+
+
+def test_event_history_includes_deleted_registered_events(client, auth_headers):
+    staff_headers = auth_headers("staff")
+    alumni_headers = auth_headers("alumni")
+
+    event_type = create_event_type(client, auth_headers("admin"))
+    event = create_event(client, staff_headers, event_type_name=event_type["event_name"])
+    event_id = event["event_id"]
+
+    register = client.post(f"/events/{event_id}/register", headers=alumni_headers)
+    assert register.status_code == 200
+
+    deleted = client.delete(f"/events/{event_id}", headers=staff_headers)
+    assert deleted.status_code == 200
+
+    history = client.get("/events/my-history", headers=alumni_headers)
+    assert history.status_code == 200
+    history_payload = extract_data(assert_standard_response(history.json(), success=True))
+    event_item = next(item for item in history_payload["events"] if item["event_id"] == event_id)
+    assert event_item["is_deleted"] is True

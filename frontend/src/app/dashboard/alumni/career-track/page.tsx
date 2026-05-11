@@ -15,7 +15,7 @@ import { Compass, ArrowRight } from "lucide-react";
 export default async function CareerTrackPage() {
     // 1. Get auth token
     const cookieStore = await cookies();
-    const token = cookieStore.get("token")?.value;
+    const token = cookieStore.get("pace_session")?.value;
 
     let profileData = null;
     let latestPrediction = null;

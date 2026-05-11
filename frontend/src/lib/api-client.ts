@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import { getApiBaseUrl } from "@/lib/api-base-url";
 
 interface ApiOptions extends Omit<RequestInit, "body"> {
   body?: any;
@@ -16,21 +16,14 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiFetch<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
+export async function apiFetch<T = any>(endpoint: string, options: ApiOptions = {}): Promise<T> {
   const { body, ...customConfig } = options;
 
   const headers = { ...customConfig.headers } as Record<string, string>;
 
-  // Automatically add Authorization header if token exists
-  if (typeof window !== "undefined") {
-    const token = localStorage.getItem("token");
-    if (token && !headers["Authorization"]) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-  }
-
   const config: RequestInit = {
     ...customConfig,
+    credentials: "include",
   };
 
   if (body) {
@@ -43,7 +36,12 @@ export async function apiFetch<T>(endpoint: string, options: ApiOptions = {}): P
   }
   config.headers = headers;
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+  const response = await fetch(`${getApiBaseUrl()}${endpoint}`, config);
+
+  // Successful 204/205 responses intentionally have no body.
+  if (response.status === 204 || response.status === 205) {
+    return {} as T;
+  }
 
   let data: Record<string, unknown>;
   try {
@@ -64,14 +62,8 @@ export async function apiFetch<T>(endpoint: string, options: ApiOptions = {}): P
     if (response.status === 401 && typeof window !== "undefined") {
       const isLoginAttempt = endpoint === "/auth/login" || endpoint === "/auth/token";
       if (!isLoginAttempt) {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-        document.cookie = "userType=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-
         const isAlreadyOnHome = window.location.pathname === "/" || window.location.pathname === "";
         if (!isAlreadyOnHome) {
-          // Preserve the current path so the login form can redirect back after auth
           const redirectParam = `&redirect=${encodeURIComponent(window.location.pathname)}`;
           if (errorCode === "ACCOUNT_DEACTIVATED") {
             window.location.href = `/?login=true&deactivated=true${redirectParam}`;

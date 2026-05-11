@@ -482,5 +482,5 @@ def _build_college_dept_detail_response(session: Session, college_dept_id: str) 
     return StandardResponse(
         success=True, code=SuccessCode.COLLEGE_DEPT_RETRIEVED.value,
         message=f"College department {college_dept_id} retrieved successfully",
-        data=CollegeDeptPublic.model_validate(dept)
+        data=dept
     )

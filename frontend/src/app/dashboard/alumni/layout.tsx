@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { LogoutConfirmModal } from "@/components/LogoutConfirmModal";
 
@@ -127,7 +127,18 @@ export default function AlumniLayout({
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
     const [mounted, setMounted] = useState(false);
-    const { user, logout } = useAuth();
+    const { user, logout, getDashboardUrl } = useAuth();
+    const router = useRouter();
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    useEffect(() => {
+        if (user && user.user_type !== "USER") {
+            router.replace(getDashboardUrl());
+        }
+    }, [user, getDashboardUrl, router]);
 
     // Auto-expand the group that contains the current route.
     const activeGroupId = useMemo(() => {

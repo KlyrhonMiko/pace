@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { getApiBaseUrl } from "@/lib/api-base-url";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE_URL = getApiBaseUrl();
 
 export interface Notification {
     id: string;
@@ -29,14 +30,16 @@ export function useNotifications(token: string | null): UseNotificationsReturn {
     const eventSourceRef = useRef<EventSource | null>(null);
 
     const fetchNotifications = useCallback(async () => {
-        if (!token) return;
         try {
             const res = await fetch(`${API_BASE_URL}/notifications?limit=50`, {
-                headers: { Authorization: `Bearer ${token}` },
+                credentials: "include",
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
             });
             if (res.ok) {
                 const json = await res.json();
                 setNotifications(json.data || []);
+            } else if (res.status === 401) {
+                setNotifications([]);
             }
         } catch (e) {
             console.error("Failed to fetch notifications:", e);
@@ -45,20 +48,17 @@ export function useNotifications(token: string | null): UseNotificationsReturn {
 
     // SSE Connection with exponential backoff
     useEffect(() => {
-        if (!token) {
-            setIsConnected(false);
-            return;
-        }
-
         let isMounted = true;
         let es: EventSource | null = null;
-        let retryDelay = 1000; // Start at 1 second
+        let retryDelay = 1000;
 
         const connect = () => {
-            if (!token || !isMounted) return;
-            
-            const url = `${API_BASE_URL}/notifications/stream?token=${encodeURIComponent(token)}`;
-            es = new EventSource(url);
+            if (!isMounted) return;
+
+            const url = token
+                ? `${API_BASE_URL}/notifications/stream?token=${encodeURIComponent(token)}`
+                : `${API_BASE_URL}/notifications/stream`;
+            es = new EventSource(url, { withCredentials: true });
 
             es.onopen = () => {
                 if (isMounted) {
@@ -106,11 +106,11 @@ export function useNotifications(token: string | null): UseNotificationsReturn {
 
     const markAsRead = useCallback(
         async (id: string) => {
-            if (!token) return;
             try {
                 const res = await fetch(`${API_BASE_URL}/notifications/${id}/read`, {
                     method: "PATCH",
-                    headers: { Authorization: `Bearer ${token}` },
+                    credentials: "include",
+                    headers: token ? { Authorization: `Bearer ${token}` } : {},
                 });
                 if (res.ok) {
                     setNotifications((prev) =>
@@ -125,11 +125,11 @@ export function useNotifications(token: string | null): UseNotificationsReturn {
     );
 
     const markAllAsRead = useCallback(async () => {
-        if (!token) return;
         try {
             const res = await fetch(`${API_BASE_URL}/notifications/read-all`, {
                 method: "POST",
-                headers: { Authorization: `Bearer ${token}` },
+                credentials: "include",
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
             });
             if (res.ok) {
                 setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));

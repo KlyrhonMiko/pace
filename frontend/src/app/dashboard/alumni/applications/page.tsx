@@ -1,11 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import {
-    LayoutDashboard,
-} from "lucide-react";
 import PageHeader from "@/components/dashboard/PageHeader";
-import { getMyApplications, getJobListing, JoobleJob } from "@/app/dashboard/_lib/jobs-api";
+import { getMyApplications, getJobListing } from "@/app/dashboard/_lib/jobs-api";
 import ApplicationList from "./_components/ApplicationList";
 import ApplicationFilters from "./_components/ApplicationFilters";
 import { ApplicationStatus } from "./_components/ApplicationList";
@@ -22,6 +19,7 @@ interface Application {
     logo?: string;
     interview_date?: string | null;
     interview_link?: string | null;
+    job_deleted?: boolean;
 }
 
 export default function AppliedJobsPage() {
@@ -67,7 +65,11 @@ export default function AppliedJobsPage() {
         setSelectedStatus("All");
     };
 
-    const handleViewDetails = async (jobId: string) => {
+    const handleViewDetails = async (jobId: string, jobDeleted?: boolean) => {
+        if (jobDeleted) {
+            toast.error("This job has been deleted by the employer.");
+            return;
+        }
         if (isFetchingJob) return;
         setIsFetchingJob(true);
         const loadingToast = toast.loading("Fetching job details...");

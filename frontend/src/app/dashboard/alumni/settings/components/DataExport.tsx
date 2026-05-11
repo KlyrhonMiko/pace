@@ -5,6 +5,7 @@ import { Download, FileText, Loader2 } from "lucide-react";
 import { SettingsCard } from "./SettingsUI";
 import { toast } from "sonner";
 import { PDFExportRenderer, PDFExportHandle } from "./PDFExportRenderer";
+import { getApiBaseUrl } from "@/lib/api-base-url";
 
 export function DataExport() {
     const [isDownloadingExcel, setIsDownloadingExcel] = useState(false);
@@ -14,12 +15,9 @@ export function DataExport() {
     const handleDownloadExcel = async () => {
         setIsDownloadingExcel(true);
         try {
-            const token = localStorage.getItem("token");
-            const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+            const baseUrl = getApiBaseUrl();
             const response = await fetch(`${baseUrl}/alumni/me/export/excel`, {
-                headers: {
-                    "Authorization": `Bearer ${token}`
-                }
+                credentials: "include",
             });
             
             if (!response.ok) throw new Error("Failed to download data");

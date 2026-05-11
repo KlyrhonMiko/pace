@@ -33,7 +33,14 @@ function NavbarContent() {
 
   useEffect(() => {
     setMounted(true);
-    if (searchParams.get("login") === "true") {
+    const registerParam = searchParams.get("register");
+    if (registerParam) {
+      setRegisterRole(registerParam === "Employer" ? "Employer" : "Alumni");
+      setIsRegisterModalOpen(true);
+    } else if (searchParams.get("login") === "true") {
+      setIsLoginModalOpen(true);
+    }
+    if (searchParams.get("force") === "true") {
       setIsLoginModalOpen(true);
     }
 
@@ -143,4 +150,3 @@ function NavbarContent() {
     </>
   );
 }
-

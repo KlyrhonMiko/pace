@@ -1,4 +1,5 @@
 import asyncio
+from urllib.parse import urlparse
 from fastapi import FastAPI, Request
 from fastapi import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -48,6 +49,26 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def csrf_origin_check(request: Request, call_next):
+    if settings.CSRF_ORIGIN_CHECK and request.method.upper() in ("POST", "PATCH", "PUT", "DELETE"):
+        source = request.headers.get("origin") or request.headers.get("referer")
+        if source:
+            parsed = urlparse(source)
+            source_origin = f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
+            allowed = [f"{urlparse(u).scheme}://{urlparse(u).netloc}".rstrip("/") for u in settings.BACKEND_CORS_ORIGINS]
+            if source_origin not in allowed:
+                return JSONResponse(
+                    status_code=403,
+                    content=StandardResponse(
+                        success=False,
+                        code=ErrorCode.FORBIDDEN.value,
+                        message="Cross-origin requests are not allowed for mutations",
+                    ).model_dump(mode="json"),
+                )
+    return await call_next(request)
 
 # Apply optional development auth bypass before router attachment.
 apply_dev_auth_override(app)
